@@ -1,13 +1,12 @@
-import pytest
 from typing import Optional
-import chex
 
+import chex
 import jax.numpy as jnp
 import numpy as np
+import pytest
 from jaxtyping import Array
 
 from differt.geometry.utils import pairwise_cross
-
 from tests.utils import asjaxarray
 
 

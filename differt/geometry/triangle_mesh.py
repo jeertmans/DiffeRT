@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from functools import cached_property
 from pathlib import Path
 
-import json
+import jax.numpy as jnp
 import open3d as o3d
 import plotly.graph_objects as go
 from chex import dataclass
 from jaxtyping import Array, Float, UInt
-from functools import cached_property
-import jax.numpy as jnp
 
 from .utils import pairwise_cross
 

@@ -1,7 +1,6 @@
-from jaxtyping import Array, Float, jaxtyped
-
-from typeguard import typechecked as typechecker
 import jax.numpy as jnp
+from jaxtyping import Array, Float, jaxtyped
+from typeguard import typechecked as typechecker
 
 
 @jaxtyped

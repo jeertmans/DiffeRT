@@ -1,9 +1,9 @@
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
-from typing import Iterator
 
 from differt.geometry import TriangleMesh
-
-from pathlib import Path
 
 
 @pytest.fixture(scope="module")
