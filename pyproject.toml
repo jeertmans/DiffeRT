@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "differt"
+version = "0.1.0"
+description = ""
+authors = ["Jérome Eertmans <jeertmans@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+jaxtyping = "^0.2.23"
+numpy = "^1.26.1"
+jax = {extras = ["cpu"], version = "^0.4.19"}
+chex = "^0.1.84"
+scikit-learn = "^1.3.2"
+open3d-cpu = "^0.17.0"
+plotly = "^5.18.0"
+open3d = "^0.17.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.3"
+
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+extend-ignore = [
+#  "D100",
+#  "D101",
+#  "D102",
+#  "D103",
+#  "D104",
+#  "D105",
+#  "D106",
+#  "D107",
+#  "D203",
+#  "D205",
+#  "D212",
+#  "E501"
+]
+extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
+isort = {known-first-party = ["differt", "tests"]}
+target-version = "py39"
