@@ -1,29 +1,36 @@
-from typing import Optional
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 
 import chex
 import jax.numpy as jnp
-import numpy as np
 import pytest
-from jaxtyping import Array
+from chex import Array
 
 from differt.geometry.utils import pairwise_cross
-from tests.utils import asjaxarray
+from tests.utils import random_inputs
+
+
+def test_pairwise_cross() -> None:
+    u = jnp.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    cross = pairwise_cross(u, u)
+    got = jnp.linalg.norm(cross, axis=-1)
+    expected = jnp.ones((3, 3)) - jnp.eye(3, 3)
+    chex.assert_trees_all_equal(got, expected)
 
 
 @pytest.mark.parametrize(
-    ("u,v,raises"),
+    "u,v,expectation",
     [
-        (np.random.rand(10, 3), np.random.rand(10, 3), None),
-        (np.random.rand(10, 3), np.random.rand(20, 3), None),
-        (np.random.rand(10, 4), np.random.rand(20, 4), TypeError),
+        ((10, 3), (10, 3), does_not_raise()),
+        ((10, 3), (20, 3), does_not_raise()),
+        ((10, 4), (20, 4), pytest.raises(TypeError)),
     ],
 )
-@asjaxarray("u", "v")
-def test_pairwise_cross(u: Array, v: Array, raises: Optional[Exception]) -> None:
-    if raises:
-        with pytest.raises(raises):
-            _ = pairwise_cross(u, v)
-    else:
+@random_inputs("u", "v")
+def test_pairwise_cross_random_inputs(
+    u: Array, v: Array, expectation: AbstractContextManager[Exception]
+) -> None:
+    with expectation:
         got = pairwise_cross(u, v)
 
         for i in range(u.shape[0]):
