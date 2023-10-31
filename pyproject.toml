@@ -37,7 +37,8 @@ pytest = "^7.4.3"
 [tool.ruff]
 extend-ignore = [
   "D203",  # no-blank-line-before-class
-  "D212"  # multi-line-summary-second-line
+  "D212",  # multi-line-summary-second-line
+  "F722"  # Syntax error in forward annotation
 ]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
 ignore-init-module-imports = true

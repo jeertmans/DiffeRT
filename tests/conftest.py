@@ -1,7 +1,8 @@
-import pytest
+from collections.abc import Iterator
 
 import jax
-from typing import Iterator
+import pytest
+
 
 @pytest.fixture
 def seed() -> Iterator[int]:
@@ -11,4 +12,3 @@ def seed() -> Iterator[int]:
 @pytest.fixture
 def key(seed) -> Iterator[jax.random.PRNGKey]:
     return jax.random.key(seed)
-
