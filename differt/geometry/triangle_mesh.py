@@ -32,35 +32,40 @@ def triangles_contain_vertices_assuming_inside_same_plane(
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
 
-    # Vectors from test vertex to every triangle vertex
-    u = triangle_vertices - vertices[..., None]
-    assert u.shape == triangle_vertices.shape
-
+    # [*batch 3]
     p0 = triangle_vertices[..., 0, :]
     p1 = triangle_vertices[..., 1, :]
     p2 = triangle_vertices[..., 2, :]
 
+    # Vectors from test vertex to every triangle vertex
+    # [*batch 3]
+    u0 = p0 - vertices
+    u1 = p1 - vertices
+    u2 = p2 - vertices
+
     # Vectors from one triangle vertex to the next
-    v0 = p0 - p2
-    v1 = p1 - p2
-    v2 = p2 - p1
+    # [*batch 3]
+    v0 = p1 - p0
+    v1 = p2 - p1
+    v2 = p0 - p2
 
     # Cross product between corresponding vectors
-    n0 = jnp.cross(u[..., 0, :], v0)
-    n1 = jnp.cross(u[..., 1, :], v1)
-    n2 = jnp.cross(u[..., 2, :], v2)
+    # [*batch 3]
+    n0 = jnp.cross(u0, v0)
+    n1 = jnp.cross(u1, v1)
+    n2 = jnp.cross(u2, v2)
 
     # Dot product between all pairs of 'normal' vectors
+    # [*batch]
     d01 = jnp.sum(n0 * n1, axis=-1)
     d12 = jnp.sum(n1 * n2, axis=-1)
     d20 = jnp.sum(n2 * n0, axis=-1)
 
-    print(d01,"\n", d12, "\n", d20)
-
-    signs = jnp.sign(d01) + jnp.sign(d12) + jnp.sign(d20)
+    # [*batch]
+    sum_signs = jnp.sign(d01) + jnp.sign(d12) + jnp.sign(d20)
 
     # The vertices are contained if all signs are the same
-    return jnp.abs(jnp.sum(signs, axis=-1)) == 3
+    return jnp.abs(sum_signs) == 3
 
 
 @dataclass
