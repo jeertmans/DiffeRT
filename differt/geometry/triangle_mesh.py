@@ -7,9 +7,60 @@ import jax.numpy as jnp
 import open3d as o3d
 import plotly.graph_objects as go
 from chex import dataclass
-from jaxtyping import Array, Float, UInt
+from jaxtyping import Array, Bool, Float, UInt
 
 from .utils import pairwise_cross
+
+
+def triangles_contain_vertices_assuming_inside_same_plane(
+    triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
+) -> Bool[Array, " *batch"]:
+    """
+    Return whether each triangle contains the corresponding vertex, but
+    assuming the vertex lies in the same plane as the triangle.
+
+    This is especially useful when combined with the
+    :func:`image_method<differt.rt.image_method.image_method>`, as the paths returned
+    will also lie in the same plane as the mirrors, but may be outside of the actual reflector,
+    e.g., a triangular surface.
+
+    Args:
+        triangle_vertices: an array of triangle vertices.
+        vertices: an array of vertices that will be checked.
+
+    Returns:
+        A boolean array indicating whether vertices are in the corresponding triangles or not.
+    """
+
+    # Vectors from test vertex to every triangle vertex
+    u = triangle_vertices - vertices[..., None]
+    assert u.shape == triangle_vertices.shape
+
+    p0 = triangle_vertices[..., 0, :]
+    p1 = triangle_vertices[..., 1, :]
+    p2 = triangle_vertices[..., 2, :]
+
+    # Vectors from one triangle vertex to the next
+    v0 = p0 - p2
+    v1 = p1 - p2
+    v2 = p2 - p1
+
+    # Cross product between corresponding vectors
+    n0 = jnp.cross(u[..., 0, :], v0)
+    n1 = jnp.cross(u[..., 1, :], v1)
+    n2 = jnp.cross(u[..., 2, :], v2)
+
+    # Dot product between all pairs of 'normal' vectors
+    d01 = jnp.sum(n0 * n1, axis=-1)
+    d12 = jnp.sum(n1 * n2, axis=-1)
+    d20 = jnp.sum(n2 * n0, axis=-1)
+
+    print(d01,"\n", d12, "\n", d20)
+
+    signs = jnp.sign(d01) + jnp.sign(d12) + jnp.sign(d20)
+
+    # The vertices are contained if all signs are the same
+    return jnp.abs(jnp.sum(signs, axis=-1)) == 3
 
 
 @dataclass
@@ -72,4 +123,7 @@ class TriangleMesh:
                 )
             ]
         )
+        transmitters = jnp.array([0.0, 4.9352, 22.0])
+        receivers = jnp.array([0.0, 10.034, 1.5])
+
         fig.show()

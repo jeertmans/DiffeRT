@@ -71,7 +71,7 @@ def intersection_of_line_segments_with_planes(
             segments.
 
             .. note::
-                
+
                 ``segment_starts`` and ``segment_ends`` are interchangeable.
         segment_ends: an array of vertices describing the end of line segments.
         plane_vertices: an array of plane vertices. For each plane, any
