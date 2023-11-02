@@ -10,6 +10,7 @@ from chex import Array
 def random_inputs(
     *arg_names: str,
     sampler: Callable[[jax.random.PRNGKey, Sequence[int]], Array] = jax.random.uniform,
+    seed: int = 0,
 ) -> Callable[..., Any]:
     """
     Wrap a function so that specified input arguments are
@@ -22,31 +23,19 @@ def random_inputs(
         arrays.
     """
     arg_names = set(arg_names)  # Repeating names is useless
-    n = len(arg_names)
 
     def wrapper(fun: Callable[..., Any]) -> Callable[..., Any]:
         sig = inspect.signature(fun)
 
-        assert (
-            "key" not in sig.parameters
-        ), "Wrapped function cannot contain the 'key' parameter"
-
         @wraps(fun)
-        def _wrapper_(key: jax.random.PRNGKey, *args: Any, **kwargs: Any) -> Any:
+        def _wrapper_(*args: Any, **kwargs: Any) -> Any:
             bound_args = sig.bind(*args, **kwargs)
-            keys = jax.random.split(key, n)
-            for key, arg_name in zip(keys, arg_names):
+            key = jax.random.PRNGKey(seed)
+            for arg_name in arg_names:
                 shape = bound_args.arguments[arg_name]
                 bound_args.arguments[arg_name] = sampler(key, shape)
 
             return fun(*bound_args.args, **bound_args.kwargs)
-
-        _wrapper_.__signature__ = sig.replace(
-            parameters=[
-                inspect.Parameter("key", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-                *sig.parameters.values(),
-            ]
-        )
 
         return _wrapper_
 

@@ -12,10 +12,6 @@ from jaxtyping import Array, Float, UInt
 from .utils import pairwise_cross
 
 
-def cut_polygon_into_triangles(vertices: Float[Array, "n 3"]) -> Float[Array:"m 3"]:
-    pass
-
-
 @dataclass
 class TriangleMesh:
     mesh: o3d.geometry.TriangleMesh

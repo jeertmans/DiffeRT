@@ -1,6 +1,19 @@
 """
 Path tracing utilities that utilize the Image Method.
+
+The Image Method is a very simple but effective path tracing technique
+that can rapidly compute a ray path undergoing a series
+of specular reflections on a pre-defined list of mirrors.
+
+The method assumes infinitely long mirrors, and will return invalid
+paths in some degenerated cases such as consecutive colinear mirrors,
+or impossible configurations. It is the user's responsibility to make
+sure that the returned path is correct.
+
+Otherwise, the returned path will, for each reflection, have equal angles
+of incidence and of reflection.
 """
+
 
 import jax
 import jax.numpy as jnp
@@ -17,6 +30,17 @@ def image_of_vertices_with_respect_to_mirrors(
 ) -> Float[Array, "*batch 3"]:
     """
     Return the image of vertices with respect to mirrors.
+
+    Args:
+        vertices: an array of vertices that will be mirrored.
+        mirror_vertices: an array of mirror vertices. For each mirror, any
+            vertex on the infinite plane that describes the mirror is considered
+            to be a valid vertex.
+        mirror_normals: an array of mirror normals, where each normal has a unit
+            length and if perpendicular to the corresponding mirror.
+
+    Returns:
+        An array of image vertices.
     """
     incident = vertices - mirror_vertices  # incident vectors
     return (
@@ -29,60 +53,118 @@ def image_of_vertices_with_respect_to_mirrors(
 
 @jaxtyped
 @typechecker
-def intersection_with_mirrors(
-    vertices: Float[Array, "N 3"],
-    mirror_vertices: Float[Array, "N 3"],
-    mirror_normals: Float[Array, "N 3"],
-) -> Float[Array, "N 3"]:
+def intersection_of_line_segments_with_planes(
+    segment_starts: Float[Array, "*batch 3"],
+    segment_ends: Float[Array, "*batch 3"],
+    plane_vertices: Float[Array, "*batch 3"],
+    plane_normals: Float[Array, "*batch 3"],
+) -> Float[Array, "*batch 3"]:
     """
-    Return the image of vertices with respect to mirrors.
+    Return the intersection points between
+    line segments and (infinite) planes.
+
+    If a line segment is parallel to the corresponding plane, then
+    the corresponding vertex in ``from_vertices`` will be returned.
+
+    Args:
+        segment_starts: an array of vertices describing the start of line
+            segments.
+
+            .. note::
+                
+                ``segment_starts`` and ``segment_ends`` are interchangeable.
+        segment_ends: an array of vertices describing the end of line segments.
+        plane_vertices: an array of plane vertices. For each plane, any
+            vertex on this plane can be used.
+        plane_normals: an array of plane normals, where each normal has a unit
+            length and if perpendicular to the corresponding plane.
+
+    Returns:
+        An array of intersection vertices.
     """
-    incident = vertices - mirror_vertices  # incident vectors
-    return (
-        vertices
-        - 2.0
-        * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
-        * mirror_normals
-    )
+    u = segment_ends - segment_starts
+    v = plane_vertices - segment_starts
+    un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
+    vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
+    offset = jnp.where(un == 0.0, 0.0, vn * u / un)
+    return segment_starts + offset
 
 
 @jaxtyped
 @typechecker
 def image_method(
-    from_vertices: Float[Array, "N 3"],
-    to_vertices: Float[Array, "N 3"],
-    mirror_vertices: Float[Array, "N num_mirrors 3"],
-    mirror_normals: Float[Array, "N num_mirrors 3"],
-) -> Float[Array, "N num_mirrors 3"]:
+    from_vertices: Float[Array, "*batch 3"],
+    to_vertices: Float[Array, "*batch 3"],
+    mirror_vertices: Float[Array, "num_mirrors *batch 3"],
+    mirror_normals: Float[Array, "num_mirrors *batch 3"],
+) -> Float[Array, "num_mirrors *batch 3"]:
     """
-    Return the ray path between pair of vertices, that reflect on
+    Return the ray paths between pairs of vertices, that reflect on
     a given list of mirrors in between.
-    """
 
-    def forward(vertices, carry):
-        mirror_vertices, mirror_normals = carry
+    .. note::
+
+        The paths do not contain the starting and ending vertices.
+
+        You can easily create the complete ray paths using
+        :func:`jax.numpy.concatenate`:
+
+        .. code-block:: python
+
+            import jax.numpy as jnp
+
+            paths = image_method(
+                from_vertices,
+                to_vertices,
+                mirror_vertices,
+                mirror_normals
+            )
+
+            full_paths = jnp.concatenate((
+                from_vertices[None, ...],
+                paths,
+                to_vertices[None, ...]
+            ))
+    """
+    T = Float[Array, "*batch 3"]
+
+    @jaxtyped
+    @typechecker
+    def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
+        """
+        Perform forward pass on vertices by computing
+        consecutive images.
+        """
+        vertices = carry
+        mirror_vertices, mirror_normals = x
         images = image_of_vertices_with_respect_to_mirrors(
             vertices, mirror_vertices, mirror_normals
         )
         return images, images
 
-    def backward(vertices, carry):
-        mirror_vertices, mirror_normals, images = carry
-        project_
-        p = wall.origin()
-        n = wall.normal()
-        u = point - image
-        v = p - point
-        un = jnp.dot(u, n)
-        vn = jnp.dot(v, n)
-        # Avoid division by zero
-        inc = jnp.where(un == 0.0, 0.0, vn * u / un)
-        point = point + inc
-        return point, point
+    @jaxtyped
+    @typechecker
+    def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
+        """
+        Perform backward pass on images by computing the
+        intersection with mirrors.
+        """
+        vertices = carry
+        mirror_vertices, mirror_normals, images = x
+
+        intersections = intersection_of_line_segments_with_planes(
+            vertices, images, mirror_vertices, mirror_normals
+        )
+        return intersections, intersections
 
     _, images = jax.lax.scan(
         forward, init=from_vertices, xs=(mirror_vertices, mirror_normals)
     )
-    _, points = jax.lax.scan(
-        backward, init=to_vertices, xs=(mirror_vertices, mirror_normals, images)
+    _, paths = jax.lax.scan(
+        backward,
+        init=to_vertices,
+        xs=(mirror_vertices, mirror_normals, images),
+        reverse=True,
     )
+
+    return paths

@@ -21,6 +21,7 @@ version = "0.1.0"
 chex = "^0.1.84"
 jax = {extras = ["cpu"], version = "^0.4.19"}
 jaxtyping = "^0.2.23"
+matplotlib = "^3.8.1"
 numpy = "^1.26.1"
 open3d = "^0.17.0"
 open3d-cpu = "^0.17.0"
@@ -31,6 +32,15 @@ scikit-learn = "^1.3.2"
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"
 
+[tool.poetry.group.docs.dependencies]
+sphinx = "<7"
+sphinx-autodoc-typehints = "^1.23"
+sphinx-book-theme = "^1.0.1"
+sphinx-copybutton = "^0.5.2"
+sphinx-design = "^0.5.0"
+sphinx-remove-toctrees = "^0.0.3"
+sphinxext-opengraph = "^0.9.0"
+
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
 
@@ -38,9 +48,9 @@ pytest = "^7.4.3"
 extend-ignore = [
   "D203",  # no-blank-line-before-class
   "D212",  # multi-line-summary-second-line
+  "D407",  # Missing dashed underline after section
   "F722"  # Syntax error in forward annotation
 ]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
-ignore-init-module-imports = true
 isort = {known-first-party = ["differt", "tests"]}
 target-version = "py39"
