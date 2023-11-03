@@ -10,7 +10,7 @@ from chex import Array
 from differt.rt.image_method import (
     image_method,
     image_of_vertices_with_respect_to_mirrors,
-    intersection_of_line_segments_with_lines,
+    intersection_of_line_segments_with_planes,
 )
 from tests.utils import random_inputs
 
@@ -70,21 +70,21 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             chex.assert_trees_all_close(got[index], expected, rtol=1e-5)
 
 
-def test_intersection_of_line_segments_with_lines() -> None:
+def test_intersection_of_line_segments_with_planes() -> None:
     segment_starts = jnp.array(
         [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]]
     )
     expected = jnp.array([[+0.5, +0.0, +0.0], [+0.0, +0.0, +0.0], [-0.5, +0.0, +0.0]])
     segment_end = jnp.array([2.0, -1.0, 0.0])
-    line_vertex = jnp.array([0.0, 0.0, 0.0])
-    line_normal = jnp.array([0.0, 1.0, 0.0])
+    plane_vertex = jnp.array([0.0, 0.0, 0.0])
+    plane_normal = jnp.array([0.0, 1.0, 0.0])
 
     n = segment_starts.shape[0]
     segment_ends = jnp.tile(segment_end, (n, 1))
-    line_vertices = jnp.tile(line_vertex, (n, 1))
-    line_normals = jnp.tile(line_normal, (n, 1))
-    got = intersection_of_line_segments_with_lines(
-        segment_starts, segment_ends, line_vertices, line_normals
+    plane_vertices = jnp.tile(plane_vertex, (n, 1))
+    plane_normals = jnp.tile(plane_normal, (n, 1))
+    got = intersection_of_line_segments_with_planes(
+        segment_starts, segment_ends, plane_vertices, plane_normals
     )
     chex.assert_trees_all_close(got, expected)
 

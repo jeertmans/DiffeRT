@@ -1,0 +1,91 @@
+on:
+  pull_request:
+  workflow_dispatch:
+
+name: Test Python code
+
+jobs:
+  pytest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        pyversion: ['3.9', '3.10', '3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Poetry
+      run: pipx install poetry
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.pyversion }}
+        cache: poetry
+
+    - name: Install Differt
+      run: |
+        poetry install --with test,github-action
+
+    - name: Run Pytest
+      run: |
+        poetry run pytest -Werror -n auto
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      JAX_PLATFORM_NAME: cpu
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Poetry
+      run: pipx install poetry
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: poetry
+
+    - name: Install Differt2D
+      run: |
+        poetry install --with test,github-action
+
+    - name: Run Benchmarks on changes
+      run: poetry run python benchmark.py -o changes.json
+
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.base.sha }}
+        clean: false
+
+    - name: Run Benchmarks before changes
+      run: poetry run python benchmark.py -o before.json
+
+    - name: Compare benchmarks
+      run: |
+        echo 'results<<EOF' >> $GITHUB_OUTPUT
+        poetry run python -m pyperf compare_to --table --table-format md before.json changes.json >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      id: compare
+
+    - name: Comment PR with benchmarks
+      uses: thollander/actions-comment-pull-request@v2
+      continue-on-error: true
+      with:
+        message: |
+          Benchmark results:
+          ${{ steps.compare.outputs.results }}
+        comment_tag: benchmarks
+
+      id: comment
+
+    - name: If PR comment failed, write to PR summary
+      if: steps.comment.outcome != 'success'
+      run: |
+        echo '### Benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY

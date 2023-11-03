@@ -31,7 +31,6 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
-
     # [*batch 3]
     p0 = triangle_vertices[..., 0, :]
     p1 = triangle_vertices[..., 1, :]
@@ -49,7 +48,9 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     v1 = p2 - p1
     v2 = p0 - p2
 
-    # Cross product between corresponding vectors
+    # Cross product between corresponding vectors,
+    # resulting 'normal' vector should all be perpendicular
+    # to the triangle surface
     # [*batch 3]
     n0 = jnp.cross(u0, v0)
     n1 = jnp.cross(u1, v1)
@@ -62,10 +63,11 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     d20 = jnp.sum(n2 * n0, axis=-1)
 
     # [*batch]
-    sum_signs = jnp.sign(d01) + jnp.sign(d12) + jnp.sign(d20)
+    all_pos = (d01 >= 0.0) & (d12 >= 0.0) & (d20 >= 0.0)
+    all_neg = (d01 <= 0.0) & (d12 <= 0.0) & (d20 <= 0.0)
 
     # The vertices are contained if all signs are the same
-    return jnp.abs(sum_signs) == 3
+    return all_pos | all_neg
 
 
 @dataclass

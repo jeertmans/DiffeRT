@@ -1,0 +1,32 @@
+on: [push]
+
+name: Code Coverage
+
+jobs:
+  test:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Poetry
+      run: pipx install poetry
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: poetry
+
+    - name: Install Differt
+      run: |
+        poetry install --with test
+
+    - name: Run pytest and coverage
+      run: poetry run pytest --cov-report xml --cov=differt tests/
+
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true

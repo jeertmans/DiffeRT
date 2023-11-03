@@ -41,6 +41,25 @@ def image_of_vertices_with_respect_to_mirrors(
 
     Returns:
         An array of image vertices.
+
+    Examples:
+        In the following example, we show how to compute the images of
+        a batch of random vertices. Here, normal vectors do not have a unit length,
+        but they should have if you want a interpretable result.
+
+        >>> import jax
+        >>> from differt.rt.image_method import image_of_vertices_with_respect_to_mirrors
+        >>>
+        >>> key = jax.random.PRNGKey(0)
+        >>> key0, key1, key2 = jax.random.split(key, 3)
+        >>> batch = (10, 20, 30)
+        >>> vertices = jax.random.uniform(key0, (*batch, 3))
+        >>> mirror_vertices = jax.random.uniform(key1, (*batch, 3))
+        >>> mirror_normals = jax.random.uniform(key2, (*batch, 3))
+        >>> images = image_of_vertices_with_respect_to_mirrors(vertices, mirror_vertices, mirror_normals)
+        >>> images.shape
+        (10, 20, 30, 3)
+
     """
     incident = vertices - mirror_vertices  # incident vectors
     return (
