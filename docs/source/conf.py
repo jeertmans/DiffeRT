@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.viewcode",
     # Additional
     "matplotlib.sphinxext.plot_directive",
+    "myst_nb",
     "sphinxext.opengraph",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
@@ -35,6 +36,7 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
+suppress_warnings = ["mystnb.unknown_mime_type"]
 
 # -- Intersphinx mapping
 
@@ -54,6 +56,12 @@ ogp_use_first_image = True
 # -- Sphinx autodoc typehints settings
 
 always_document_param_types = True
+
+# -- Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
+
+html_js_files = [
+    "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

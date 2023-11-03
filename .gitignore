@@ -2,3 +2,5 @@
 *.pyc
 
 docs/build/
+
+.ipynb_checkpoints/

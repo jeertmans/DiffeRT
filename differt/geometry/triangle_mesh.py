@@ -75,11 +75,13 @@ class TriangleMesh:
     mesh: o3d.geometry.TriangleMesh
 
     @cached_property
-    def indices(self) -> UInt[Array, "num_triangles 3"]:
+    def triangles(self) -> UInt[Array, "num_triangles 3"]:
+        """Return the array of triangle indices."""
         return jnp.asarray(self.mesh.triangles, dtype=int)
 
     @cached_property
     def vertices(self) -> Float[Array, "num_vertices 3"]:
+        """Return the array of vertices."""
         return jnp.asarray(self.mesh.vertices)
 
     @cached_property
@@ -88,7 +90,7 @@ class TriangleMesh:
 
     @cached_property
     def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
-        all_vertices = jnp.take(self.vertices, self.indices)
+        all_vertices = jnp.take(self.vertices, self.indices, axis=0)
         normals = self.normals
 
         print(normals)
@@ -115,9 +117,9 @@ class TriangleMesh:
 
     def plot(self):
         x, y, z = self.vertices.T
-        i = self.indices[:, 0]
-        j = self.indices[:, 1]
-        k = self.indices[:, 2]
+        i = self.triangles[:, 0]
+        j = self.triangles[:, 1]
+        k = self.triangles[:, 2]
         fig = go.Figure(
             data=[
                 go.Mesh3d(
@@ -133,4 +135,4 @@ class TriangleMesh:
         transmitters = jnp.array([0.0, 4.9352, 22.0])
         receivers = jnp.array([0.0, 10.034, 1.5])
 
-        fig.show()
+        return fig
