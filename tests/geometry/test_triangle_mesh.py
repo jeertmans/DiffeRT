@@ -5,6 +5,8 @@ import chex
 import jax.numpy as jnp
 import pytest
 
+open3d = pytest.importorskip("open3d")
+
 from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
