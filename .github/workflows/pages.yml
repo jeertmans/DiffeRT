@@ -47,6 +47,10 @@ jobs:
       run: |
         poetry install --with docs,github-action
 
+    - name: Add Jupyter Kernel
+      run: |
+        poetry run python -m ipykernel install --user --name DiffeRT
+        
     - name: Build docs
       run: cd docs && poetry run make html
 
