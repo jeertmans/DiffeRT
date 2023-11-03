@@ -12,7 +12,7 @@ try:
         TriangleMesh,
         triangles_contain_vertices_assuming_inside_same_plane,
     )
-except ImportError as e:
+except ImportError:
     TriangleMesh = None
 
 
