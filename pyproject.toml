@@ -71,7 +71,7 @@ pytest-cov = "^4.1.0"
 pytest-xdist = "^3.3.1"
 
 [tool.pytest.ini_options]
-addopts = "--doctest-modules"
+addopts = "--doctest-modules --doctest-ignore-import-errors"
 
 [tool.ruff]
 extend-ignore = [

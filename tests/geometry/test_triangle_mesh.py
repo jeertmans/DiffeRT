@@ -12,8 +12,8 @@ try:
         TriangleMesh,
         triangles_contain_vertices_assuming_inside_same_plane,
     )
-except ImportError:
-    pass
+except ImportError as e:
+    TriangleMesh = None
 
 
 @pytest.fixture(scope="module")
