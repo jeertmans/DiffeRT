@@ -36,11 +36,17 @@ version = "0.1.0"
 chex = "^0.1.84"
 jax = "^0.4.20"
 jaxtyping = "^0.2.23"
-matplotlib = "^3.8.1"
+matplotlib = {version = "^3.8.1", optional = true}
 numpy = "^1.26.1"
-open3d = "^0.17.0"
-plotly = "^5.18.0"
+open3d = {version = "^0.17.0", python = "<3.11", optional = true}  # Waiting 0.18 for Python 3.11
+plotly = {version = "^5.18.0", optional = true}
 python = ">=3.9,<3.13"
+
+[tool.poetry.extras]
+matplotlib = ["matplotlib"]
+open3d = ["open3d"]
+plotly = ["plotly"]
+plotting = ["matplotlib", "plotly"]
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"
@@ -56,7 +62,7 @@ sphinxext-opengraph = "^0.9.0"
 
 [tool.poetry.group.github-action.dependencies]
 jax = {extras = ["cpu"], version = "^0.4.20"}
-open3d-cpu = "^0.17.0"
+open3d-cpu = {version = "^0.17.0", python = "<3.11"}
 
 [tool.poetry.group.test.dependencies]
 pyperf = "^2.6.2"
