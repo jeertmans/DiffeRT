@@ -34,15 +34,13 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 chex = "^0.1.84"
-jax = {extras = ["cpu"], version = "^0.4.19"}
+jax = "^0.4.20"
 jaxtyping = "^0.2.23"
 matplotlib = "^3.8.1"
 numpy = "^1.26.1"
 open3d = "^0.17.0"
-open3d-cpu = "^0.17.0"
 plotly = "^5.18.0"
 python = ">=3.9,<3.13"
-scikit-learn = "^1.3.2"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"
@@ -58,6 +56,7 @@ sphinxext-opengraph = "^0.9.0"
 
 [tool.poetry.group.github-action.dependencies]
 jax = {extras = ["cpu"], version = "^0.4.20"}
+open3d-cpu = "^0.17.0"
 
 [tool.poetry.group.test.dependencies]
 pyperf = "^2.6.2"
