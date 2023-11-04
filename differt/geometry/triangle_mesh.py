@@ -115,7 +115,7 @@ class TriangleMesh:
         mesh = o3d.io.read_triangle_mesh(str(file)).compute_triangle_normals()
         return cls(mesh=mesh)
 
-    def plot(self):
+    def plot(self, *args, **kwargs):
         x, y, z = self.vertices.T
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
@@ -129,6 +129,7 @@ class TriangleMesh:
                     i=i,
                     j=j,
                     k=k,
+                    *args, **kwargs
                 )
             ]
         )
