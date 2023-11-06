@@ -207,11 +207,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     v_prev = vertices[:-2, ...] - mirror_vertices
     v_next = vertices[+2:, ...] - mirror_vertices
 
-    print("v_prev", v_prev.shape)
     d_prev = jnp.sum(v_prev * mirror_normals, axis=-1)
     d_next = jnp.sum(v_next * mirror_normals, axis=-1)
-
-    print("d_prev", d_prev.shape)
-    print("out:", ((d_prev * d_next) >= 0.0).shape)
 
     return (d_prev * d_next) >= 0.0

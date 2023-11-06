@@ -62,10 +62,10 @@ def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
-) -> Bool[Array, " *batch"]:
+) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the
-    Möller-Trumbler algorithm.
+    Möller-Trumbore algorithm.
 
     The current implementation closely follows the C++ code from Wikipedia.
     """
@@ -81,16 +81,16 @@ def rays_intersect_triangles(
     h = jnp.cross(ray_directions, edge_2, axis=-1)
     a = jnp.sum(edge_1 * h, axis=-1)
 
-    cond_a = (a < epsilon) & (a > -epsilon)
+    cond_a = (a > -epsilon) & (a < epsilon)
 
     f = 1.0 / a
     s = ray_origins - vertex_0
     u = f * jnp.sum(s * h, axis=-1)
 
-    cond_u = (u < 0.0) | (u > 0.0)
+    cond_u = (u < 0.0) | (u > 1.0)
 
     q = jnp.cross(s, edge_1, axis=-1)
-    v = f * jnp.dot(ray_directions * q, axis=-1)
+    v = f * jnp.sum(ray_directions * q, axis=-1)
 
     cond_v = (v < 0.0) | (u + v > 1.0)
 
@@ -98,4 +98,4 @@ def rays_intersect_triangles(
 
     cond_t = t <= epsilon
 
-    return ~(cond_a | cond_u | cond_v | cond_t)
+    return t, ~(cond_a | cond_u | cond_v | cond_t)

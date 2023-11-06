@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 from chex import Array
 
-from differt.rt.utils import generate_path_candidates
+from differt.rt.utils import generate_path_candidates, rays_intersect_triangles
 
 
 def uint_array(array_like: Array) -> Array:
@@ -45,4 +45,27 @@ def test_generate_path_candidates(
     if got.size > 0:
         got = got[jnp.lexsort(got.T[::-1])]  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
+    chex.assert_trees_all_equal(got, expected)
+
+
+@pytest.mark.parametrize(
+    "ray_orig,ray_dest,expected",
+    [
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, -1.0]), jnp.array(True)),
+        (jnp.array([0.0, 0.0, 1.0]), jnp.array([1.0, 1.0, -1.0]), jnp.array(True)),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, +0.5]), jnp.array(False)),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.0]), jnp.array(False)),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.5]), jnp.array(False)),
+    ],
+)
+def test_rays_intersect_triangles(
+    ray_orig: Array, ray_dest: Array, expected: Array
+) -> None:
+    triangle_vertices = jnp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    t, hit = rays_intersect_triangles(
+        ray_orig,
+        ray_dest - ray_orig,
+        triangle_vertices,
+    )
+    got = (t < 1.0) & hit
     chex.assert_trees_all_equal(got, expected)
