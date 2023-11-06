@@ -70,6 +70,23 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
+def paths_intersect_triangles(
+    paths: Float[Array, "*batch path_length 3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+) -> Bool[Array, " *batch"]:
+    """
+    Return whether each path intersect with any of the triangles.
+
+    Args:
+        triangle_vertices: an array of triangle vertices.
+        vertices: an array of vertices that will be checked.
+
+    Returns:
+        A boolean array indicating whether vertices are in the corresponding triangles or not.
+    """
+    pass
+
+
 @dataclass
 class TriangleMesh:
     mesh: o3d.geometry.TriangleMesh
@@ -120,19 +137,7 @@ class TriangleMesh:
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
         k = self.triangles[:, 2]
-        fig = go.Figure(
-            data=[
-                go.Mesh3d(
-                    x=x,
-                    y=y,
-                    z=z,
-                    i=i,
-                    j=j,
-                    k=k,
-                    *args, **kwargs
-                )
-            ]
-        )
+        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, *args, **kwargs)])
         transmitters = jnp.array([0.0, 4.9352, 22.0])
         receivers = jnp.array([0.0, 10.034, 1.5])
 

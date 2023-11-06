@@ -187,3 +187,31 @@ def image_method(
     )
 
     return paths
+
+
+#@jaxtyped
+#@typechecker
+def consecutive_vertices_are_on_same_side_of_mirrors(
+    vertices: Float[Array, "num_mirrors+2 *batch 3"],
+    mirror_vertices: Float[Array, "num_mirrors *batch 3"],
+    mirror_normals: Float[Array, "num_mirrors *batch 3"],
+) -> Float[Array, "num_mirrors *batch"]:
+    """
+    Check if consecutive vertices, but skiping one every other vertex,
+    are on the same side of a given mirror.
+
+    This check is needed after using :func:`image_method` because it can return
+    vertices that are behind a mirror, which causes the path to go trough this
+    mirror, and is someone we want to avoid.
+    """
+    v_prev = vertices[:-2, ...] - mirror_vertices
+    v_next = vertices[+2:, ...] - mirror_vertices
+
+    print("v_prev", v_prev.shape)
+    d_prev = jnp.sum(v_prev * mirror_normals, axis=-1)
+    d_next = jnp.sum(v_next * mirror_normals, axis=-1)
+
+    print("d_prev", d_prev.shape)
+    print("out:", ((d_prev * d_next) >= 0.0).shape)
+
+    return (d_prev * d_next) >= 0.0

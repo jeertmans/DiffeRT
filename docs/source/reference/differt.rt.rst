@@ -8,6 +8,7 @@ Submodules
    :maxdepth: 4
 
    differt.rt.image_method
+   differt.rt.utils
 
 Module contents
 ---------------
