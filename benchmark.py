@@ -19,4 +19,10 @@ To compare multiple benchmark results, you can use
 
 import pyperf
 
+from differt.rt.utils import generate_path_candidates
+
 runner = pyperf.Runner()
+runner.bench_func(
+    "generate_path_candidates",
+    lambda: generate_path_candidates(20, 3).block_until_ready(),
+)
