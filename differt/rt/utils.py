@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jaxtyping import Array, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
 
@@ -54,3 +54,48 @@ def generate_path_candidates(
         batch_size = batch_size // (num_primitives - 1)
 
     return path_candidates
+
+
+@jaxtyped
+@typechecker
+def rays_intersect_triangles(
+    ray_origins: Float[Array, "*batch 3"],
+    ray_directions: Float[Array, "*batch 3"],
+    triangle_vertices: Float[Array, "*batch 3 3"],
+) -> Bool[Array, " *batch"]:
+    """
+    Return whether rays intersect corresponding triangles using the
+    Möller-Trumbler algorithm.
+
+    The current implementation closely follows the C++ code from Wikipedia.
+    """
+    epsilon = 1e-07
+
+    vertex_0 = triangle_vertices[..., 0, :]
+    vertex_1 = triangle_vertices[..., 1, :]
+    vertex_2 = triangle_vertices[..., 2, :]
+
+    edge_1 = vertex_1 - vertex_0
+    edge_2 = vertex_2 - vertex_0
+
+    h = jnp.cross(ray_directions, edge_2, axis=-1)
+    a = jnp.sum(edge_1 * h, axis=-1)
+
+    cond_a = (a < epsilon) & (a > -epsilon)
+
+    f = 1.0 / a
+    s = ray_origins - vertex_0
+    u = f * jnp.sum(s * h, axis=-1)
+
+    cond_u = (u < 0.0) | (u > 0.0)
+
+    q = jnp.cross(s, edge_1, axis=-1)
+    v = f * jnp.dot(ray_directions * q, axis=-1)
+
+    cond_v = (v < 0.0) | (u + v > 1.0)
+
+    t = f * jnp.sum(edge_2 * q, axis=-1)
+
+    cond_t = t <= epsilon
+
+    return ~(cond_a | cond_u | cond_v | cond_t)
