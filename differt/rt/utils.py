@@ -42,13 +42,11 @@ def generate_path_candidates(
 
     fill_value = 0
     for j in range(order):
-        i = 0
-        while i < num_candidates:
+        for i in range(0, num_candidates, batch_size):
             if j > 0 and fill_value == path_candidates[i, j - 1]:
                 fill_value = (fill_value + 1) % num_primitives
 
             path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
-            i += batch_size
             fill_value = (fill_value + 1) % num_primitives
 
         batch_size = batch_size // (num_primitives - 1)
