@@ -1,6 +1,31 @@
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
+
+
+@partial(jax.jit, static_argnames=("num_primitives",))
+def _fill_path_candidates(path_candidates, num_primitives):
+    num_candidates, order = path_candidates.shape
+    batch_size = num_candidates // num_primitives
+
+    fill_value = 0
+    for j in range(order):
+        for i in range(0, num_candidates, batch_size):
+            fill_value = jnp.where(
+                jnp.logical_and(j > 0, fill_value == path_candidates[i, j - 1]),
+                (fill_value + 1) % num_primitives,
+                fill_value
+            )
+
+            path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
+            fill_value = (fill_value + 1) % num_primitives
+
+        batch_size = batch_size // (num_primitives - 1)
+
+    return path_candidates
 
 
 @jaxtyped
@@ -38,20 +63,8 @@ def generate_path_candidates(
 
     num_candidates = num_primitives * ((num_primitives - 1) ** (order - 1))
     path_candidates = jnp.empty((num_candidates, order), dtype=jnp.uint32)
-    batch_size = num_candidates // num_primitives
 
-    fill_value = 0
-    for j in range(order):
-        for i in range(0, num_candidates, batch_size):
-            if j > 0 and fill_value == path_candidates[i, j - 1]:
-                fill_value = (fill_value + 1) % num_primitives
-
-            path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
-            fill_value = (fill_value + 1) % num_primitives
-
-        batch_size = batch_size // (num_primitives - 1)
-
-    return path_candidates
+    return _fill_path_candidates(path_candidates, num_primitives)
 
 
 @jaxtyped
