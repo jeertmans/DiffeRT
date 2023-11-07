@@ -17,7 +17,7 @@ def _fill_path_candidates(path_candidates, num_primitives):
             fill_value = jnp.where(
                 jnp.logical_and(j > 0, fill_value == path_candidates[i, j - 1]),
                 (fill_value + 1) % num_primitives,
-                fill_value
+                fill_value,
             )
 
             path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
