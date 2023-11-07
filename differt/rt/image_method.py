@@ -189,8 +189,8 @@ def image_method(
     return paths
 
 
-# @jaxtyped
-# @typechecker
+@jaxtyped
+@typechecker
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "num_mirrors+2 *batch 3"],
     mirror_vertices: Float[Array, "num_mirrors *batch 3"],
