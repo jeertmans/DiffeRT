@@ -1,5 +1,3 @@
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
@@ -9,7 +7,9 @@ from typeguard import typechecked as typechecker
 @jaxtyped
 @typechecker
 @jax.jit
-def _fill_path_candidates(path_candidates: UInt[Array, "num_primitives num_candidates_per_primitive order"]) -> UInt[Array, "num_primitives*num_candidates_per_primitive order"]:
+def _fill_path_candidates(
+    path_candidates: UInt[Array, "num_primitives num_candidates_per_primitive order"]
+) -> UInt[Array, "num_primitives*num_candidates_per_primitive order"]:
     num_primitives, num_candidates_per_primitive, order = path_candidates.shape
     num_candidates = num_primitives * num_candidates_per_primitive
     batch_size = num_candidates_per_primitive
@@ -66,8 +66,10 @@ def generate_path_candidates(
         indices = jnp.arange(num_primitives, dtype=jnp.uint32)
         return jnp.reshape(indices, (-1, 1))
 
-    num_candidates_per_primitive = ((num_primitives - 1) ** (order - 1))
-    path_candidates = jnp.empty((num_primitives, num_candidates_per_primitive, order), dtype=jnp.uint32)
+    num_candidates_per_primitive = (num_primitives - 1) ** (order - 1)
+    path_candidates = jnp.empty(
+        (num_primitives, num_candidates_per_primitive, order), dtype=jnp.uint32
+    )
 
     return _fill_path_candidates(path_candidates)
 
