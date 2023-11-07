@@ -1,36 +1,6 @@
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
-
-
-@jaxtyped
-@typechecker
-@jax.jit
-def _fill_path_candidates(
-    path_candidates: UInt[Array, "num_primitives num_candidates_per_primitive order"]
-) -> UInt[Array, "num_primitives*num_candidates_per_primitive order"]:
-    num_primitives, num_candidates_per_primitive, order = path_candidates.shape
-    num_candidates = num_primitives * num_candidates_per_primitive
-    batch_size = num_candidates_per_primitive
-
-    path_candidates = jnp.reshape(path_candidates, (num_candidates, order))
-
-    fill_value = 0
-    for j in range(order):
-        for i in range(0, num_candidates, batch_size):
-            fill_value = jnp.where(
-                jnp.logical_and(j > 0, fill_value == path_candidates[i, j - 1]),
-                (fill_value + 1) % num_primitives,
-                fill_value,
-            )
-
-            path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
-            fill_value = (fill_value + 1) % num_primitives
-
-        batch_size = batch_size // (num_primitives - 1)
-
-    return path_candidates
 
 
 @jaxtyped
@@ -66,12 +36,24 @@ def generate_path_candidates(
         indices = jnp.arange(num_primitives, dtype=jnp.uint32)
         return jnp.reshape(indices, (-1, 1))
 
-    num_candidates_per_primitive = (num_primitives - 1) ** (order - 1)
-    path_candidates = jnp.empty(
-        (num_primitives, num_candidates_per_primitive, order), dtype=jnp.uint32
-    )
+    num_candidates = num_primitives * ((num_primitives - 1) ** (order - 1))
+    path_candidates = jnp.empty((num_candidates, order), dtype=jnp.uint32)
+    batch_size = num_candidates // num_primitives
 
-    return _fill_path_candidates(path_candidates)
+    fill_value = 0
+    for j in range(order):
+        i = 0
+        while i < num_candidates:
+            if j > 0 and fill_value == path_candidates[i, j - 1]:
+                fill_value = (fill_value + 1) % num_primitives
+
+            path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)
+            i += batch_size
+            fill_value = (fill_value + 1) % num_primitives
+
+        batch_size = batch_size // (num_primitives - 1)
+
+    return path_candidates
 
 
 @jaxtyped
