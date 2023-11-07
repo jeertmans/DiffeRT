@@ -47,9 +47,9 @@ def generate_path_candidates(
     for j in range(order):
         for i in range(0, num_candidates, batch_size):
             fill_value = jnp.where(
-                jnp.logical_and(j >0, fill_value == path_candidates[i, j - 1]),
+                jnp.logical_and(j > 0, fill_value == path_candidates[i, j - 1]),
                 (fill_value + 1) % num_primitives,
-                fill_value
+                fill_value,
             )
 
             path_candidates = path_candidates.at[i : i + batch_size, j].set(fill_value)

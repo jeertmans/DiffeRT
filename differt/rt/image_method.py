@@ -212,7 +212,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         pass
     """
     chex.assert_axis_dimension(vertices, 0, mirror_vertices.shape[0] + 2)
-            
+
     v_prev = vertices[:-2, ...] - mirror_vertices
     v_next = vertices[+2:, ...] - mirror_vertices
 
