@@ -21,8 +21,13 @@ import pyperf
 
 from differt.rt.utils import generate_path_candidates
 
+
+def bench_generate_path_candidates(runner: pyperf.Runner) -> None:
+    def func():
+        generate_path_candidates(num_primitives=5, order=3).block_until_ready()
+
+    runner.bench_func("generate_path_candidates", func)
+
+
 runner = pyperf.Runner()
-runner.bench_func(
-    "generate_path_candidates",
-    lambda: generate_path_candidates(20, 3).block_until_ready(),
-)
+bench_generate_path_candidates(runner)
