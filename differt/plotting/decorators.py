@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-
-from typing import Any, Callable, TYPE_CHECKING
 from functools import wraps
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    from typing import ParamSpec
+    pass
 
 SUPPORTED_BACKEND = ("matplotlib", "open3d", "plotly")
 
+
 class UnsupportedBackendError(ValueError):
     def __init__(self, backend: str) -> None:
-        super().__init__(f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}.")
+        super().__init__(
+            f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}."
+        )
 
 
 def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
@@ -19,7 +21,6 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
     Transform a function into a backend dispatcher plot function.
 
     Examples:
-
         The following example shows how one can implement plotting
         utilities on different backends for a given class.
 
@@ -67,6 +68,7 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
 
 def plot_method():
     pass
+
 
 def register_backend():
     pass
