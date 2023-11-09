@@ -2251,6 +2251,17 @@ files = [
 tests = ["pytest"]
 
 [[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+description = "Get CPU info with pure Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
+    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
+]
+
+[[package]]
 name = "pycparser"
 version = "2.21"
 description = "C parser in Python"
@@ -2317,23 +2328,6 @@ files = [
 diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
-name = "pyperf"
-version = "2.6.2"
-description = "Python module to run and analyze benchmarks"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "pyperf-2.6.2-py3-none-any.whl", hash = "sha256:92f5d5bd1f544721ef70588dcc8870e2f86a06356df3c8f0b8a30e15f2eef7e9"},
-    {file = "pyperf-2.6.2.tar.gz", hash = "sha256:64d8fadce6a74f478f29832c1eaa2a04856655ebff17292d5237fc8317c3a3c5"},
-]
-
-[package.dependencies]
-psutil = ">=5.9.0"
-
-[package.extras]
-dev = ["importlib-metadata", "tox"]
-
-[[package]]
 name = "pyquaternion"
 version = "0.9.9"
 description = "A fully featured, pythonic library for representing and using quaternions."
@@ -2373,6 +2367,26 @@ tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
+
+[[package]]
+name = "pytest-benchmark"
+version = "4.0.0"
+description = "A ``pytest`` fixture for benchmarking code. It will group the tests into rounds that are calibrated to the chosen timer."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pytest-benchmark-4.0.0.tar.gz", hash = "sha256:fb0785b83efe599a6a956361c0691ae1dbb5318018561af10f3e915caa0048d1"},
+    {file = "pytest_benchmark-4.0.0-py3-none-any.whl", hash = "sha256:fdb7db64e31c8b277dff9850d2a2556d8b60bcb0ea6524e36e28ffd7c87f71d6"},
+]
+
+[package.dependencies]
+py-cpuinfo = "*"
+pytest = ">=3.8"
+
+[package.extras]
+aspect = ["aspectlib"]
+elasticsearch = ["elasticsearch"]
+histogram = ["pygal", "pygaljs"]
 
 [[package]]
 name = "pytest-cov"
@@ -3521,4 +3535,4 @@ plotting = ["matplotlib", "plotly"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "657acd71cb5beba77a9193d2a841a0472aaf893b927e30f5658b28a937d6e31f"
+content-hash = "eaae3f2ad3ad248ff9bc504f941c94008d502b2f59cf5ef698f252c49637e9c2"
