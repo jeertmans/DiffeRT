@@ -31,7 +31,9 @@ def generate_path_candidates(
         columns is actually equal to
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
-    return jnp.asarray(differt_core.generate_path_candidates(num_primitives, order), dtype=jnp.uint32)
+    return jnp.asarray(
+        differt_core.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
+    )
 
 
 @jaxtyped
