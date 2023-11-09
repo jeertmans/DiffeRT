@@ -2,7 +2,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-name: Test Python code
+name: Test code
 
 jobs:
   pytest:
@@ -39,7 +39,7 @@ jobs:
     - name: Run Pytest
       run: |
         poetry run pytest -Werror -n auto
-  caro-test:
+  cargo-test:
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +57,11 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.pyversion }}
+        cache: pip
+
+    - name: Install Python Dependencies
+      run: |
+        pip install -r differt-core/requirements.txt
 
     - name: Run Cargo test
       run: |
