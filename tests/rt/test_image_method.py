@@ -8,10 +8,10 @@ import pytest
 from chex import Array
 
 from differt.rt.image_method import (
+    consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
     image_of_vertices_with_respect_to_mirrors,
     intersection_of_line_segments_with_planes,
-    consecutive_vertices_are_on_same_side_of_mirrors,
 )
 from tests.utils import random_inputs
 
