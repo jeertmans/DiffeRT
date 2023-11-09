@@ -24,7 +24,7 @@ jobs:
       with:
         command: build
         working-directory: differt-core
-        sscache: true
+        sccache: true
 
     - name: Install Python
       uses: actions/setup-python@v4
@@ -63,7 +63,7 @@ jobs:
       with:
         command: build
         working-directory: differt-core
-        sscache: true
+        sccache: true
         args: --release
 
     - name: Install DiffeRT

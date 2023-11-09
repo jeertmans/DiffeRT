@@ -4,3 +4,7 @@
 docs/build/
 
 .ipynb_checkpoints/
+
+dist/
+
+target/
