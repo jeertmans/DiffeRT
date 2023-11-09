@@ -39,6 +39,28 @@ jobs:
     - name: Run Pytest
       run: |
         poetry run pytest -Werror -n auto
+  caro-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        pyversion: ['3.9', '3.10', '3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.pyversion }}
+
+    - name: Run Cargo test
+      run: |
+        cargo test --no-default-features --features test
   benchmark:
     runs-on: ubuntu-latest
     permissions:
