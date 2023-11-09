@@ -62,7 +62,7 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
 
         return wrapper
 
-    def dispatch(backend: str) -> Callable:
+    def dispatch(backend: str) -> Callable[..., Any]:
         try:
             return registry[backend]
         except KeyError:
