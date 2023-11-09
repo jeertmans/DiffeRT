@@ -2,6 +2,15 @@
 build-backend = "poetry.core.masonry.api"
 requires = ["poetry-core"]
 
+[tool.coverage.report]
+exclude_lines = [
+  'pragma: no cover',
+  'raise NotImplementedError',
+  'if TYPE_CHECKING:',
+  'if typing.TYPE_CHECKING:'
+]
+precision = 2
+
 [tool.mypy]
 python_version = "3.9"
 strict = true
@@ -66,13 +75,23 @@ jax = {extras = ["cpu"], version = "^0.4.20"}
 open3d-cpu = {version = "^0.17.0", markers = "python_version < '3.11' and sys_platform == 'linux'"}
 
 [tool.poetry.group.test.dependencies]
-pyperf = "^2.6.2"
 pytest = "^7.4.3"
+pytest-benchmark = "^4.0.0"
 pytest-cov = "^4.1.0"
 pytest-xdist = "^3.3.1"
 
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --doctest-ignore-import-errors"
+addopts = [
+  '--doctest-modules',
+  '--doctest-ignore-import-errors',
+  '--benchmark-columns',
+  'min,mean,stddev,outliers,rounds,iterations',
+  '--benchmark-group-by',
+  'group',
+  '--benchmark-warmup',
+  'on',
+  '--benchmark-skip'
+]
 
 [tool.ruff]
 extend-ignore = [

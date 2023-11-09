@@ -8,6 +8,7 @@ import pytest
 from chex import Array
 
 from differt.rt.image_method import (
+    consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
     image_of_vertices_with_respect_to_mirrors,
     intersection_of_line_segments_with_planes,
@@ -139,3 +140,37 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
     _ = jnp.concatenate(
         (from_vertices[None, ...], got, to_vertices[None, ...])
     )  # Check we can concatenate
+
+
+@pytest.mark.parametrize(
+    ("vertices,mirror_vertices,mirror_normals,expectation"),
+    [
+        ((12, 3), (10, 3), (10, 3), does_not_raise()),
+        ((12, 4, 3), (10, 4, 3), (10, 4, 3), does_not_raise()),
+        ((12, 6, 7, 3), (10, 6, 7, 3), (10, 6, 7, 3), does_not_raise()),
+        (
+            (12, 3),
+            (10, 3),
+            (11, 3),
+            pytest.raises(TypeError),
+        ),
+        (
+            (10, 3),
+            (12, 4),
+            (12, 3),
+            pytest.raises(TypeError),
+        ),
+    ],
+)
+@random_inputs("vertices", "mirror_vertices", "mirror_normals")
+def test_consecutive_vertices_are_on_same_side_of_mirrors(
+    vertices: Array,
+    mirror_vertices: Array,
+    mirror_normals: Array,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with expectation:
+        got = consecutive_vertices_are_on_same_side_of_mirrors(
+            vertices, mirror_vertices, mirror_normals
+        )
+        chex.assert_trees_all_equal_shapes(got, mirror_vertices[..., 0])

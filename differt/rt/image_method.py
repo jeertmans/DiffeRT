@@ -14,10 +14,10 @@ Otherwise, the returned path will, for each reflection, have equal angles
 of incidence and of reflection.
 """
 
-
+import chex
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, Bool, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
 
@@ -189,21 +189,30 @@ def image_method(
     return paths
 
 
-#@jaxtyped
-#@typechecker
+@jaxtyped
+@typechecker
 def consecutive_vertices_are_on_same_side_of_mirrors(
-    vertices: Float[Array, "num_mirrors+2 *batch 3"],
+    vertices: Float[Array, "num_vertices *batch 3"],
     mirror_vertices: Float[Array, "num_mirrors *batch 3"],
     mirror_normals: Float[Array, "num_mirrors *batch 3"],
-) -> Float[Array, "num_mirrors *batch"]:
+) -> Bool[Array, "num_mirrors *batch"]:
     """
     Check if consecutive vertices, but skiping one every other vertex,
-    are on the same side of a given mirror.
+    are on the same side of a given mirror. The number of vertices
+    ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
     This check is needed after using :func:`image_method` because it can return
     vertices that are behind a mirror, which causes the path to go trough this
     mirror, and is someone we want to avoid.
+
+    Args:
+        pass
+
+    Returns:
+        pass
     """
+    chex.assert_axis_dimension(vertices, 0, mirror_vertices.shape[0] + 2)
+
     v_prev = vertices[:-2, ...] - mirror_vertices
     v_next = vertices[+2:, ...] - mirror_vertices
 
