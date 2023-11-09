@@ -1,19 +1,19 @@
-[package]
-name = "differt-core"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "differt_core"
-crate-type = ["cdylib"]
-
 [dependencies]
-pyo3 = "0.20"
 numpy = "0.20"
-rstest = { version = "0.18.2", optional = true }
+pyo3 = "0.20"
+rstest = {version = "0.18.2", optional = true}
 
 [features]
 default = ["extension-module"]
 extension-module = ["pyo3/extension-module"]
 test = ["pyo3/auto-initialize", "dep:rstest"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+name = "differt_core"
+
+[package]
+edition = "2021"
+name = "differt-core"
+version = "0.1.0"

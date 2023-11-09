@@ -1,10 +1,9 @@
 from functools import lru_cache as cache
 
+import differt_core
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
-
-import differt_core
 
 
 @jaxtyped
