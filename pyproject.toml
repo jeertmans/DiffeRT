@@ -73,13 +73,13 @@ sphinxext-opengraph = "^0.9.0"
 
 [tool.poetry.group.github-action.dependencies]
 jax = {extras = ["cpu"], version = "^0.4.20"}
-open3d-cpu = {version = "^0.17.0", markers = "python_version < '3.11' and sys_platform == 'linux'"}
+open3d-cpu = {version = "^0.17.0", python = "<3.11"}
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
-pytest-benchmark = "^4.0.0"
 pytest-cov = "^4.1.0"
 pytest-xdist = "^3.3.1"
+pytest-benchmark = "^4.0.0"
 
 [tool.pytest.ini_options]
 addopts = [
