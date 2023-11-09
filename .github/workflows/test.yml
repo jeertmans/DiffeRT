@@ -34,7 +34,7 @@ jobs:
 
     - name: Install Differt
       run: |
-        poetry install --with test,github-action
+        poetry install --with test,github-action  # TODO: FIXME on macOS and Windows
 
     - name: Run Pytest
       run: |

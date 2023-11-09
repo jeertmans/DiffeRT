@@ -60,11 +60,11 @@ mod tests {
     use pyo3::{types::IntoPyDict, Python};
 
     #[rstest]
-    #[case(0, 0, "np.empty((0, 0), dtype=np.uint)")]
-    #[case(3, 0, "np.empty((0, 0), dtype=np.uint)")]
-    #[case(0, 3, "np.empty((0, 0), dtype=np.uint)")]
-    #[case(9, 1, "np.arange(9, dtype=np.uint).reshape(1, 9)")]
-    #[case(3, 1, "np.array([[0, 1, 2]], dtype=np.uint)")]
+    #[case(0, 0, "np.empty((0, 0), dtype=np.uint32)")]
+    #[case(3, 0, "np.empty((0, 0), dtype=np.uint32)")]
+    #[case(0, 3, "np.empty((0, 0), dtype=np.uint32)")]
+    #[case(9, 1, "np.arange(9, dtype=np.uint32).reshape(1, 9)")]
+    #[case(3, 1, "np.array([[0, 1, 2]], dtype=np.uint32)")]
     #[case(
         3,
         2,
