@@ -43,6 +43,7 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 chex = "^0.1.84"
+differt-core = {path = "differt-core"}
 jax = "^0.4.20"
 jaxtyping = "^0.2.23"
 matplotlib = {version = "^3.8.1", optional = true}

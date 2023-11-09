@@ -41,7 +41,7 @@ def uint_array(array_like: Array) -> Array:
 def test_generate_path_candidates(
     num_primitives: int, order: int, expected: Array
 ) -> None:
-    got = generate_path_candidates(num_primitives, order)
+    got = generate_path_candidates(num_primitives, order).T
     if got.size > 0:
         got = got[jnp.lexsort(got.T[::-1])]  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
