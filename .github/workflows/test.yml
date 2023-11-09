@@ -19,6 +19,12 @@ jobs:
     - name: Install Poetry
       run: pipx install poetry
 
+    - name: Build DiffeRT-core
+      uses: PyO3/maturin-action@v1
+      with:
+        command: build
+        working-directory: differt-core
+
     - name: Install Python
       uses: actions/setup-python@v4
       with:
@@ -51,7 +57,14 @@ jobs:
         python-version: '3.11'
         cache: poetry
 
-    - name: Install Differt2D
+    - name: Build DiffeRT-core
+      uses: PyO3/maturin-action@v1
+      with:
+        command: build
+        working-directory: differt-core
+        args: --release
+
+    - name: Install DiffeRT
       run: |
         poetry install --with test,github-action
 
