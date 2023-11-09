@@ -4,3 +4,9 @@
 docs/build/
 
 .ipynb_checkpoints/
+
+dist/
+
+target/
+
+.mypy_cache

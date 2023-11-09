@@ -32,3 +32,9 @@ repos:
     args: [--py39-plus]
   - id: nbqa-isort
     args: [--profile, black]
+- repo: https://github.com/doublify/pre-commit-rust
+  rev: v1.0
+  hooks:
+  - id: fmt
+  - id: cargo-check
+  - id: clippy

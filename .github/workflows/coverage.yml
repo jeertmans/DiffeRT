@@ -13,6 +13,13 @@ jobs:
     - name: Install Poetry
       run: pipx install poetry
 
+    - name: Build DiffeRT-core
+      uses: PyO3/maturin-action@v1
+      with:
+        command: build
+        working-directory: differt-core
+        sccache: true
+
     - name: Install Python
       uses: actions/setup-python@v4
       with:

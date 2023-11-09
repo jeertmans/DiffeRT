@@ -43,6 +43,7 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 chex = "^0.1.84"
+differt-core = {path = "differt-core"}
 jax = "^0.4.20"
 jaxtyping = "^0.2.23"
 matplotlib = {version = "^3.8.1", optional = true}
@@ -72,7 +73,7 @@ sphinxext-opengraph = "^0.9.0"
 
 [tool.poetry.group.github-action.dependencies]
 jax = {extras = ["cpu"], version = "^0.4.20"}
-open3d-cpu = {version = "^0.17.0", markers = "python_version < '3.11' and sys_platform == 'linux'"}
+open3d-cpu = {version = "^0.17.0", python = "<3.11"}
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
