@@ -49,7 +49,9 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
     def register(backend: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Register a new implemenation."""
         if backend not in SUPPORTED_BACKEND:
-            raise ValueError(f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}.")
+            raise ValueError(
+                f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}."
+            )
 
         def wrapper(impl: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(impl)
