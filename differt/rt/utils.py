@@ -13,10 +13,10 @@ def generate_path_candidates(
     Generate an array of path candidates for fixed path order
     and a number of primitives.
 
-    The returned array contains, for each row, an array of
+    The returned array contains, for each column, an array of
     ``order`` indices indicating the primitive with which the path interacts.
 
-    This list is generated as the list of all simple paths from one node to
+    This list is generated as the list of all paths from one node to
     another, by passing by exactly ``order`` primitives. Calling this function
     is equivalent to calling :func:`itertools.product` with parameters
     ``[0, 1, ..., num_primitives - 1]`` and ``repeat=order``, and removing entries
