@@ -1,5 +1,3 @@
-from functools import lru_cache as cache
-
 import differt_core
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
@@ -8,7 +6,6 @@ from typeguard import typechecked as typechecker
 
 @jaxtyped
 @typechecker
-@cache
 def generate_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:

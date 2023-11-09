@@ -8,3 +8,5 @@ docs/build/
 dist/
 
 target/
+
+.mypy_cache
