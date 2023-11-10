@@ -28,6 +28,11 @@ jobs:
         python-version: '3.11'
         cache: poetry
 
+    - name: Change differt-core version
+      run: |
+        pip install toml-cli
+        toml get --toml-path differt-core/Cargo.toml package.version | toml set --toml-path pyproject.toml tool.poetry.dependencies.differt-core
+
     - name: Build wheels
       run: poetry build
 

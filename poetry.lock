@@ -668,12 +668,15 @@ files = [
 
 [[package]]
 name = "differt-core"
-version = "0.1.0"
+version = "0.0.2"
 description = ""
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = []
-develop = false
+develop = true
+
+[package.dependencies]
+numpy = ">=1.16.0"
 
 [package.source]
 type = "directory"
@@ -2185,13 +2188,13 @@ virtualenv = ">=20.10.0"
 
 [[package]]
 name = "prompt-toolkit"
-version = "3.0.39"
+version = "3.0.40"
 description = "Library for building powerful interactive command lines in Python"
 optional = false
 python-versions = ">=3.7.0"
 files = [
-    {file = "prompt_toolkit-3.0.39-py3-none-any.whl", hash = "sha256:9dffbe1d8acf91e3de75f3b544e4842382fc06c6babe903ac9acb74dc6e08d88"},
-    {file = "prompt_toolkit-3.0.39.tar.gz", hash = "sha256:04505ade687dc26dc4284b1ad19a83be2f2afe83e7a828ace0c72f3a1df72aac"},
+    {file = "prompt_toolkit-3.0.40-py3-none-any.whl", hash = "sha256:99ba3dfb23d5b5af89712f89e60a5f3d9b8b67a9482ca377c5771d0e9047a34b"},
+    {file = "prompt_toolkit-3.0.40.tar.gz", hash = "sha256:a371c06bb1d66cd499fecd708e50c0b6ae00acba9822ba33c586e2f16d1b739e"},
 ]
 
 [package.dependencies]
@@ -3535,4 +3538,4 @@ plotting = ["matplotlib", "plotly"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "7c31fab731c71b811d61dd1b655c2b735d50e06559b2b5423ef8e6499f4b3027"
+content-hash = "f7e18ac7265ef23f48898fde4c596cf51742764c39a1388d7b12a48536453b5c"
