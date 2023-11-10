@@ -9,6 +9,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy"
 ]
+dependencies = ["numpy>=1.16.0"]
 dynamic = ["version"]
 license = {file = "LICENSE.md"}
 name = "differt-core"

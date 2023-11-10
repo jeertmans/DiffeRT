@@ -16,4 +16,4 @@ name = "differt_core"
 [package]
 edition = "2021"
 name = "differt-core"
-version = "0.0.1"
+version = "0.0.2"

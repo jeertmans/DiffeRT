@@ -10,3 +10,5 @@ dist/
 target/
 
 .mypy_cache
+
+venv/
