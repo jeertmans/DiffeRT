@@ -39,7 +39,7 @@ packages = [
 ]
 readme = "README.md"
 repository = "https://github.com/jeertmans/DiffeRT"
-version = "0.1.0"
+version = "0.0.1"
 
 [tool.poetry.dependencies]
 chex = "^0.1.84"

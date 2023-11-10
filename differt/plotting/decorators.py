@@ -19,14 +19,17 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
         >>> @plotting.dispatch
         ... def plot_line(vertices, color):
         ...     pass
+        ...
         >>>
         >>> @plot_line.register("matplotlib")
         ... def _(vertices, color):
         ...     print("Using matplotlib backend")
+        ...
         >>>
         >>> @plot_line.register("plotly")
         ... def _(vertices, color):
         ...     print("Using plotly backend")
+        ...
         >>>
         >>> plot_line(_, _, backend="matplotlib")
         Using matplotlib backend
@@ -41,6 +44,7 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
         >>> @plot_line.register("numpy")  # doctest: +IGNORE_EXCEPTION_DETAIL
         ... def _(vertices, color):
         ...     pass
+        ...
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
