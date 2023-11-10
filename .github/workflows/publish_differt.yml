@@ -1,16 +1,20 @@
-name: Upload Python Package
-
+name: Publish differt Python Package
 on:
   push:
-
   release:
     types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build_and_release:
     name: Build and release
     runs-on: ubuntu-latest
-
+    environment: release
+    permissions:
+      id-token: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -29,6 +33,4 @@ jobs:
 
     - name: Publish to PyPI
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
       run: poetry publish
