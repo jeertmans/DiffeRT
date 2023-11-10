@@ -10,7 +10,7 @@ permissions:
   contents: read
   
 defaults:
-  with:
+  run:
     working-directory: differt-core
 
 jobs:
