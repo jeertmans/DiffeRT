@@ -31,6 +31,7 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
+        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
@@ -40,7 +41,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: dist
+        path: differt-core/dist
 
   windows:
     runs-on: windows-latest
@@ -60,6 +61,7 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
+        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
@@ -68,7 +70,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: dist
+        path: differt-core/dist
 
   macos:
     runs-on: macos-latest
@@ -87,14 +89,16 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
+        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
+        
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: dist
+        path: differt-core/dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -106,13 +110,14 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         command: sdist
+        working-directory: differt-core
         args: --out dist
 
     - name: Upload sdist
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: dist
+        path: differt-core/dist
 
   release:
     name: Release
