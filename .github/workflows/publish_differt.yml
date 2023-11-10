@@ -1,10 +1,12 @@
-name: Upload Python Package
-
+name: Publish differt Python Package
 on:
   push:
-
   release:
     types: [published]
+  workflow_dispatch:
+    
+permissions:
+  contents: read
 
 jobs:
   build_and_release:
