@@ -15,13 +15,13 @@ repos:
     exclude: poetry.lock
     args: [--autofix]
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.1.4
+  rev: v0.1.5
   hooks:
   - id: ruff
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.6.1
+  rev: v1.7.0
   hooks:
   - id: mypy
 - repo: https://github.com/nbQA-dev/nbQA
