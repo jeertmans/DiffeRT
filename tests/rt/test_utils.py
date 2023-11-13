@@ -13,9 +13,9 @@ def uint_array(array_like: Array) -> Array:
 @pytest.mark.parametrize(
     "num_primitives,order,expected",
     [
-        (0, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
-        (8, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
-        (0, 5, jnp.empty((0, 5), dtype=jnp.uint32)),
+        (0, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
+        (8, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
+        (0, 5, jnp.empty((5, 0), dtype=jnp.uint32)),
         (3, 1, uint_array([[0], [1], [2]])),
         (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]])),
         (
