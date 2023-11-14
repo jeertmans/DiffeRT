@@ -2,6 +2,9 @@ use numpy::ndarray::{s, Array2};
 use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
 
+
+const VERSION: &'static str = "0.0.4";
+
 /// Formats the sum of two numbers as string.
 #[pyfunction]
 fn generate_path_candidates(py: Python<'_>, num_primitives: u32, order: u32) -> &PyArray2<u32> {
@@ -47,6 +50,7 @@ fn generate_path_candidates(py: Python<'_>, num_primitives: u32, order: u32) -> 
 /// Core of DiffeRT module, implemented in Rust.
 #[pymodule]
 fn differt_core(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add("__version__", VERSION)?;
     m.add_function(wrap_pyfunction!(generate_path_candidates, m)?)?;
     Ok(())
 }
