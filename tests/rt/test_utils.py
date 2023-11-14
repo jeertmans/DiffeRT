@@ -16,8 +16,8 @@ def uint_array(array_like: Array) -> Array:
         (0, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
         (8, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
         (0, 5, jnp.empty((5, 0), dtype=jnp.uint32)),
-        (3, 1, uint_array([[0], [1], [2]])),
-        (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]])),
+        (3, 1, uint_array([[0, 1, 2]])),
+        (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]).T),
         (
             3,
             3,
@@ -36,16 +36,16 @@ def uint_array(array_like: Array) -> Array:
                     [2, 1, 0],
                     [2, 1, 2],
                 ]
-            ),
+            ).T,
         ),
     ],
 )
 def test_generate_path_candidates(
     num_primitives: int, order: int, expected: Array
 ) -> None:
-    got = generate_path_candidates(num_primitives, order).T
+    got = generate_path_candidates(num_primitives, order)
     if got.size > 0:
-        got = got[jnp.lexsort(got.T[::-1])]  # order may not be the same so we sort
+        got = got.T[jnp.lexsort(got[::-1])].T  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)
 

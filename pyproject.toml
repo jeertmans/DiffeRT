@@ -59,8 +59,8 @@ plotly = ["plotly"]
 plotting = ["matplotlib", "plotly"]
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.5.0"
 bump2version = "^1.0.1"
+pre-commit = "^3.5.0"
 
 [tool.poetry.group.docs.dependencies]
 myst-nb = "^0.17.2"
