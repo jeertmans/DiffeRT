@@ -1,2 +1,3 @@
 [workspace]
 members = ["differt-core"]
+resolver = "2"

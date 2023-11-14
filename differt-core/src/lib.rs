@@ -2,16 +2,22 @@ use numpy::ndarray::{s, Array2};
 use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
 
-/// Formats the sum of two numbers as string.
+const VERSION: &str = "0.0.5";
+
+/// Generate an array of path num_candidates.
 #[pyfunction]
 fn generate_path_candidates(py: Python<'_>, num_primitives: u32, order: u32) -> &PyArray2<u32> {
-    if num_primitives == 0 || order == 0 {
-        return Array2::default((0, 0)).into_pyarray(py);
+    if order == 0 {
+        // One path of size 0
+        return Array2::default((0, 1)).into_pyarray(py);
+    } else if num_primitives == 0 {
+        // Zero path of size order
+        return Array2::default((order as usize, 0)).into_pyarray(py);
     } else if order == 1 {
         let mut path_candidates = Array2::default((1, num_primitives as usize));
 
-        for i in 0..num_primitives {
-            path_candidates[(0, i as usize)] = i;
+        for j in 0..num_primitives {
+            path_candidates[(0, j as usize)] = j;
         }
         return path_candidates.into_pyarray(py);
     }
@@ -43,6 +49,7 @@ fn generate_path_candidates(py: Python<'_>, num_primitives: u32, order: u32) -> 
 /// Core of DiffeRT module, implemented in Rust.
 #[pymodule]
 fn differt_core(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add("__version__", VERSION)?;
     m.add_function(wrap_pyfunction!(generate_path_candidates, m)?)?;
     Ok(())
 }
@@ -56,9 +63,9 @@ mod tests {
     use pyo3::{types::IntoPyDict, Python};
 
     #[rstest]
-    #[case(0, 0, "np.empty((0, 0), dtype=np.uint32)")]
-    #[case(3, 0, "np.empty((0, 0), dtype=np.uint32)")]
-    #[case(0, 3, "np.empty((0, 0), dtype=np.uint32)")]
+    #[case(0, 0, "np.empty((0, 1), dtype=np.uint32)")]
+    #[case(3, 0, "np.empty((0, 1), dtype=np.uint32)")]
+    #[case(0, 3, "np.empty((3, 0), dtype=np.uint32)")]
     #[case(9, 1, "np.arange(9, dtype=np.uint32).reshape(1, 9)")]
     #[case(3, 1, "np.array([[0, 1, 2]], dtype=np.uint32)")]
     #[case(
