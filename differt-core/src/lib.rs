@@ -2,7 +2,7 @@ use numpy::ndarray::{s, Array2};
 use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
 
-const VERSION: &str = "0.0.4";
+const VERSION: &str = "0.0.5";
 
 /// Generate an array of path num_candidates.
 #[pyfunction]
