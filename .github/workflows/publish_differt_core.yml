@@ -2,8 +2,10 @@ name: Publish differt-core Python Package
 
 on:
   push:
-  release:
-    types: [published]
+    branches:
+    - main
+    tags:
+    - '*'
   workflow_dispatch:
 
 permissions:
@@ -122,7 +124,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     needs: [linux, windows, macos, sdist]
     environment: release
     permissions:
