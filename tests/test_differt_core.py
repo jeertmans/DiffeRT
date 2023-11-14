@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import differt_core
-import rtoml
+import tomli
 
 import differt
 
@@ -11,5 +11,5 @@ def test_same_version() -> None:
 
 
 def test_version_matches_cargo_toml(differt_core_cargo_toml: Path) -> None:
-    toml = rtoml.load(differt_core_cargo_toml)
+    toml = tomli.loads(differt_core_cargo_toml.read_text())
     assert differt_core.__version__ == toml["package"]["version"]
