@@ -23,7 +23,7 @@ jobs:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Python
       uses: actions/setup-python@v4
@@ -52,7 +52,7 @@ jobs:
         target: [x64, x86]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Python
       uses: actions/setup-python@v4
@@ -81,7 +81,7 @@ jobs:
         target: [x86_64, aarch64]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Python
       uses: actions/setup-python@v4
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Build sdist
       uses: PyO3/maturin-action@v1
