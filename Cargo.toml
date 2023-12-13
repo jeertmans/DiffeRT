@@ -1,3 +1,11 @@
 [workspace]
 members = ["differt-core"]
 resolver = "2"
+
+[profile.release]
+lto = "fat"
+strip = true
+
+[profile.bench]
+lto = false
+strip = false
