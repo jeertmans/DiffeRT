@@ -54,7 +54,7 @@ pub struct AllPathCandidates {
     /// Number of primitives.
     num_primitives: u32,
     /// Path order.
-    order: usize,
+    order: u32,
     /// Exact number of path candidates that will be generated.
     num_candidates: usize,
     /// The index of the current path candidate.
@@ -70,16 +70,17 @@ impl AllPathCandidates {
     #[inline]
     fn new(num_primitives: u32, order: u32) -> Self {
         let num_choices = num_primitives.saturating_sub(1) as usize;
-        let num_candidates_per_batch = num_choices.pow(order.saturating_sub(1));
+        let i = order.saturating_sub(1);
+        let num_candidates_per_batch = num_choices.pow(i);
         let num_candidates = (num_primitives as usize) * num_candidates_per_batch;
 
         Self {
             num_primitives,
-            order: order as usize,
+            order,
             num_candidates,
             index: 0,
             path_candidate: (0..order).collect(),
-            i: 0,
+            i: i as usize,
             counter: vec![0; order as usize],
         }
     }
@@ -97,25 +98,13 @@ impl Iterator for AllPathCandidates {
 
         let path_candidate = self.path_candidate.clone();
 
-        return Some(path_candidate);
-
-        /*
         let index = 0;
-        while rotate {
 
+        while self.counter[self.i] < self.order { 
+            /* ... */
         }
 
-        let mut indices = vec![0; self.order];
-        for i in 0..self.order {
-            if i > 0 && indices[i-1] == self.fill_value {
-                self.fill_value = (self.fill_value + 1) % self.num_primitives;
-            }
-            indices[i] = self.fill_value;
-            self.fill_value = (self.fill_value + 1) % self.num_primitives;
-        }
-
-        return Some(indices);
-        */
+        return Some(path_candidate)
     }
 
     #[inline]
