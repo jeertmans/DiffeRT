@@ -51,13 +51,19 @@ pub fn generate_all_path_candidates(
 
 #[pyclass]
 pub struct AllPathCandidates {
+    /// Number of primitives.
     num_primitives: u32,
+    /// Path order.
     order: usize,
+    /// Exact number of path candidates that will be generated.
     num_candidates: usize,
-    batch_size: usize,
-    fill_value: u32,
+    /// The index of the current path candidate.
     index: usize,
-    indices: Vec<u32>,
+    /// Last path candidate.
+    path_candidate: Vec<u32>,
+    /// Current index <...>.
+    i: usize,
+    counter: Vec<u32>,
 }
 
 impl AllPathCandidates {
@@ -71,10 +77,10 @@ impl AllPathCandidates {
             num_primitives,
             order: order as usize,
             num_candidates,
-            batch_size: num_candidates_per_batch,
-            fill_value: 0,
             index: 0,
-            indices: (0..order).collect(),
+            path_candidate: (0..order).collect(),
+            i: 0,
+            counter: vec![0; order as usize],
         }
     }
 }
@@ -89,8 +95,11 @@ impl Iterator for AllPathCandidates {
         }
         self.index += 1;
 
-        let indices = self.indices.clone();
-        
+        let path_candidate = self.path_candidate.clone();
+
+        return Some(path_candidate);
+
+        /*
         let index = 0;
         while rotate {
 
@@ -106,6 +115,7 @@ impl Iterator for AllPathCandidates {
         }
 
         return Some(indices);
+        */
     }
 
     #[inline]
@@ -172,6 +182,22 @@ pub fn generate_path_candidates_from_visibility_matrix<'py>(
     todo!()
 }
 
+#[pyclass]
+pub struct PathCandidates {
+    /// Indices.
+    indices: Vec<Vec<usize>>,
+}
+
+#[pymethods]
+impl PathCandidates {
+    #[new]
+    fn py_new(visibility_matrix: PyReadonlyArray2<'_, bool>) -> Self {
+        Self {
+            indices: where_true(&visibility_matrix.as_array()),
+        }
+    }
+}
+
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "utils")?;
     m.add_function(wrap_pyfunction!(generate_all_path_candidates, m)?)?;
@@ -187,62 +213,50 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
 mod tests {
     use super::*;
 
-    use ndarray::array;
-    use rstest::rstest;
+    use ndarray::{array, Array};
+    use rstest::*;
 
-    use pyo3::{types::IntoPyDict, Python};
-
-    /*
     #[rstest]
-    #[case(0, 0, "np.empty((0, 1), dtype=np.uint32)")]
-    #[case(3, 0, "np.empty((0, 1), dtype=np.uint32)")]
-    #[case(0, 3, "np.empty((3, 0), dtype=np.uint32)")]
-    #[case(9, 1, "np.arange(9, dtype=np.uint32).reshape(1, 9)")]
-    #[case(3, 1, "np.array([[0, 1, 2]], dtype=np.uint32)")]
+    #[case(0, 0, Array::zeros((0, 1)))]
+    #[case(3, 0, Array::zeros((0, 1)))]
+    #[case(0, 3, Array::zeros((3, 0)))]
+    #[case(9, 1, array![[0, 1, 2, 3, 4, 5, 6, 7, 8]])]
+    #[case(3, 1, array![[0, 1, 2]])]
     #[case(
         3,
         2,
-        "np.array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]], dtype=np.uint32).T"
+        array![[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]].t().to_owned()
     )]
     #[case(
         3,
         3,
-        "np.array(
-            [
-                [0, 1, 2],
-                [0, 1, 0],
-                [0, 2, 1],
-                [0, 2, 0],
-                [1, 0, 1],
-                [1, 0, 2],
-                [1, 2, 0],
-                [1, 2, 1],
-                [2, 0, 2],
-                [2, 0, 1],
-                [2, 1, 2],
-                [2, 1, 0],
-            ], dtype=np.uint32
-        ).T"
+        array![
+            [0, 1, 2],
+            [0, 1, 0],
+            [0, 2, 1],
+            [0, 2, 0],
+            [1, 0, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [1, 2, 1],
+            [2, 0, 2],
+            [2, 0, 1],
+            [2, 1, 2],
+            [2, 1, 0],
+        ].t().to_owned()
     )]
     fn test_generate_all_path_candidates(
         #[case] num_primitives: u32,
         #[case] order: u32,
-        #[case] code: &str,
+        #[case] expected: Array2<u32>,
     ) {
         Python::with_gil(|py| {
-            let np = py.import("numpy").unwrap();
-            let locals = [("np", np)].into_py_dict(py);
             let got = generate_all_path_candidates(py, num_primitives, order);
-            let expected: &PyArray2<u32> = py
-                .eval(code, Some(locals), None)
-                .unwrap()
-                .extract()
-                .unwrap();
 
-            assert_eq!(got.to_owned_array(), expected.to_owned_array());
+            assert_eq!(got.to_owned_array(), expected);
         });
-    }*/
-    
+    }
+
     #[rstest]
     #[should_panic] // Because we do not handle this edge case (empty iterator)
     #[case(0, 0)]
@@ -256,7 +270,8 @@ mod tests {
     #[case(3, 3)]
     fn test_generate_all_path_candidates_iter(#[case] num_primitives: u32, #[case] order: u32) {
         Python::with_gil(|py| {
-            let got: Vec<Vec<_>> = generate_all_path_candidates_iter(py, num_primitives, order).collect();
+            let got: Vec<Vec<_>> =
+                generate_all_path_candidates_iter(py, num_primitives, order).collect();
             let expected = generate_all_path_candidates(py, num_primitives, order);
 
             let got = PyArray2::from_vec2(py, &got).unwrap();
