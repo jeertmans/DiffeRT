@@ -1,6 +1,7 @@
 [dependencies]
 ndarray = { version = "0.15", features = ["rayon"] }
 numpy = "0.20"
+obj-rs = "0.7.1"
 pyo3 = "0.20"
 
 [features]

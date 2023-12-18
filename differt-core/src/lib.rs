@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+pub mod geometry;
 pub mod rt;
 
 const VERSION: &str = "0.0.5";

@@ -61,8 +61,6 @@ pub struct AllPathCandidates {
     index: usize,
     /// Last path candidate.
     path_candidate: Vec<u32>,
-    /// Current index <...>.
-    i: usize,
     counter: Vec<u32>,
 }
 
@@ -70,8 +68,7 @@ impl AllPathCandidates {
     #[inline]
     fn new(num_primitives: u32, order: u32) -> Self {
         let num_choices = num_primitives.saturating_sub(1) as usize;
-        let i = order.saturating_sub(1);
-        let num_candidates_per_batch = num_choices.pow(i);
+        let num_candidates_per_batch = num_choices.pow(order.saturating_sub(1));
         let num_candidates = (num_primitives as usize) * num_candidates_per_batch;
 
         Self {
@@ -80,8 +77,7 @@ impl AllPathCandidates {
             num_candidates,
             index: 0,
             path_candidate: (0..order).collect(),
-            i: i as usize,
-            counter: vec![0; order as usize],
+            counter: vec![2; order as usize],
         }
     }
 }
@@ -91,20 +87,28 @@ impl Iterator for AllPathCandidates {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.num_candidates {
-            return None;
-        }
         self.index += 1;
 
         let path_candidate = self.path_candidate.clone();
 
-        let index = 0;
+        let start = self
+            .counter
+            .iter()
+            .rposition(|&count| count < self.num_primitives)?;
 
-        while self.counter[self.i] < self.order { 
-            /* ... */
+        println!("Actual counter: {:?}", self.counter);
+        println!("start index:{:?}", start);
+
+        self.counter[start] += 1;
+        self.path_candidate[start] = (self.path_candidate[start] + 1) % self.num_primitives;
+
+        for i in (start + 1)..(self.order as usize) {
+            self.path_candidate[i] = (self.path_candidate[i - 1] + 1) % self.num_primitives;
+            self.counter[i] = 2;
         }
+        println!("{:?}", self.counter);
 
-        return Some(path_candidate)
+        Some(path_candidate)
     }
 
     #[inline]
