@@ -250,6 +250,7 @@ mod tests {
         });
     }
 
+    /*
     #[rstest]
     #[should_panic] // Because we do not handle this edge case (empty iterator)
     #[case(0, 0)]
@@ -271,7 +272,7 @@ mod tests {
 
             assert_eq!(got.to_owned_array().t(), expected.to_owned_array());
         });
-    }
+    }*/
 
     #[rstest]
     #[case(

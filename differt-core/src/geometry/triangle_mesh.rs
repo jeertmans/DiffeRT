@@ -24,7 +24,8 @@ impl TriangleMesh {
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occured while reading obj file: {}", err))
         })?;
-        obj.try_into()
+        //obj.try_into()
+        todo!()
     }
 }
 
@@ -32,6 +33,7 @@ impl TryFrom<RawObj> for TriangleMesh {
     type Error = PyValueError;
 
     fn try_from(raw_obj: RawObj) -> Result<Self, Self::Error> {
+        /*
         use obj::raw::object::Polygon::*;
         let vertices = raw_obj
             .positions
@@ -48,6 +50,8 @@ impl TryFrom<RawObj> for TriangleMesh {
             vertices,
             triangles: triangles?,
         })
+        */
+        todo!()
     }
 }
 
