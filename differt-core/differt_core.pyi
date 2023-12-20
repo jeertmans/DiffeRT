@@ -1,3 +1,0 @@
-import numpy as np
-
-def generate_path_candidates(num_primitives: int, order: int) -> np.ndarray: ...

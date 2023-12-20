@@ -1,11 +1,22 @@
-[workspace]
-members = ["differt-core"]
-resolver = "2"
+[dependencies]
+ndarray = { version = "0.15", features = ["rayon"] }
+numpy = "0.20"
+obj-rs = "0.7.1"
+pyo3 = "0.20"
 
-[profile.release]
-lto = "fat"
-strip = true
+[features]
+extension-module = ["pyo3/extension-module"]
 
-[profile.bench]
-lto = false
-strip = false
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "differt_core"
+
+[package]
+edition = "2021"
+name = "differt"
+version = "0.0.5"
+
+[dev-dependencies]
+pyo3 = { version = "0.20.0", features = ["auto-initialize"] }
+rstest = "0.18.2"
