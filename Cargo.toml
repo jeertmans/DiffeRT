@@ -19,3 +19,12 @@ name = "differt"
 edition = "2021"
 name = "_core"
 version = "0.0.5"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[profile.bench]
+debug = true
+strip = false

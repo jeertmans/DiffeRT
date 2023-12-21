@@ -4,6 +4,9 @@ on:
 
 name: Test code
 
+env:
+  JAX_PLATFORM_NAME: cpu
+
 jobs:
   pytest:
     strategy:
@@ -31,7 +34,7 @@ jobs:
 
     - name: Run Pytest
       run: |
-        poetry run pytest -Werror -n auto
+        pdm run pytest -Werror -n auto
   cargo-test:
     strategy:
       fail-fast: false
@@ -63,22 +66,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    env:
-      JAX_PLATFORM_NAME: cpu
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
-      run: pipx install poetry
-
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
         python-version: '3.11'
-        cache: poetry
+        cache: true
 
-    - name: Install DiffeRT
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
       run: |
         pdm install -G test,github-action  # TODO: build in release mode?
 
@@ -91,7 +92,7 @@ jobs:
         clean: false
 
     - name: Run Benchmarks before changes
-      run: poetry run pytest --benchmark-only --benchmark-save=before
+      run: pdm run pytest --benchmark-only --benchmark-save=before
 
     - name: Compare benchmarks
       run: |

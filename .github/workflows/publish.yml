@@ -1,5 +1,4 @@
-name: Publish differt-core Python Package
-
+name: Publish Python Package
 on:
   push:
     branches:
@@ -10,10 +9,6 @@ on:
 
 permissions:
   contents: read
-
-defaults:
-  run:
-    working-directory: differt-core
 
 jobs:
   linux:
@@ -28,12 +23,11 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
-        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
@@ -43,7 +37,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: differt-core/dist
+        path: dist
 
   windows:
     runs-on: windows-latest
@@ -63,7 +57,6 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
-        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
@@ -72,7 +65,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: differt-core/dist
+        path: dist
 
   macos:
     runs-on: macos-latest
@@ -91,7 +84,6 @@ jobs:
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
-        working-directory: differt-core
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
@@ -100,7 +92,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: differt-core/dist
+        path: dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -112,14 +104,12 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         command: sdist
-        working-directory: differt-core
         args: --out dist
 
     - name: Upload sdist
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: differt-core/dist
 
   release:
     name: Release
