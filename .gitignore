@@ -14,3 +14,5 @@ target/
 venv/
 
 .pdm-python
+
+*.so

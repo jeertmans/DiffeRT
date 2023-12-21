@@ -40,6 +40,10 @@ Founding = "https://github.com/sponsors/jeertmans"
 Homepage = "https://github.com/jeertmans/DiffeRT"
 Repository = "https://github.com/jeertmans/DiffeRT"
 
+[tool.maturin]
+module-name = "differt._core"
+python-source = "python"
+
 [tool.coverage.report]
 exclude_lines = [
   'pragma: no cover',
@@ -76,7 +80,6 @@ test = [
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
   "pytest-xdist>=3.3.1",
-  "tomli>=2.0.1"
 ]
 
 [tool.pytest.ini_options]

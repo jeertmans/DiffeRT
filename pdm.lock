@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "github-action", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:bb82d07a28ac55f78992cba8ae36fcdcc9a85a45f8afa4d6f816239984cd93fe"
+content_hash = "sha256:3ff96a4c1ecbe44f6a878a2221cd9a376d30074f6028aed2ed4351d132afc991"
 
 [[package]]
 name = "absl-py"
@@ -2421,6 +2421,7 @@ version = "2.0.1"
 requires_python = ">=3.7"
 summary = "A lil' TOML parser"
 groups = ["test"]
+marker = "python_version < \"3.11\""
 files = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},

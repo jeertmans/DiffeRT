@@ -1,8 +1,8 @@
-import differt_core
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
+from differt._core.rt import utils
 
 @jaxtyped(typechecker=typechecker)
 def generate_path_candidates(
@@ -31,7 +31,7 @@ def generate_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        differt_core.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
+        utils.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
     )
 
 
