@@ -61,7 +61,7 @@ jobs:
 
     - name: Run Cargo test
       run: |
-        cargo test
+        pdm run cargo test
   python-benchmark:
     runs-on: ubuntu-latest
     permissions:
@@ -140,7 +140,7 @@ jobs:
         cargo install cargo-benchcmp
 
     - name: Run Benchmarks on changes
-      run: cargo bench > changes
+      run: pdm run cargo bench > changes
 
     - uses: actions/checkout@v4
       with:
@@ -148,7 +148,7 @@ jobs:
         clean: false
 
     - name: Run Benchmarks before changes
-      run: cargo bench > before
+      run: pdm run cargo bench > before
 
     - name: Compare benchmarks
       run: |
