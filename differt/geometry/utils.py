@@ -3,8 +3,7 @@ from jaxtyping import Array, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def pairwise_cross(
     u: Float[Array, "m 3"], v: Float[Array, "n 3"]
 ) -> Float[Array, "m n 3"]:

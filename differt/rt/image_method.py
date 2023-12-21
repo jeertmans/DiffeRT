@@ -21,8 +21,7 @@ from jaxtyping import Array, Bool, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*batch 3"],
     mirror_vertices: Float[Array, "*batch 3"],
@@ -74,8 +73,7 @@ def image_of_vertices_with_respect_to_mirrors(
     )
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def intersection_of_line_segments_with_planes(
     segment_starts: Float[Array, "*batch 3"],
     segment_ends: Float[Array, "*batch 3"],
@@ -113,8 +111,7 @@ def intersection_of_line_segments_with_planes(
     return segment_starts + offset
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
@@ -146,8 +143,7 @@ def image_method(
     """
     T = Float[Array, "*batch 3"]
 
-    @jaxtyped
-    @typechecker
+    @jaxtyped(typechecker=typechecker)
     def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
         """
         Perform forward pass on vertices by computing
@@ -160,8 +156,7 @@ def image_method(
         )
         return images, images
 
-    @jaxtyped
-    @typechecker
+    @jaxtyped(typechecker=typechecker)
     def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
         """
         Perform backward pass on images by computing the
@@ -188,8 +183,7 @@ def image_method(
     return paths
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "num_vertices *batch 3"],
     mirror_vertices: Float[Array, "num_mirrors *batch 3"],

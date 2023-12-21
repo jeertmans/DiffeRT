@@ -4,8 +4,7 @@ from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def generate_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:
@@ -36,8 +35,7 @@ def generate_path_candidates(
     )
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
