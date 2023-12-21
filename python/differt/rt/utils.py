@@ -32,7 +32,8 @@ def generate_all_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        _core.rt.utils.generate_all_path_candidates(num_primitives, order), dtype=jnp.uint32
+        _core.rt.utils.generate_all_path_candidates(num_primitives, order),
+        dtype=jnp.uint32,
     )
 
 

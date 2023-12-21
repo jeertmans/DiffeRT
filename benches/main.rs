@@ -6,7 +6,7 @@ use test::{black_box, Bencher};
 use numpy::PyArray2;
 use pyo3::{types::IntoPyDict, Python};
 
-use differt_core::rt::utils as rt_utils;
+use differt::rt::utils as rt_utils;
 
 fn large_visibility_matrix<'py>(py: Python<'py>) -> &'py PyArray2<bool> {
     let np = py.import("numpy").unwrap();
