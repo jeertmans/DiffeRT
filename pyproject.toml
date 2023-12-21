@@ -40,6 +40,21 @@ Founding = "https://github.com/sponsors/jeertmans"
 Homepage = "https://github.com/jeertmans/DiffeRT"
 Repository = "https://github.com/jeertmans/DiffeRT"
 
+[tool.bumpversion]
+commit = true
+current_version = "0.0.5"
+message = "chore(version): bump {current_version} to {new_version}"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(-rc(?P<release>\\d+))?"
+serialize = [
+  "{major}.{minor}.{patch}-rc{release}",
+  "{major}.{minor}.{patch}"
+]
+
+[[tool.bumpversion.files]]
+filename = "Cargo.toml"
+replace = "version = {new_version}"
+search = "version = {current_version}"
+
 [tool.coverage.report]
 exclude_lines = [
   'pragma: no cover',
@@ -60,7 +75,7 @@ strict = true
 [tool.pdm.dev-dependencies]
 dev = [
   "bump-my-version>=0.15.3",
-  "pre-commit>=3.5.0",
+  "pre-commit>=3.5.0"
 ]
 docs = [
   "myst-nb>=0.17.2",
@@ -109,18 +124,3 @@ target-version = "py39"
 
 [tool.ruff.pydocstyle]
 convention = "google"
-
-[tool.bumpversion]
-current_version = "0.0.5"
-parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(-rc(?P<release>\\d+))?"
-serialize = [
-	"{major}.{minor}.{patch}-rc{release}",
-	"{major}.{minor}.{patch}",
-]
-commit = true
-message = "chore(version): bump {current_version} to {new_version}"
-
-[[tool.bumpversion.files]]
-filename = "Cargo.toml"
-search = "version = {current_version}"
-replace = "version = {new_version}"
