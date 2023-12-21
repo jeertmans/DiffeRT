@@ -1,4 +1,5 @@
 [dependencies]
+nalgebra = "0.32.3"
 ndarray = {version = "0.15", features = ["rayon"]}
 numpy = "0.20"
 obj-rs = "0.7.1"

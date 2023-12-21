@@ -9,11 +9,14 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
+#[pyo3(get_all)]
 struct TriangleMesh {
     /// Array of size [num_vertices 3].
     vertices: Vec<(f32, f32, f32)>,
     /// Array of size [num_triangles 3].
     triangles: Vec<(usize, usize, usize)>,
+    /// Array of size [num_triangles 3].
+    normals: Vec<(usize, usize, usize)>,
 }
 
 #[pymethods]
@@ -24,34 +27,48 @@ impl TriangleMesh {
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occured while reading obj file: {}", err))
         })?;
-        //obj.try_into()
-        todo!()
+        obj.try_into()
     }
 }
 
 impl TryFrom<RawObj> for TriangleMesh {
-    type Error = PyValueError;
+    type Error = PyErr;
 
     fn try_from(raw_obj: RawObj) -> Result<Self, Self::Error> {
-        /*
         use obj::raw::object::Polygon::*;
-        let vertices = raw_obj
-            .positions
-            .into_iter()
-            .map(|(x, y, z, _)| (x, y, z))
-            .collect();
-        let triangles: Vec<Result<_, Self::Error>> = raw_obj.polygons.into_iter().map(
+
+        let vertices = Vec::with_capacity(raw_obj.positions.len());
+        let triangles = Vec::with_capacity(raw_obj.polygons.len());
+        let normals = Vec::with_capacity(raw_obj.polygons.len());
+
+        #[inline(always)]
+        fn compute_normal(i0: usize, i1: usize, i2: usize) -> (f32, f32, f32) {
+            use nalgebra::geometry::Point3;
+
+            let v0: Point3 = vertices[i0];
+            let v1: Point3 = vertices[i0];
+            let v2: Point3 = vertices[i0];
+        }
+
+        raw_obj.vertices.into_iter().for_each(|(x, y, z, _)| vertices.push(x, y, z))
+        raw_obj.polygons.into_iter().for_each(|polygon|
+            match &polygon.0[..] {
+                P([i0, i1, i2]) => {},
+                _ => return Err(PyValueError::new_err("Cannot create TriangleMesh from an object that contains something else than triangles")),
+            }
+
+        let triangles: Result<Vec<_>, Self::Error> = raw_obj.polygons.into_iter().map(
             |polygon| match polygon {
                 P(v) if v.len() == 3 => {Ok((v[0], v[1], v[2]))},
-                _ => Err(PyValueError::new_err("Cannot create TriangleMesh from an object that contains something else than triangles")),
-            }).collect();
+                _ => ),
+        }).collect();
 
         Ok(Self {
             vertices,
-            triangles: triangles?,
+            triangles,
+            normals,
+
         })
-        */
-        todo!()
     }
 }
 
