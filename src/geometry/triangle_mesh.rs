@@ -56,7 +56,7 @@ impl TryFrom<RawObj> for TriangleMesh {
 }
 
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "trangle_mesh")?;
+    let m = pyo3::prelude::PyModule::new(py, "triangle_mesh")?;
     m.add_class::<TriangleMesh>()?;
 
     Ok(m)

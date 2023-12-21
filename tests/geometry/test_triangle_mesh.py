@@ -5,8 +5,6 @@ import chex
 import jax.numpy as jnp
 import pytest
 
-open3d = pytest.importorskip("open3d")
-
 try:
     from differt.geometry.triangle_mesh import (
         TriangleMesh,

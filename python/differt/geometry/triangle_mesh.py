@@ -88,21 +88,21 @@ def paths_intersect_triangles(
 
 @dataclass
 class TriangleMesh:
-    mesh: _core.geometry.triangle_mesh.TriangleMesh
+    _mesh: _core.geometry.triangle_mesh.TriangleMesh
 
     @cached_property
     def triangles(self) -> UInt[Array, "num_triangles 3"]:
         """Return the array of triangle indices."""
-        return jnp.asarray(self.mesh.triangles, dtype=int)
+        return jnp.asarray(self._mesh.triangles, dtype=int)
 
     @cached_property
     def vertices(self) -> Float[Array, "num_vertices 3"]:
         """Return the array of vertices."""
-        return jnp.asarray(self.mesh.vertices)
+        return jnp.asarray(self._mesh.vertices)
 
     @cached_property
     def normals(self) -> Float[Array, "num_triangles 3"]:
-        return jnp.asarray(self.mesh.triangle_normals)
+        return jnp.asarray(self._mesh.triangle_normals)
 
     @cached_property
     def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
