@@ -14,20 +14,10 @@ def project_dir(test_dir: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
-def differt_core_dir(project_dir: Path) -> Path:
-    return project_dir.joinpath("differt-core")
-
-
-@pytest.fixture(scope="session")
-def differt_pyproject_toml(project_dir: Path) -> Path:
+def pyproject_toml(project_dir: Path) -> Path:
     return project_dir.joinpath("pyproject.toml").resolve(strict=True)
 
 
 @pytest.fixture(scope="session")
-def differt_core_pyproject_toml(differt_core_dir: Path) -> Path:
-    return differt_core_dir.joinpath("pyproject.toml").resolve(strict=True)
-
-
-@pytest.fixture(scope="session")
-def differt_core_cargo_toml(differt_core_dir: Path) -> Path:
-    return differt_core_dir.joinpath("Cargo.toml").resolve(strict=True)
+def cargo_toml(project_dir: Path) -> Path:
+    return project_dir.joinpath("Cargo.toml").resolve(strict=True)

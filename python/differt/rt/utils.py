@@ -1,16 +1,16 @@
-import differt_core
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
+from .. import _core
 
-@jaxtyped
-@typechecker
-def generate_path_candidates(
+
+@jaxtyped(typechecker=typechecker)
+def generate_all_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:
     """
-    Generate an array of path candidates for fixed path order
+    Generate an array of all path candidates for fixed path order
     and a number of primitives.
 
     The returned array contains, for each column, an array of
@@ -32,12 +32,12 @@ def generate_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        differt_core.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
+        _core.rt.utils.generate_all_path_candidates(num_primitives, order),
+        dtype=jnp.uint32,
     )
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
