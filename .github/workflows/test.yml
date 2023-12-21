@@ -137,6 +137,7 @@ jobs:
     - name: Install dependencies
       run: |
         pdm install --no-self
+        cargo install cargo-benchcmp
 
     - name: Run Benchmarks on changes
       run: cargo bench > changes
