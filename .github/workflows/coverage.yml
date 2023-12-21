@@ -21,7 +21,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pdm install --dev
+        pdm install -G test
 
     - name: Run pytest and coverage
       run: pdm run pytest --cov-report xml --cov=differt tests/
