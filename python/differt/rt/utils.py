@@ -4,6 +4,7 @@ from typeguard import typechecked as typechecker
 
 from differt._core.rt import utils
 
+
 @jaxtyped(typechecker=typechecker)
 def generate_path_candidates(
     num_primitives: int, order: int

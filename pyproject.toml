@@ -40,10 +40,6 @@ Founding = "https://github.com/sponsors/jeertmans"
 Homepage = "https://github.com/jeertmans/DiffeRT"
 Repository = "https://github.com/jeertmans/DiffeRT"
 
-[tool.maturin]
-module-name = "differt._core"
-python-source = "python"
-
 [tool.coverage.report]
 exclude_lines = [
   'pragma: no cover',
@@ -52,6 +48,10 @@ exclude_lines = [
   'if typing.TYPE_CHECKING:'
 ]
 precision = 2
+
+[tool.maturin]
+module-name = "differt._core"
+python-source = "python"
 
 [tool.mypy]
 python_version = "3.9"
@@ -79,7 +79,7 @@ test = [
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
-  "pytest-xdist>=3.3.1",
+  "pytest-xdist>=3.3.1"
 ]
 
 [tool.pytest.ini_options]
