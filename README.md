@@ -1,3 +1,9 @@
+<div align="center">
+
 # DiffeRT
 
-W.I.P
+[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm-project.org)
+
+</div>
+
+W.I.P.
