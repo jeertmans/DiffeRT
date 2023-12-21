@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 from chex import Array
 
-from differt.rt.utils import generate_path_candidates, rays_intersect_triangles
+from differt.rt.utils import generate_all_path_candidates, rays_intersect_triangles
 
 
 def uint_array(array_like: Array) -> Array:
@@ -40,10 +40,10 @@ def uint_array(array_like: Array) -> Array:
         ),
     ],
 )
-def test_generate_path_candidates(
+def test_generate_all_path_candidates(
     num_primitives: int, order: int, expected: Array
 ) -> None:
-    got = generate_path_candidates(num_primitives, order)
+    got = generate_all_path_candidates(num_primitives, order)
     if got.size > 0:
         got = got.T[jnp.lexsort(got[::-1])].T  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)

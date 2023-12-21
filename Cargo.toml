@@ -11,12 +11,11 @@ rstest = "0.18.2"
 [features]
 extension-module = ["pyo3/extension-module"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "rlib"]
-name = "differt_core"
+name = "differt"
 
 [package]
 edition = "2021"
-name = "differt"
+name = "_core"
 version = "0.0.5"

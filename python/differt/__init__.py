@@ -1,6 +1,6 @@
-__all__ = ["__version__", "_core"]
+from .version import VERSION
 
-
-from differt import _core
-
-__version__ = _core.version
+__version__ = VERSION
+__all__ = (
+    'VERSION',
+)

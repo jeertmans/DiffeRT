@@ -3,6 +3,17 @@
 version = 3
 
 [[package]]
+name = "_core"
+version = "0.0.5"
+dependencies = [
+ "ndarray",
+ "numpy",
+ "obj-rs",
+ "pyo3",
+ "rstest",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -60,17 +71,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "differt"
-version = "0.0.5"
-dependencies = [
- "ndarray",
- "numpy",
- "obj-rs",
- "pyo3",
- "rstest",
 ]
 
 [[package]]

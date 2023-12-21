@@ -2,15 +2,15 @@ import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
-from differt._core.rt import utils
+from .. import _core
 
 
 @jaxtyped(typechecker=typechecker)
-def generate_path_candidates(
+def generate_all_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:
     """
-    Generate an array of path candidates for fixed path order
+    Generate an array of all path candidates for fixed path order
     and a number of primitives.
 
     The returned array contains, for each column, an array of
@@ -32,7 +32,7 @@ def generate_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        utils.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
+        _core.rt.utils.generate_all_path_candidates(num_primitives, order), dtype=jnp.uint32
     )
 
 
