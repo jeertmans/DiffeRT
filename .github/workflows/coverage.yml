@@ -10,10 +10,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
+    - name: Install PDM
       uses: pdm-project/setup-pdm@v3
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         cache: true
 
     - name: Install Rust
@@ -21,7 +21,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pdm install -G test
+        pdm install -G test,github-action
 
     - name: Run pytest and coverage
       run: pdm run pytest --cov-report xml --cov=differt tests/

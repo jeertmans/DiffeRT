@@ -16,25 +16,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
-      run: pipx install poetry
-
-    - name: Build DiffeRT-core
-      uses: PyO3/maturin-action@v1
-      with:
-        command: build
-        working-directory: differt-core
-        sccache: true
-
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
         python-version: ${{ matrix.pyversion }}
-        cache: poetry
+        cache: true
 
-    - name: Install Differt
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
       run: |
-        poetry install --with test,github-action  # TODO: FIXME on macOS and Windows
+        pdm install -G test,github-action
 
     - name: Run Pytest
       run: |
@@ -50,18 +43,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
+      with:
+        python-version: ${{ matrix.pyversion }}
+        cache: true
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.pyversion }}
-        cache: pip
-
-    - name: Install Python Dependencies
+    - name: Install dependencies
       run: |
-        pip install -r differt-core/requirements.txt
+        pdm install -G test,github-action
 
     - name: Run Cargo test
       run: |
@@ -85,20 +78,12 @@ jobs:
         python-version: '3.11'
         cache: poetry
 
-    - name: Build DiffeRT-core
-      uses: PyO3/maturin-action@v1
-      with:
-        command: build
-        working-directory: differt-core
-        sccache: true
-        args: --release
-
     - name: Install DiffeRT
       run: |
-        poetry install --with test,github-action
+        pdm install -G test,github-action  # TODO: build in release mode?
 
     - name: Run Benchmarks on changes
-      run: poetry run pytest --benchmark-only --benchmark-save=changes
+      run: pdm run pytest --benchmark-only --benchmark-save=changes
 
     - uses: actions/checkout@v4
       with:
@@ -111,7 +96,7 @@ jobs:
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        poetry run pytest --benchmark-only --benchmark-compare=changes >> $GITHUB_OUTPUT
+        pdm run pytest --benchmark-only --benchmark-compare=changes >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 

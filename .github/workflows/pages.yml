@@ -34,32 +34,25 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
-      run: pipx install poetry
-
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
-        python-version: '3.10'
-        cache: poetry
+        python-version: '3.11'
+        cache: true
 
-    - name: Build DiffeRT-core
-      uses: PyO3/maturin-action@v1
-      with:
-        command: build
-        working-directory: differt-core
-        sccache: true
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Differt
+    - name: Install dependencies
       run: |
-        poetry install --with docs,github-action
+        pdm install -G docs,github-action
 
     - name: Add Jupyter Kernel
       run: |
-        poetry run python -m ipykernel install --user --name DiffeRT
+        pdm run python -m ipykernel install --user --name DiffeRT
 
     - name: Build docs
-      run: cd docs && poetry run make html
+      run: cd docs && pdm run make html
 
     - name: Upload artifact
       if: github.event_name != 'pull_request'
