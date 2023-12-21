@@ -63,7 +63,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "differt-core"
+name = "differt"
 version = "0.0.5"
 dependencies = [
  "ndarray",

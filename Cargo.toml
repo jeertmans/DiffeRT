@@ -1,8 +1,12 @@
 [dependencies]
-ndarray = { version = "0.15", features = ["rayon"] }
+ndarray = {version = "0.15", features = ["rayon"]}
 numpy = "0.20"
 obj-rs = "0.7.1"
 pyo3 = "0.20"
+
+[dev-dependencies]
+pyo3 = {version = "0.20.0", features = ["auto-initialize"]}
+rstest = "0.18.2"
 
 [features]
 extension-module = ["pyo3/extension-module"]
@@ -16,7 +20,3 @@ name = "differt_core"
 edition = "2021"
 name = "differt"
 version = "0.0.5"
-
-[dev-dependencies]
-pyo3 = { version = "0.20.0", features = ["auto-initialize"] }
-rstest = "0.18.2"
