@@ -59,6 +59,13 @@ impl TryFrom<RawObj> for TriangleMesh {
             }
         }
 
+        // TODO: remove duplicate vertices to reduce the size further.
+        // Steps:
+        // 1. Sort vertices
+        // 2. Identify same vertices (consecutive)
+        // 3. Remap triangles to point to first occurence
+        // 4. Resize the triangles array and renumber from 0 to ...
+
         Ok(Self {
             vertices,
             triangles,

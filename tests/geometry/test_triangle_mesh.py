@@ -9,6 +9,7 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
+from differt.utils import sorted_array2
 
 
 @pytest.fixture(scope="module")
@@ -55,13 +56,35 @@ class TestTriangleMesh:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert len(mesh._mesh.triangles) == 24
 
-    def test_compare_with_open3d(self, two_buildings_obj_file: Path, two_buildings_mesh: TriangleMesh) -> None:
+    def test_compare_with_open3d(
+        self, two_buildings_obj_file: Path, two_buildings_mesh: TriangleMesh
+    ) -> None:
         o3d = pytest.importorskip("open3d")
-        mesh = o3d.io.read_triangle_mesh(str(two_buildings_obj_file)).compute_triangle_normals()
+        mesh = o3d.io.read_triangle_mesh(
+            str(two_buildings_obj_file)
+        ).compute_triangle_normals()
 
-        chex.assert_trees_all_equal(two_buildings_mesh.triangles, jnp.asarray(mesh.triangles, dtype=jnp.uint32))
+        got_triangles = two_buildings_mesh.triangles
+        expected_triangles = jnp.asarray(mesh.triangles, dtype=jnp.uint32)
 
-        raise ValueError 
+        got_vertices = two_buildings_mesh.vertices
+        expected_vertices = jnp.asarray(mesh.vertices)
+
+        got_all_vertices = jnp.take(got_vertices, got_triangles, axis=0)
+        expected_all_vertices = jnp.take(expected_vertices, expected_triangles, axis=0)
+
+        chex.assert_trees_all_close(
+            got_all_vertices, expected_all_vertices
+        )
+
+        got_normals = two_buildings_mesh.normals
+        expected_normals = jnp.asarray(mesh.triangle_normals)
+
+        chex.assert_trees_all_close(
+            got_normals,
+            expected_normals,
+            atol=1e-7,
+        )
 
     def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
         chex.assert_equal_shape(

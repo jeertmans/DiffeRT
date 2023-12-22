@@ -1,6 +1,5 @@
 """General purpose utilities."""
 import jax.numpy as jnp
-
 from jaxtyping import Array, Shaped, jaxtyped
 from typeguard import typechecked as typechecker
 
