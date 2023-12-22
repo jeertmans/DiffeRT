@@ -5,4 +5,3 @@ differt
    :maxdepth: 4
 
    differt
-   differt-core
