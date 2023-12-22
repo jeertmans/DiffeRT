@@ -55,6 +55,14 @@ class TestTriangleMesh:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert len(mesh._mesh.triangles) == 24
 
+    def test_compare_with_open3d(self, two_buildings_obj_file: Path, two_buildings_mesh: TriangleMesh) -> None:
+        o3d = pytest.importorskip("open3d")
+        mesh = o3d.io.read_triangle_mesh(str(two_buildings_obj_file)).compute_triangle_normals()
+
+        chex.assert_trees_all_equal(two_buildings_mesh.triangles, jnp.asarray(mesh.triangles, dtype=jnp.uint32))
+
+        raise ValueError 
+
     def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
         chex.assert_equal_shape(
             (two_buildings_mesh.normals, two_buildings_mesh.triangles)

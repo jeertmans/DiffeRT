@@ -91,10 +91,11 @@ github-action = [
   "jax[cpu]>=0.4.20"
 ]
 test = [
-  "pytest>=7.4.3",
-  "pytest-benchmark>=4.0.0",
-  "pytest-cov>=4.1.0",
-  "pytest-xdist>=3.3.1"
+    "open3d-cpu>=0.17.0;python_version <= '3.10' and sys_platform == 'linux'",
+    "pytest>=7.4.3",
+    "pytest-benchmark>=4.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.3.1",
 ]
 
 [tool.pytest.ini_options]
