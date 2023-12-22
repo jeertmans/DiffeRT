@@ -9,6 +9,7 @@ from chex import dataclass
 from jaxtyping import Array, Bool, Float, UInt
 
 from .. import _core
+from .utils import normalize
 
 
 def triangles_contain_vertices_assuming_inside_same_plane(
@@ -88,21 +89,30 @@ def paths_intersect_triangles(
 
 @dataclass
 class TriangleMesh:
-    mesh: _core.geometry.triangle_mesh.TriangleMesh
+    """
+    A simple geometry made of triangles.
+    """
+
+    _mesh: _core.geometry.triangle_mesh.TriangleMesh
 
     @cached_property
     def triangles(self) -> UInt[Array, "num_triangles 3"]:
-        """Return the array of triangle indices."""
-        return jnp.asarray(self.mesh.triangles, dtype=int)
+        """The triangle indices."""
+        return jnp.asarray(self._mesh.triangles, dtype=jnp.uint32)
 
     @cached_property
     def vertices(self) -> Float[Array, "num_vertices 3"]:
-        """Return the array of vertices."""
-        return jnp.asarray(self.mesh.vertices)
+        """The vertices."""
+        return jnp.asarray(self._mesh.vertices)
 
     @cached_property
     def normals(self) -> Float[Array, "num_triangles 3"]:
-        return jnp.asarray(self.mesh.triangle_normals)
+        """The triangle normals."""
+        vertices = jnp.take(self.vertices, self.triangles, axis=0)
+        vectors = jnp.diff(vertices, axis=1)
+        normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
+
+        return normalize(normals)[0]
 
     @cached_property
     def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
@@ -114,15 +124,29 @@ class TriangleMesh:
 
     @classmethod
     def load_obj(cls, file: Path) -> TriangleMesh:
-        return cls(mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
+        return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
 
-    def plot(self, *args, **kwargs):
+    def plot(self, *args, include_normals=True, **kwargs):
         x, y, z = self.vertices.T
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
         k = self.triangles[:, 2]
         fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, *args, **kwargs)])
-        transmitters = jnp.array([0.0, 4.9352, 22.0])
-        receivers = jnp.array([0.0, 10.034, 1.5])
+
+        if include_normals:
+            vertices = jnp.take(self.vertices, self.triangles, axis=0)
+            centers = jnp.mean(vertices, axis=1)
+            fig.add_traces(
+                go.Cone(
+                    x=centers[:, 0],
+                    y=centers[:, 1],
+                    z=centers[:, 2],
+                    u=self.normals[:, 0],
+                    v=self.normals[:, 1],
+                    w=self.normals[:, 2],
+                    hoverinfo="u+v+w+name",
+                    showscale=False,
+                )
+            )
 
         return fig

@@ -107,7 +107,9 @@ jobs:
       with:
         message: |
           Python benchmark results:
+          ```
           ${{ steps.compare.outputs.results }}
+          ```
         comment_tag: python-benchmarks
 
       id: comment
@@ -116,7 +118,9 @@ jobs:
       if: steps.comment.outcome != 'success'
       run: |
         echo '### Python benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
   rust-benchmark:
     runs-on: ubuntu-latest
     permissions:
@@ -163,7 +167,9 @@ jobs:
       with:
         message: |
           Rust benchmark results:
+          ```
           ${{ steps.compare.outputs.results }}
+          ```
         comment_tag: rust-benchmarks
 
       id: comment
@@ -172,4 +178,6 @@ jobs:
       if: steps.comment.outcome != 'success'
       run: |
         echo '### Rust benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

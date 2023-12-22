@@ -9,6 +9,7 @@ fn _core(py: Python, m: &PyModule) -> PyResult<()> {
     let mut version = env!("CARGO_PKG_VERSION").to_string();
     version = version.replace("-alpha", "a").replace("-beta", "b");
     m.add("__version__", version)?;
+    m.add_submodule(geometry::create_module(py)?)?;
     m.add_submodule(rt::create_module(py)?)?;
     Ok(())
 }

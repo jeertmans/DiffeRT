@@ -1,3 +1,5 @@
+"""Ray Tracing utilies."""
+
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
@@ -23,8 +25,8 @@ def generate_all_path_candidates(
     with containing loops, i.e., two or more consecutive indices that are equal.
 
     Args:
-        num_primitives: the (positive) number of primitives.
-        order: the path order. An order less than one returns an empty array.
+        num_primitives: The (positive) number of primitives.
+        order: The path order. An order less than one returns an empty array.
 
     Returns:
         An unsigned array with primitive indices on each columns. Its number of
@@ -48,6 +50,17 @@ def rays_intersect_triangles(
     Möller-Trumbore algorithm.
 
     The current implementation closely follows the C++ code from Wikipedia.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+
+    Returns:
+        For each ray, return the scale factor of ``ray_directions`` for the
+        vector to reach the corresponding triangle, and whether the intersection
+        actually lies inside the triangle.
     """
     epsilon = 1e-07
 
