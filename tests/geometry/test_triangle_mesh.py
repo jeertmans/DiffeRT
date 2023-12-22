@@ -9,7 +9,6 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
-from differt.utils import sorted_array2
 
 
 @pytest.fixture(scope="module")
@@ -73,9 +72,7 @@ class TestTriangleMesh:
         got_all_vertices = jnp.take(got_vertices, got_triangles, axis=0)
         expected_all_vertices = jnp.take(expected_vertices, expected_triangles, axis=0)
 
-        chex.assert_trees_all_close(
-            got_all_vertices, expected_all_vertices
-        )
+        chex.assert_trees_all_close(got_all_vertices, expected_all_vertices)
 
         got_normals = two_buildings_mesh.normals
         expected_normals = jnp.asarray(mesh.triangle_normals)
