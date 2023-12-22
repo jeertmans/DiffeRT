@@ -97,16 +97,17 @@ class TriangleMesh:
 
     @cached_property
     def triangles(self) -> UInt[Array, "num_triangles 3"]:
-        """Return the array of triangle indices."""
-        return jnp.asarray(self._mesh.triangles, dtype=int)
+        """The triangle indices."""
+        return jnp.asarray(self._mesh.triangles, dtype=jnp.uint32)
 
     @cached_property
     def vertices(self) -> Float[Array, "num_vertices 3"]:
-        """Return the array of vertices."""
+        """The vertices."""
         return jnp.asarray(self._mesh.vertices)
 
     @cached_property
     def normals(self) -> Float[Array, "num_triangles 3"]:
+        """The triangle normals."""
         vertices = jnp.take(self.vertices, self.triangles, axis=0)
         vectors = jnp.diff(vertices, axis=1)
         normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
@@ -131,13 +132,11 @@ class TriangleMesh:
         j = self.triangles[:, 1]
         k = self.triangles[:, 2]
         fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, *args, **kwargs)])
-        transmitters = jnp.array([0.0, 4.9352, 22.0])
-        receivers = jnp.array([0.0, 10.034, 1.5])
 
         if include_normals:
             vertices = jnp.take(self.vertices, self.triangles, axis=0)
             centers = jnp.mean(vertices, axis=1)
-            fig.add_trace(
+            fig.add_traces(
                 go.Cone(
                     x=centers[:, 0],
                     y=centers[:, 1],

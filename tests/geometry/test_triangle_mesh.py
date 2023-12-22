@@ -5,13 +5,10 @@ import chex
 import jax.numpy as jnp
 import pytest
 
-try:
-    from differt.geometry.triangle_mesh import (
-        TriangleMesh,
-        triangles_contain_vertices_assuming_inside_same_plane,
-    )
-except ImportError:
-    TriangleMesh = None
+from differt.geometry.triangle_mesh import (
+    TriangleMesh,
+    triangles_contain_vertices_assuming_inside_same_plane,
+)
 
 
 @pytest.fixture(scope="module")
@@ -57,3 +54,9 @@ class TestTriangleMesh:
     def test_load_obj(self, two_buildings_obj_file: Path) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert len(mesh._mesh.triangles) == 24
+        
+    def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
+        chex.assert_equal_shape((two_buildings_mesh.normals, two_buildings_mesh.triangles))
+        got = jnp.linalg.norm(two_buildings_mesh.normals, axis=-1)
+        expected = jnp.ones_like(got)
+        chex.assert_trees_all_close(got, expected)
