@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from functools import cached_property
 from pathlib import Path
-from typing import Tuple
 
 import jax.numpy as jnp
 import plotly.graph_objects as go
 from chex import dataclass
-from jaxtyping import Array, Bool, Float, UInt, jaxtyped
-from typeguard import typechecked as typechecker
+from jaxtyping import Array, Bool, Float, UInt
 
 from .. import _core
 from .utils import normalize
@@ -94,6 +92,7 @@ class TriangleMesh:
     """
     A simple geometry made of triangles.
     """
+
     _mesh: _core.geometry.triangle_mesh.TriangleMesh
 
     @cached_property
@@ -138,10 +137,17 @@ class TriangleMesh:
         if include_normals:
             vertices = jnp.take(self.vertices, self.triangles, axis=0)
             centers = jnp.mean(vertices, axis=1)
-            fig.add_trace(go.Cone(x=centers[:, 0], y=centers[:, 1], z=centers[:, 2], 
-                u=self.normals[:, 0], v=self.normals[:, 1], w=self.normals[:, 2],
-                hoverinfo="u+v+w+name",
-                  showscale=False,
-            ))
+            fig.add_trace(
+                go.Cone(
+                    x=centers[:, 0],
+                    y=centers[:, 1],
+                    z=centers[:, 2],
+                    u=self.normals[:, 0],
+                    v=self.normals[:, 1],
+                    w=self.normals[:, 2],
+                    hoverinfo="u+v+w+name",
+                    showscale=False,
+                )
+            )
 
         return fig

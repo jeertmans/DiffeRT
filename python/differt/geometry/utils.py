@@ -22,7 +22,9 @@ def pairwise_cross(
 
 
 @jaxtyped(typechecker=typechecker)
-def normalize(vector: Float[Array, "*batch 3"]) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]:
+def normalize(
+    vector: Float[Array, "*batch 3"],
+) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]:
     """
     Normalize vectors and also return their length.
 
@@ -36,10 +38,10 @@ def normalize(vector: Float[Array, "*batch 3"]) -> tuple[Float[Array, "*batch 3"
 
     >>> from differt.geometry.utils import normalize
     >>> import jax.numpy as jnp
-    >>> vector = jnp.array([1., 1., 1.])
+    >>> vector = jnp.array([1.0, 1.0, 1.0])
     >>> normalize(vector)  # [1., 1., 1.] / sqrt(3), sqrt(3)
     (Array([0.57735026, 0.57735026, 0.57735026], dtype=float32), Array(1.7320508, dtype=float32))
-    >>> zero = jnp.array([0., 0., 0.])
+    >>> zero = jnp.array([0.0, 0.0, 0.0])
     >>> normalize(zero)  # Special behavior at 0.
     (Array([0., 0., 0.], dtype=float32), Array(1., dtype=float32))
     """
