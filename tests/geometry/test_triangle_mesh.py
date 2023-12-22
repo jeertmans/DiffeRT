@@ -54,9 +54,11 @@ class TestTriangleMesh:
     def test_load_obj(self, two_buildings_obj_file: Path) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert len(mesh._mesh.triangles) == 24
-        
+
     def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
-        chex.assert_equal_shape((two_buildings_mesh.normals, two_buildings_mesh.triangles))
+        chex.assert_equal_shape(
+            (two_buildings_mesh.normals, two_buildings_mesh.triangles)
+        )
         got = jnp.linalg.norm(two_buildings_mesh.normals, axis=-1)
         expected = jnp.ones_like(got)
         chex.assert_trees_all_close(got, expected)
