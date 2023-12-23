@@ -1,7 +1,9 @@
+"""Mesh geometry made of triangles and utilities."""
 from __future__ import annotations
 
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 
 import jax.numpy as jnp
 import plotly.graph_objects as go
@@ -78,8 +80,8 @@ def paths_intersect_triangles(
     Return whether each path intersect with any of the triangles.
 
     Args:
-        triangle_vertices: an array of triangle vertices.
-        vertices: an array of vertices that will be checked.
+        paths: An array of ray paths of the same length.
+        triangle_vertices: An array of triangle vertices.
 
     Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
@@ -116,22 +118,34 @@ class TriangleMesh:
 
     @cached_property
     def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
-        raise NotImplementedError
-
-    @classmethod
-    def load_geojson(cls, file: Path, default_height: float = 1.0) -> TriangleMesh:
+        """The diffraction edges."""
         raise NotImplementedError
 
     @classmethod
     def load_obj(cls, file: Path) -> TriangleMesh:
+        """
+        Load a triangle mesh from a Wavefront .obj file.
+
+        Currently, only vertices and triangles are loaded. Triangle normals
+        are computed afterward (when first accessed).
+
+        This method will fail if it contains any geometry that is not a triangle.
+
+        Args:
+            file: The path to the wavefront .obj file.
+
+        Returns:
+            The corresponding mesh containing only triangles.
+        """
         return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
 
-    def plot(self, *args, include_normals=False, **kwargs):
+    def plot(self, *, include_normals: bool = False, **kwargs: Any) -> go.Figure:
+        """*TODO*."""
         x, y, z = self.vertices.T
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
         k = self.triangles[:, 2]
-        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, *args, **kwargs)])
+        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)])
 
         if include_normals:
             vertices = jnp.take(self.vertices, self.triangles, axis=0)

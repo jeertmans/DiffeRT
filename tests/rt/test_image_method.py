@@ -62,7 +62,7 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             vertices, mirror_vertices, mirror_normals
         )
         for i in np.ndindex(vertices.shape[:-1]):
-            index = i + (slice(0, None),)  # [i, :]
+            index = (*i, slice(0, None))  # [i, :]
             incident = vertices[index] - mirror_vertices[index]
             expected = (
                 vertices[index]

@@ -71,7 +71,6 @@ def rays_intersect_triangles(
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.
     """
-
     vertex_0 = triangle_vertices[..., 0, :]
     vertex_1 = triangle_vertices[..., 1, :]
     vertex_2 = triangle_vertices[..., 2, :]
