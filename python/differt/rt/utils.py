@@ -1,7 +1,7 @@
 """Ray Tracing utilies."""
 
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, Scalar, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
 from .. import _core
@@ -44,6 +44,7 @@ def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
+    epsilon: Float[Scalar, ""] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the
@@ -56,13 +57,20 @@ def rays_intersect_triangles(
         ray_directions: An array of ray direction. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
+        epsilon: A small tolerance threshold that allows rays
+            to hit the triangles slightly outside the actual area.
+            A positive value virtually increases the size of the triangles,
+            a negative value will have the opposite effect.
+
+            Such a tolerance is especially useful when rays are hitting
+            triangle edges, a very common case if geometries are planes
+            split into multiple triangles.
 
     Returns:
         For each ray, return the scale factor of ``ray_directions`` for the
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.
     """
-    epsilon = 1e-07
 
     vertex_0 = triangle_vertices[..., 0, :]
     vertex_1 = triangle_vertices[..., 1, :]

@@ -126,7 +126,7 @@ class TriangleMesh:
     def load_obj(cls, file: Path) -> TriangleMesh:
         return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
 
-    def plot(self, *args, include_normals=True, **kwargs):
+    def plot(self, *args, include_normals=False, **kwargs):
         x, y, z = self.vertices.T
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
