@@ -57,7 +57,11 @@ ogp_use_first_image = True
 
 always_document_param_types = True
 
-# -- Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
+# -- nbsphinx settings
+
+nbsphinx_kernel_name = "DiffeRT"
+
+# Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
 
 html_js_files = [
     "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
