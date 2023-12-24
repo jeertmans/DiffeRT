@@ -65,6 +65,8 @@ exclude_lines = [
 precision = 2
 
 [tool.maturin]
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
 module-name = "differt._core"
 python-source = "python"
 
