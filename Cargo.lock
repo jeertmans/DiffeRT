@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "_core"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "nalgebra",
  "ndarray",
