@@ -41,6 +41,7 @@ Homepage = "https://github.com/jeertmans/DiffeRT"
 Repository = "https://github.com/jeertmans/DiffeRT"
 
 [tool.bumpversion]
+allow_dirty = true
 commit = true
 current_version = "0.0.6"
 message = "chore(version): bump {current_version} to {new_version}"
@@ -54,6 +55,7 @@ serialize = [
 filename = "Cargo.toml"
 replace = "version = {new_version}"
 search = "version = {current_version}"
+
 
 
 [tool.coverage.report]
