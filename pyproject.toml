@@ -31,7 +31,6 @@ exclude = ["docs/", "static/"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "DiffeRT"
 requires-python = ">=3.9"
-version = "0.0.5"
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"
