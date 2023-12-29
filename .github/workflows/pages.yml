@@ -34,6 +34,9 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install OpenGL
+      uses: openrndr/setup-opengl@v1.1
+
     - name: Install PDM
       uses: pdm-project/setup-pdm@v3
       with:
