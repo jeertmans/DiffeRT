@@ -41,7 +41,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install freeglut3-dev xvfb
-        nohup Xvfb $DISPLAY &
+        nohup Xvfb $DISPLAY -screen 0 1400x900x24 -ac +extension GLX +render &
 
     - name: Install PDM
       uses: pdm-project/setup-pdm@v3
