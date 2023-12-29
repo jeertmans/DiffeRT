@@ -33,7 +33,7 @@ requires-python = ">=3.9"
 
 [project.optional-dependencies]
 all = [
-  "pdm[jupyter,matplotlib,plotly,vispy]",
+  "differt[jupyter,matplotlib,plotly,vispy]",
 ]
 jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2"]
 maplotlib = ["matplotlib>=3.8.1"]
@@ -72,6 +72,7 @@ dev = [
   "mypy>=1.8.0",
 ]
 docs = [
+  "differt[all]",
   "myst-nb>=0.17.2",
   "sphinx>=6,<7",
   "sphinx-autodoc-typehints>=1.23",
