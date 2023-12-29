@@ -74,6 +74,8 @@ dev = [
 docs = [
   "differt[all]",
   "myst-nb>=0.17.2",
+  # Backend required by VisPy
+  "pyqt6>=6.6.1",
   "sphinx>=6,<7",
   "sphinx-autodoc-typehints>=1.23",
   "sphinx-book-theme>=1.0.1",
@@ -81,7 +83,6 @@ docs = [
   "sphinx-design>=0.5.0",
   "sphinx-remove-toctrees>=0.0.3",
   "sphinxext-opengraph>=0.9.0",
-  "pyglet>=2.0.10",
 ]
 github-action = [
   "jax[cpu]>=0.4.20",
