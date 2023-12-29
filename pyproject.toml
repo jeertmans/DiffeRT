@@ -15,14 +15,14 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "Programming Language :: Rust",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy"
+  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   "chex>=0.1.84",
   "jax>=0.4.20",
   "jaxtyping>=0.2.24",
   "numpy>=1.26.1",
-  "optax>=0.1.7"
+  "optax>=0.1.7",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["license", "readme", "version"]
@@ -33,8 +33,9 @@ requires-python = ">=3.9"
 
 [project.optional-dependencies]
 all = [
-  "pdm[matplotlib,plotly,vispy]"
+  "pdm[jupyter,matplotlib,plotly,vispy]",
 ]
+jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2"]
 maplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]
@@ -51,7 +52,7 @@ exclude_lines = [
   'pragma: no cover',
   'raise NotImplementedError',
   'if TYPE_CHECKING:',
-  'if typing.TYPE_CHECKING:'
+  'if typing.TYPE_CHECKING:',
 ]
 precision = 2
 
@@ -68,7 +69,7 @@ strict = true
 [tool.pdm.dev-dependencies]
 dev = [
   "pre-commit>=3.5.0",
-  "mypy>=1.8.0"
+  "mypy>=1.8.0",
 ]
 docs = [
   "myst-nb>=0.17.2",
@@ -79,18 +80,17 @@ docs = [
   "sphinx-design>=0.5.0",
   "sphinx-remove-toctrees>=0.0.3",
   "sphinxext-opengraph>=0.9.0",
-  "jupyter-rfb>=0.4.2",
-  "pyglet>=2.0.10"
+  "pyglet>=2.0.10",
 ]
 github-action = [
-  "jax[cpu]>=0.4.20"
+  "jax[cpu]>=0.4.20",
 ]
 test = [
   "open3d-cpu>=0.17.0;python_version <= '3.10' and sys_platform == 'linux'",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
-  "pytest-xdist>=3.3.1"
+  "pytest-xdist>=3.3.1",
 ]
 
 [tool.pytest.ini_options]
@@ -103,7 +103,7 @@ addopts = [
   'group',
   '--benchmark-warmup',
   'on',
-  '--benchmark-skip'
+  '--benchmark-skip',
 ]
 
 [tool.ruff]
@@ -111,7 +111,7 @@ extend-ignore = [
   "D203",  # no-blank-line-before-class
   "D212",  # multi-line-summary-second-line
   "D407",  # Missing dashed underline after section
-  "F722"  # Syntax error in forward annotation
+  "F722",  # Syntax error in forward annotation
 ]
 extend-include = ["*.ipynb"]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
