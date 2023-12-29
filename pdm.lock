@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:a4e62289ccdcb5f5e10fe5c40bd569a63c3df9b9ad8cf890828c6832f1e65a6f"
+content_hash = "sha256:8afb4a8010c5120aa860c2070b6413f427b802c4449010f5af04938b5bfb61c8"
 
 [[package]]
 name = "absl-py"
@@ -2363,7 +2363,7 @@ name = "pillow"
 version = "10.1.0"
 requires_python = ">=3.8"
 summary = "Python Imaging Library (Fork)"
-groups = ["maplotlib", "test"]
+groups = ["docs", "maplotlib", "test"]
 files = [
     {file = "Pillow-10.1.0-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:1ab05f3db77e98f93964697c8efc49c7954b08dd61cff526b7f2531a22410106"},
     {file = "Pillow-10.1.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6932a7652464746fcb484f7fc3618e6503d2066d853f68a4bd97193a3996e273"},
