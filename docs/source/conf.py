@@ -61,6 +61,10 @@ always_document_param_types = True
 
 nb_kernel_rgx_aliases = {".*": "DiffeRT"}
 
+# By default, MyST-nb chooses the Widget output instead of the 2D snapshot
+# so we need to change priorities, because the widget cannot work if Python is
+# not actively running.
+
 nb_mime_priority_overrides = [
     ("*", "text/html", 0),
 ]
