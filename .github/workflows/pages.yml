@@ -41,6 +41,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install freeglut3-dev xvfb
+        sudo apt-get install libglu1-mesa-dev libgl1-mesa-dev libxi-dev libglfw3-dev libgles2-mesa-dev libsdl2-2.0-0 mesa-utils x11-utils
         nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
 
     - name: Install PDM
