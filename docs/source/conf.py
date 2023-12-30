@@ -59,7 +59,12 @@ always_document_param_types = True
 
 # -- nbsphinx settings
 
-nbsphinx_kernel_name = "DiffeRT"
+nb_kernel_rgx_aliases = {".*": "DiffeRT"}
+
+nb_mime_priority_overrides = [
+    ("*", "text/html", 0),
+]
+
 
 # Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
 
