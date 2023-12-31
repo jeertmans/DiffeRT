@@ -13,4 +13,4 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    :maxdepth: 2
    :caption: API
 
-   reference/index
+   reference/modules

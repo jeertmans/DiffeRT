@@ -3,12 +3,14 @@ from __future__ import annotations
 from functools import wraps
 from typing import Any, Callable
 
-SUPPORTED_BACKEND = ("matplotlib", "open3d", "plotly")
+SUPPORTED_BACKEND = ("matplotlib", "plotly", "vispy")
 
 
-def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
+def dispatch(
+    fun_or_none: Callable[..., Any] | None, default_backend: str = "plotly"
+) -> Callable[..., Any]:
     """
-    Transform a function into a backend dispatcher plot function.
+    Transform a function into a backend dispatcher for plot functions.
 
     Examples:
         The following example shows how one can implement plotting
@@ -37,9 +39,9 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
         >>> plot_line(_, _, backend="plotly")
         Using plotly backend
         >>>
-        >>> plot_line(_, _, backend="open3d")  # doctest: +IGNORE_EXCEPTION_DETAIL
+        >>> plot_line(_, _, backend="vispy")  # doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
-        ValueError: No backend implementation for 'open3d'
+        ValueError: No backend implementation for 'vispy'
         >>>
         >>> @plot_line.register("numpy")  # doctest: +IGNORE_EXCEPTION_DETAIL
         ... def _(vertices, color):
@@ -48,39 +50,51 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    registry = {}
 
-    def register(backend: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Register a new implemenation."""
-        if backend not in SUPPORTED_BACKEND:
-            raise ValueError(
-                f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}."
-            )
+    def _wrapper_(fun: Callable[..., Any]) -> Callable[Callable[..., Any]]:
+        registry = {}
 
-        def wrapper(impl: Callable[..., Any]) -> Callable[..., Any]:
-            @wraps(impl)
-            def __wrapper__(*args: Any, **kwargs: Any) -> Any:
-                return impl(*args, **kwargs)
+        def register(
+            backend: str,
+        ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+            """Register a new implemenation."""
+            if backend not in SUPPORTED_BACKEND:
+                raise ValueError(
+                    f"Unsupported backend '{backend}', allowed values are: {', '.join(SUPPORTED_BACKEND)}."
+                )
 
-            registry[backend] = impl
+            def wrapper(impl: Callable[..., Any]) -> Callable[..., Any]:
+                @wraps(impl)
+                def __wrapper__(*args: Any, **kwargs: Any) -> Any:
+                    return impl(*args, **kwargs)
 
-        return wrapper
+                registry[backend] = impl
 
-    def dispatch(backend: str) -> Callable[..., Any]:
-        try:
-            return registry[backend]
-        except KeyError:
-            raise ValueError(f"No backend implementation for '{backend}'") from None
+            return wrapper
 
-    @wraps(fun)
-    def wrapper(*args: Any, backend: str | None = None, **kwargs: Any) -> Any:
-        return dispatch(backend)(*args, **kwargs)
+        def dispatch(backend: str) -> Callable[..., Any]:
+            try:
+                return registry[backend]
+            except KeyError:
+                raise ValueError(f"No backend implementation for '{backend}'") from None
 
-    wrapper.register = register
-    wrapper.dispatch = dispatch
-    wrapper.registry = registry
+        @wraps(fun)
+        def main_wrapper(*args: Any, backend: str | None = None, **kwargs: Any) -> Any:
+            if backend is None:
+                backend = default_backend
 
-    return wrapper
+            return dispatch(backend)(*args, **kwargs)
+
+        main_wrapper.register = register
+        main_wrapper.dispatch = dispatch
+        main_wrapper.registry = registry
+
+        return main_wrapper
+
+    if fun_or_none:
+        return _wrapper_(fun_or_none)
+
+    return _wrapper_
 
 
 def plot_method():

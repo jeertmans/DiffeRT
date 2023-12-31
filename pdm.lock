@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:203023112046c3d29f38608e60ece8ced03d1a80bb434f0b912f3acd9cd5d360"
+content_hash = "sha256:6aad70fb05b564e6c4d72da375eff65b7f850ce5cd6c72b4ec67ded35bebd15c"
 
 [[package]]
 name = "absl-py"
@@ -2345,6 +2345,17 @@ files = [
 ]
 
 [[package]]
+name = "pbr"
+version = "6.0.0"
+requires_python = ">=2.6"
+summary = "Python Build Reasonableness"
+groups = ["docs"]
+files = [
+    {file = "pbr-6.0.0-py2.py3-none-any.whl", hash = "sha256:4a7317d5e3b17a3dccb6a8cfe67dab65b20551404c52c8ed41279fa4f0cb4cda"},
+    {file = "pbr-6.0.0.tar.gz", hash = "sha256:d1377122a5a00e2f940ee482999518efe16d745d423a670c27773dfbc3c9a7d9"},
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 summary = "Pexpect allows easy control of interactive console applications."
@@ -3334,6 +3345,21 @@ dependencies = [
 files = [
     {file = "sphinx-remove-toctrees-0.0.3.tar.gz", hash = "sha256:e4792cc4e5d25ceb1a44dd1490c45d578e6b36f1b1e385ede659e4c324b98cba"},
     {file = "sphinx_remove_toctrees-0.0.3-py3-none-any.whl", hash = "sha256:1077ebc00652f8a896ce27404d31cb5bdde9eeaefc80ada72d95a7a0a7b99a9d"},
+]
+
+[[package]]
+name = "sphinxcontrib-apidoc"
+version = "0.4.0"
+requires_python = ">=3.8"
+summary = "A Sphinx extension for running 'sphinx-apidoc' on each build"
+groups = ["docs"]
+dependencies = [
+    "Sphinx>=5.0.0",
+    "pbr",
+]
+files = [
+    {file = "sphinxcontrib-apidoc-0.4.0.tar.gz", hash = "sha256:fe59d15882472aa93c2737afbdea6bedb34ce35cbd34aa4947909f5df1500aad"},
+    {file = "sphinxcontrib_apidoc-0.4.0-py3-none-any.whl", hash = "sha256:18b9fb0cd4816758ec5f8be41c64f8924991dd40fd7b10e666ec9eed2800baff"},
 ]
 
 [[package]]

@@ -26,6 +26,7 @@ extensions = [
     # Additional
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
+    "sphinxcontrib.apidoc",
     "sphinxext.opengraph",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
@@ -41,12 +42,19 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    # "numpy": ("https://numpy.org/doc/stable/", None),
-    # "matplotlib": ("https://matplotlib.org/stable", None),
     "jax": ("https://jax.readthedocs.io/en/latest", None),
-    # "optax": ("https://optax.readthedocs.io/en/latest", None),
+    "matplotlib": ("https://matplotlib.org/stable", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "optax": ("https://optax.readthedocs.io/en/latest", None),
+    "plotly": ("https://plotly.com/python-api-reference/", None),
+    "python": ("https://docs.python.org/3", None),
+    "vispy": ("https://vispy.org/", None),
 }
+
+# -- API docs settings
+apidoc_module_dir = "../../python/differt"
+apidoc_output_dir = "reference"
+apidoc_separate_modules = True
 
 # -- OpenGraph settings
 
@@ -81,7 +89,7 @@ html_js_files = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_book_theme"
-html_static_path = ["_static"]
+#html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,

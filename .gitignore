@@ -1,18 +1,21 @@
+# Python build files and cache
 
 *.pyc
+*.so
+
+dist/
+target/
+
+# Docs
 
 docs/build/
+docs/source/reference/*.rst
+
+# Notebooks
 
 .ipynb_checkpoints/
 
-dist/
-
-target/
+# Tools
 
 .mypy_cache
-
-venv/
-
 .pdm-python
-
-*.so
