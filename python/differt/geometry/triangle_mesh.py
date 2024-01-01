@@ -5,13 +5,15 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 import jax.numpy as jnp
-import plotly.graph_objects as go
 from chex import dataclass
 from jaxtyping import Array, Bool, Float, UInt
 
 from .. import _core
 from .utils import normalize
+from ..plotting import draw_mesh
 
 
 def triangles_contain_vertices_assuming_inside_same_plane(
@@ -139,28 +141,6 @@ class TriangleMesh:
         """
         return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
 
-    def plot(self, *, include_normals: bool = False, **kwargs: Any) -> go.Figure:
+    def plot(self, *args, **kwargs: Any) -> None:
         """*TODO*."""
-        x, y, z = self.vertices.T
-        i = self.triangles[:, 0]
-        j = self.triangles[:, 1]
-        k = self.triangles[:, 2]
-        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)])
-
-        if include_normals:
-            vertices = jnp.take(self.vertices, self.triangles, axis=0)
-            centers = jnp.mean(vertices, axis=1)
-            fig.add_traces(
-                go.Cone(
-                    x=centers[:, 0],
-                    y=centers[:, 1],
-                    z=centers[:, 2],
-                    u=self.normals[:, 0],
-                    v=self.normals[:, 1],
-                    w=self.normals[:, 2],
-                    hoverinfo="u+v+w+name",
-                    showscale=False,
-                )
-            )
-
-        return fig
+        return draw_mesh(vertices=np.asarray(self.vertices), faces=np.asarray(self.triangles), *args, **kwargs)

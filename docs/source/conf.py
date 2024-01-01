@@ -20,6 +20,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.githubpages",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
@@ -44,11 +45,11 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 intersphinx_mapping = {
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "matplotlib": ("https://matplotlib.org/stable", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
     "optax": ("https://optax.readthedocs.io/en/latest", None),
-    "plotly": ("https://plotly.com/python-api-reference/", None),
+    "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
-    "vispy": ("https://vispy.org/", None),
+    "vispy": ("https://vispy.org", None),
 }
 
 # -- API docs settings
@@ -89,7 +90,7 @@ html_js_files = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_book_theme"
-#html_static_path = ["_static"]
+# html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,
@@ -100,3 +101,7 @@ html_theme_options = {
 
 autosummary_generate = True
 napolean_use_rtype = False
+
+# Patches
+
+# def fixlinkto
