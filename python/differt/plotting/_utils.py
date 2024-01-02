@@ -195,6 +195,7 @@ def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
     Returns:
         The view on which contents are displayed.
     """
+    from vispy.scene.widgets.viewbox import ViewBox
 
     def default_view() -> ViewBox:
         view = canvas.central_widget.add_view()
@@ -276,7 +277,7 @@ def process_matplotlib_kwargs(
     Keyword Args:
         figure (:py:class:`Figure<matplotlib.figure.Figure>`):
             The figure that draws contents of the scene. If not provided,
-            will try to access figure from ``axes`` (if supplied).
+            will try to access figure from ``ax`` (if supplied).
         ax (:py:class:`Axes<matplotlib.axes.Axes>`):
             The view on which contents are displayed. If not provided,
             will try to get axes from ``figure``
