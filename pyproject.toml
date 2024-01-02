@@ -35,7 +35,7 @@ requires-python = ">=3.9"
 all = [
   "differt[jupyter,matplotlib,plotly,vispy]",
 ]
-jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2"]
+jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2", "ipympl"]
 maplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]

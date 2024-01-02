@@ -5,19 +5,18 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 import jax.numpy as jnp
+import numpy as np
 from chex import dataclass
 from jaxtyping import Array, Bool, Float, UInt
 
 from .. import _core
-from .utils import normalize
 from ..plotting import draw_mesh
+from .utils import normalize
 
 
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
+    triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, " *batch 3"]
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but
@@ -141,6 +140,11 @@ class TriangleMesh:
         """
         return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
 
-    def plot(self, *args, **kwargs: Any) -> None:
+    def plot(self, *args: Any, **kwargs: Any) -> None:
         """*TODO*."""
-        return draw_mesh(vertices=np.asarray(self.vertices), faces=np.asarray(self.triangles), *args, **kwargs)
+        return draw_mesh(
+            vertices=np.asarray(self.vertices),
+            faces=np.asarray(self.triangles),
+            *args,
+            **kwargs,
+        )
