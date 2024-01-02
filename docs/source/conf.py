@@ -56,6 +56,7 @@ intersphinx_mapping = {
 apidoc_module_dir = "../../python/differt"
 apidoc_output_dir = "reference"
 apidoc_separate_modules = True
+apidoc_tol_file = False
 
 # -- OpenGraph settings
 
@@ -104,4 +105,8 @@ napolean_use_rtype = False
 
 # Patches
 
-# def fixlinkto
+def fix_signature(app, what, name, obj, options, signature, return_annotation):
+    print(signature, return_annotation)
+
+def setup(app):
+    app.connect("autodoc-process-signature", fix_signature)
