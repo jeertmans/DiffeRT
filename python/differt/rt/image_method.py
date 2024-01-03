@@ -81,8 +81,7 @@ def intersection_of_line_segments_with_planes(
     plane_normals: Float[Array, "*batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Return the intersection points between
-    line segments and (infinite) planes.
+    Return the intersection points between line segments and (infinite) planes.
 
     If a line segment is parallel to the corresponding plane, then
     the corresponding vertex in ``from_vertices`` will be returned.
@@ -119,8 +118,7 @@ def image_method(
     mirror_normals: Float[Array, "num_mirrors *batch 3"],
 ) -> Float[Array, "num_mirrors *batch 3"]:
     """
-    Return the ray paths between pairs of vertices, that reflect on
-    a given list of mirrors in between.
+    Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
 
     Args:
         from_vertices: *TODO*.
@@ -155,8 +153,7 @@ def image_method(
     @jaxtyped(typechecker=typechecker)
     def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
         """
-        Perform forward pass on vertices by computing
-        consecutive images.
+        Perform forward pass on vertices by computing consecutive images.
         """
         vertices = carry
         mirror_vertices, mirror_normals = x
@@ -168,8 +165,7 @@ def image_method(
     @jaxtyped(typechecker=typechecker)
     def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
         """
-        Perform backward pass on images by computing the
-        intersection with mirrors.
+        Perform backward pass on images by computing the intersection with mirrors.
         """
         vertices = carry
         mirror_vertices, mirror_normals, images = x
@@ -199,9 +195,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror_normals: Float[Array, "num_mirrors *batch 3"],
 ) -> Bool[Array, "num_mirrors *batch"]:  # noqa: F821
     """
-    Check if consecutive vertices, but skiping one every other vertex,
-    are on the same side of a given mirror. The number of vertices
-    ``num_vertices`` must be equal to ``num_mirrors + 2``.
+    Check if consecutive vertices, but skiping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
     This check is needed after using :func:`image_method` because it can return
     vertices that are behind a mirror, which causes the path to go trough this

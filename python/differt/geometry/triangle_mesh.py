@@ -22,8 +22,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
 ) -> Bool[Array, " *batch"]:
     """
-    Return whether each triangle contains the corresponding vertex, but
-    assuming the vertex lies in the same plane as the triangle.
+    Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
 
     This is especially useful when combined with the
     :func:`image_method<differt.rt.image_method.image_method>`, as the paths returned
@@ -101,7 +100,7 @@ def paths_intersect_triangles(
     t, hit = rays_intersect_triangles(
         ray_origins,
         ray_directions,
-        jnp.broadcast_to(triangle_vertices, ray_origins.shape + (3,)),
+        jnp.broadcast_to(triangle_vertices, (*ray_origins.shape, 3)),
     )
     intersect = (t < (1 - epsilon)) & hit
     return jnp.any(intersect, axis=(0, 2))
@@ -158,11 +157,10 @@ class TriangleMesh:
             vertices=jnp.asarray(mesh.vertices), triangles=jnp.asarray(mesh.triangles)
         )
 
-    def plot(self, *args: Any, **kwargs: Any) -> Any:
+    def plot(self, **kwargs: Any) -> Any:
         """*TODO*."""
         return draw_mesh(
             vertices=np.asarray(self.vertices),
             faces=np.asarray(self.triangles),
-            *args,
             **kwargs,
         )

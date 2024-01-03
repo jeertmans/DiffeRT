@@ -91,7 +91,7 @@ def draw_paths(
 
 
 @draw_paths.register("vispy")
-def _(paths, **kwargs):
+def _(paths, **kwargs):  # type: ignore[no-untyped-def]
     from vispy.scene.visuals import LinePlot
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -105,7 +105,7 @@ def _(paths, **kwargs):
 
 
 @draw_paths.register("matplotlib")
-def _(paths, **kwargs):
+def _(paths, **kwargs):  # type: ignore[no-untyped-def]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -115,7 +115,7 @@ def _(paths, **kwargs):
 
 
 @draw_paths.register("plotly")
-def _(paths, *args, **kwargs):
+def _(paths, *args, **kwargs):  # type: ignore[no-untyped-def]
     fig = process_plotly_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -145,7 +145,7 @@ def draw_markers(
 
 
 @draw_markers.register("vispy")
-def _(markers, labels=None, **kwargs):
+def _(markers, labels=None, **kwargs):  # type: ignore[no-untyped-def]
     from vispy.scene.visuals import Markers, Text
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -160,12 +160,12 @@ def _(markers, labels=None, **kwargs):
 
 
 @draw_markers.register("matplotlib")
-def _(markers, labels=None, **kwargs):
+def _(markers, labels=None, **kwargs):  # type: ignore[no-untyped-def]
     raise NotImplementedError  # TODO
 
 
 @draw_markers.register("plotly")
-def _(markers, labels=None, mode=None, **kwargs):
+def _(markers, labels=None, mode=None, **kwargs):  # type: ignore[no-untyped-def]
     fig = process_plotly_kwargs(kwargs)
 
     x, y, z = markers.T

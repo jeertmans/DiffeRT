@@ -173,7 +173,7 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
             """Actually register the backend implemention."""
 
             @wraps(impl)
-            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:
+            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
                 try:
                     return impl(*args, **kwargs)
                 except ImportError as e:
@@ -201,11 +201,11 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
     ) -> T:
         return dispatch(backend or DEFAULT_BACKEND)(*args, **kwargs)
 
-    main_wrapper.register = register
-    main_wrapper.dispatch = dispatch
-    main_wrapper.registry = registry
+    main_wrapper.register = register  # type: ignore[attr-defined]
+    main_wrapper.dispatch = dispatch  # type: ignore[attr-defined]
+    main_wrapper.registry = registry  # type: ignore[attr-defined]
 
-    return main_wrapper
+    return main_wrapper  # type: ignore[return-value]
 
 
 def view_from_canvas(canvas: SceneCanvas) -> ViewBox:

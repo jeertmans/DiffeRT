@@ -3,9 +3,10 @@ from __future__ import annotations
 import builtins
 import importlib
 import sys
+from contextlib import AbstractContextManager as ContextManager
 from contextlib import contextmanager
 from types import ModuleType
-from typing import Any, ContextManager, Protocol
+from typing import Any, Protocol
 
 import matplotlib.pyplot as plt
 import pytest
@@ -30,8 +31,8 @@ class MissingModulesContextGenerator(Protocol):
 
 @pytest.fixture
 def missing_modules(monkeypatch: pytest.MonkeyPatch) -> MissingModulesContextGenerator:
-    @contextmanager
-    def ctx(*names: str) -> ContextManager[pytest.MonkeyPatch]:
+    @contextmanager  # type: ignore[arg-type]
+    def ctx(*names: str) -> ContextManager[pytest.MonkeyPatch]:  # type: ignore[misc]
         real_import = builtins.__import__
         real_import_module = importlib.import_module
 
@@ -68,19 +69,19 @@ def my_plot(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:
 
 
 @my_plot.register("vispy")
-def _(**kwargs):
+def _(**kwargs):  # type: ignore[no-untyped-def]
     canvas, view = process_vispy_kwargs(kwargs)
     return canvas
 
 
 @my_plot.register("matplotlib")
-def _(**kwargs):
+def _(**kwargs):  # type: ignore[no-untyped-def]
     fig, ax = process_matplotlib_kwargs(kwargs)
     return fig
 
 
 @my_plot.register("plotly")
-def _(**kwargs):
+def _(**kwargs):  # type: ignore[no-untyped-def]
     fig = process_plotly_kwargs(kwargs)
     return fig
 
@@ -103,7 +104,7 @@ def test_register_unsupported() -> None:
     with pytest.raises(ValueError):
 
         @my_plot.register("bokeh")
-        def _(**kwargs):
+        def _(**kwargs):  # type: ignore[no-untyped-def]
             pass
 
 
