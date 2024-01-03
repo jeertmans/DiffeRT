@@ -21,10 +21,11 @@ if TYPE_CHECKING:
     from ._utils import ReturnType
 
 
+@jaxtyped(typechecker=typechecker)
 @dispatch
 def draw_mesh(
-    vertices: Float[np.ndarray, "num_vertices 3"] | None = None,
-    faces: UInt[np.ndarray, "num_faces num_vertices_per_face"] | None = None,
+    vertices: Float[np.ndarray, "num_vertices 3"],
+    faces: UInt[np.ndarray, "num_faces num_vertices_per_face"],
     **kwargs,
 ) -> ReturnType:
     """

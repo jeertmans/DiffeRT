@@ -7,13 +7,15 @@ from __future__ import annotations
 import importlib
 from collections.abc import MutableMapping
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
 
 CURRENT_BACKEND = None
 DEFAULT_BACKEND = "vispy"
 SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
 
 if TYPE_CHECKING:
+    from typing import ParamSpec
+
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure as MplFigure
     from plotly.graph_objects import Figure
@@ -21,6 +23,12 @@ if TYPE_CHECKING:
     from vispy.scene.widgets.viewbox import ViewBox
 
     ReturnType = SceneCanvas | MplFigure | Figure
+
+    P = ParamSpec("P")
+    T = TypeVar("T", SceneCanvas, MplFigure, Figure)
+else:
+    P = TypeVar("P")
+    T = TypeVar("T")
 
 
 def use(backend: str) -> None:
@@ -86,7 +94,23 @@ def use(backend: str) -> None:
         ) from None
 
 
-def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
+class Dispatcher(Protocol, Generic[P, T]):
+    def __call__(
+        self, *args: P.args, backend: str | None = None, **kwargs: P.kwargs
+    ) -> T:
+        ...
+
+    def register(
+        self,
+        backend: str,
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+        ...
+
+    def dispatch(self, backend: str) -> Callable[P, T]:
+        ...
+
+
+def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
     """
     Transform a function into a backend dispatcher for plot functions.
 
@@ -137,7 +161,7 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
 
     def register(
         backend: str,
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """Register a new implemenation."""
         if backend not in SUPPORTED_BACKENDS:
             raise ValueError(
@@ -145,9 +169,11 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
                 f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}."
             )
 
-        def wrapper(impl: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
+            """Actually register the backend implemention."""
+
             @wraps(impl)
-            def __wrapper__(*args: Any, **kwargs: Any) -> Any:
+            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:
                 try:
                     return impl(*args, **kwargs)
                 except ImportError as e:
@@ -161,7 +187,7 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
 
         return wrapper
 
-    def dispatch(backend: str) -> Callable[..., Any]:
+    def dispatch(backend: str) -> Callable[P, T]:
         try:
             return registry[backend]
         except KeyError:
@@ -170,7 +196,9 @@ def dispatch(fun: Callable[..., Any]) -> Callable[..., Any]:
             ) from None
 
     @wraps(fun)
-    def main_wrapper(*args: Any, backend: str | None = None, **kwargs: Any) -> Any:
+    def main_wrapper(
+        *args: P.args, backend: str | None = None, **kwargs: P.kwargs
+    ) -> T:
         return dispatch(backend or DEFAULT_BACKEND)(*args, **kwargs)
 
     main_wrapper.register = register
@@ -296,7 +324,7 @@ def process_matplotlib_kwargs(
     maybe_ax = kwargs.pop("ax", None)
     figure = (
         kwargs.pop("figure", None)
-        or (maybe_ax.gcf() if maybe_ax else None)
+        or (maybe_ax.get_figure() if maybe_ax else None)
         or plt.figure()
     )
 
