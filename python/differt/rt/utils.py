@@ -12,8 +12,7 @@ def generate_all_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:
     """
-    Generate an array of all path candidates for fixed path order
-    and a number of primitives.
+    Generate an array of all path candidates for fixed path order and a number of primitives.
 
     The returned array contains, for each column, an array of
     ``order`` indices indicating the primitive with which the path interacts.
@@ -47,8 +46,7 @@ def rays_intersect_triangles(
     epsilon: Float[Scalar, ""] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
-    Return whether rays intersect corresponding triangles using the
-    Möller-Trumbore algorithm.
+    Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
 
     The current implementation closely follows the C++ code from Wikipedia.
 
