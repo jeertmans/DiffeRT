@@ -33,12 +33,13 @@ requires-python = ">=3.9"
 
 [project.optional-dependencies]
 all = [
-  "differt[jupyter,matplotlib,plotly,vispy]",
+  "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
 ]
-jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2"]
+jupyter = ["jupyterlab<4,>=3", "jupyter-rfb>=0.4.2", "ipympl"]
 maplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]
+vispy-backend = ["PyQt6>=6.6.1"]
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"
@@ -69,17 +70,12 @@ strict = true
 [tool.pdm.dev-dependencies]
 dev = [
   "pre-commit>=3.5.0",
-  # PyQt is a better backend than the one used for rendering docs.
-  "PyQt6>=6.6.1",
   "mypy>=1.8.0",
 ]
 docs = [
   "differt[all]",
   "myst-nb>=0.17.2",
   "pillow>=10.1.0",
-  # VisPy backend
-  "pyopengl>=3.1.7",
-  "pyopengltk>=0.0.4",
   "sphinx>=6,<7",
   "sphinx-autodoc-typehints>=1.23",
   "sphinx-book-theme>=1.0.1",
@@ -93,6 +89,7 @@ github-action = [
   "jax[cpu]>=0.4.20",
 ]
 test = [
+  "differt[all]",
   "open3d-cpu>=0.17.0;python_version <= '3.10' and sys_platform == 'linux'",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",

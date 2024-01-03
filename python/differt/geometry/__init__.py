@@ -1,6 +1,4 @@
-"""
-Geometries for building scenes.
-"""
+"""Geometries for building scenes."""
 
 __all__ = ("TriangleMesh",)
 
