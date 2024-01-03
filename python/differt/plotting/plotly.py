@@ -1,3 +1,0 @@
-"""
-Plotly plotting utils.
-"""

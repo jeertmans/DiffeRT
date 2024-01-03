@@ -53,7 +53,7 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 class TestTriangleMesh:
     def test_load_obj(self, two_buildings_obj_file: Path) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
-        assert len(mesh._mesh.triangles) == 24
+        assert mesh.triangles.shape == (24, 3)
 
     def test_compare_with_open3d(
         self, two_buildings_obj_file: Path, two_buildings_mesh: TriangleMesh

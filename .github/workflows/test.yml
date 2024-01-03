@@ -1,11 +1,16 @@
+# Test code base and upload coverage
+name: Test code
+
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
-
-name: Test code
 
 env:
   JAX_PLATFORM_NAME: cpu
+  QT_QPA_PLATFORM: offscreen
+  DISPLAY: :99
 
 jobs:
   pytest:
@@ -18,6 +23,13 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Install OpenGL
+      run: |
+        sudo apt-get update
+        sudo apt-get install freeglut3-dev xvfb
+        sudo apt-get install x11-utils
+        nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
 
     - name: Install PDM
       uses: pdm-project/setup-pdm@v3
@@ -33,8 +45,19 @@ jobs:
         pdm install -G test,github-action
 
     - name: Run Pytest
+      if: ${{ matrix.os }} != "ubuntu-latest" || ${{ matrix.pyversion }} != "3.12"
       run: |
         pdm run pytest -Werror -n auto
+
+    - name: Run pytest and coverage
+      if: ${{ matrix.os }} == "ubuntu-latest" && ${{ matrix.pyversion }} == "3.12"
+      run: pdm run pytest --cov-report xml --cov=differt tests/
+
+    - name: Upload to codecov.io
+      if: ${{ matrix.os }} == "ubuntu-latest" && ${{ matrix.pyversion }} == "3.12"
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true
   cargo-test:
     strategy:
       fail-fast: false

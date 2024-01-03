@@ -1,3 +1,0 @@
-"""
-VisPy plotting utils.
-"""

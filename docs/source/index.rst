@@ -10,7 +10,7 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    notebooks/plotting_backend
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: API
 
-   reference/index
+   differt package<reference/differt>
