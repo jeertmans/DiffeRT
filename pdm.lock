@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy"]
+groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy", "vispy-backend"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:eda925ebfa2727cdab4c4df7e90aad4bd13b35f8540047d210438cf6fbc30972"
+content_hash = "sha256:373fa7f88ed659ed7fab658042a9bbef3b82ec1285076a46120c4bad9e81a57e"
 
 [[package]]
 name = "absl-py"
@@ -2638,29 +2638,6 @@ files = [
 ]
 
 [[package]]
-name = "pyopengl"
-version = "3.1.7"
-summary = "Standard OpenGL bindings for Python"
-groups = ["docs"]
-files = [
-    {file = "PyOpenGL-3.1.7-py3-none-any.whl", hash = "sha256:a6ab19cf290df6101aaf7470843a9c46207789855746399d0af92521a0a92b7a"},
-    {file = "PyOpenGL-3.1.7.tar.gz", hash = "sha256:eef31a3888e6984fd4d8e6c9961b184c9813ca82604d37fe3da80eb000a76c86"},
-]
-
-[[package]]
-name = "pyopengltk"
-version = "0.0.4"
-summary = "An opengl frame for pyopengl-tkinter based on ctype"
-groups = ["docs"]
-dependencies = [
-    "pyopengl",
-]
-files = [
-    {file = "pyopengltk-0.0.4-py2.py3-none-any.whl", hash = "sha256:664c9c97e7f24d7664f4560064e4a4dc8a40880337483080f1b2937de052379e"},
-    {file = "pyopengltk-0.0.4.tar.gz", hash = "sha256:4ec9bd44e5b3a8a4f3901d611b572c6d55463450ecf7d20bc51c00771b669650"},
-]
-
-[[package]]
 name = "pyparsing"
 version = "3.1.1"
 requires_python = ">=3.6.8"
@@ -2676,7 +2653,7 @@ name = "pyqt6"
 version = "6.6.1"
 requires_python = ">=3.6.1"
 summary = "Python bindings for the Qt cross platform application toolkit"
-groups = ["dev"]
+groups = ["all", "docs", "test", "vispy-backend"]
 dependencies = [
     "PyQt6-Qt6>=6.6.0",
     "PyQt6-sip<14,>=13.6",
@@ -2692,7 +2669,7 @@ files = [
 name = "pyqt6-qt6"
 version = "6.6.1"
 summary = "The subset of a Qt installation needed by PyQt6."
-groups = ["dev"]
+groups = ["all", "docs", "test", "vispy-backend"]
 files = [
     {file = "PyQt6_Qt6-6.6.1-py3-none-macosx_10_14_x86_64.whl", hash = "sha256:0409aa09b8dae90d5f00ba2d9761e671dfbc54ab169cff8f4cdfecd7f664fd0f"},
     {file = "PyQt6_Qt6-6.6.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:8dcac0bd9df13d63deafb6a61969b832c34467da4a28d2b7abf78066bfce22e6"},
@@ -2705,7 +2682,7 @@ name = "pyqt6-sip"
 version = "13.6.0"
 requires_python = ">=3.7"
 summary = "The sip module support for PyQt6"
-groups = ["dev"]
+groups = ["all", "docs", "test", "vispy-backend"]
 files = [
     {file = "PyQt6_sip-13.6.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d6b5f699aaed0ac1fcd23e8fbca70d8a77965831b7c1ce474b81b1678817a49d"},
     {file = "PyQt6_sip-13.6.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:8c282062125eea5baf830c6998587d98c50be7c3a817a057fb95fef647184012"},
