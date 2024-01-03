@@ -105,8 +105,18 @@ napolean_use_rtype = False
 
 # Patches
 
+# TODO: fix Plotly's Figure not linking to docs with intersphinx.
+
+"""
 def fix_signature(app, what, name, obj, options, signature, return_annotation):
-    print(signature, return_annotation)
+    target = "~plotly.graph_objs._figure.Figure"
+    sub = ":py:class:`Figure<plotly.graph_objects.Figure>`"
+    sub = "~plotly.graph_objects.Figure"
+    if return_annotation and target in return_annotation:
+        return_annotation = return_annotation.replace(target, sub)
+        return signature, return_annotation.replace(target, sub)
+
 
 def setup(app):
-    app.connect("autodoc-process-signature", fix_signature)
+    app.connect("autodoc-process-signature", fix_signature, priority=999)
+"""
