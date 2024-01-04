@@ -88,7 +88,7 @@ def _(**kwargs):  # type: ignore[no-untyped-def]
 
 @pytest.mark.parametrize("backend", (None, "vispy", "matplotlib", "plotly"))
 def test_unimplemented(backend: str | None) -> None:
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotImplementedError, match="No backend implementation for"):
         if backend:
             _ = my_plot_unimplemented(backend=backend)
         else:
@@ -96,12 +96,16 @@ def test_unimplemented(backend: str | None) -> None:
 
 
 def test_use_unsupported() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="The backend 'bokeh' is not supported. We currently support:"
+    ):
         use("bokeh")
 
 
 def test_register_unsupported() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Unsupported backend 'bokeh', allowed values are:"
+    ):
 
         @my_plot.register("bokeh")
         def _(**kwargs):  # type: ignore[no-untyped-def]
@@ -114,10 +118,15 @@ def test_missing_default_backend_module(
 ) -> None:
     use(backend)  # Change the default backend
 
-    with missing_modules(backend), pytest.raises(ImportError):
+    with missing_modules(backend), pytest.raises(
+        ImportError,
+        match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+    ):
         _ = my_plot()
 
-    with missing_modules(backend), pytest.raises(ImportError):
+    with missing_modules(backend), pytest.raises(
+        ImportError, match=f"Could not load backend '{backend}'"
+    ):
         use(backend)
 
 
@@ -125,7 +134,10 @@ def test_missing_default_backend_module(
 def test_missing_backend_module(
     backend: str, missing_modules: MissingModulesContextGenerator
 ) -> None:
-    with missing_modules(backend), pytest.raises(ImportError):
+    with missing_modules(backend), pytest.raises(
+        ImportError,
+        match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+    ):
         _ = my_plot(backend=backend)
 
 

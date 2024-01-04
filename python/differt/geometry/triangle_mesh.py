@@ -161,6 +161,6 @@ class TriangleMesh:
         """*TODO*."""
         return draw_mesh(
             vertices=np.asarray(self.vertices),
-            faces=np.asarray(self.triangles),
+            triangles=np.asarray(self.triangles),
             **kwargs,
         )

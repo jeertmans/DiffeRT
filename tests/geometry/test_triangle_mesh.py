@@ -3,6 +3,7 @@ from pathlib import Path
 
 import chex
 import jax.numpy as jnp
+import jaxtyping
 import pytest
 
 from differt.geometry.triangle_mesh import (
@@ -19,6 +20,17 @@ def two_buildings_obj_file() -> Iterator[Path]:
 @pytest.fixture(scope="module")
 def two_buildings_mesh(two_buildings_obj_file: Path) -> Iterator[TriangleMesh]:
     yield TriangleMesh.load_obj(two_buildings_obj_file)
+
+
+@pytest.fixture(scope="module")
+def sphere() -> Iterator[TriangleMesh]:
+    from vispy.geometry import create_sphere
+
+    mesh = create_sphere()
+
+    vertices = jnp.asarray(mesh.get_vertices())
+    triangles = jnp.asarray(mesh.get_faces())
+    yield TriangleMesh(vertices=vertices, triangles=triangles)
 
 
 def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
@@ -51,6 +63,14 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
+    @pytest.mark.xfail(reason="Unknown, to be investigated...")
+    def test_invalid_args(self) -> None:
+        vertices = jnp.ones((10, 2))
+        triangles = jnp.ones((20, 3))
+
+        with pytest.raises(jaxtyping.TypeCheckError):
+            _ = TriangleMesh(vertices=vertices, triangles=triangles)
+
     def test_load_obj(self, two_buildings_obj_file: Path) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
@@ -90,3 +110,6 @@ class TestTriangleMesh:
         got = jnp.linalg.norm(two_buildings_mesh.normals, axis=-1)
         expected = jnp.ones_like(got)
         chex.assert_trees_all_close(got, expected)
+
+    def test_plot(self, sphere: TriangleMesh) -> None:
+        sphere.plot()

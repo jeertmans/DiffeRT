@@ -56,7 +56,7 @@ intersphinx_mapping = {
 apidoc_module_dir = "../../python/differt"
 apidoc_output_dir = "reference"
 apidoc_separate_modules = True
-apidoc_tol_file = False
+apidoc_toc_file = False
 
 # -- OpenGraph settings
 
@@ -70,6 +70,7 @@ always_document_param_types = True
 # -- MyST-nb settings
 
 nb_kernel_rgx_aliases = {".*": "DiffeRT"}  # TODO: do not require specific kernel name
+nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
 # so we need to change priorities, because the widget cannot work if Python is

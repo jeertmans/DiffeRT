@@ -1,6 +1,4 @@
-"""
-Useful decorators for plotting.
-"""
+"""Useful decorators for plotting."""
 
 from __future__ import annotations
 
@@ -14,13 +12,18 @@ DEFAULT_BACKEND = "vispy"
 SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
 
 if TYPE_CHECKING:
-    from typing import ParamSpec
+    import sys
 
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure as MplFigure
     from plotly.graph_objects import Figure
     from vispy.scene.canvas import SceneCanvas
     from vispy.scene.widgets.viewbox import ViewBox
+
+    if sys.version_info >= (3, 10):
+        from typing import ParamSpec
+    else:
+        from typing_extensions import ParamSpec
 
     ReturnType = SceneCanvas | MplFigure | Figure
 
@@ -94,7 +97,7 @@ def use(backend: str) -> None:
         ) from None
 
 
-class Dispatcher(Protocol, Generic[P, T]):
+class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
     def __call__(
         self, *args: P.args, backend: str | None = None, **kwargs: P.kwargs
     ) -> T:
@@ -183,7 +186,9 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
                         "Did you correctly install it?"
                     ) from e
 
-            registry[backend] = impl
+            registry[backend] = __wrapper__
+
+            return __wrapper__
 
         return wrapper
 

@@ -152,9 +152,7 @@ def image_method(
 
     @jaxtyped(typechecker=typechecker)
     def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
-        """
-        Perform forward pass on vertices by computing consecutive images.
-        """
+        """Perform forward pass on vertices by computing consecutive images."""
         vertices = carry
         mirror_vertices, mirror_normals = x
         images = image_of_vertices_with_respect_to_mirrors(
@@ -164,9 +162,7 @@ def image_method(
 
     @jaxtyped(typechecker=typechecker)
     def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
-        """
-        Perform backward pass on images by computing the intersection with mirrors.
-        """
+        """Perform backward pass on images by computing the intersection with mirrors."""
         vertices = carry
         mirror_vertices, mirror_normals, images = x
 
