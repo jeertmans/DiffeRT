@@ -10,10 +10,27 @@
 
 </div>
 
+## Usage
+
+> [!WARNING]  
+> Until this package reaches version `0.1.x`, breaking changes
+> should be expected.
+>
+> If you have any suggestion regarding the development of this package,
+> please open an [issue](/issues).
 
 ## Contributing
 
-This project is built on both Python and Rust code.
+> [!IMPORTANT]  
+> The current documentation is very light and a more complete guide for
+> new contributors will be written in the near future.
+>
+> Until then, do not hesitate to reach me for help with
+> [GitHub issues](/issues)!
+
+This project is built using both Python and Rust code, to provide an easy-to-use
+but performant program. It also heavily uses the capabilities brought by
+[JAX](https://github.com/google/jax) for numerical arrays.
 
 ### Requirements
 
