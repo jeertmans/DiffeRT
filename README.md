@@ -12,7 +12,7 @@
 
 ## Usage
 
-> [!WARNING]  
+> [!WARNING]
 > Until this package reaches version `0.1.x`, breaking changes
 > should be expected.
 >
@@ -21,7 +21,7 @@
 
 ## Contributing
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > The current documentation is very light and a more complete guide for
 > new contributors will be written in the near future.
 >

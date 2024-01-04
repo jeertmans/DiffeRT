@@ -5,11 +5,12 @@ from typing import Any, Callable
 
 import jax
 from chex import Array
+from jaxtyping import PRNGKeyArray
 
 
 def random_inputs(
     *arg_names: str,
-    sampler: Callable[[jax.random.PRNGKey, Sequence[int]], Array] = jax.random.uniform,
+    sampler: Callable[[PRNGKeyArray, Sequence[int]], Array] = jax.random.uniform,
     seed: int = 0,
 ) -> Callable[..., Any]:
     """
@@ -22,7 +23,6 @@ def random_inputs(
         Sequence of argument names that should be transformed into random
         arrays.
     """
-    arg_names = set(arg_names)  # Repeating names is useless
 
     def wrapper(fun: Callable[..., Any]) -> Callable[..., Any]:
         sig = inspect.signature(fun)
