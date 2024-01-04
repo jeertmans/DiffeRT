@@ -118,7 +118,6 @@ env = [
 ]
 filterwarnings = [
   "error",
-  'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
 ]
 
 [tool.ruff]
