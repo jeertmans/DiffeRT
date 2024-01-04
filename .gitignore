@@ -12,3 +12,7 @@ target/
 .mypy_cache
 
 venv/
+
+.pdm-python
+
+*.so

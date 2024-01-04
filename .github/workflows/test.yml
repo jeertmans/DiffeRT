@@ -4,6 +4,9 @@ on:
 
 name: Test code
 
+env:
+  JAX_PLATFORM_NAME: cpu
+
 jobs:
   pytest:
     strategy:
@@ -16,29 +19,22 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
-      run: pipx install poetry
-
-    - name: Build DiffeRT-core
-      uses: PyO3/maturin-action@v1
-      with:
-        command: build
-        working-directory: differt-core
-        sccache: true
-
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
         python-version: ${{ matrix.pyversion }}
-        cache: poetry
+        cache: true
 
-    - name: Install Differt
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
       run: |
-        poetry install --with test,github-action  # TODO: FIXME on macOS and Windows
+        pdm install -G test,github-action
 
     - name: Run Pytest
       run: |
-        poetry run pytest -Werror -n auto
+        pdm run pytest -Werror -n auto
   cargo-test:
     strategy:
       fail-fast: false
@@ -50,55 +46,45 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
+      with:
+        python-version: ${{ matrix.pyversion }}
+        cache: true
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.pyversion }}
-        cache: pip
-
-    - name: Install Python Dependencies
+    - name: Install dependencies
       run: |
-        pip install -r differt-core/requirements.txt
+        pdm install --no-self
 
     - name: Run Cargo test
       run: |
-        cargo test --no-default-features --features test
-  benchmark:
+        pdm run cargo test
+  python-benchmark:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    env:
-      JAX_PLATFORM_NAME: cpu
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Poetry
-      run: pipx install poetry
-
-    - name: Install Python
-      uses: actions/setup-python@v4
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
         python-version: '3.11'
-        cache: poetry
+        cache: true
 
-    - name: Build DiffeRT-core
-      uses: PyO3/maturin-action@v1
-      with:
-        command: build
-        working-directory: differt-core
-        sccache: true
-        args: --release
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Install DiffeRT
+    - name: Install dependencies
       run: |
-        poetry install --with test,github-action
+        pdm install -G test,github-action
 
     - name: Run Benchmarks on changes
-      run: poetry run pytest --benchmark-only --benchmark-save=changes
+      run: pdm run pytest --benchmark-only --benchmark-save=changes
 
     - uses: actions/checkout@v4
       with:
@@ -106,12 +92,12 @@ jobs:
         clean: false
 
     - name: Run Benchmarks before changes
-      run: poetry run pytest --benchmark-only --benchmark-save=before
+      run: pdm run pytest --benchmark-only --benchmark-save=before
 
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        poetry run pytest --benchmark-only --benchmark-compare=changes >> $GITHUB_OUTPUT
+        pdm run pytest-benchmark compare before changes >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 
@@ -120,14 +106,78 @@ jobs:
       continue-on-error: true
       with:
         message: |
-          Benchmark results:
+          Python benchmark results:
+          ```
           ${{ steps.compare.outputs.results }}
-        comment_tag: benchmarks
+          ```
+        comment_tag: python-benchmarks
 
       id: comment
 
     - name: If PR comment failed, write to PR summary
       if: steps.comment.outcome != 'success'
       run: |
-        echo '### Benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '### Python benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+  rust-benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
+      with:
+        python-version: '3.11'
+        cache: true
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Install dependencies
+      run: |
+        pdm install --no-self
+        cargo install cargo-benchcmp
+
+    - name: Run Benchmarks on changes
+      run: pdm run cargo bench > changes
+
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.base.sha }}
+        clean: false
+
+    - name: Run Benchmarks before changes
+      run: pdm run cargo bench > before
+
+    - name: Compare benchmarks
+      run: |
+        echo 'results<<EOF' >> $GITHUB_OUTPUT
+        cargo benchcmp before changes >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      id: compare
+
+    - name: Comment PR with benchmarks
+      uses: thollander/actions-comment-pull-request@v2
+      continue-on-error: true
+      with:
+        message: |
+          Rust benchmark results:
+          ```
+          ${{ steps.compare.outputs.results }}
+          ```
+        comment_tag: rust-benchmarks
+
+      id: comment
+
+    - name: If PR comment failed, write to PR summary
+      if: steps.comment.outcome != 'success'
+      run: |
+        echo '### Rust benchmark results' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

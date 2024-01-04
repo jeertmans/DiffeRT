@@ -1,6 +1,43 @@
 [build-system]
-build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core"]
+build-backend = "maturin"
+requires = ["maturin>=1.3,<2.0"]
+
+[project]
+authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy"
+]
+dependencies = [
+  "chex>=0.1.84",
+  "jax>=0.4.20",
+  "jaxtyping>=0.2.24",
+  "matplotlib>=3.8.1",
+  "numpy>=1.26.1",
+  "plotly>=5.18.0"
+]
+description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
+dynamic = ["license", "readme", "version"]
+exclude = ["docs/", "static/"]
+keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
+name = "DiffeRT"
+requires-python = ">=3.9"
+
+[project.urls]
+Changelog = "https://github.com/jeertmans/DiffeRT/releases"
+Documentation = "https://eertmans.be/DiffeRT"
+Founding = "https://github.com/sponsors/jeertmans"
+Homepage = "https://github.com/jeertmans/DiffeRT"
+Repository = "https://github.com/jeertmans/DiffeRT"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -11,77 +48,41 @@ exclude_lines = [
 ]
 precision = 2
 
+[tool.maturin]
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
+module-name = "differt._core"
+python-source = "python"
+
 [tool.mypy]
 python_version = "3.9"
 strict = true
 
-[tool.poetry]
-authors = ["Jérome Eertmans <jeertmans@icloud.com>"]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Topic :: Scientific/Engineering"
+[tool.pdm.dev-dependencies]
+dev = [
+    "pre-commit>=3.5.0",
+    "mypy>=1.8.0",
 ]
-description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
-documentation = "https://eertmans.be/DiffeRT"
-exclude = ["docs/", "static/"]
-homepage = "https://github.com/jeertmans/DiffeRT"
-keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
-license = "MIT"
-name = "DiffeRT"
-packages = [
-  {include = "differt"}
+docs = [
+  "myst-nb>=0.17.2",
+  "sphinx>=6,<7",
+  "sphinx-autodoc-typehints>=1.23",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton>=0.5.2",
+  "sphinx-design>=0.5.0",
+  "sphinx-remove-toctrees>=0.0.3",
+  "sphinxext-opengraph>=0.9.0"
 ]
-readme = "README.md"
-repository = "https://github.com/jeertmans/DiffeRT"
-version = "0.0.5"
-
-[tool.poetry.dependencies]
-chex = "^0.1.84"
-differt-core = {path = "differt-core", develop = true}
-jax = "^0.4.20"
-jaxtyping = "^0.2.23"
-matplotlib = {version = "^3.8.1", optional = true}
-numpy = "^1.26.1"
-open3d = {version = "^0.17.0", python = "<3.11", optional = true}  # Waiting 0.18 for Python 3.11
-plotly = {version = "^5.18.0", optional = true}
-python = ">=3.9,<3.13"
-
-[tool.poetry.extras]
-matplotlib = ["matplotlib"]
-open3d = ["open3d"]
-plotly = ["plotly"]
-plotting = ["matplotlib", "plotly"]
-
-[tool.poetry.group.dev.dependencies]
-bump2version = "^1.0.1"
-pre-commit = "^3.5.0"
-
-[tool.poetry.group.docs.dependencies]
-myst-nb = "^0.17.2"
-sphinx = "<7"
-sphinx-autodoc-typehints = "^1.23"
-sphinx-book-theme = "^1.0.1"
-sphinx-copybutton = "^0.5.2"
-sphinx-design = "^0.5.0"
-sphinx-remove-toctrees = "^0.0.3"
-sphinxext-opengraph = "^0.9.0"
-
-[tool.poetry.group.github-action.dependencies]
-jax = {extras = ["cpu"], version = "^0.4.20"}
-open3d-cpu = {version = "^0.17.0", python = "<3.11"}
-
-[tool.poetry.group.test.dependencies]
-pytest = "^7.4.3"
-pytest-benchmark = "^4.0.0"
-pytest-cov = "^4.1.0"
-pytest-xdist = "^3.3.1"
-tomli = "^2.0.1"
+github-action = [
+  "jax[cpu]>=0.4.20"
+]
+test = [
+  "open3d-cpu>=0.17.0;python_version <= '3.10' and sys_platform == 'linux'",
+  "pytest>=7.4.3",
+  "pytest-benchmark>=4.0.0",
+  "pytest-cov>=4.1.0",
+  "pytest-xdist>=3.3.1"
+]
 
 [tool.pytest.ini_options]
 addopts = [
@@ -107,6 +108,12 @@ extend-include = ["*.ipynb"]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
 isort = {known-first-party = ["differt", "tests"]}
 target-version = "py39"
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["T"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/{tests,docs}/*" = ["D"]
 
 [tool.ruff.pydocstyle]
 convention = "google"

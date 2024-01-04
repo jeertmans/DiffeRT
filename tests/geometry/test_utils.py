@@ -6,8 +6,6 @@ import jax.numpy as jnp
 import pytest
 from chex import Array
 
-open3d = pytest.importorskip("open3d")
-
 from differt.geometry.utils import pairwise_cross
 from tests.utils import random_inputs
 

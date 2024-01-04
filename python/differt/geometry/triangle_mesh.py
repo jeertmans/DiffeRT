@@ -1,15 +1,17 @@
+"""Mesh geometry made of triangles and utilities."""
 from __future__ import annotations
 
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 
 import jax.numpy as jnp
-import open3d as o3d
 import plotly.graph_objects as go
 from chex import dataclass
 from jaxtyping import Array, Bool, Float, UInt
 
-from .utils import pairwise_cross
+from .. import _core
+from .utils import normalize
 
 
 def triangles_contain_vertices_assuming_inside_same_plane(
@@ -78,8 +80,8 @@ def paths_intersect_triangles(
     Return whether each path intersect with any of the triangles.
 
     Args:
-        triangle_vertices: an array of triangle vertices.
-        vertices: an array of vertices that will be checked.
+        paths: An array of ray paths of the same length.
+        triangle_vertices: An array of triangle vertices.
 
     Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
@@ -89,56 +91,76 @@ def paths_intersect_triangles(
 
 @dataclass
 class TriangleMesh:
-    mesh: o3d.geometry.TriangleMesh
+    """
+    A simple geometry made of triangles.
+    """
+
+    _mesh: _core.geometry.triangle_mesh.TriangleMesh
 
     @cached_property
     def triangles(self) -> UInt[Array, "num_triangles 3"]:
-        """Return the array of triangle indices."""
-        return jnp.asarray(self.mesh.triangles, dtype=int)
+        """The triangle indices."""
+        return jnp.asarray(self._mesh.triangles, dtype=jnp.uint32)
 
     @cached_property
     def vertices(self) -> Float[Array, "num_vertices 3"]:
-        """Return the array of vertices."""
-        return jnp.asarray(self.mesh.vertices)
+        """The vertices."""
+        return jnp.asarray(self._mesh.vertices)
 
     @cached_property
     def normals(self) -> Float[Array, "num_triangles 3"]:
-        return jnp.asarray(self.mesh.triangle_normals)
+        """The triangle normals."""
+        vertices = jnp.take(self.vertices, self.triangles, axis=0)
+        vectors = jnp.diff(vertices, axis=1)
+        normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
+
+        return normalize(normals)[0]
 
     @cached_property
     def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
-        all_vertices = jnp.take(self.vertices, self.indices, axis=0)
-        normals = self.normals
-
-        print(normals)
-
-        cross = pairwise_cross(normals, normals)
-        n = jnp.linalg.norm(cross, axis=-1)
-        print(n)
-        print(n.shape)
-        print(cross)
-        print(cross.shape)
-
-        print(all_vertices)
-        return len(all_vertices)
-        return jnp.asarray(self.mesh.get_non_manifold_edges(False))
-
-    @classmethod
-    def load_geojson(cls, file: Path, default_height: float = 1.0) -> TriangleMesh:
-        pass
+        """The diffraction edges."""
+        raise NotImplementedError
 
     @classmethod
     def load_obj(cls, file: Path) -> TriangleMesh:
-        mesh = o3d.io.read_triangle_mesh(str(file)).compute_triangle_normals()
-        return cls(mesh=mesh)
+        """
+        Load a triangle mesh from a Wavefront .obj file.
 
-    def plot(self, *args, **kwargs):
+        Currently, only vertices and triangles are loaded. Triangle normals
+        are computed afterward (when first accessed).
+
+        This method will fail if it contains any geometry that is not a triangle.
+
+        Args:
+            file: The path to the wavefront .obj file.
+
+        Returns:
+            The corresponding mesh containing only triangles.
+        """
+        return cls(_mesh=_core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file)))
+
+    def plot(self, *, include_normals: bool = False, **kwargs: Any) -> go.Figure:
+        """*TODO*."""
         x, y, z = self.vertices.T
         i = self.triangles[:, 0]
         j = self.triangles[:, 1]
         k = self.triangles[:, 2]
-        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, *args, **kwargs)])
-        transmitters = jnp.array([0.0, 4.9352, 22.0])
-        receivers = jnp.array([0.0, 10.034, 1.5])
+        fig = go.Figure(data=[go.Mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)])
+
+        if include_normals:
+            vertices = jnp.take(self.vertices, self.triangles, axis=0)
+            centers = jnp.mean(vertices, axis=1)
+            fig.add_traces(
+                go.Cone(
+                    x=centers[:, 0],
+                    y=centers[:, 1],
+                    z=centers[:, 2],
+                    u=self.normals[:, 0],
+                    v=self.normals[:, 1],
+                    w=self.normals[:, 2],
+                    hoverinfo="u+v+w+name",
+                    showscale=False,
+                )
+            )
 
         return fig

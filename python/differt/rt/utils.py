@@ -1,16 +1,18 @@
-import differt_core
+"""Ray Tracing utilies."""
+
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, Scalar, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
+from .. import _core
 
-@jaxtyped
-@typechecker
-def generate_path_candidates(
+
+@jaxtyped(typechecker=typechecker)
+def generate_all_path_candidates(
     num_primitives: int, order: int
 ) -> UInt[Array, "order num_candidates"]:
     """
-    Generate an array of path candidates for fixed path order
+    Generate an array of all path candidates for fixed path order
     and a number of primitives.
 
     The returned array contains, for each column, an array of
@@ -23,8 +25,8 @@ def generate_path_candidates(
     with containing loops, i.e., two or more consecutive indices that are equal.
 
     Args:
-        num_primitives: the (positive) number of primitives.
-        order: the path order. An order less than one returns an empty array.
+        num_primitives: The (positive) number of primitives.
+        order: The path order. An order less than one returns an empty array.
 
     Returns:
         An unsigned array with primitive indices on each columns. Its number of
@@ -32,25 +34,43 @@ def generate_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        differt_core.generate_path_candidates(num_primitives, order), dtype=jnp.uint32
+        _core.rt.utils.generate_all_path_candidates(num_primitives, order),
+        dtype=jnp.uint32,
     )
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
+    epsilon: Float[Scalar, ""] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the
     Möller-Trumbore algorithm.
 
     The current implementation closely follows the C++ code from Wikipedia.
-    """
-    epsilon = 1e-07
 
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        epsilon: A small tolerance threshold that allows rays
+            to hit the triangles slightly outside the actual area.
+            A positive value virtually increases the size of the triangles,
+            a negative value will have the opposite effect.
+
+            Such a tolerance is especially useful when rays are hitting
+            triangle edges, a very common case if geometries are planes
+            split into multiple triangles.
+
+    Returns:
+        For each ray, return the scale factor of ``ray_directions`` for the
+        vector to reach the corresponding triangle, and whether the intersection
+        actually lies inside the triangle.
+    """
     vertex_0 = triangle_vertices[..., 0, :]
     vertex_1 = triangle_vertices[..., 1, :]
     vertex_2 = triangle_vertices[..., 2, :]

@@ -21,8 +21,7 @@ from jaxtyping import Array, Bool, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*batch 3"],
     mirror_vertices: Float[Array, "*batch 3"],
@@ -32,11 +31,11 @@ def image_of_vertices_with_respect_to_mirrors(
     Return the image of vertices with respect to mirrors.
 
     Args:
-        vertices: an array of vertices that will be mirrored.
-        mirror_vertices: an array of mirror vertices. For each mirror, any
+        vertices: An array of vertices that will be mirrored.
+        mirror_vertices: An array of mirror vertices. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: an array of mirror normals, where each normal has a unit
+        mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
     Returns:
@@ -74,8 +73,7 @@ def image_of_vertices_with_respect_to_mirrors(
     )
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def intersection_of_line_segments_with_planes(
     segment_starts: Float[Array, "*batch 3"],
     segment_ends: Float[Array, "*batch 3"],
@@ -90,14 +88,14 @@ def intersection_of_line_segments_with_planes(
     the corresponding vertex in ``from_vertices`` will be returned.
 
     Args:
-        segment_starts: an array of vertices describing the start of line
+        segment_starts: An array of vertices describing the start of line
             segments.
 
             .. note::
 
                 ``segment_starts`` and ``segment_ends`` are interchangeable.
-        segment_ends: an array of vertices describing the end of line segments.
-        plane_vertices: an array of plane vertices. For each plane, any
+        segment_ends: An array of vertices describing the end of line segments.
+        plane_vertices: An array of plane vertices. For each plane, any
             vertex on this plane can be used.
         plane_normals: an array of plane normals, where each normal has a unit
             length and if perpendicular to the corresponding plane.
@@ -113,8 +111,7 @@ def intersection_of_line_segments_with_planes(
     return segment_starts + offset
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
@@ -124,6 +121,15 @@ def image_method(
     """
     Return the ray paths between pairs of vertices, that reflect on
     a given list of mirrors in between.
+
+    Args:
+        from_vertices: *TODO*.
+        to_vertices: *TODO*.
+        mirror_vertices: *TODO*.
+        mirror_normals: *TODO*.
+
+    Returns:
+        *TODO*.
 
     .. note::
 
@@ -146,8 +152,7 @@ def image_method(
     """
     T = Float[Array, "*batch 3"]
 
-    @jaxtyped
-    @typechecker
+    @jaxtyped(typechecker=typechecker)
     def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
         """
         Perform forward pass on vertices by computing
@@ -160,8 +165,7 @@ def image_method(
         )
         return images, images
 
-    @jaxtyped
-    @typechecker
+    @jaxtyped(typechecker=typechecker)
     def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
         """
         Perform backward pass on images by computing the
@@ -188,13 +192,12 @@ def image_method(
     return paths
 
 
-@jaxtyped
-@typechecker
+@jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "num_vertices *batch 3"],
     mirror_vertices: Float[Array, "num_mirrors *batch 3"],
     mirror_normals: Float[Array, "num_mirrors *batch 3"],
-) -> Bool[Array, "num_mirrors *batch"]:
+) -> Bool[Array, "num_mirrors *batch"]:  # noqa: F821
     """
     Check if consecutive vertices, but skiping one every other vertex,
     are on the same side of a given mirror. The number of vertices
@@ -205,10 +208,12 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror, and is someone we want to avoid.
 
     Args:
-        pass
+        vertices: *TODO*.
+        mirror_vertices: *TODO*.
+        mirror_normals: *TODO*.
 
     Returns:
-        pass
+        *TODO*.
     """
     chex.assert_axis_dimension(vertices, 0, mirror_vertices.shape[0] + 2)
 
