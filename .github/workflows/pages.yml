@@ -30,9 +30,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      DISPLAY: :99
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Install OpenGL
+      run: |
+        sudo apt-get update
+        sudo apt-get install freeglut3-dev xvfb
+        sudo apt-get install x11-utils
+        nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
 
     - name: Install PDM
       uses: pdm-project/setup-pdm@v3

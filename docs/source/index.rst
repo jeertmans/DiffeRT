@@ -6,6 +6,8 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    :caption: Tutorials
 
    notebooks/quickstart
+   notebooks/advanced_path_tracing
+   notebooks/plotting_backend
 
 .. toctree::
    :maxdepth: 2

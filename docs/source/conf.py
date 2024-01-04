@@ -57,9 +57,19 @@ ogp_use_first_image = True
 
 always_document_param_types = True
 
-# -- nbsphinx settings
+# -- MyST-nb settings
 
-nbsphinx_kernel_name = "DiffeRT"
+nb_kernel_rgx_aliases = {".*": "DiffeRT"}  # TODO: do not require specific kernel name
+
+# By default, MyST-nb chooses the Widget output instead of the 2D snapshot
+# so we need to change priorities, because the widget cannot work if Python is
+# not actively running.
+
+nb_mime_priority_overrides = [
+    ("*", "text/html", 0),
+]
+
+# TODO: fix JS warnings about html-manager (wrong version?)
 
 # Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
 

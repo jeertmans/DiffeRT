@@ -51,7 +51,7 @@ If you want to use another name for your kernel, please also modify the
 name in [`docs/source/conf.py`](docs/source/conf.py):
 
 ```python
-nbsphinx_kernel_name = "DiffeRT"
+nb_kernel_rgx_aliases = {".*": "DiffeRT"}
 ```
 
 Then, you can build the docs with:
