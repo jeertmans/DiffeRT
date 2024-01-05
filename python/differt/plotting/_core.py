@@ -42,7 +42,7 @@ def draw_mesh(
 
 
 @draw_mesh.register("vispy")
-def _(vertices, triangles, **kwargs):
+def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
     from vispy.scene.visuals import Mesh
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -54,7 +54,7 @@ def _(vertices, triangles, **kwargs):
 
 
 @draw_mesh.register("matplotlib")
-def _(vertices, triangles, **kwargs):
+def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -64,7 +64,7 @@ def _(vertices, triangles, **kwargs):
 
 
 @draw_mesh.register("plotly")
-def _(vertices, triangles, *args, **kwargs):
+def _(vertices, triangles, *args, **kwargs):  # type: ignore[no-untyped-def]
     fig = process_plotly_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -167,7 +167,7 @@ def _(markers, labels=None, text_kwargs=None, **kwargs):  # type: ignore[no-unty
     view.add(Markers(pos=markers, **kwargs))
 
     if labels:
-        text_kwargs = {"font_size": 1000, **text_kwargs}
+        text_kwargs = {"font_size": 1000, **(text_kwargs or {})}
         view.add(Text(text=labels, pos=markers, **text_kwargs))
 
     view.camera.set_range()
