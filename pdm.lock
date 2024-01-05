@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy", "vispy-backend"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:aca156904992a4b4fd8056384049afa4fda7c3410b16bffb56bfaf8d040c00be"
+content_hash = "sha256:aa34633bd27915b379c9041875e5418059ccdbdd404076b87d8595b97fc18dde"
 
 [[package]]
 name = "absl-py"
@@ -764,6 +764,22 @@ groups = ["docs"]
 files = [
     {file = "docutils-0.19-py3-none-any.whl", hash = "sha256:5e1de4d849fee02c63b040a4a3fd567f4ab104defd8a5511fbbc24a8a017efbc"},
     {file = "docutils-0.19.tar.gz", hash = "sha256:33995a6753c30b7f577febfc2c50411fec6aac7f7ffeb7c4cfe5991072dcf9e6"},
+]
+
+[[package]]
+name = "equinox"
+version = "0.11.2"
+requires_python = "~=3.9"
+summary = "Elegant easy-to-use neural networks in JAX."
+groups = ["all", "default", "docs", "test"]
+dependencies = [
+    "jax>=0.4.13",
+    "jaxtyping>=0.2.20",
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "equinox-0.11.2-py3-none-any.whl", hash = "sha256:727129a2e74ae21870d151526c71a8983125a658d77a100318f3096c4123b9dc"},
+    {file = "equinox-0.11.2.tar.gz", hash = "sha256:fc1931fced54ac4d938b701709ffb9d6fda0cdd631d9899ffaccdca90babb8cc"},
 ]
 
 [[package]]
@@ -2009,8 +2025,8 @@ files = [
 
 [[package]]
 name = "nbformat"
-version = "5.7.0"
-requires_python = ">=3.7"
+version = "5.9.2"
+requires_python = ">=3.8"
 summary = "The Jupyter Notebook format"
 groups = ["all", "docs", "jupyter", "test"]
 dependencies = [
@@ -2020,8 +2036,8 @@ dependencies = [
     "traitlets>=5.1",
 ]
 files = [
-    {file = "nbformat-5.7.0-py3-none-any.whl", hash = "sha256:1b05ec2c552c2f1adc745f4eddce1eac8ca9ffd59bb9fd859e827eaa031319f9"},
-    {file = "nbformat-5.7.0.tar.gz", hash = "sha256:1d4760c15c1a04269ef5caf375be8b98dd2f696e5eb9e603ec2bf091f9b0d3f3"},
+    {file = "nbformat-5.9.2-py3-none-any.whl", hash = "sha256:1c5172d786a41b82bcfd0c23f9e6b6f072e8fb49c39250219e4acfff1efe89e9"},
+    {file = "nbformat-5.9.2.tar.gz", hash = "sha256:5f98b5ba1997dff175e77e0c17d5c10a96eaed2cbd1de3533d1fc35d5e111192"},
 ]
 
 [[package]]
@@ -2128,8 +2144,8 @@ files = [
 
 [[package]]
 name = "open3d-cpu"
-version = "0.17.0"
-requires_python = ">=3.6"
+version = "0.18.0"
+requires_python = ">=3.8"
 summary = "Open3D: A Modern Library for 3D Data Processing."
 groups = ["test"]
 marker = "python_version <= \"3.10\" and sys_platform == \"linux\""
@@ -2139,8 +2155,8 @@ dependencies = [
     "dash>=2.6.0",
     "ipywidgets>=8.0.4",
     "matplotlib>=3",
-    "nbformat==5.7.0",
-    "numpy>1.15",
+    "nbformat>=5.7.0",
+    "numpy>1.18",
     "numpy>=1.18.0",
     "pandas>=1.0",
     "pillow>=9.3.0",
@@ -2151,8 +2167,9 @@ dependencies = [
     "werkzeug>=2.2.3",
 ]
 files = [
-    {file = "open3d_cpu-0.17.0-cp310-cp310-manylinux_2_27_x86_64.whl", hash = "sha256:1b1aa18acd03e78fe83fbe883b55c9fa18c0796c6c84f33b3098ceeed4243c6c"},
-    {file = "open3d_cpu-0.17.0-cp39-cp39-manylinux_2_27_x86_64.whl", hash = "sha256:c533b2a0143161dc436413019fc4151221cc5fb1ee6ba3e25ff46fa80438b90c"},
+    {file = "open3d_cpu-0.18.0-cp310-cp310-manylinux_2_27_x86_64.whl", hash = "sha256:656ed68b4799787dddc61ee555e1c131cf13a17d4bce07244bef16b52b5ee055"},
+    {file = "open3d_cpu-0.18.0-cp311-cp311-manylinux_2_27_x86_64.whl", hash = "sha256:6a815c4a0b309fc94ee2141ed858f0cdd4ce33530ab7f48f9c7ce0540ec25f77"},
+    {file = "open3d_cpu-0.18.0-cp39-cp39-manylinux_2_27_x86_64.whl", hash = "sha256:9a076fb74f20142449a744c058b496f33b36a7c3319bd15732c101efab7cfa11"},
 ]
 
 [[package]]
@@ -2504,8 +2521,8 @@ files = [
 
 [[package]]
 name = "pydata-sphinx-theme"
-version = "0.14.4"
-requires_python = ">=3.8"
+version = "0.15.1"
+requires_python = ">=3.9"
 summary = "Bootstrap-based Sphinx theme from the PyData community"
 groups = ["docs"]
 dependencies = [
@@ -2519,8 +2536,8 @@ dependencies = [
     "typing-extensions",
 ]
 files = [
-    {file = "pydata_sphinx_theme-0.14.4-py3-none-any.whl", hash = "sha256:ac15201f4c2e2e7042b0cad8b30251433c1f92be762ddcefdb4ae68811d918d9"},
-    {file = "pydata_sphinx_theme-0.14.4.tar.gz", hash = "sha256:f5d7a2cb7a98e35b9b49d3b02cec373ad28958c2ed5c9b1ffe6aff6c56e9de5b"},
+    {file = "pydata_sphinx_theme-0.15.1-py3-none-any.whl", hash = "sha256:064efbe96137bd0acab80413759f1db38a42b51e2429b159af75c43a7590320b"},
+    {file = "pydata_sphinx_theme-0.15.1.tar.gz", hash = "sha256:4606f7d59765ae06ff7cb5e07dead4286ea2ff2164deeee63922481eddf1083c"},
 ]
 
 [[package]]

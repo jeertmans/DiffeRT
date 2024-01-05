@@ -5,9 +5,9 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
+import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
-from chex import dataclass
 from jaxtyping import Array, Bool, Float, Scalar, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
@@ -106,8 +106,7 @@ def paths_intersect_triangles(
     return jnp.any(intersect, axis=(0, 2))
 
 
-@dataclass
-class TriangleMesh:
+class TriangleMesh(eqx.Module):
     """
     A simple geometry made of triangles.
 
@@ -158,7 +157,16 @@ class TriangleMesh:
         )
 
     def plot(self, **kwargs: Any) -> Any:
-        """*TODO*."""
+        """
+        Plot this mesh on a 3D scene.
+
+        Args:
+            kwargs: Keyword arguments passed to
+                :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
+
+        Returns:
+            The resulting plot output.
+        """
         return draw_mesh(
             vertices=np.asarray(self.vertices),
             triangles=np.asarray(self.triangles),
