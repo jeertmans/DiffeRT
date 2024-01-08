@@ -1,6 +1,4 @@
 """Mesh geometry made of triangles and utilities."""
-from __future__ import annotations
-
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -106,6 +104,7 @@ def paths_intersect_triangles(
     return jnp.any(intersect, axis=(0, 2))
 
 
+@jaxtyped(typechecker=typechecker)
 class TriangleMesh(eqx.Module):
     """
     A simple geometry made of triangles.
@@ -113,12 +112,11 @@ class TriangleMesh(eqx.Module):
     Args:
         vertices: The array of triangle vertices.
         triangles: The array of triangle indices.
-
     """
 
-    vertices: Float[Array, "num_vertices 3"]
+    vertices: Float[Array, "num_vertices 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle vertices."""
-    triangles: UInt[Array, "num_triangles 3"]
+    triangles: UInt[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle indices."""
 
     @cached_property
@@ -136,7 +134,7 @@ class TriangleMesh(eqx.Module):
         raise NotImplementedError
 
     @classmethod
-    def load_obj(cls, file: Path) -> TriangleMesh:
+    def load_obj(cls, file: Path) -> "TriangleMesh":
         """
         Load a triangle mesh from a Wavefront .obj file.
 
@@ -153,7 +151,8 @@ class TriangleMesh(eqx.Module):
         """
         mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file))
         return cls(
-            vertices=jnp.asarray(mesh.vertices), triangles=jnp.asarray(mesh.triangles)
+            vertices=mesh.vertices,
+            triangles=mesh.triangles,
         )
 
     def plot(self, **kwargs: Any) -> Any:

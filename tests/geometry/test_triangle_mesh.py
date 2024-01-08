@@ -1,15 +1,20 @@
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 
 import chex
 import jax.numpy as jnp
 import jaxtyping
 import pytest
+from chex import Array
 
 from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
+
+from ..utils import random_inputs
 
 
 @pytest.fixture(scope="module")
@@ -31,6 +36,36 @@ def sphere() -> Iterator[TriangleMesh]:
     vertices = jnp.asarray(mesh.get_vertices())
     triangles = jnp.asarray(mesh.get_faces())
     yield TriangleMesh(vertices=vertices, triangles=triangles)
+
+
+@pytest.mark.parametrize(
+    ("triangle_vertices,vertices,expectation"),
+    [
+        ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
+        ((10, 3, 3), (10, 3), does_not_raise()),
+        ((3, 3), (3,), does_not_raise()),
+        (
+            (3, 3),
+            (4,),
+            pytest.raises(TypeError),
+        ),
+        (
+            (10, 3, 3),
+            (12, 3),
+            pytest.raises(TypeError),
+        ),
+    ],
+)
+@random_inputs("triangle_vertices", "vertices")
+def test_triangles_contain_vertices_assuming_inside_same_planes_random_inputs(
+    triangle_vertices: Array,
+    vertices: Array,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with expectation:
+        _ = triangles_contain_vertices_assuming_inside_same_plane(
+            triangle_vertices, vertices
+        )
 
 
 def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
@@ -63,7 +98,6 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
-    @pytest.mark.xfail(reason="Unknown, to be investigated...")
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2))
         triangles = jnp.ones((20, 3))
