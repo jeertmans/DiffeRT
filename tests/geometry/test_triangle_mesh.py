@@ -98,7 +98,6 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
-    @pytest.mark.xfail(reason="Unknown, to be investigated...")
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2))
         triangles = jnp.ones((20, 3))
