@@ -13,7 +13,8 @@ from differt.rt.image_method import (
     image_of_vertices_with_respect_to_mirrors,
     intersection_of_line_segments_with_planes,
 )
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 def test_image_of_vertices_with_respect_to_mirrors() -> None:

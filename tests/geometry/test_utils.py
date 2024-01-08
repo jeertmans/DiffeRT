@@ -7,7 +7,8 @@ import pytest
 from chex import Array
 
 from differt.geometry.utils import pairwise_cross
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 def test_pairwise_cross() -> None:
