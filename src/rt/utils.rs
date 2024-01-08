@@ -239,7 +239,7 @@ mod tests {
         ].t().to_owned()
     )]
     fn test_generate_all_path_candidates(
-        #[case] num_primitives: u32,
+        #[case] num_primitives: usize,
         #[case] order: u32,
         #[case] expected: Array2<usize>,
     ) {
