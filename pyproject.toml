@@ -64,10 +64,6 @@ features = ["pyo3/extension-module"]
 module-name = "differt._core"
 python-source = "python"
 
-[tool.mypy]
-python_version = "3.9"
-strict = true
-
 [tool.pdm.dev-dependencies]
 dev = [
   "pre-commit>=3.5.0",
@@ -98,6 +94,9 @@ test = [
   "pytest-env>=1.1.3",
   "pytest-xdist>=3.3.1",
 ]
+
+[tool.pyright]
+include = ["differt", "tests"]
 
 [tool.pytest.ini_options]
 addopts = [

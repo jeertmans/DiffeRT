@@ -19,19 +19,11 @@ repos:
   - id: ruff
     args: [--fix]
   - id: ruff-format
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.8.0
+- repo: https://github.com/RobertCraigie/pyright-python
+  rev: v1.1.345
   hooks:
-  - id: mypy
-    additional_dependencies: [jax, numpy, pytest]
-- repo: https://github.com/nbQA-dev/nbQA
-  rev: 1.7.1
-  hooks:
-  - id: nbqa-black
-  - id: nbqa-pyupgrade
-    args: [--py39-plus]
-  - id: nbqa-isort
-    args: [--profile, black]
+  - id: pyright
+    additional_dependencies: [jax, jaxtyping, optax]
 - repo: https://github.com/doublify/pre-commit-rust
   rev: v1.0
   hooks:

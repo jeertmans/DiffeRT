@@ -17,16 +17,16 @@ pub fn generate_all_path_candidates(
         // Zero path of size order
         return Array2::default((order as usize, 0)).into_pyarray(py);
     } else if order == 1 {
-        let mut path_candidates = Array2::default((1, num_primitives as usize));
+        let mut path_candidates = Array2::default((1, num_primitives));
 
         for j in 0..num_primitives {
-            path_candidates[(0, j as usize)] = j;
+            path_candidates[(0, j)] = j;
         }
         return path_candidates.into_pyarray(py);
     }
-    let num_choices = (num_primitives - 1) as usize;
+    let num_choices = num_primitives - 1;
     let num_candidates_per_batch = num_choices.pow(order - 1);
-    let num_candidates = (num_primitives as usize) * num_candidates_per_batch;
+    let num_candidates = num_primitives * num_candidates_per_batch;
 
     let mut path_candidates = Array2::default((order as usize, num_candidates));
     let mut batch_size = num_candidates_per_batch;
@@ -178,7 +178,7 @@ pub fn generate_path_candidates_from_visibility_matrix<'py>(
 #[pyclass]
 pub struct PathCandidates {
     /// Indices.
-    indices: Vec<Vec<usize>>,
+    _indices: Vec<Vec<usize>>,
 }
 
 #[pymethods]
@@ -186,7 +186,7 @@ impl PathCandidates {
     #[new]
     fn py_new(visibility_matrix: PyReadonlyArray2<'_, bool>) -> Self {
         Self {
-            indices: where_true(&visibility_matrix.as_array()),
+            _indices: where_true(&visibility_matrix.as_array()),
         }
     }
 }
