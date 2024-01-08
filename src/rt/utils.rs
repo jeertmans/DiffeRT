@@ -7,9 +7,9 @@ use pyo3::prelude::*;
 #[pyfunction]
 pub fn generate_all_path_candidates(
     py: Python<'_>,
-    num_primitives: u32,
+    num_primitives: usize,
     order: u32,
-) -> &PyArray2<u32> {
+) -> &PyArray2<usize> {
     if order == 0 {
         // One path of size 0
         return Array2::default((0, 1)).into_pyarray(py);
@@ -164,11 +164,11 @@ pub fn generate_path_candidates_from_visibility_matrix<'py>(
     py: Python<'py>,
     visibility_matrix: PyReadonlyArray2<'py, bool>,
     order: u32,
-) -> &'py PyArray2<u32> {
+) -> &'py PyArray2<usize> {
     let num_primitives = visibility_matrix.shape()[0];
 
     if order <= 1 || num_primitives == 0 {
-        return generate_all_path_candidates(py, num_primitives as u32, order);
+        return generate_all_path_candidates(py, num_primitives, order);
     }
 
     let _indices = where_true(&visibility_matrix.as_array());
@@ -241,7 +241,7 @@ mod tests {
     fn test_generate_all_path_candidates(
         #[case] num_primitives: u32,
         #[case] order: u32,
-        #[case] expected: Array2<u32>,
+        #[case] expected: Array2<usize>,
     ) {
         Python::with_gil(|py| {
             let got = generate_all_path_candidates(py, num_primitives, order);
