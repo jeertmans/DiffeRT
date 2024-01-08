@@ -1,13 +1,13 @@
 use std::fs::File;
 use std::io::BufReader;
 
+use numpy::{Element, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 #[pyclass]
-#[pyo3(get_all)]
 struct TriangleMesh {
     /// Array of size [num_vertices 3].
     vertices: Vec<(f32, f32, f32)>,
@@ -15,8 +15,37 @@ struct TriangleMesh {
     triangles: Vec<(usize, usize, usize)>,
 }
 
+#[inline]
+fn pyarray2_from_vec_tuple<'py, T: Copy + Element>(
+    py: Python<'py>,
+    v: &[(T, T, T)],
+) -> &'py PyArray2<T> {
+    let n = v.len();
+    unsafe {
+        let arr = PyArray2::<T>::new(py, [n, 3], false);
+
+        for i in 0..n {
+            let tup = v.get_unchecked(i);
+            arr.uget_raw([i, 0]).write(tup.0);
+            arr.uget_raw([i, 1]).write(tup.1);
+            arr.uget_raw([i, 2]).write(tup.2);
+        }
+        arr
+    }
+}
+
 #[pymethods]
 impl TriangleMesh {
+    #[getter]
+    fn vertices<'py>(&self, py: Python<'py>) -> &'py PyArray2<f32> {
+        pyarray2_from_vec_tuple(py, &self.vertices)
+    }
+
+    #[getter]
+    fn triangles<'py>(&self, py: Python<'py>) -> &'py PyArray2<usize> {
+        pyarray2_from_vec_tuple(py, &self.triangles)
+    }
+
     #[classmethod]
     fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);

@@ -151,7 +151,8 @@ class TriangleMesh(eqx.Module):
         """
         mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file))
         return cls(
-            vertices=mesh.vertices, triangles=mesh.triangles
+            vertices=mesh.vertices,
+            triangles=mesh.triangles,
         )
 
     def plot(self, **kwargs: Any) -> Any:
