@@ -1,7 +1,7 @@
 import chex
 import jax.numpy as jnp
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.utils import sorted_array2
 

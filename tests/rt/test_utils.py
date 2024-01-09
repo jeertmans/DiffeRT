@@ -1,7 +1,7 @@
 import chex
 import jax.numpy as jnp
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.rt.utils import generate_all_path_candidates, rays_intersect_triangles
 
