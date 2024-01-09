@@ -34,7 +34,3 @@ repos:
   rev: v0.3.9
   hooks:
   - id: blackdoc
-ci:
-  autofix_prs: false  # because we use pre-commit.ci lite instead
-  autoupdate_commit_msg: 'chore(deps): update pre-commit hooks'
-  skip: [check-yaml, check-toml, end-of-file-fixer, trailing-whitespace, pretty-format-yaml, pretty-format-toml, ruff, ruff-format, pyright, fmt, cargo-check, clippy, blackdoc]  # because lite action runs them
