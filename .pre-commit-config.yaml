@@ -37,3 +37,4 @@ repos:
 ci:
   autofix_commit_msg: 'chore(fmt): auto fixes from pre-commit hooks'
   autoupdate_commit_msg: 'chore(deps): update pre-commit hooks'
+  skip: [pylint]  # because deps are too heavy
