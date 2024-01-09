@@ -6,7 +6,7 @@ from typing import Any
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Bool, Float, Scalar, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
 from .. import _core
@@ -77,7 +77,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 def paths_intersect_triangles(
     paths: Float[Array, "*batch path_length 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: Float[Scalar, ""] = 1e-6,
+    epsilon: float = 1e-6,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each path intersect with any of the triangles.

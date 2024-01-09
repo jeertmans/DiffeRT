@@ -14,8 +14,8 @@ SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
 if TYPE_CHECKING:
     import sys
 
-    from matplotlib.axes import Axes
     from matplotlib.figure import Figure as MplFigure
+    from mpl_toolkits.mplot3d import Axes3D
     from plotly.graph_objects import Figure
     from vispy.scene.canvas import SceneCanvas
     from vispy.scene.widgets.viewbox import ViewBox
@@ -24,8 +24,6 @@ if TYPE_CHECKING:
         from typing import ParamSpec
     else:
         from typing_extensions import ParamSpec
-
-    ReturnType = SceneCanvas | MplFigure | Figure
 
     P = ParamSpec("P")
     T = TypeVar("T", SceneCanvas, MplFigure, Figure)
@@ -99,7 +97,9 @@ def use(backend: str) -> None:
 
 class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
     def __call__(
-        self, *args: P.args, backend: str | None = None, **kwargs: P.kwargs
+        self,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> T:
         ...
 
@@ -202,9 +202,17 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
 
     @wraps(fun)
     def main_wrapper(
-        *args: P.args, backend: str | None = None, **kwargs: P.kwargs
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> T:
-        return dispatch(backend or DEFAULT_BACKEND)(*args, **kwargs)
+        # We cannot currently add keyword argument to the signature,
+        # at least Pyright we not allow that,
+        # see: https://github.com/microsoft/pyright/issues/5844.
+        #
+        # The motivation is detailed in P612:
+        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
+        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
+        return dispatch(backend)(*args, **kwargs)
 
     main_wrapper.register = register  # type: ignore[attr-defined]
     main_wrapper.dispatch = dispatch  # type: ignore[attr-defined]
@@ -233,17 +241,17 @@ def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
     def default_view() -> ViewBox:
         view = canvas.central_widget.add_view()
         view.camera = "turntable"
-        view.camera.depth_value = 1e3
+        view.camera.depth_value = 1e3  # type: ignore
         return view
 
     return (
         next(
             (
                 child
-                for child in canvas.central_widget.children
+                for child in canvas.central_widget.children  # type: ignore
                 if isinstance(child, ViewBox)
             ),
-            None,
+            None,  # type: ignore
         )
         or default_view()
     )
@@ -295,7 +303,7 @@ def process_vispy_kwargs(
 
 def process_matplotlib_kwargs(
     kwargs: MutableMapping[str, Any],
-) -> tuple[MplFigure, Axes]:
+) -> tuple[MplFigure, Axes3D]:
     """
     Process keyword arguments passed to some Matplotlib plotting utility.
 
@@ -311,7 +319,7 @@ def process_matplotlib_kwargs(
         figure (:py:class:`Figure<matplotlib.figure.Figure>`):
             The figure that draws contents of the scene. If not provided,
             will try to access figure from ``ax`` (if supplied).
-        ax (:py:class:`Axes<matplotlib.axes.Axes>`):
+        ax (:py:class:`Axes3D<mpl_toolkits.mplot3d.axes3d.Axes3D>`):
             The view on which contents are displayed. If not provided,
             will try to get axes from ``figure``
             (if supplied). The default axes will use a 3D projection.
@@ -325,6 +333,7 @@ def process_matplotlib_kwargs(
         The figure and axes used to display contents.
     """
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
 
     maybe_ax = kwargs.pop("ax", None)
     figure = (
@@ -333,10 +342,20 @@ def process_matplotlib_kwargs(
         or plt.figure()
     )
 
+    def current_ax3d() -> Axes3D | None:
+        if len(figure.axes) > 0:
+            ax = figure.gca()
+            if isinstance(ax, Axes3D):
+                return ax
+        return None
+
+    def new_ax3d() -> Axes3D:
+        return figure.add_subplot(projection="3d")  # type: ignore
+
     ax = (
         maybe_ax
-        or (figure.gca() if len(figure.axes) > 0 else None)
-        or figure.add_subplot(projection="3d")
+        or current_ax3d()
+        or new_ax3d()
     )
 
     return figure, ax

@@ -15,7 +15,9 @@ from ._utils import (
 )
 
 if TYPE_CHECKING:
-    from ._utils import ReturnType
+    from matplotlib.figure import Figure as MplFigure
+    from plotly.graph_objects import Figure
+    from vispy.scene.canvas import SceneCanvas as Canvas
 
 
 @dispatch
@@ -23,7 +25,7 @@ def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> ReturnType:
+) -> Canvas | MplFigure | Figure:
     """
     Plot a 3D mesh made of triangles.
 
@@ -42,7 +44,11 @@ def draw_mesh(
 
 
 @draw_mesh.register("vispy")
-def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    vertices: Float[np.ndarray, "num_vertices 3"],
+    triangles: UInt[np.ndarray, "num_triangles 3"],
+    **kwargs: Any,
+) -> Canvas:
     from vispy.scene.visuals import Mesh
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -54,7 +60,11 @@ def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
 
 
 @draw_mesh.register("matplotlib")
-def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    vertices: Float[np.ndarray, "num_vertices 3"],
+    triangles: UInt[np.ndarray, "num_triangles 3"],
+    **kwargs: Any,
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -64,7 +74,11 @@ def _(vertices, triangles, **kwargs):  # type: ignore[no-untyped-def]
 
 
 @draw_mesh.register("plotly")
-def _(vertices, triangles, *args, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    vertices: Float[np.ndarray, "num_vertices 3"],
+    triangles: UInt[np.ndarray, "num_triangles 3"],
+    **kwargs: Any,
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -76,7 +90,7 @@ def _(vertices, triangles, *args, **kwargs):  # type: ignore[no-untyped-def]
 @dispatch
 def draw_paths(
     paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any
-) -> ReturnType:
+) -> Canvas | MplFigure | Figure:
     """
     Plot a batch of paths of the same length.
 
@@ -94,7 +108,7 @@ def draw_paths(
 
 
 @draw_paths.register("vispy")
-def _(paths, **kwargs):  # type: ignore[no-untyped-def]
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas:
     from vispy.scene.visuals import LinePlot
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -108,7 +122,7 @@ def _(paths, **kwargs):  # type: ignore[no-untyped-def]
 
 
 @draw_paths.register("matplotlib")
-def _(paths, **kwargs):  # type: ignore[no-untyped-def]
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -118,7 +132,7 @@ def _(paths, **kwargs):  # type: ignore[no-untyped-def]
 
 
 @draw_paths.register("plotly")
-def _(paths, *args, **kwargs):  # type: ignore[no-untyped-def]
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -134,7 +148,7 @@ def draw_markers(
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> ReturnType:
+) -> Canvas | MplFigure | Figure:
     """
     Plot markers and, optionally, their label.
 
@@ -160,7 +174,12 @@ def draw_markers(
 
 
 @draw_markers.register("vispy")
-def _(markers, labels=None, text_kwargs=None, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    markers: Float[np.ndarray, "num_markers 3"],
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
+    **kwargs: Any,
+) -> Canvas:
     from vispy.scene.visuals import Markers, Text
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -176,12 +195,22 @@ def _(markers, labels=None, text_kwargs=None, **kwargs):  # type: ignore[no-unty
 
 
 @draw_markers.register("matplotlib")
-def _(markers, labels=None, text_kwargs=None, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    markers: Float[np.ndarray, "num_markers 3"],
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
+    **kwargs: Any,
+) -> MplFigure:
     raise NotImplementedError  # TODO
 
 
 @draw_markers.register("plotly")
-def _(markers, labels=None, text_kwargs=None, **kwargs):  # type: ignore[no-untyped-def]
+def _(
+    markers: Float[np.ndarray, "num_markers 3"],
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
+    **kwargs: Any,
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
