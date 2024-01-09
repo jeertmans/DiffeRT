@@ -36,5 +36,6 @@ repos:
   - id: blackdoc
 ci:
   autofix_commit_msg: 'chore(fmt): auto fixes from pre-commit hooks'
+  autofix_prs: false  # because we use pre-commit.ci lite instead
   autoupdate_commit_msg: 'chore(deps): update pre-commit hooks'
   skip: [pyright]  # because deps are too heavy
