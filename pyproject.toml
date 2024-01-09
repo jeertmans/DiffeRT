@@ -96,7 +96,7 @@ test = [
 ]
 
 [tool.pyright]
-include = ["differt", "tests"]
+include = ["python/differt", "tests"]
 
 [tool.pytest.ini_options]
 addopts = [

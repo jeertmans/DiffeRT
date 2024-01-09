@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 0 * * 1"  # Every monday
+  - cron: 0 0 * * 1      # Every monday
   workflow_dispatch:
 
 jobs:
@@ -16,11 +16,11 @@ jobs:
     secrets:
       gh_pat: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
     with:
-      config_path: ".pre-commit-config.yaml"
-      python_version: "3.11"
-      branch_name: "update/pre-commit-hooks"
-      pull_request_title: "chore(deps): update pre-commit hooks"
-      commit_message: "chore(deps): update pre-commit hooks"
+      config_path: .pre-commit-config.yaml
+      python_version: '3.11'
+      branch_name: update/pre-commit-hooks
+      pull_request_title: 'chore(deps): update pre-commit hooks'
+      commit_message: 'chore(deps): update pre-commit hooks'
   pre-commit:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }}
