@@ -23,7 +23,6 @@ repos:
   rev: v1.1.345
   hooks:
   - id: pyright
-    additional_dependencies: [jax, jaxtyping, optax, pytest]
 - repo: https://github.com/doublify/pre-commit-rust
   rev: v1.0
   hooks:

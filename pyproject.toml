@@ -97,6 +97,8 @@ test = [
 
 [tool.pyright]
 include = ["python/differt", "tests"]
+venv = ".venv"
+venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [

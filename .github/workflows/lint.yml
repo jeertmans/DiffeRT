@@ -17,13 +17,23 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - run: pip install pre-commit
-    - run: pre-commit autoupdate --config ${{ inputs.config_path }}
-    - uses: peter-evans/create-pull-request@v5
+
+    - name: Install pre-commit
+      run: pip install pre-commit
+
+    - name: Run autoupdate
+      run: pre-commit autoupdate
+
+
+    - name: Create a pull request with updated versions
+      uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
         branch: update/pre-commit-hooks
@@ -33,12 +43,27 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v3
       with:
         python-version: '3.11'
-    - uses: pre-commit/action@v3.0.0
-    - uses: pre-commit-ci/lite-action@v1.0.1
+        cache: true
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install dependencies
+      run: |
+        pdm install -G test,github-action
+
+    - name: Run pre-commit hooks
+      uses: pre-commit/action@v3.0.0
+
+    - name: Apply fixes when present
+      uses: pre-commit-ci/lite-action@v1.0.1
       if: always()
       with:
         msg: 'chore(fmt): auto fixes from pre-commit hooks'
