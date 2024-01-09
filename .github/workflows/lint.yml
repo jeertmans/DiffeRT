@@ -6,13 +6,16 @@ on:
   push:
     branches: [main]
   schedule:
-  - cron: 0 0 * * 1      # Every monday
+  - cron: 0 0 * * 1 # Every monday
   workflow_dispatch:
 
 jobs:
   auto-update:
     uses: browniebroke/github-actions/.github/workflows/pre-commit-autoupdate.yml@v1
     if: ${{ github.event_name != 'schedule' || github.event_name != 'workflow_dispatch' }}
+    permissions:
+      contents: write
+      pull-requests: write
     secrets:
       gh_pat: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
     with:
