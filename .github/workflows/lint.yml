@@ -20,4 +20,3 @@ jobs:
       if: always()
       with:
         msg: 'chore(fmt): auto fixes from pre-commit hooks'
-
