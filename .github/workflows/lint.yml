@@ -35,7 +35,6 @@ jobs:
     - name: Create a pull request with updated versions
       uses: peter-evans/create-pull-request@v5
       with:
-        token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
         branch: update/pre-commit-hooks
         title: 'chore(deps): update pre-commit hooks'
         commit-message: 'chore(deps): update pre-commit hooks'
