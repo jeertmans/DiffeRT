@@ -1,3 +1,5 @@
+from typing import Any
+
 import chex
 import jax.numpy as jnp
 import pytest
@@ -7,7 +9,7 @@ from differt.rt.utils import generate_all_path_candidates, rays_intersect_triang
 from differt.utils import sorted_array2
 
 
-def uint_array(array_like: Array) -> Array:
+def uint_array(array_like: Any) -> Array:
     return jnp.array(array_like, dtype=jnp.uint32)
 
 

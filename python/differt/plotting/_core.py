@@ -20,12 +20,12 @@ if TYPE_CHECKING:
     from vispy.scene.canvas import SceneCanvas as Canvas
 
 
-@dispatch
+@dispatch  # type: ignore
 def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:
+) -> Canvas | MplFigure | Figure:  # type: ignore
     """
     Plot a 3D mesh made of triangles.
 
@@ -87,10 +87,10 @@ def _(
     return fig.add_mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)
 
 
-@dispatch
+@dispatch  # type: ignore
 def draw_paths(
     paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any
-) -> Canvas | MplFigure | Figure:
+) -> Canvas | MplFigure | Figure:  # type: ignore
     """
     Plot a batch of paths of the same length.
 
@@ -142,13 +142,13 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure
     return fig
 
 
-@dispatch
+@dispatch  # type: ignore
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:
+) -> Canvas | MplFigure | Figure:  # type: ignore
     """
     Plot markers and, optionally, their label.
 
