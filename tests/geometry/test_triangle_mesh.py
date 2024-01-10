@@ -7,7 +7,7 @@ import chex
 import jax.numpy as jnp
 import jaxtyping
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.geometry.triangle_mesh import (
     TriangleMesh,

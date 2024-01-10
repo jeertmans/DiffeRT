@@ -4,7 +4,7 @@ from contextlib import nullcontext as does_not_raise
 import chex
 import jax.numpy as jnp
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.geometry.utils import pairwise_cross
 

@@ -5,7 +5,7 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,

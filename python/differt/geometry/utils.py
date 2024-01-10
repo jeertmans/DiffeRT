@@ -46,7 +46,7 @@ def normalize(
     >>> normalize(zero)  # Special behavior at 0.
     (Array([0., 0., 0.], dtype=float32), Array(1., dtype=float32))
     """
-    length = jnp.linalg.norm(vector, axis=-1)
+    length: Array = jnp.linalg.norm(vector, axis=-1, keepdims=True)
     length = jnp.where(length == 0.0, jnp.ones_like(length), length)
 
-    return vector / length[..., None], length
+    return vector / length, jnp.squeeze(length, axis=-1)

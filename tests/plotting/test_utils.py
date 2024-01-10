@@ -53,18 +53,18 @@ def missing_modules(monkeypatch: pytest.MonkeyPatch) -> MissingModulesContextGen
             m.setattr(builtins, "__import__", monkey_import)
             m.setattr(importlib, "import_module", monkey_import_module)
 
-            yield m
+            yield m  # type: ignore
 
     return ctx
 
 
-@dispatch
-def my_plot_unimplemented(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:
+@dispatch  # type: ignore
+def my_plot_unimplemented(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:  # type: ignore
     """A plot function with no backend implementation."""
 
 
-@dispatch
-def my_plot(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:
+@dispatch  # type: ignore
+def my_plot(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:  # type: ignore
     """A plot function with dummy backend implementations."""
 
 
@@ -90,7 +90,7 @@ def _(**kwargs):  # type: ignore[no-untyped-def]
 def test_unimplemented(backend: str | None) -> None:
     with pytest.raises(NotImplementedError, match="No backend implementation for"):
         if backend:
-            _ = my_plot_unimplemented(backend=backend)
+            _ = my_plot_unimplemented(backend=backend)  # type: ignore
         else:
             _ = my_plot_unimplemented()
 
@@ -138,7 +138,7 @@ def test_missing_backend_module(
         ImportError,
         match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
     ):
-        _ = my_plot(backend=backend)
+        _ = my_plot(backend=backend)  # type: ignore
 
 
 @pytest.mark.parametrize(
@@ -146,12 +146,12 @@ def test_missing_backend_module(
     (("vispy", SceneCanvas), ("matplotlib", MplFigure), ("plotly", Figure)),
 )
 def test_return_type(backend: str, rtype: type) -> None:
-    ret = my_plot(backend=backend)
+    ret = my_plot(backend=backend)  # type: ignore
     assert isinstance(ret, rtype), f"{ret!r} is not of type {rtype}"
 
 
 def test_process_vispy_kwargs() -> None:
-    kwargs = {"color": "red"}
+    kwargs: dict[str, Any] = {"color": "red"}
     canvas, view = process_vispy_kwargs(kwargs)
     assert view == view_from_canvas(canvas)
 
@@ -180,7 +180,7 @@ def test_process_vispy_kwargs() -> None:
 
 
 def test_process_matplotlib_kwargs() -> None:
-    kwargs = {"color": "green"}
+    kwargs: dict[str, Any] = {"color": "green"}
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     kwargs["figure"] = fig
@@ -210,7 +210,7 @@ def test_process_matplotlib_kwargs() -> None:
 
 
 def test_process_plotly_kwargs() -> None:
-    kwargs = {"color": "blue"}
+    kwargs: dict[str, Any] = {"color": "blue"}
     fig = process_plotly_kwargs(kwargs)
 
     kwargs["figure"] = fig

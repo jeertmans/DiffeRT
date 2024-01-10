@@ -13,7 +13,6 @@ sure that the returned path is correct.
 Otherwise, the returned path will, for each reflection, have equal angles
 of incidence and of reflection.
 """
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -148,10 +147,12 @@ def image_method(
                 (from_vertices[None, ...], paths, to_vertices[None, ...])
             )
     """
-    T = Float[Array, "*batch 3"]
 
     @jaxtyped(typechecker=typechecker)
-    def forward(carry: T, x: tuple[T, T]) -> tuple[T, T]:
+    def forward(
+        carry: Float[Array, "*batch 3"],
+        x: tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform forward pass on vertices by computing consecutive images."""
         vertices = carry
         mirror_vertices, mirror_normals = x
@@ -161,7 +162,12 @@ def image_method(
         return images, images
 
     @jaxtyped(typechecker=typechecker)
-    def backward(carry: T, x: tuple[T, T, T]) -> tuple[T, T]:
+    def backward(
+        carry: Float[Array, "*batch 3"],
+        x: tuple[
+            Float[Array, "*batch 3"], Float[Array, "*batch 3"], Float[Array, "*batch 3"]
+        ],
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform backward pass on images by computing the intersection with mirrors."""
         vertices = carry
         mirror_vertices, mirror_normals, images = x

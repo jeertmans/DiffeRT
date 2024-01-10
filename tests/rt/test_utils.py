@@ -1,12 +1,15 @@
+from typing import Any
+
 import chex
 import jax.numpy as jnp
 import pytest
-from chex import Array
+from jaxtyping import Array
 
 from differt.rt.utils import generate_all_path_candidates, rays_intersect_triangles
+from differt.utils import sorted_array2
 
 
-def uint_array(array_like: Array) -> Array:
+def uint_array(array_like: Any) -> Array:
     return jnp.array(array_like, dtype=jnp.uint32)
 
 
@@ -44,8 +47,7 @@ def test_generate_all_path_candidates(
     num_primitives: int, order: int, expected: Array
 ) -> None:
     got = generate_all_path_candidates(num_primitives, order)
-    if got.size > 0:
-        got = got.T[jnp.lexsort(got[::-1])].T  # order may not be the same so we sort
+    got = sorted_array2(got.T).T  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)
 

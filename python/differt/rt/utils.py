@@ -1,7 +1,7 @@
 """Ray Tracing utilies."""
 
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float, Scalar, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 from typeguard import typechecked as typechecker
 
 from .. import _core
@@ -43,7 +43,7 @@ def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
-    epsilon: Float[Scalar, ""] = 1e-6,
+    epsilon: float = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.

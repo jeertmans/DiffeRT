@@ -4,8 +4,7 @@ from functools import wraps
 from typing import Any, Callable
 
 import jax
-from chex import Array
-from jaxtyping import PRNGKeyArray
+from jaxtyping import Array, PRNGKeyArray
 
 
 def random_inputs(
