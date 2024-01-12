@@ -18,6 +18,17 @@ name = "differt"
 
 [package]
 edition = "2021"
+include = [
+  "/pyproject.toml",
+  "/README.md",
+  "/LICENSE",
+  "/src",
+  "/python/differt",
+  "!python/differt/conftest.py",
+  "!__pycache__",
+  "!*.so",
+  "!.*",
+]
 name = "_core"
 version = "0.0.6"
 

@@ -27,7 +27,6 @@ dependencies = [
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["license", "readme", "version"]
-exclude = ["docs/", "static/"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "DiffeRT"
 requires-python = ">=3.9"
@@ -139,6 +138,7 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests,docs}/*" = ["D"]
+"python/differt/conftest.py" = ["D"]
 
 [tool.ruff.pydocstyle]
 convention = "google"
