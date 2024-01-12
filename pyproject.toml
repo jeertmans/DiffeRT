@@ -139,6 +139,7 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.per-file-ignores]
 "**/{tests,docs}/*" = ["D"]
 "python/differt/conftest.py" = ["D"]
+"**.ipynb" = ["B018"]
 
 [tool.ruff.pydocstyle]
 convention = "google"
