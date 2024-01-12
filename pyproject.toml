@@ -27,7 +27,6 @@ dependencies = [
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["license", "readme", "version"]
-exclude = ["docs/", "static/"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "DiffeRT"
 requires-python = ">=3.9"
@@ -58,8 +57,19 @@ exclude_lines = [
 ]
 precision = 2
 
+[tool.coverage.run]
+omit = ["**/*/conftest.py"]
+
 [tool.maturin]
 bindings = "pyo3"
+exclude = [
+  ".*",
+  ".github/**/*",
+  "benches/**/*",
+  "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
+  "docs/**/*",
+  "tests/**/*",
+]
 features = ["pyo3/extension-module"]
 module-name = "differt._core"
 python-source = "python"
@@ -138,7 +148,9 @@ target-version = "py39"
 extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
+"**.ipynb" = ["B018"]
 "**/{tests,docs}/*" = ["D"]
+"python/differt/conftest.py" = ["D"]
 
 [tool.ruff.pydocstyle]
 convention = "google"

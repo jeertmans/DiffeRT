@@ -18,8 +18,6 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     Examples:
         The following example shows how the sorting works.
 
-        >>> import jax
-        >>> import jax.numpy as jnp
         >>> from differt.utils import sorted_array2
         >>>
         >>> arr = jnp.arange(10).reshape(5, 2)
