@@ -45,7 +45,6 @@ def image_of_vertices_with_respect_to_mirrors(
         a batch of random vertices. Here, normal vectors do not have a unit length,
         but they should have if you want an interpretable result.
 
-        >>> import jax
         >>> from differt.rt.image_method import (
         ...     image_of_vertices_with_respect_to_mirrors,
         ... )
@@ -136,8 +135,6 @@ def image_method(
         :func:`jax.numpy.concatenate`:
 
         .. code-block:: python
-
-            import jax.numpy as jnp
 
             paths = image_method(
                 from_vertices, to_vertices, mirror_vertices, mirror_normals
