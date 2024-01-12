@@ -1,3 +1,4 @@
+# pragme: no cover
 from typing import Any
 
 import jax
