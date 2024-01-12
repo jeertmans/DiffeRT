@@ -59,6 +59,14 @@ precision = 2
 
 [tool.maturin]
 bindings = "pyo3"
+exclude = [
+    "benches/**/*",
+    "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
+    "docs/**/*",
+    "tests/**/*",
+    ".*",
+    ".github/**/*",
+]
 features = ["pyo3/extension-module"]
 module-name = "differt._core"
 python-source = "python"
