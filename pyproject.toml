@@ -57,6 +57,9 @@ exclude_lines = [
 ]
 precision = 2
 
+[tool.coverage.run]
+omit = ["**/*/conftest.py"]
+
 [tool.maturin]
 bindings = "pyo3"
 exclude = [
