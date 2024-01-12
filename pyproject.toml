@@ -60,12 +60,12 @@ precision = 2
 [tool.maturin]
 bindings = "pyo3"
 exclude = [
-    "benches/**/*",
-    "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
-    "docs/**/*",
-    "tests/**/*",
-    ".*",
-    ".github/**/*",
+  ".*",
+  ".github/**/*",
+  "benches/**/*",
+  "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
+  "docs/**/*",
+  "tests/**/*",
 ]
 features = ["pyo3/extension-module"]
 module-name = "differt._core"
@@ -145,9 +145,9 @@ target-version = "py39"
 extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
+"**.ipynb" = ["B018"]
 "**/{tests,docs}/*" = ["D"]
 "python/differt/conftest.py" = ["D"]
-"**.ipynb" = ["B018"]
 
 [tool.ruff.pydocstyle]
 convention = "google"
