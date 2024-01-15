@@ -61,6 +61,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest' && matrix.pyversion == '3.12'
       uses: codecov/codecov-action@v3
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
   cargo-test:
     strategy:
