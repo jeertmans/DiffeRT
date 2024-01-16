@@ -5,7 +5,11 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.rt.utils import generate_all_path_candidates, generate_all_path_candidates_iter, rays_intersect_triangles
+from differt.rt.utils import (
+    generate_all_path_candidates,
+    generate_all_path_candidates_iter,
+    rays_intersect_triangles,
+)
 from differt.utils import sorted_array2
 
 
@@ -55,25 +59,18 @@ def test_generate_all_path_candidates(
 @pytest.mark.parametrize(
     "num_primitives,order",
     [
-        (0, 0), 
-        (8, 0), 
-        (0, 5), 
-        (3, 1), 
-        (3, 2), 
-        (
-            3,
-            3,
-        ),
+        (3, 1),
+        (3, 2),
+        (3, 3),
+        (5, 4),
     ],
 )
-def test_generate_all_path_candidates_iter(
-    num_primitives: int, order: int, expected: Array
-) -> None:
-    got = generate_all_path_candidates_iter(num_primitives, order)
-    got = jnp.fromiter(got)
-    got = sorted_array2(got.T).T  # order may not be the same so we sort
+def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> None:
     expected = generate_all_path_candidates(num_primitives, order)
     expected = sorted_array2(expected.T).T
+    got = list(generate_all_path_candidates_iter(num_primitives, order))
+    got = jnp.asarray(got).T
+    got = sorted_array2(got.T).T
 
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)

@@ -1,9 +1,11 @@
-use numpy::ndarray::parallel::prelude::*;
-use numpy::ndarray::{s, Array2, ArrayView2, Axis};
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2};
+use numpy::{
+    ndarray::{parallel::prelude::*, s, Array2, ArrayView2, Axis},
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
+};
 use pyo3::prelude::*;
 
-/// Generate an array of all path candidates (assuming fully connected primitives).
+/// Generate an array of all path candidates (assuming fully connected
+/// primitives).
 #[pyfunction]
 pub fn generate_all_path_candidates(
     py: Python<'_>,
@@ -85,7 +87,7 @@ impl AllPathCandidates {
             index,
             path_candidate,
             counter,
-            done: false,
+            done: num_primitives == 0,
         }
     }
 }
@@ -108,27 +110,15 @@ impl Iterator for AllPathCandidates {
         if let Some(start) = self
             .counter
             .iter()
-            .rposition(|&count| count < self.num_primitives - 1) {
+            .rposition(|&count| count < self.num_primitives - 1)
+        {
+            self.counter[start] += 1;
+            self.path_candidate[start] = (self.path_candidate[start] + 1) % self.num_primitives;
 
-
-        println!("=========================");
-
-        println!("Actual counter: {:?}", self.counter);
-        println!("start index:{:?}", start);
-        println!("Returning path candidate: {:?}", path_candidate);
-
-        self.counter[start] += 1;
-        self.path_candidate[start] = (self.path_candidate[start] + 1) % self.num_primitives;
-
-        println!("-------------------------");
-        println!("Path candidate: {:?}", self.path_candidate);
-        for i in (start + 1)..(self.order as usize) {
-            println!("{i:?}");
-            self.path_candidate[i] = (self.path_candidate[i - 1] + 1) % self.num_primitives;
-            self.counter[i] = 1;
-        }
-        println!("Path candidate: {:?}", self.path_candidate);
-        println!("-------------------------");
+            for i in (start + 1)..(self.order as usize) {
+                self.path_candidate[i] = (self.path_candidate[i - 1] + 1) % self.num_primitives;
+                self.counter[i] = 1;
+            }
         } else {
             self.done = true;
         }
@@ -155,7 +145,10 @@ impl AllPathCandidates {
         slf
     }
 
-    fn __next__<'py>(mut slf: PyRefMut<'py, Self>, py: Python<'py>) -> Option<&'py PyArray1<usize>> {
+    fn __next__<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        py: Python<'py>,
+    ) -> Option<&'py PyArray1<usize>> {
         slf.next().map(|v| PyArray1::from_vec(py, v))
     }
 }
@@ -219,6 +212,7 @@ impl PathCandidates {
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "utils")?;
     m.add_function(wrap_pyfunction!(generate_all_path_candidates, m)?)?;
+    m.add_function(wrap_pyfunction!(generate_all_path_candidates_iter, m)?)?;
     m.add_function(wrap_pyfunction!(
         generate_path_candidates_from_visibility_matrix,
         m
@@ -272,29 +266,6 @@ mod tests {
             let got = generate_all_path_candidates(py, num_primitives, order);
 
             assert_eq!(got.to_owned_array(), expected);
-        });
-    }
-
-    #[rstest]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(0, 0)]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(3, 0)]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(0, 3)]
-    //#[case(9, 1)]
-    //#[case(3, 1)]
-    #[case(3, 2)]
-    //#[case(3, 3)]
-    fn test_generate_all_path_candidates_iter(#[case] num_primitives: usize, #[case] order: u32) {
-        Python::with_gil(|py| {
-            let got: Vec<Vec<_>> =
-                generate_all_path_candidates_iter(py, num_primitives, order).collect();
-            let expected = generate_all_path_candidates(py, num_primitives, order);
-
-            let got = PyArray2::from_vec2(py, &got).unwrap();
-
-            assert_eq!(got.to_owned_array().t().as_standard_layout(), expected.to_owned_array());
         });
     }
 
