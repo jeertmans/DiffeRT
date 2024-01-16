@@ -1,4 +1,5 @@
 """Ray Tracing utilies."""
+from collections.abc import Iterator
 
 import jax.numpy as jnp
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
@@ -34,7 +35,26 @@ def generate_all_path_candidates(
     """
     return jnp.asarray(
         _core.rt.utils.generate_all_path_candidates(num_primitives, order),
-        dtype=jnp.uint32,
+    )
+
+
+@jaxtyped(typechecker=typechecker)
+def generate_all_path_candidates_iter(
+    num_primitives: int, order: int
+) -> Iterator[UInt[Array, " order"]]:
+    """
+    Iterator variant of :func:`generate_all_path_candidates`.
+
+    Args:
+        num_primitives: The (positive) number of primitives.
+        order: The path order.
+
+    Returns:
+        An iterator of unsigned arrays with primitive indices.
+    """
+    return map(
+        jnp.asarray,
+        _core.rt.utils.generate_all_path_candidates_iter(num_primitives, order),
     )
 
 

@@ -1,11 +1,8 @@
-use std::fs::File;
-use std::io::BufReader;
+use std::{fs::File, io::BufReader};
 
 use numpy::{Element, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PyType;
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 #[pyclass]
 struct TriangleMesh {
@@ -84,7 +81,12 @@ impl TryFrom<RawObj> for TriangleMesh {
                 PTN(v) if v.len() == 3 => {
                     triangles.push((v[0].0, v[1].0, v[2].0));
                 },
-                _ => return Err(PyValueError::new_err("Cannot create TriangleMesh from an object that contains something else than triangles")),
+                _ => {
+                    return Err(PyValueError::new_err(
+                        "Cannot create TriangleMesh from an object that contains something else \
+                         than triangles",
+                    ));
+                },
             }
         }
 

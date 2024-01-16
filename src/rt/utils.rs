@@ -1,9 +1,11 @@
-use numpy::ndarray::parallel::prelude::*;
-use numpy::ndarray::{s, Array2, ArrayView2, Axis};
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2};
+use numpy::{
+    ndarray::{parallel::prelude::*, s, Array2, ArrayView2, Axis},
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
+};
 use pyo3::prelude::*;
 
-/// Generate an array of all path candidates (assuming fully connected primitives).
+/// Generate an array of all path candidates (assuming fully connected
+/// primitives).
 #[pyfunction]
 pub fn generate_all_path_candidates(
     py: Python<'_>,
@@ -49,10 +51,11 @@ pub fn generate_all_path_candidates(
     path_candidates.into_pyarray(py)
 }
 
+/// Iterator variant of [`generate_all_path_candidates`].
 #[pyclass]
 pub struct AllPathCandidates {
     /// Number of primitives.
-    num_primitives: u32,
+    num_primitives: usize,
     /// Path order.
     order: u32,
     /// Exact number of path candidates that will be generated.
@@ -60,60 +63,72 @@ pub struct AllPathCandidates {
     /// The index of the current path candidate.
     index: usize,
     /// Last path candidate.
-    path_candidate: Vec<u32>,
-    counter: Vec<u32>,
+    path_candidate: Vec<usize>,
+    /// Count how many times a given index has been changed.
+    counter: Vec<usize>,
+    done: bool,
 }
 
 impl AllPathCandidates {
     #[inline]
-    fn new(num_primitives: u32, order: u32) -> Self {
-        let num_choices = num_primitives.saturating_sub(1) as usize;
+    fn new(num_primitives: usize, order: u32) -> Self {
+        let num_choices = num_primitives.saturating_sub(1);
         let num_candidates_per_batch = num_choices.pow(order.saturating_sub(1));
-        let num_candidates = (num_primitives as usize) * num_candidates_per_batch;
+        let num_candidates = num_primitives * num_candidates_per_batch;
+        let index = 0;
+        let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
+        let mut counter = vec![1; order as usize];
+        counter[0] = 0;
 
         Self {
             num_primitives,
             order,
             num_candidates,
-            index: 0,
-            path_candidate: (0..order).collect(),
-            counter: vec![2; order as usize],
+            index,
+            path_candidate,
+            counter,
+            done: num_primitives == 0,
         }
     }
 }
 
 impl Iterator for AllPathCandidates {
-    type Item = Vec<u32>;
+    type Item = Vec<usize>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.index += 1;
-
+        if self.done {
+            return None;
+        }
+        // 1. Output is generated as a copy of the current path_candidate
         let path_candidate = self.path_candidate.clone();
 
-        let start = self
+        // 2. Generate the next path candidate
+
+        // Identify which 'index' should be increased by 1,
+        // from right to left.
+        if let Some(start) = self
             .counter
             .iter()
-            .rposition(|&count| count < self.num_primitives)?;
+            .rposition(|&count| count < self.num_primitives - 1)
+        {
+            self.counter[start] += 1;
+            self.path_candidate[start] = (self.path_candidate[start] + 1) % self.num_primitives;
 
-        println!("Actual counter: {:?}", self.counter);
-        println!("start index:{:?}", start);
-
-        self.counter[start] += 1;
-        self.path_candidate[start] = (self.path_candidate[start] + 1) % self.num_primitives;
-
-        for i in (start + 1)..(self.order as usize) {
-            self.path_candidate[i] = (self.path_candidate[i - 1] + 1) % self.num_primitives;
-            self.counter[i] = 2;
+            for i in (start + 1)..(self.order as usize) {
+                self.path_candidate[i] = (self.path_candidate[i - 1] + 1) % self.num_primitives;
+                self.counter[i] = 1;
+            }
+        } else {
+            self.done = true;
         }
-        println!("{:?}", self.counter);
 
         Some(path_candidate)
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let rem = self.num_candidates - self.index;
+        let rem = self.num_candidates.saturating_sub(self.index);
 
         (rem, Some(rem))
     }
@@ -130,7 +145,10 @@ impl AllPathCandidates {
         slf
     }
 
-    fn __next__<'py>(mut slf: PyRefMut<'py, Self>, py: Python<'py>) -> Option<&'py PyArray1<u32>> {
+    fn __next__<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        py: Python<'py>,
+    ) -> Option<&'py PyArray1<usize>> {
         slf.next().map(|v| PyArray1::from_vec(py, v))
     }
 }
@@ -139,7 +157,7 @@ impl AllPathCandidates {
 #[pyfunction]
 pub fn generate_all_path_candidates_iter(
     _py: Python<'_>,
-    num_primitives: u32,
+    num_primitives: usize,
     order: u32,
 ) -> AllPathCandidates {
     AllPathCandidates::new(num_primitives, order)
@@ -194,6 +212,7 @@ impl PathCandidates {
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "utils")?;
     m.add_function(wrap_pyfunction!(generate_all_path_candidates, m)?)?;
+    m.add_function(wrap_pyfunction!(generate_all_path_candidates_iter, m)?)?;
     m.add_function(wrap_pyfunction!(
         generate_path_candidates_from_visibility_matrix,
         m
@@ -249,30 +268,6 @@ mod tests {
             assert_eq!(got.to_owned_array(), expected);
         });
     }
-
-    /*
-    #[rstest]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(0, 0)]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(3, 0)]
-    #[should_panic] // Because we do not handle this edge case (empty iterator)
-    #[case(0, 3)]
-    #[case(9, 1)]
-    #[case(3, 1)]
-    #[case(3, 2)]
-    #[case(3, 3)]
-    fn test_generate_all_path_candidates_iter(#[case] num_primitives: u32, #[case] order: u32) {
-        Python::with_gil(|py| {
-            let got: Vec<Vec<_>> =
-                generate_all_path_candidates_iter(py, num_primitives, order).collect();
-            let expected = generate_all_path_candidates(py, num_primitives, order);
-
-            let got = PyArray2::from_vec2(py, &got).unwrap();
-
-            assert_eq!(got.to_owned_array().t(), expected.to_owned_array());
-        });
-    }*/
 
     #[rstest]
     #[case(
