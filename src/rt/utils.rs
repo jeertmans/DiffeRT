@@ -246,7 +246,7 @@ mod tests {
             assert_eq!(got.to_owned_array(), expected);
         });
     }
-    
+
     #[rstest]
     #[case(0, 0, 0)]
     #[case(3, 0, 1)]

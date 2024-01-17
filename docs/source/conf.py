@@ -65,7 +65,7 @@ apidoc_excluded_paths = ["conftest.py"]
 apidoc_separate_modules = True
 apidoc_toc_file = False
 apidoc_module_first = True
-apidoc_extra_args = ["--maxdepth=1", "--template=source/_templates"]
+apidoc_extra_args = ["--maxdepth=1", "--templatedir=source/_templates"]
 
 # -- OpenGraph settings
 
