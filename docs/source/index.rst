@@ -11,6 +11,6 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
 
 .. toctree::
    :maxdepth: 1
-   :caption: API
+   :caption: Reference
 
-   differt package<reference/differt>
+   Public API: differt package<reference/differt>

@@ -1,0 +1,10 @@
+{%- set qbasename = "``" + basename + "``" -%}
+
+{%- if show_headings %}
+{{- [qbasename, "module"] | join(' ') | heading }}
+
+{% endif -%}
+.. automodule:: {{ qualname }}
+{%- for option in automodule_options %}
+   :{{ option }}:
+{%- endfor %}

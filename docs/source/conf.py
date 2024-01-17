@@ -8,9 +8,12 @@
 
 from datetime import date
 
+from differt import __version__
+
 project = "DiffeRT"
-copyright = f"{date.today().year}, Jérome Eertmans"
+copyright = f"2023-{date.today().year}, Jérome Eertmans"
 author = "Jérome Eertmans"
+version = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -40,6 +43,9 @@ exclude_patterns = []
 
 suppress_warnings = ["mystnb.unknown_mime_type"]
 
+add_module_names = False
+add_function_parentheses = False
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
@@ -55,8 +61,11 @@ intersphinx_mapping = {
 # -- API docs settings
 apidoc_module_dir = "../../python/differt"
 apidoc_output_dir = "reference"
+apidoc_excluded_paths = ["conftest.py"]
 apidoc_separate_modules = True
 apidoc_toc_file = False
+apidoc_module_first = True
+apidoc_extra_args = ["--maxdepth=1", "--template=source/_templates"]
 
 # -- OpenGraph settings
 
