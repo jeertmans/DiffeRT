@@ -29,28 +29,37 @@
 {{ automodule(pkgname, automodule_options) }}
 {% endif %}
 
+{%- if subpackages or submodules %}
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+{% for subpackage in subpackages %}
+   {{ subpackage }}
+{%- endfor -%}
+{% for submodule in submodules %}
+   {{ submodule }}
+{%- endfor %}
+{% endif %}
+
 {%- if subpackages %}
 Subpackages
 -----------
 
-{{ toctree(subpackages) }}
+.. autosummary::
+{% for subpackage in subpackages %}
+   {{ subpackage }}
+{%- endfor %}
 {% endif %}
 
 {%- if submodules %}
 Submodules
 ----------
-{% if separatemodules %}
-{{ toctree(submodules) }}
-{% else %}
-{%- for submodule in submodules %}
-{%- set qsubmodule = "``" + submodule + "``" -%}
-{% if show_headings %}
-{{- [qsubmodule, "module"] | join(" ") | heading(2) }}
+
+.. autosummary::
+{% for submodule in submodules %}
+    {{ submodule }}
+{%- endfor %}
 {% endif %}
-{{ automodule(submodule, automodule_options) }}
-{% endfor %}
-{%- endif %}
-{%- endif %}
 
 {%- if not modulefirst and not is_namespace %}
 Module contents
