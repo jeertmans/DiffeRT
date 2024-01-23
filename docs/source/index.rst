@@ -14,3 +14,4 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    :caption: Reference
 
    Public API: differt package<reference/differt>
+   references

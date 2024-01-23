@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy", "vispy-backend"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:35a40d0eef5abd546488b780111fdd0efd943e3db24078a869f5f7352e588d9f"
+content_hash = "sha256:88c11ac7d956caeadacffe00e2e60d95abe815056e505bd001a45e1aff2e5c98"
 
 [[package]]
 name = "absl-py"
@@ -1543,6 +1543,20 @@ files = [
 ]
 
 [[package]]
+name = "latexcodec"
+version = "2.0.1"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+summary = "A lexer and codec to work with LaTeX code in Python."
+groups = ["docs"]
+dependencies = [
+    "six>=1.4.1",
+]
+files = [
+    {file = "latexcodec-2.0.1-py2.py3-none-any.whl", hash = "sha256:c277a193638dc7683c4c30f6684e3db728a06efb0dc9cf346db8bd0aa6c5d271"},
+    {file = "latexcodec-2.0.1.tar.gz", hash = "sha256:2aa2551c373261cefe2ad3a8953a6d6533e68238d180eb4bb91d7964adb3fe9a"},
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "3.0.0"
 requires_python = ">=3.8"
@@ -2284,6 +2298,37 @@ groups = ["test"]
 files = [
     {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
     {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
+]
+
+[[package]]
+name = "pybtex"
+version = "0.24.0"
+requires_python = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*"
+summary = "A BibTeX-compatible bibliography processor in Python"
+groups = ["docs"]
+dependencies = [
+    "PyYAML>=3.01",
+    "latexcodec>=1.0.4",
+    "six",
+]
+files = [
+    {file = "pybtex-0.24.0-py2.py3-none-any.whl", hash = "sha256:e1e0c8c69998452fea90e9179aa2a98ab103f3eed894405b7264e517cc2fcc0f"},
+    {file = "pybtex-0.24.0.tar.gz", hash = "sha256:818eae35b61733e5c007c3fcd2cfb75ed1bc8b4173c1f70b56cc4c0802d34755"},
+]
+
+[[package]]
+name = "pybtex-docutils"
+version = "1.0.3"
+requires_python = ">=3.7"
+summary = "A docutils backend for pybtex."
+groups = ["docs"]
+dependencies = [
+    "docutils>=0.14",
+    "pybtex>=0.16",
+]
+files = [
+    {file = "pybtex-docutils-1.0.3.tar.gz", hash = "sha256:3a7ebdf92b593e00e8c1c538aa9a20bca5d92d84231124715acc964d51d93c6b"},
+    {file = "pybtex_docutils-1.0.3-py3-none-any.whl", hash = "sha256:8fd290d2ae48e32fcb54d86b0efb8d573198653c7e2447d5bec5847095f430b9"},
 ]
 
 [[package]]
@@ -3032,6 +3077,24 @@ dependencies = [
 files = [
     {file = "sphinxcontrib_applehelp-1.0.7-py3-none-any.whl", hash = "sha256:094c4d56209d1734e7d252f6e0b3ccc090bd52ee56807a5d9315b19c122ab15d"},
     {file = "sphinxcontrib_applehelp-1.0.7.tar.gz", hash = "sha256:39fdc8d762d33b01a7d8f026a3b7d71563ea3b72787d5f00ad8465bd9d6dfbfa"},
+]
+
+[[package]]
+name = "sphinxcontrib-bibtex"
+version = "2.5.0"
+requires_python = ">=3.6"
+summary = "Sphinx extension for BibTeX style citations."
+groups = ["docs"]
+dependencies = [
+    "Sphinx>=2.1",
+    "docutils>=0.8",
+    "importlib-metadata>=3.6; python_version < \"3.10\"",
+    "pybtex-docutils>=1.0.0",
+    "pybtex>=0.24",
+]
+files = [
+    {file = "sphinxcontrib-bibtex-2.5.0.tar.gz", hash = "sha256:71b42e5db0e2e284f243875326bf9936aa9a763282277d75048826fef5b00eaa"},
+    {file = "sphinxcontrib_bibtex-2.5.0-py3-none-any.whl", hash = "sha256:748f726eaca6efff7731012103417ef130ecdcc09501b4d0c54283bf5f059f76"},
 ]
 
 [[package]]

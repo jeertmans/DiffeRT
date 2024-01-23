@@ -91,6 +91,7 @@ docs = [
   "sphinx-remove-toctrees>=0.0.3",
   "sphinxext-opengraph>=0.9.0",
   "sphinxcontrib-apidoc>=0.4.0",
+  "sphinxcontrib-bibtex>=2.5.0",
 ]
 github-action = [
   "jax[cpu]>=0.4.20",

@@ -31,6 +31,7 @@ extensions = [
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
     "sphinxcontrib.apidoc",
+    "sphinxcontrib.bibtex",
     "sphinxext.opengraph",
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
@@ -90,6 +91,10 @@ nb_mime_priority_overrides = [
 ]
 
 # TODO: fix JS warnings about html-manager (wrong version?)
+
+# -- Bibtex
+
+bibtex_bibfiles = ["references.bib"]
 
 # Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
 
