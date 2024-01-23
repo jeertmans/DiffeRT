@@ -62,7 +62,7 @@ pub struct AllPathCandidates {
     path_candidate: Vec<usize>,
     /// Count how many times a given index has been changed.
     counter: Vec<usize>,
-    /// Whether iterator is consumed.
+    /// Whether iterator has generated all path candidates.
     done: bool,
 }
 
@@ -72,7 +72,7 @@ impl AllPathCandidates {
         let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
         let mut counter = vec![1; order as usize];
 
-        // Must check in case oder is zero.
+        // Must check in case order is zero.
         if let Some(count) = counter.get_mut(0) {
             *count = 0;
         }
@@ -173,17 +173,58 @@ pub fn generate_path_candidates_from_visibility_matrix<'py>(
 
 #[pyclass]
 pub struct PathCandidates {
-    /// Indices.
-    _indices: Vec<Vec<usize>>,
+    /// Indices of visible primitives.
+    visible_primitives: Vec<Vec<usize>>,
+    /// Path order.
+    order: usize,
+    /// Last path candidate.
+    path_candidate: Vec<usize>,
+    /// Primitive indices in `visible_primitives`, one per interaction.
+    primitives: Vec<usize>,
+    /// Whether iterator has generated all path candidates.
+    done: bool,
+}
+
+impl Iterator for PathCandidates {
+    type Item = Vec<usize>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.path_candidate.len() < self.order {
+            // Until we have filled the vec
+            // Look at current primitive index
+            match self.primitives.get(self.path_candidate.len()) {
+                Some(primitive_index) => (),
+                None => {},
+            }
+        }
+
+        Some(self.path_candidate.clone())
+    }
+}
+
+impl PathCandidates {
+    fn new(visible_primitives: Vec<Vec<usize>>, order: usize) -> Self {
+        let path_candidate = Vec::with_capacity(order);
+        let primitives = Vec::with_capacity(order);
+        let done = false;
+
+        Self {
+            visible_primitives,
+            order,
+            path_candidate,
+            primitives,
+            done,
+        }
+    }
 }
 
 #[pymethods]
 impl PathCandidates {
     #[new]
-    fn py_new(visibility_matrix: PyReadonlyArray2<'_, bool>) -> Self {
-        Self {
-            _indices: where_true(&visibility_matrix.as_array()),
-        }
+    fn py_new(visibility_matrix: PyReadonlyArray2<'_, bool>, order: usize) -> Self {
+        let visible_primitives = where_true(&visibility_matrix.as_array());
+        Self::new(visible_primitives, order)
     }
 }
 
