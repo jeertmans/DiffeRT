@@ -1,0 +1,26 @@
+# Check that minimum Rust supported version compiles this project
+name: MSRV check
+
+on:
+  pull_request:
+    paths:
+    - '**.rs'
+    - Cargo.toml
+  workflow_dispatch:
+
+jobs:
+  msrv_check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install stable toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install Cargo MSRV
+      kuses: taiki-e/install-action@v2
+      with:
+        tool: cargo-msrv
+
+    - name: Check MSRV
+      run: cargo msrv verify -- cargo check --all-features
