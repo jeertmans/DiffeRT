@@ -115,8 +115,8 @@ pdm run pytest --benchmark-only
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT/
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
-[documentation-badge]: https://img.shields.io/website?down_color=lightgrey&down_message=offline&label=documentation&up_color=blueviolet&up_message=online&url=https%3A%2F%2Feertmans.be%2FDiffeRT%2F
-[documentation-url]: https://eertmans.be/DiffeRT/
+[documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
+[documentation-url]: https://differt.readthedocs.io/en/latest/?badge=latest
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=8P4DY9JCE4
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT
 [pdm-badge]: https://img.shields.io/badge/pdm-managed-blueviolet
