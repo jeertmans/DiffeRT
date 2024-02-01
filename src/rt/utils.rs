@@ -26,8 +26,11 @@ pub fn generate_all_path_candidates(
         }
         return path_candidates.into_pyarray(py);
     }
+    let depth_u32: u32 = order
+        .try_into()
+        .expect("depth cannot exceed u32's maximum value for collecting as an array");
     let num_choices = num_primitives - 1;
-    let num_candidates_per_batch = num_choices.pow(order - 1);
+    let num_candidates_per_batch = num_choices.pow(depth_u32 - 1);
     let num_candidates = num_primitives * num_candidates_per_batch;
 
     let mut path_candidates = Array2::default((order as usize, num_candidates));
