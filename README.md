@@ -45,14 +45,8 @@ To run build this package locally, you need:
 
 You can build the project locally using:
 
-```
+```bash
 pdm install
-```
-
-If you need to install development dependencies, we recommend running:
-
-```
-pdm install -G:all
 ```
 
 ### Documentation
@@ -60,7 +54,7 @@ pdm install -G:all
 To generate the documentation, you first need to install an IPython kernel named
 `DiffeRT`:
 
-```
+```bash
 pdm run ipython kernel install --user --name=DiffeRT
 ```
 
@@ -73,7 +67,7 @@ nb_kernel_rgx_aliases = {".*": "DiffeRT"}
 
 Then, you can build the docs with:
 
-```
+```bash
 cd docs
 pdm run make html
 ```
@@ -88,13 +82,13 @@ Both Rust and Python codebases have their own tests and benchmarks.
 
 You can very easily test you code using Cargo:
 
-```
+```bash
 cargo test
 ```
 
 or benchmark it:
 
-```
+```bash
 cargo bench
 ```
 
@@ -102,13 +96,13 @@ cargo bench
 
 in the same way, you can very test you code with Pytest:
 
-```
+```bash
 pdm run pytest
 ```
 
 or benchmark it:
 
-```
+```bash
 pdm run pytest --benchmark-only
 ```
 
