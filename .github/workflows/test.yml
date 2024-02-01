@@ -33,7 +33,7 @@ jobs:
 
     - name: Install Mesa (OpenGL on Windows)
       if: matrix.os == 'windows-latest'
-      uses: ssciwr/setup-mesa-dist-win@v1
+      uses: ssciwr/setup-mesa-dist-win@v2
 
     - name: Install PDM
       uses: pdm-project/setup-pdm@v4
