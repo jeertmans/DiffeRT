@@ -106,7 +106,7 @@ html_js_files = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_book_theme"
-# html_static_path = ["_static"]
+html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,
@@ -114,6 +114,8 @@ html_theme_options = {
     "use_repository_button": True,  # add a "link to repository" button
     "navigation_with_keys": False,
 }
+
+html_logo = "_static/logo_250px.png"
 
 autosummary_generate = True
 napolean_use_rtype = False
