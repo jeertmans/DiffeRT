@@ -51,17 +51,14 @@ def use(backend: str) -> None:
         >>> @dplt.dispatch
         ... def my_plot():
         ...     pass
-        ...
         >>>
         >>> @my_plot.register("vispy")
         ... def _():
         ...     print("Using vispy backend")
-        ...
         >>>
         >>> @my_plot.register("matplotlib")
         ... def _():
         ...     print("Using matplotlib backend")
-        ...
         >>>
         >>> my_plot()  # When not specified, use default backend
         Using vispy backend
@@ -74,9 +71,7 @@ def use(backend: str) -> None:
         >>> my_plot()  # So that now it defaults to 'matplotlib'
         Using matplotlib backend
         >>>
-        >>> my_plot(
-        ...     backend="vispy"
-        ... )  # Of course, the 'vispy' backend is still available
+        >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
         Using vispy backend
     """
     if backend not in SUPPORTED_BACKENDS:
@@ -126,25 +121,34 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         >>> @dplt.dispatch
         ... def plot_line(vertices, color):
         ...     pass
-        ...
         >>>
         >>> @plot_line.register("matplotlib")
         ... def _(vertices, color):
         ...     print("Using matplotlib backend")
-        ...
         >>>
         >>> @plot_line.register("plotly")
         ... def _(vertices, color):
         ...     print("Using plotly backend")
-        ...
         >>>
-        >>> plot_line(_, _, backend="matplotlib")
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="matplotlib",
+        ... )
         Using matplotlib backend
         >>>
-        >>> plot_line(_, _, backend="plotly")
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="plotly",
+        ... )
         Using plotly backend
         >>>
-        >>> plot_line(_, _, backend="vispy")  # doctest: +IGNORE_EXCEPTION_DETAIL
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="vispy",
+        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
         NotImplementedError: No backend implementation for 'vispy'
         >>>
@@ -156,7 +160,6 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         >>> @plot_line.register("numpy")  # doctest: +IGNORE_EXCEPTION_DETAIL
         ... def _(vertices, color):
         ...     pass
-        ...
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """

@@ -134,16 +134,21 @@ filterwarnings = [
 ]
 
 [tool.ruff]
+extend-include = ["*.ipynb"]
+target-version = "py39"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
 extend-ignore = [
   "D203",  # no-blank-line-before-class
   "D212",  # multi-line-summary-second-line
   "D407",  # Missing dashed underline after section
   "F722",  # Syntax error in forward annotation
 ]
-extend-include = ["*.ipynb"]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
 isort = {known-first-party = ["differt", "tests"]}
-target-version = "py39"
 
 [tool.ruff.lint.pep8-naming]
 extend-ignore-names = ["T"]
@@ -153,5 +158,5 @@ extend-ignore-names = ["T"]
 "**/{tests,docs}/*" = ["D"]
 "python/differt/conftest.py" = ["D"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"

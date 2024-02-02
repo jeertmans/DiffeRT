@@ -36,7 +36,9 @@ def normalize(
 
     :Examples:
 
-    >>> from differt.geometry.utils import normalize
+    >>> from differt.geometry.utils import (
+    ...     normalize,
+    ... )
     >>>
     >>> vector = jnp.array([1.0, 1.0, 1.0])
     >>> normalize(vector)  # [1., 1., 1.] / sqrt(3), sqrt(3)

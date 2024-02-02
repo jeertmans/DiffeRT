@@ -50,13 +50,28 @@ def image_of_vertices_with_respect_to_mirrors(
         ... )
         >>>
         >>> key = jax.random.PRNGKey(0)
-        >>> key0, key1, key2 = jax.random.split(key, 3)
+        >>> (
+        ...     key0,
+        ...     key1,
+        ...     key2,
+        ... ) = jax.random.split(key, 3)
         >>> batch = (10, 20, 30)
-        >>> vertices = jax.random.uniform(key0, (*batch, 3))
-        >>> mirror_vertices = jax.random.uniform(key1, (*batch, 3))
-        >>> mirror_normals = jax.random.uniform(key2, (*batch, 3))
+        >>> vertices = jax.random.uniform(
+        ...     key0,
+        ...     (*batch, 3),
+        ... )
+        >>> mirror_vertices = jax.random.uniform(
+        ...     key1,
+        ...     (*batch, 3),
+        ... )
+        >>> mirror_normals = jax.random.uniform(
+        ...     key2,
+        ...     (*batch, 3),
+        ... )
         >>> images = image_of_vertices_with_respect_to_mirrors(
-        ...     vertices, mirror_vertices, mirror_normals
+        ...     vertices,
+        ...     mirror_vertices,
+        ...     mirror_normals,
         ... )
         >>> images.shape
         (10, 20, 30, 3)
@@ -137,11 +152,24 @@ def image_method(
         .. code-block:: python
 
             paths = image_method(
-                from_vertices, to_vertices, mirror_vertices, mirror_normals
+                from_vertices,
+                to_vertices,
+                mirror_vertices,
+                mirror_normals,
             )
 
             full_paths = jnp.concatenate(
-                (from_vertices[None, ...], paths, to_vertices[None, ...])
+                (
+                    from_vertices[
+                        None,
+                        ...,
+                    ],
+                    paths,
+                    to_vertices[
+                        None,
+                        ...,
+                    ],
+                )
             )
     """
 

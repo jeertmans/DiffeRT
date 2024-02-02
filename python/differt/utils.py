@@ -18,11 +18,16 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     Examples:
         The following example shows how the sorting works.
 
-        >>> from differt.utils import sorted_array2
+        >>> from differt.utils import (
+        ...     sorted_array2,
+        ... )
         >>>
         >>> arr = jnp.arange(10).reshape(5, 2)
         >>> key = jax.random.PRNGKey(1234)
-        >>> key1, key2 = jax.random.split(key, 2)
+        >>> (
+        ...     key1,
+        ...     key2,
+        ... ) = jax.random.split(key, 2)
         >>> arr = jax.random.permutation(key1, arr)
         >>> arr
         Array([[4, 5],
@@ -38,7 +43,12 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
                [6, 7],
                [8, 9]], dtype=int32)
         >>>
-        >>> arr = jax.random.randint(key2, (5, 5), 0, 2)
+        >>> arr = jax.random.randint(
+        ...     key2,
+        ...     (5, 5),
+        ...     0,
+        ...     2,
+        ... )
         >>> arr
         Array([[1, 1, 1, 0, 1],
                [1, 0, 1, 1, 1],
