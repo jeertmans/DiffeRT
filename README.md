@@ -21,7 +21,7 @@
 > should be expected.
 >
 > If you have any suggestion regarding the development of this package,
-> please open an [issue](/issues).
+> please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
 
 ## Contributing
 
@@ -30,7 +30,7 @@
 > new contributors will be written in the near future.
 >
 > Until then, do not hesitate to reach me for help with
-> [GitHub issues](/issues)!
+> [GitHub issues](https://github.com/jeertmans/DiffeRT/issues)!
 
 This project is built using both Python and Rust code, to provide an easy-to-use
 but performant program. It also heavily uses the capabilities brought by
