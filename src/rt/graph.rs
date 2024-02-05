@@ -163,30 +163,126 @@ struct AllPathsFromCompleteGraphIter {
     done: bool,
 }
 
+#[pyclass]
+pub struct AllPathsFromCompleteGraphIter {
+    num_nodes: usize,
+    from: usize,
+    to: usize,
+    depth: usize,
+    /// Path order.
+    order: u32,
+    /// Last path candidate.
+    path_candidate: Vec<usize>,
+    /// Count how many times a given index has been changed.
+    counter: Vec<usize>,
+    /// Whether iterator has generated all path candidates.
+    done: bool,
+}
+
+impl AllPathCandidates {
+    #[inline]
+    fn new(num_primitives: usize, order: u32) -> Self {
+        let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
+        let mut counter = vec![1; order as usize];
+
+        // Must check in case order is zero.
+        if let Some(count) = counter.get_mut(0) {
+            *count = 0;
+        }
+
+        Self {
+            num_primitives,
+            order,
+            path_candidate,
+            counter,
+            done: num_primitives == 0,
+        }
+    }
+}
+
+impl Iterator for AllPathCandidates {
+    type Item = Vec<usize>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        let current_path = self.path.clone();
+
+        if let Some(start) = self
+            .counter
+            .iter()
+            .rposition(|&count| count < self.num_primitives - 1)
+        {
+            self.counter[start] += 1;
+            self.path[start] = (self.path[start] + 1) % self.num_primitives;
+
+            for i in (start + 1)..(self.order as usize) {
+                self.path[i] = (self.path_candidate[i - 1] + 1) % self.num_nodes;
+                self.counter[i] = 1;
+            }
+        } else {
+            self.done = true;
+        }
+
+        Some(path_candidate)
+    }
+}
+
+/// Create a mapping from
+/// [0, 1, ..., num_nodes - 1]
+/// to
+/// [0, 1, ..., from*, from + 1, ..., to*, to + 1, ..., num_nodes - 1]
+///
+/// This is useful to make path methods agnostic of the actual start and
+/// end nodes.
+///
+/// *: if from > to, then swap the two variable names.
+fn make_nodes_map(num_nodes: usize, from: usize, to: usize) -> Vec<usize> {
+    let (min, max) = if from < to {
+        (from, to)
+    } else {
+        (to, from)
+    };
+    let mut nodes_map = (0..num_nodes).collect();
+
+    nodes_map[min..max].iter_mut().for_each(|i| i + 1);
+    nodes_map[max..].iter_mut().for_each(|i| i + 2);
+
+    nodes_map[num_nodes-1] = to;
+
+    if from != to {
+        nodes_map[num_nodes-2] = from;
+    }
+
+    nodes_map
+}
+
 impl AllPathsFromCompleteGraphIter {
     #[inline]
     fn new(num_nodes: usize, from: usize, to: usize, depth: usize) -> Self {
-        let mut path = vec![0; depth];
-        let done = if depth >= 2 {
-            path[0] = from;
-            path[depth - 1] = to;
-
-            //for i in (1..self.depth - 1) {
-            //    path[i] = i - 1;
-            //}
-
-            depth == 2 && from == to // Can't generate a 2-depth path
-        } else {
-            true // Can't generate path of depth < 2
-        };
-
-        Self {
+        if depth < 2 || (depth == 2 && from == to) || num_nodes < 2 {
+            return Self {
             num_nodes,
             from,
             to,
             depth,
-            path,
-            done,
+            path: vec![],
+            done: true,
+            }
+        }
+
+        
+        let path = (0..depth).collect();
+        let nodes_maps = make_nodes_map(num_nodes, from, to);
+
+        let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
+        let mut counter = vec![1; order as usize];
+
+        // Must check in case order is zero.
+        if let Some(count) = counter.get_mut(0) {
+            *count = 0;
         }
     }
 }
