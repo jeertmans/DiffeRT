@@ -20,7 +20,7 @@ name = "differt"
 edition = "2021"
 name = "_core"
 rust-version = "1.63.0"
-version = "0.0.6"
+version = "0.0.7"
 
 [profile.bench]
 debug = true
