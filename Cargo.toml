@@ -6,7 +6,7 @@ obj-rs = "0.7.1"
 pyo3 = "0.20"
 
 [dev-dependencies]
-pyo3 = {version = "0.20.0", features = ["auto-initialize"]}
+pyo3 = {version = "0.20.0", features = ["abi3-py39", "auto-initialize"]}
 rstest = "0.18.2"
 
 [features]
