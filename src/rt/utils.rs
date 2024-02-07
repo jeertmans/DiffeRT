@@ -21,7 +21,7 @@ pub fn generate_all_path_candidates(
         .all_paths(from, to, order + 2)
         .map(|path| path[1..path.len() - 1].to_vec());
     let path_candidates = collect_paths_in_array(paths, order);
-    path_candidates.t().to_owned().into_pyarray(py)
+    path_candidates.reversed_axes().into_pyarray(py)
 }
 
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
