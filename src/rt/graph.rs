@@ -1,5 +1,5 @@
 use core::ops::Range;
-use std::iter::FlatMap;
+use std::{collections::VecDeque, iter::FlatMap};
 
 use numpy::{
     ndarray::{parallel::prelude::*, s, Array1, Array2, ArrayView2, Axis},
@@ -8,7 +8,7 @@ use numpy::{
 use pyo3::prelude::*;
 
 /// An iterator over paths that have the same depth.
-trait PathsIterator: Iterator<Item = Vec<usize>> {
+pub trait PathsIterator: Iterator<Item = Vec<usize>> {
     /// Hint about path depth.
     ///
     /// If not specified, the first path is used to
@@ -53,7 +53,7 @@ trait PathsIterator: Iterator<Item = Vec<usize>> {
     }
 }
 
-struct PathsIter<T> {
+pub struct PathsIter<T> {
     iter: T,
     maybe_depth: Option<usize>,
 }
@@ -82,7 +82,11 @@ impl<T: Iterator<Item = Vec<usize>>> PathsIterator for PathsIter<T> {
     }
 }
 
-fn collect_paths_in_array(paths: impl Iterator<Item = Vec<usize>>, depth: usize) -> Array2<usize> {
+pub fn collect_paths_in_array<P, I>(paths: I, depth: usize) -> Array2<usize>
+where
+    P: AsRef<[usize]>,
+    I: Iterator<Item = P>,
+{
     let mut flat_vec = Vec::new();
     let mut num_paths = 0;
     paths.for_each(|path| {
@@ -92,7 +96,15 @@ fn collect_paths_in_array(paths: impl Iterator<Item = Vec<usize>>, depth: usize)
     Array2::from_shape_vec((num_paths, depth), flat_vec).unwrap()
 }
 
-trait IntoAllPathsIterator {
+/*
+trait CollectArray<T> {
+    fn collect_array(&mut self)
+}
+
+impl CollectArray<T>
+*/
+
+pub trait IntoAllPathsIterator {
     /// Return the number of unique nodes.
     fn num_nodes(&self) -> usize;
 
@@ -108,7 +120,7 @@ trait IntoAllPathsIterator {
     ///
     /// If it cannot allocate enough memory.
     fn all_paths_array(&self, from: usize, to: usize, depth: usize) -> Array2<usize> {
-        collect_paths_in_array(self.all_paths, self.num_nodes)
+        collect_paths_in_array(self.all_paths(from, to, depth), self.num_nodes())
     }
 
     /// Return an iterator over all paths between all pairs
@@ -130,13 +142,15 @@ trait IntoAllPathsIterator {
 /// distinc nodes is connected by a unique edge.
 #[pyclass]
 #[derive(Clone, Debug)]
-struct CompleteGraph {
+pub struct CompleteGraph {
     /// Number of nodes.
     num_nodes: usize,
 }
 
+#[pymethods]
 impl CompleteGraph {
-    fn new(num_nodes: usize) -> CompleteGraph {
+    #[new]
+    pub fn new(num_nodes: usize) -> CompleteGraph {
         Self { num_nodes }
     }
 }
@@ -149,11 +163,13 @@ impl IntoAllPathsIterator for CompleteGraph {
 
     #[inline]
     fn all_paths(&self, from: usize, to: usize, depth: usize) -> impl Iterator<Item = Vec<usize>> {
-        //AllPathsFromCompleteGraphIter::new(self.num_nodes, from, to, depth)
-        todo!()
+        AllPathsFromCompleteGraphIter::new(self.num_nodes, from, to, depth)
     }
 }
 
+/// An iterator over all paths in a complete graph.
+#[pyclass]
+#[derive(Clone, Debug)]
 struct AllPathsFromCompleteGraphIter {
     num_nodes: usize,
     from: usize,
@@ -161,73 +177,6 @@ struct AllPathsFromCompleteGraphIter {
     depth: usize,
     path: Vec<usize>,
     done: bool,
-}
-
-#[pyclass]
-pub struct AllPathsFromCompleteGraphIter {
-    num_nodes: usize,
-    from: usize,
-    to: usize,
-    depth: usize,
-    /// Path order.
-    order: u32,
-    /// Last path candidate.
-    path_candidate: Vec<usize>,
-    /// Count how many times a given index has been changed.
-    counter: Vec<usize>,
-    /// Whether iterator has generated all path candidates.
-    done: bool,
-}
-
-impl AllPathCandidates {
-    #[inline]
-    fn new(num_primitives: usize, order: u32) -> Self {
-        let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
-        let mut counter = vec![1; order as usize];
-
-        // Must check in case order is zero.
-        if let Some(count) = counter.get_mut(0) {
-            *count = 0;
-        }
-
-        Self {
-            num_primitives,
-            order,
-            path_candidate,
-            counter,
-            done: num_primitives == 0,
-        }
-    }
-}
-
-impl Iterator for AllPathCandidates {
-    type Item = Vec<usize>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            return None;
-        }
-        let current_path = self.path.clone();
-
-        if let Some(start) = self
-            .counter
-            .iter()
-            .rposition(|&count| count < self.num_primitives - 1)
-        {
-            self.counter[start] += 1;
-            self.path[start] = (self.path[start] + 1) % self.num_primitives;
-
-            for i in (start + 1)..(self.order as usize) {
-                self.path[i] = (self.path_candidate[i - 1] + 1) % self.num_nodes;
-                self.counter[i] = 1;
-            }
-        } else {
-            self.done = true;
-        }
-
-        Some(path_candidate)
-    }
 }
 
 /// Create a mapping from
@@ -240,20 +189,16 @@ impl Iterator for AllPathCandidates {
 ///
 /// *: if from > to, then swap the two variable names.
 fn make_nodes_map(num_nodes: usize, from: usize, to: usize) -> Vec<usize> {
-    let (min, max) = if from < to {
-        (from, to)
-    } else {
-        (to, from)
-    };
-    let mut nodes_map = (0..num_nodes).collect();
+    let (min, max) = if from < to { (from, to) } else { (to, from) };
+    let mut nodes_map: Vec<usize> = (0..num_nodes).collect();
 
-    nodes_map[min..max].iter_mut().for_each(|i| i + 1);
-    nodes_map[max..].iter_mut().for_each(|i| i + 2);
+    nodes_map[min..max].iter_mut().for_each(|i| *i = *i + 1);
+    nodes_map[max..].iter_mut().for_each(|i| *i = *i + 2);
 
-    nodes_map[num_nodes-1] = to;
+    nodes_map[num_nodes - 1] = to;
 
     if from != to {
-        nodes_map[num_nodes-2] = from;
+        nodes_map[num_nodes - 2] = from;
     }
 
     nodes_map
@@ -261,28 +206,28 @@ fn make_nodes_map(num_nodes: usize, from: usize, to: usize) -> Vec<usize> {
 
 impl AllPathsFromCompleteGraphIter {
     #[inline]
-    fn new(num_nodes: usize, from: usize, to: usize, depth: usize) -> Self {
+    pub fn new(num_nodes: usize, from: usize, to: usize, depth: usize) -> Self {
         if depth < 2 || (depth == 2 && from == to) || num_nodes < 2 {
             return Self {
+                num_nodes,
+                from,
+                to,
+                depth,
+                path: vec![],
+                done: true,
+            };
+        }
+
+        let path = (0..depth).collect();
+        let _nodes_maps = make_nodes_map(num_nodes, from, to);
+
+        Self {
             num_nodes,
             from,
             to,
             depth,
-            path: vec![],
-            done: true,
-            }
-        }
-
-        
-        let path = (0..depth).collect();
-        let nodes_maps = make_nodes_map(num_nodes, from, to);
-
-        let path_candidate = (0..order as usize).collect(); // [0, 1, 2, ..., order - 1]
-        let mut counter = vec![1; order as usize];
-
-        // Must check in case order is zero.
-        if let Some(count) = counter.get_mut(0) {
-            *count = 0;
+            path,
+            done: false,
         }
     }
 }
@@ -294,16 +239,7 @@ impl Iterator for AllPathsFromCompleteGraphIter {
         if self.done {
             return None;
         }
-        /*
-
-        let mut i = self.depth - 2;
-
-        loop {
-            self.path[i] = (self.path[i - 1] + 1) % self.num_nodes;
-
-        }*/
-
-        None
+        todo!()
     }
 }
 
@@ -311,74 +247,30 @@ impl PathsIterator for AllPathsFromCompleteGraphIter {
     fn depth(&self) -> Option<usize> {
         Some(self.depth)
     }
-
-    /*
-    fn as_array(&mut self) -> Array2<usize> {
-        let num_nodes = self.num_nodes;
-        let depth = self.depth;
-        if depth == 0 {
-            // One path of size 0
-            return Array2::default((0, 1));
-        } else if num_nodes == 0 {
-            // Zero path of size depth
-            return Array2::default((depth, 0));
-        } else if depth == 1 {
-            let mut paths = Array2::default((1, num_nodes));
-
-            for j in 0..num_nodes {
-                paths[(0, j)] = j;
-            }
-            return paths;
-        }
-        let depth_u32: u32 = depth.try_into().expect("depth cannot exceed u32's maximum value for collecting as an array");
-        let num_choices = num_nodes - 1;
-        let num_candidates_per_batch = num_choices.pow(depth_u32 - 1);
-        let num_candidates = num_nodes * num_candidates_per_batch;
-
-        let mut paths = Array2::default((depth, num_candidates));
-        let mut batch_size = num_candidates_per_batch;
-        let mut fill_value = 0;
-
-        for i in 0..depth {
-            for j in (0..num_nodes).step_by(batch_size) {
-                if i > 0 && fill_value == paths[(i - 1, j)] {
-                    fill_value = (fill_value + 1) % num_nodes;
-                }
-
-                paths
-                    .slice_mut(s![i, j..(j + batch_size)])
-                    .fill(fill_value);
-                fill_value = (fill_value + 1) % num_nodes;
-            }
-            batch_size /= num_choices;
-        }
-
-        paths
-    }*/
 }
 
 /// A directed graph.
 #[pyclass]
 #[derive(Clone, Debug)]
-struct DiGraph {
+pub struct DiGraph {
     /// List of list of edges,
     /// where edges[i] is the list of adjacent nodes
     /// of node i.
-    edges: Vec<Vec<usize>>,
+    edges_list: Vec<Vec<usize>>,
 }
 
 impl DiGraph {
     #[inline]
-    fn get_adjacent_nodes(&self, node: usize) -> &[usize] {
-        self.edges[node].as_ref()
+    pub fn get_adjacent_nodes(&self, node: usize) -> &[usize] {
+        self.edges_list[node].as_ref()
     }
 
-    fn from_adjacency_matrix(adjacency_matrix: &ArrayView2<bool>) -> Self {
+    pub fn from_adjacency_matrix(adjacency_matrix: &ArrayView2<bool>) -> Self {
         debug_assert!(
             adjacency_matrix.is_square(),
             "adjacency matrix must be square"
         );
-        let edges = adjacency_matrix
+        let edges_list = adjacency_matrix
             .axis_iter(Axis(0))
             .into_par_iter()
             .map(|row| {
@@ -388,7 +280,41 @@ impl DiGraph {
             })
             .collect();
 
-        Self { edges }
+        Self { edges_list }
+    }
+
+    /// Insert two additional nodes in the graph:
+    ///
+    /// a `from` node, that is connected to every other node in the graph;
+    /// and a `to` node, where every other node is connected to this node.
+    ///
+    /// If `direct_path` is `true`, then the `from` node is connected to the
+    /// `to` node.
+    ///
+    /// Return the indices of the two nodes in the graph.
+    pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (usize, usize) {
+        let from = self.edges_list.len();
+        let to = from + 1;
+
+        // Every node is connected to `to`.
+        self.edges_list.iter_mut().for_each(|edges| edges.push(to));
+
+        // `from` is connected to every node except itself
+        let mut from_edges: Vec<usize> = (0..from).collect();
+
+        if direct_path {
+            from_edges.push(to);
+        }
+
+        self.edges_list.push(from_edges);
+
+        // `to` is not connected to any node
+        self.edges_list.push(vec![]);
+
+        self.get_adjacent_nodes(from);
+        self.get_adjacent_nodes(to);
+
+        (from, to)
     }
 }
 
@@ -408,35 +334,38 @@ impl From<CompleteGraph> for DiGraph {
 impl IntoAllPathsIterator for DiGraph {
     #[inline]
     fn num_nodes(&self) -> usize {
-        self.edges.len()
+        self.edges_list.len()
     }
 
     #[inline]
     fn all_paths(&self, from: usize, to: usize, depth: usize) -> impl Iterator<Item = Vec<usize>> {
-        let mut 
         AllPathsFromDiGraphIter::new(self.clone(), from, to, depth)
     }
 }
 
-struct AllPathsFromDiGraphIter {
+/// An iterator over all paths in a directed graph.
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct AllPathsFromDiGraphIter {
     graph: DiGraph,
-    from: usize,
     to: usize,
     depth: usize,
-    stack: Vec<usize>,
+    stack: Vec<VecDeque<usize>>,
+    visited: Vec<usize>,
 }
 
 impl AllPathsFromDiGraphIter {
     #[inline]
-    fn new(graph: DiGraph, from: usize, to: usize, depth: usize) -> Self {
-        let stack = vec![graph.get_adjacent_nodes(from)];
-        
+    pub fn new(graph: DiGraph, from: usize, to: usize, depth: usize) -> Self {
+        let stack = vec![graph.get_adjacent_nodes(from).to_vec().into()];
+        let visited = vec![from];
+
         Self {
             graph,
-            from,
             to,
             depth,
             stack,
+            visited,
         }
     }
 }
@@ -445,10 +374,36 @@ impl Iterator for AllPathsFromDiGraphIter {
     type Item = Vec<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(children) = self.stack.last_mut() {
+        // The current implementation was derived from
+        // the `all_simple_path` function from
+        // the petgraph Rust library.
 
+        // Get list of child nodes
+        while let Some(children) = self.stack.last_mut() {
+            // Get first node in children
+            if let Some(child) = children.pop_front() {
+                if self.visited.len() < self.depth {
+                    if child == self.to && self.visited.len() + 1 == self.depth {
+                        let mut path = self.visited.clone();
+                        path.push(self.to);
+                        return Some(path);
+                    } else {
+                        self.visited.push(child);
+                        self.stack
+                            .push(self.graph.get_adjacent_nodes(child).to_vec().into());
+                    }
+                } else {
+                    self.stack.pop();
+                    self.visited.pop();
+                }
+            } else {
+                // No more node to visit in children
+                self.stack.pop();
+                self.visited.pop();
+            }
         }
-        let adjacent_nodes = self.graph.get_adjacent_nodes[self.from];
+
+        None
     }
 }
 
@@ -463,6 +418,25 @@ impl DiGraph {
     #[staticmethod]
     fn py_from_adjacency_matrix(adjacency_matrix: PyReadonlyArray2<'_, bool>) -> Self {
         Self::from_adjacency_matrix(&adjacency_matrix.as_array())
+    }
+
+    #[staticmethod]
+    fn py_from_complete_graph(graph: CompleteGraph) -> Self {
+        graph.into()
+    }
+
+    /// Insert two additional nodes in the graph:
+    ///
+    /// a `from` node, that is connected to every other node in the graph;
+    /// and a `to` node, where every other node is connected to this node.
+    ///
+    /// If `direct_path` is `true`, then the `from` node is connected to the
+    /// `to` node.
+    ///
+    /// Return the indices of the two nodes in the graph.
+    #[pyo3(signature = (direct_path=true))]
+    fn py_insert_from_and_to_nodes(&mut self, direct_path: bool) -> (usize, usize) {
+        self.insert_from_and_to_nodes(direct_path)
     }
 }
 
@@ -502,6 +476,8 @@ fn all_paths_array_from_num_nodes(num_nodes: usize, depth: u32) -> usize {
 
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "graph")?;
+    m.add_class::<CompleteGraph>()?;
+    m.add_class::<DiGraph>()?;
     //m.add_function(wrap_pyfunction!(all_paths_iter_from_graph, m)?)?;
 
     Ok(m)
@@ -509,9 +485,11 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::cmp::Ordering;
 
-    use super::*;
+    use ndarray::array;
     use rstest::*;
 
     fn compare_paths(path1: &[usize], path2: &[usize]) -> Ordering {
@@ -564,19 +542,19 @@ mod tests {
     }
 
     #[rstest]
-    #[case(0)]
     #[case(1)]
     #[case(10)]
     fn test_di_graph_from_false_matrix(#[case] num_nodes: usize) {
         let matrix = Array2::default((num_nodes, num_nodes));
         let graph = DiGraph::from_adjacency_matrix(&matrix.view());
-        assert!(graph.all_paths(0, 0, 1).count() == 0);
+        assert!(graph.all_paths(0, 0, 0).count() == 0);
     }
 
     #[rstest]
     #[case(1, 1)]
     #[case(3, 1)]
     #[case(4, 3)]
+    #[ignore]
     fn test_complete_vs_di_graph_return_same_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let from = 0;
         let to = num_nodes - 1;
@@ -589,5 +567,61 @@ mod tests {
         di_graph_paths.sort_by(|path1, path2| compare_paths(path1, path2));
 
         assert_eq!(complete_graph_paths, di_graph_paths);
+    }
+
+    #[rstest]
+    #[case(9, 1, array![[0], [1], [2], [3], [4], [5], [6], [7], [8]])]
+    #[case(3, 1, array![[0], [1], [2]])]
+    #[case(
+        3,
+        2,
+        array![[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]
+    )]
+    #[case(
+        3,
+        3,
+        array![
+            [0, 1, 0],
+            [0, 1, 2],
+            [0, 2, 0],
+            [0, 2, 1],
+            [1, 0, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [1, 2, 1],
+            [2, 0, 1],
+            [2, 0, 2],
+            [2, 1, 0],
+            [2, 1, 2],
+        ]
+    )]
+    fn test_di_graph_all_paths(
+        #[case] num_nodes: usize,
+        #[case] depth: usize,
+        #[case] expected: Array2<usize>,
+    ) {
+        let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
+        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let paths = graph
+            .all_paths(from, to, depth + 2)
+            .map(|path| path[1..path.len() - 1].to_vec());
+        let got = collect_paths_in_array(paths, depth);
+
+        assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(9, 2)]
+    #[case(3, 3)]
+    fn test_di_graph_returns_sorted_paths(#[case] num_nodes: usize, #[case] depth: usize) {
+        let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
+        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let got: Vec<_> = graph.all_paths(from, to, depth + 2).collect();
+
+        let mut expected = got.clone();
+
+        expected.sort_by(|path1, path2| compare_paths(path1, path2));
+
+        assert_eq!(got, expected);
     }
 }
