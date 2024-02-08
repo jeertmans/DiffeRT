@@ -1,16 +1,12 @@
-from typing import Any
-
-import chex
-import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 
 from differt.rt.graph import (
-    AllPathsFromDiGraphIter, DiGraph, CompleteGraph,
+    CompleteGraph,
+    DiGraph,
 )
 
-class TestDiGraph:
 
+class TestDiGraph:
     def test_insert_from_and_to_nodes(self) -> None:
         graph = DiGraph.from_complete_graph(CompleteGraph(5))
         from_, to = graph.insert_from_and_to_nodes()
@@ -28,7 +24,7 @@ class TestDiGraph:
         from_, to = graph.insert_from_and_to_nodes(False)
         assert from_ == 13
         assert to == 14
-    
+
     def test_from_graph(self) -> None:
         graph = CompleteGraph(10)
         assert isinstance(graph, CompleteGraph)
@@ -41,7 +37,6 @@ class TestDiGraph:
         with pytest.raises(TypeError) as exc:
             _ = graph.all_paths(from_=0, to=1, depth=0)
             assert "unexpected keyword argument" in str(exc)
-
 
     @pytest.mark.parametrize(
         "num_nodes,depth",
@@ -58,7 +53,6 @@ class TestDiGraph:
         from_, to = graph.insert_from_and_to_nodes()
         paths = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
         num_paths = sum(1 for _ in paths)
-        assert num_paths == num_nodes * (num_nodes - 1) ** (depth - 1) 
+        assert num_paths == num_nodes * (num_nodes - 1) ** (depth - 1)
         array = graph.all_paths_array(from_, to, depth + 2, include_from_and_to=False)
         assert array.shape == (num_paths, depth)
-    
