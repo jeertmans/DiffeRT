@@ -121,15 +121,17 @@ pub mod directed {
         ///
         /// Each row of the adjacency matrix ``M`` contains boolean
         /// entries: if ``M[i, j]`` is :py:data:`True`, then node ``i`` is
-        /// connected to node `j`.
+        /// connected to node ``j``.
         ///
         /// Args:
-        ///     adjacency_matrix: The adjacency matrix.
+        ///     adjacency_matrix (``Bool[ndarray, "num_nodes num_nodes"]``):
+        ///         The adjacency matrix.
         ///
         /// Return:
-        ///     A directed graph.
+        ///     DiGraph: A directed graph.
         #[classmethod]
         #[pyo3(name = "from_adjacency_matrix")]
+        #[pyo3(text_signature = "(cls, adjacency_matrix)")]
         fn py_from_adjacency_matrix(
             _cls: &PyType,
             adjacency_matrix: PyReadonlyArray2<'_, bool>,
@@ -144,12 +146,13 @@ pub mod directed {
         /// except on the main diagonal (i.e., no loop).
         ///
         /// Args:
-        ///     graph: The complete graph.
+        ///     graph (CompleteGraph): The complete graph.
         ///
         /// Return:
-        ///     A directed graph.
+        ///     DiGraph: A directed graph.
         #[classmethod]
         #[pyo3(name = "from_complete_graph")]
+        #[pyo3(text_signature = "(cls, graph)")]
         fn py_from_complete_graph(_cls: &PyType, graph: CompleteGraph) -> Self {
             graph.into()
         }
@@ -165,12 +168,14 @@ pub mod directed {
         /// connected to the ``to`` node.
         ///
         /// Args:
-        ///     direct_path: Whether to create a direction connection
+        ///     direct_path (bool): Whether to create a direction connection
         ///         between ``from`` and ``to`` nodes.
         ///
         /// Return:
-        ///     The indices of the two added nodes in the graph.
+        ///     tuple[int, int]:
+        ///         The indices of the two added nodes in the graph.
         #[pyo3(signature = (direct_path=true))]
+        #[pyo3(text_signature = "(self, direct_path=True)")]
         pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
             let from = self.edges_list.len();
             let to = from + 1;
@@ -198,7 +203,20 @@ pub mod directed {
 
         /// Return an iterator over all paths of length `depth`
         /// from node `from` to node `to`.
-        #[pyo3(signature = (from, to, depth, include_from_and_to = true))]
+        ///
+        /// Args:
+        ///     from_ (int): The node index to find the paths from.
+        ///     to (int): The node index to find the paths to.
+        ///     depth (int): The number of nodes to include in each path.
+        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///         and ``to`` nodes in the output paths. If set to
+        ///         :py:data:`False`, the output paths will include
+        ///         ``depth - 2`` nodes.
+        ///
+        /// Return:
+        ///     AllPathsFromDiGraphIter: An iterator over all paths.
+        #[pyo3(signature = (from, to, depth, /, include_from_and_to = true))]
+        #[pyo3(text_signature = "(self, from_, to, depth, /, include_from_and_to = True)")]
         pub fn all_paths(
             &self,
             from: NodeId,
@@ -211,8 +229,21 @@ pub mod directed {
 
         /// Return an an array of all paths of length `depth`
         /// from node `from` to node `to`.
-        #[inline]
-        #[pyo3(signature = (from, to, depth, include_from_and_to = true))]
+        ///
+        /// Args:
+        ///     from_ (int): The node index to find the paths from.
+        ///     to (int): The node index to find the paths to.
+        ///     depth (int): The number of nodes to include in each path.
+        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///         and ``to`` nodes in the output paths. If set to
+        ///         :py:data:`False`, the output paths will include
+        ///         ``depth - 2`` nodes.
+        ///
+        /// Return:
+        ///     ``UInt[ndarray, "num_paths path_depth"]``:
+        ///         An array of all paths.
+        #[pyo3(signature = (from, to, depth, /, include_from_and_to = true))]
+        #[pyo3(text_signature = "(self, from_, to, depth, /, include_from_and_to = True)")]
         fn all_paths_array<'py>(
             &self,
             py: Python<'py>,
@@ -346,6 +377,7 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "graph")?;
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;
+    m.add_class::<directed::AllPathsFromDiGraphIter>()?;
 
     Ok(m)
 }
