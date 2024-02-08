@@ -31,7 +31,6 @@ jobs:
     - name: Run autoupdate
       run: pre-commit autoupdate
 
-
     - name: Create a pull request with updated versions
       uses: peter-evans/create-pull-request@v6
       with:
@@ -51,8 +50,15 @@ jobs:
         python-version: '3.11'
         cache: true
 
-    - name: Install Rust
+    - name: Install Rust stable
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: "clippy"
+
+    - name: Install Rust nightly
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: "rustfmt"
 
     - name: Install dependencies
       run: |
