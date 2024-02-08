@@ -53,12 +53,12 @@ jobs:
     - name: Install Rust stable
       uses: dtolnay/rust-toolchain@stable
       with:
-        components: "clippy"
+        components: clippy
 
     - name: Install Rust nightly
       uses: dtolnay/rust-toolchain@nightly
       with:
-        components: "rustfmt"
+        components: rustfmt
 
     - name: Set default channel to stable
       run: |
