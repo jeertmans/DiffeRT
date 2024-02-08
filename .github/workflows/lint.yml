@@ -60,6 +60,10 @@ jobs:
       with:
         components: "rustfmt"
 
+    - name: Set default channel to stable
+      run: |
+        rustup default stable
+
     - name: Install dependencies
       run: |
         pdm install -G test,github-action
