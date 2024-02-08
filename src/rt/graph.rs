@@ -4,7 +4,7 @@ use numpy::{
     ndarray::{parallel::prelude::*, Array2, ArrayView2, Axis},
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyType};
 
 /// NodeId type.
 pub type NodeId = usize;
@@ -119,33 +119,57 @@ pub mod directed {
     impl DiGraph {
         /// Create a directed graph from an adjacency matrix.
         ///
-        /// Each row of the adjacency matrix `M` contains boolean
-        /// entries: if `M[i, j]` is `True`, then node `i` is connected
-        /// to node `j`.
-        #[staticmethod]
-        fn py_from_adjacency_matrix(adjacency_matrix: PyReadonlyArray2<'_, bool>) -> Self {
+        /// Each row of the adjacency matrix ``M`` contains boolean
+        /// entries: if ``M[i, j]`` is :py:data:`True`, then node ``i`` is
+        /// connected to node `j`.
+        ///
+        /// Args:
+        ///     adjacency_matrix: The adjacency matrix.
+        ///
+        /// Return:
+        ///     A directed graph.
+        #[classmethod]
+        #[pyo3(name = "from_adjacency_matrix")]
+        fn py_from_adjacency_matrix(
+            _cls: &PyType,
+            adjacency_matrix: PyReadonlyArray2<'_, bool>,
+        ) -> Self {
             Self::from_adjacency_matrix(&adjacency_matrix.as_array())
         }
 
         /// Create a directed graph from a complete graph.
         ///
         /// This is equivalent to creating a directed graph from
-        /// an adjacency matrix will all entries equal to `True`,
+        /// an adjacency matrix will all entries equal to :py:data:`True`,
         /// except on the main diagonal (i.e., no loop).
-        #[staticmethod]
-        fn py_from_complete_graph(graph: CompleteGraph) -> Self {
+        ///
+        /// Args:
+        ///     graph: The complete graph.
+        ///
+        /// Return:
+        ///     A directed graph.
+        #[classmethod]
+        #[pyo3(name = "from_complete_graph")]
+        fn py_from_complete_graph(_cls: &PyType, graph: CompleteGraph) -> Self {
             graph.into()
         }
 
         /// Insert two additional nodes in the graph:
         ///
-        /// a `from` node, that is connected to every other node in the graph;
-        /// and a `to` node, where every other node is connected to this node.
+        /// - a ``from`` node, that is connected to every other node in the
+        ///   graph;
+        /// - and a ``to`` node, where every other node is connected to this
+        ///   node.
         ///
-        /// If `direct_path` is `true`, then the `from` node is connected to the
-        /// `to` node.
+        /// If ``direct_path`` is :py:data:`True`, then the ``from`` node is
+        /// connected to the ``to`` node.
         ///
-        /// Return the indices of the two nodes in the graph.
+        /// Args:
+        ///     direct_path: Whether to create a direction connection
+        ///         between ``from`` and ``to`` nodes.
+        ///
+        /// Return:
+        ///     The indices of the two added nodes in the graph.
         #[pyo3(signature = (direct_path=true))]
         pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
             let from = self.edges_list.len();
