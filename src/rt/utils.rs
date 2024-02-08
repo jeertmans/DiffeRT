@@ -1,10 +1,7 @@
-use numpy::{
-    ndarray::{parallel::prelude::*, s, Array2, ArrayView2, Axis},
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
-};
+use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
 
-use super::graph::{collect_paths_in_array, CompleteGraph, DiGraph, IntoAllPathsIterator};
+use super::graph::{complete::CompleteGraph, directed::DiGraph, PathsIterator};
 
 /// Generate an array of all path candidates (assuming fully connected
 /// primitives).
@@ -17,11 +14,8 @@ pub fn generate_all_path_candidates(
     // TODO: should we really transpose?
     let mut graph: DiGraph = CompleteGraph::new(num_primitives).into();
     let (from, to) = graph.insert_from_and_to_nodes(true);
-    let paths = graph
-        .all_paths(from, to, order + 2)
-        .map(|path| path[1..path.len() - 1].to_vec());
-    let path_candidates = collect_paths_in_array(paths, order);
-    path_candidates.reversed_axes().into_pyarray(py)
+    let array = graph.all_paths(from, to, order + 2, false).collect_array();
+    array.reversed_axes().into_pyarray(py)
 }
 
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
