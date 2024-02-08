@@ -1,0 +1,26 @@
+from collections.abc import Iterator
+
+import numpy as np
+from jaxtyping import Bool, UInt
+
+class CompleteGraph:
+    def __init__(self, num_nodes: int) -> None: ...
+
+class DiGraph:
+    @classmethod
+    def from_adjacency_matrix(
+        cls, adjacency_matrix: Bool[np.ndarray, "num_nodes num_nodes"]
+    ) -> DiGraph: ...
+    @classmethod
+    def from_complete_graph(cls, graph: CompleteGraph) -> DiGraph: ...
+    def insert_from_and_to_nodes(self, direct_path: bool = True) -> tuple[int, int]: ...
+    def all_paths(
+        self, from_: int, to: int, depth: int, include_from_and_to: bool = True
+    ) -> AllPathsFromDiGraphIter: ...
+    def all_paths_array(
+        self, from_: int, to: int, depth: int, include_from_and_to: bool = True
+    ) -> UInt[np.ndarray, "num_paths path_depth"]: ...
+
+class AllPathsFromDiGraphIter(Iterator):
+    def __iter__(self) -> AllPathsFromDiGraphIter: ...
+    def __next__(self) -> UInt[np.ndarray, " path_depth"]: ...
