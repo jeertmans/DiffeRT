@@ -85,6 +85,29 @@ def generate_all_path_candidates_iter(
 
 
 @jaxtyped(typechecker=typechecker)
+def generate_all_path_candidates_chunks_iter(
+    num_primitives: int, order: int, chunk_size: int = 1000
+) -> Iterator[UInt[Array, "chunk_size order"]]:
+    """
+    Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
+
+    Args:
+        num_primitives: The (positive) number of primitives.
+        order: The path order.
+        chunk_size: The size of each chunk.
+
+    Returns:
+        An iterator of unsigned arrays with primitive indices.
+    """
+    return map(
+        jnp.asarray,
+        _core.rt.utils.generate_all_path_candidates_chunks_iter(
+            num_primitives, order, chunk_size
+        ),
+    )
+
+
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],

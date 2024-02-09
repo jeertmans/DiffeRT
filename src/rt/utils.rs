@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 
 use super::graph::{
     complete::CompleteGraph,
-    directed::{AllPathsFromDiGraphIter, DiGraph},
+    directed::{AllPathsFromDiGraphChunksIter, AllPathsFromDiGraphIter, DiGraph},
     PathsIterator,
 };
 
@@ -33,10 +33,27 @@ pub fn generate_all_path_candidates_iter(
     graph.all_paths(from, to, order + 2, false)
 }
 
+/// Iterator variant of eponym function,
+/// grouped in chunks of size of max. ``chunk_size``.
+#[pyfunction]
+pub fn generate_all_path_candidates_chunks_iter(
+    num_primitives: usize,
+    order: usize,
+    chunk_size: usize,
+) -> AllPathsFromDiGraphChunksIter {
+    let mut graph: DiGraph = CompleteGraph::new(num_primitives).into();
+    let (from, to) = graph.insert_from_and_to_nodes(true);
+    graph.all_paths_array_chunks(from, to, order + 2, false, chunk_size)
+}
+
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "utils")?;
     m.add_function(wrap_pyfunction!(generate_all_path_candidates, m)?)?;
     m.add_function(wrap_pyfunction!(generate_all_path_candidates_iter, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        generate_all_path_candidates_chunks_iter,
+        m
+    )?)?;
 
     Ok(m)
 }
