@@ -201,8 +201,8 @@ pub mod directed {
             (from, to)
         }
 
-        /// Return an iterator over all paths of length `depth`
-        /// from node `from` to node `to`.
+        /// Return an iterator over all paths of length ``depth``
+        /// from node ``from`` to node ``to``.
         ///
         /// Args:
         ///     from_ (int): The node index to find the paths from.
@@ -227,8 +227,8 @@ pub mod directed {
             AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
         }
 
-        /// Return an an array of all paths of length `depth`
-        /// from node `from` to node `to`.
+        /// Return an array of all paths of length ``depth``
+        /// from node ``from`` to node ``to``.
         ///
         /// Args:
         ///     from_ (int): The node index to find the paths from.
@@ -255,6 +255,49 @@ pub mod directed {
             AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
                 .collect_array()
                 .into_pyarray(py)
+        }
+
+        /// Return an iterator over all paths of length ``depth``
+        /// from node ``from`` to node ``to``, grouped in chunks of
+        /// size of max. ``chunk_size``.
+        ///
+        /// Args:
+        ///     from_ (int): The node index to find the paths from.
+        ///     to (int): The node index to find the paths to.
+        ///     depth (int): The number of nodes to include in each path.
+        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///         and ``to`` nodes in the output paths. If set to
+        ///         :py:data:`False`, the output paths will include
+        ///         ``depth - 2`` nodes.
+        ///     chunk_size (int): The size of each chunk.
+        ///
+        /// Return:
+        ///     ``UInt[ndarray, "num_paths path_depth"]``:
+        ///         An array of all paths.
+        #[pyo3(signature = (from, to, depth, /, include_from_and_to = true, chunk_size = 1000))]
+        #[pyo3(
+            text_signature = "(self, from_, to, depth, /, include_from_and_to = True, chunk_size \
+                              = 1000)"
+        )]
+        pub fn all_paths_array_chunks(
+            &self,
+            from: NodeId,
+            to: NodeId,
+            depth: usize,
+            include_from_and_to: bool,
+            chunk_size: usize,
+        ) -> AllPathsFromDiGraphChunksIter {
+            assert!(chunk_size > 0, "chunk size must be strictly positive");
+            AllPathsFromDiGraphChunksIter {
+                iter: AllPathsFromDiGraphIter::new(
+                    self.clone(),
+                    from,
+                    to,
+                    depth,
+                    include_from_and_to,
+                ),
+                chunk_size,
+            }
         }
     }
 
@@ -369,6 +412,48 @@ pub mod directed {
             py: Python<'py>,
         ) -> Option<&'py PyArray1<NodeId>> {
             slf.next().map(|path| PyArray1::from_vec(py, path))
+        }
+    }
+
+    /// An iterator over all paths in a directed graph,
+    /// in array chunks.
+    #[pyclass]
+    pub struct AllPathsFromDiGraphChunksIter {
+        iter: AllPathsFromDiGraphIter,
+        chunk_size: usize,
+    }
+
+    impl Iterator for AllPathsFromDiGraphChunksIter {
+        type Item = Array2<NodeId>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.iter.next().map(|mut path| {
+                let mut num_paths = 1;
+                for _ in 1..(self.chunk_size) {
+                    match self.iter.next() {
+                        Some(other_path) => {
+                            path.extend_from_slice(other_path.as_ref());
+                            num_paths += 1;
+                        },
+                        None => break,
+                    }
+                }
+                Array2::from_shape_vec((num_paths, self.iter.depth), path).unwrap()
+            })
+        }
+    }
+
+    #[pymethods]
+    impl AllPathsFromDiGraphChunksIter {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__<'py>(
+            mut slf: PyRefMut<'py, Self>,
+            py: Python<'py>,
+        ) -> Option<&'py PyArray2<NodeId>> {
+            slf.next().map(|paths| paths.into_pyarray(py))
         }
     }
 }
@@ -500,5 +585,17 @@ mod tests {
         expected.sort_by(|path1, path2| compare_paths(path1, path2));
 
         assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(5, 3)]
+    #[case(8, 3)]
+    fn test_di_graph_array_chunks_is_iter(#[case] num_nodes: usize, #[case] depth: usize) {
+        let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
+        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let iter = graph.all_paths(from, to, depth + 2, true);
+        let chunks_iter = graph.all_paths_array_chunks(from, to, depth + 2, true, 1);
+
+        assert!(iter.eq(chunks_iter.map(|chunk_array| chunk_array.as_slice().unwrap().to_vec())));
     }
 }
