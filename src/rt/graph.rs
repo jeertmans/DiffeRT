@@ -175,7 +175,7 @@ pub mod directed {
         ///     tuple[int, int]:
         ///         The indices of the two added nodes in the graph.
         #[pyo3(signature = (direct_path=true))]
-        #[pyo3(text_signature = "(self, direct_path=True)")]
+        #[pyo3(text_signature = "(self, *, direct_path=True)")]
         pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
             let from = self.edges_list.len();
             let to = from + 1;
@@ -215,8 +215,8 @@ pub mod directed {
         ///
         /// Return:
         ///     AllPathsFromDiGraphIter: An iterator over all paths.
-        #[pyo3(signature = (from, to, depth, /, include_from_and_to = true))]
-        #[pyo3(text_signature = "(self, from_, to, depth, /, include_from_and_to = True)")]
+        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
+        #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         pub fn all_paths(
             &self,
             from: NodeId,
@@ -243,7 +243,7 @@ pub mod directed {
         ///     ``UInt[ndarray, "num_paths path_depth"]``:
         ///         An array of all paths.
         #[pyo3(signature = (from, to, depth, /, include_from_and_to = true))]
-        #[pyo3(text_signature = "(self, from_, to, depth, /, include_from_and_to = True)")]
+        #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         fn all_paths_array<'py>(
             &self,
             py: Python<'py>,
@@ -276,7 +276,7 @@ pub mod directed {
         ///         An array of all paths.
         #[pyo3(signature = (from, to, depth, /, include_from_and_to = true, chunk_size = 1000))]
         #[pyo3(
-            text_signature = "(self, from_, to, depth, /, include_from_and_to = True, chunk_size \
+            text_signature = "(self, from_, to, depth, *, include_from_and_to = True, chunk_size \
                               = 1000)"
         )]
         pub fn all_paths_array_chunks(

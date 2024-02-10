@@ -31,12 +31,12 @@ class TestDiGraph:
         graph = DiGraph.from_complete_graph(graph)
         assert isinstance(graph, DiGraph)
 
-    def test_all_paths_positional_only_parameters(self) -> None:
+    def test_all_keyword_only_parameters(self) -> None:
         graph = DiGraph.from_complete_graph(CompleteGraph(5))
 
         with pytest.raises(TypeError) as exc:
-            _ = graph.all_paths(from_=0, to=1, depth=0)
-            assert "unexpected keyword argument" in str(exc)
+            _ = graph.all_paths(0, 1, 0, True)
+            assert "takes 3 positional arguments but 4 were given" in str(exc)
 
     @pytest.mark.parametrize(
         "num_nodes,depth",
