@@ -469,6 +469,7 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;
     m.add_class::<directed::AllPathsFromDiGraphIter>()?;
+    m.add_class::<directed::AllPathsFromDiGraphChunksIter>()?;
 
     Ok(m)
 }
