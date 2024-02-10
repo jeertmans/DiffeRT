@@ -14,5 +14,7 @@ from .. import _core
 
 CompleteGraph = _core.rt.graph.CompleteGraph
 DiGraph = _core.rt.graph.DiGraph
+AllPathsFromCompleteGraphIter = _core.rt.graph.AllPathsFromCompleteGraphIter
+AllPathsFromCompleteGraphChunksIter = _core.rt.graph.AllPathsFromCompleteGraphChunksIter
 AllPathsFromDiGraphIter = _core.rt.graph.AllPathsFromDiGraphIter
 AllPathsFromDiGraphChunksIter = _core.rt.graph.AllPathsFromDiGraphChunksIter
