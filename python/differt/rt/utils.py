@@ -87,7 +87,7 @@ def generate_all_path_candidates_iter(
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int, order: int, chunk_size: int = 1000
-) -> Iterator[UInt[Array, "chunk_size order"]]:
+) -> Iterator[UInt[Array, "order chunk_size"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -100,7 +100,7 @@ def generate_all_path_candidates_chunks_iter(
         An iterator of unsigned arrays with primitive indices.
     """
     return map(
-        jnp.asarray,
+        lambda arr: jnp.asarray(arr).T,
         _core.rt.utils.generate_all_path_candidates_chunks_iter(
             num_primitives, order, chunk_size
         ),

@@ -357,29 +357,34 @@ pub mod directed {
             // the `all_simple_path` function from
             // the petgraph Rust library.
 
-            // Get list of child nodes
+            // While we have nodes to visit
             while let Some(children) = self.stack.last_mut() {
-                // Get first node in children
-                if let Some(child) = children.pop_front() {
-                    if self.visited.len() < self.depth {
-                        if child == self.to && self.visited.len() + 1 == self.depth {
-                            let path = if self.include_from_and_to {
-                                let mut path = self.visited.clone();
-                                path.push(self.to);
-                                path
-                            } else {
-                                self.visited[1..].to_vec()
-                            };
-                            return Some(path);
+                // Is it the last node we should add?
+                if self.visited.len() + 1 == self.depth {
+                    // If we can actually reach `to`
+                    if children.binary_search(&self.to).is_ok() {
+                        let path = if self.include_from_and_to {
+                            let mut path = self.visited.clone();
+                            path.push(self.to);
+                            path
                         } else {
-                            self.visited.push(child);
-                            self.stack
-                                .push(self.graph.get_adjacent_nodes(child).to_vec().into());
-                        }
-                    } else {
+                            self.visited[1..].to_vec()
+                        };
+                        self.stack.pop();
+                        self.visited.pop();
+                        return Some(path);
+                    }
+                    // Otherwise, we quit the current node (second-last).
+                    else {
                         self.stack.pop();
                         self.visited.pop();
                     }
+                }
+                // Else, try to visit one node deeper
+                else if let Some(child) = children.pop_front() {
+                    self.visited.push(child);
+                    self.stack
+                        .push(self.graph.get_adjacent_nodes(child).to_vec().into());
                 } else {
                     // No more node to visit in children
                     self.stack.pop();
@@ -429,6 +434,7 @@ pub mod directed {
         fn next(&mut self) -> Option<Self::Item> {
             self.iter.next().map(|mut path| {
                 let mut num_paths = 1;
+                let depth = path.len();
                 for _ in 1..(self.chunk_size) {
                     match self.iter.next() {
                         Some(other_path) => {
@@ -438,7 +444,7 @@ pub mod directed {
                         None => break,
                     }
                 }
-                Array2::from_shape_vec((num_paths, self.iter.depth), path).unwrap()
+                Array2::from_shape_vec((num_paths, depth), path).unwrap()
             })
         }
     }
