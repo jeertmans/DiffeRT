@@ -53,6 +53,39 @@ pub trait PathsIterator: Iterator<Item = Vec<NodeId>> {
         });
         Array2::from_shape_vec((num_paths, depth), flat_vec).unwrap()
     }
+
+    fn into_array_chunks_iter(self, chunk_size: usize) -> PathChunksIter<Self> {
+        PathChunksIter { iter: self.into_iter(), chunk_size } 
+    }
+}
+
+
+pub struct PathChunksIter<I> {
+    iter: I,
+    chunk_size: usize,
+}
+
+impl<I> Iterator for PathChunksIter<I> 
+where I: Iterator<Item = Vec<NodeId>> {
+    type Item = Array2<NodeId>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|mut path| {
+            let mut num_paths = 1;
+            let depth = path.len();
+            for _ in 1..(self.chunk_size) {
+                match self.iter.next() {
+                    Some(other_path) => {
+                        path.extend_from_slice(other_path.as_ref());
+                        num_paths += 1;
+                    },
+                    None => break,
+                }
+            }
+            Array2::from_shape_vec((num_paths, depth), path).unwrap()
+        })
+    }
 }
 
 pub mod complete {
@@ -73,6 +106,37 @@ pub mod complete {
         #[new]
         pub fn new(num_nodes: usize) -> CompleteGraph {
             Self { num_nodes }
+        }
+    }
+
+    /// An iterator over all paths in a complete graph.
+    #[pyclass]
+    #[derive(Clone, Debug)]
+    pub struct AllPathsFromCompleteGraphIter {
+        graph: CompleteGraph,
+        to: NodeId,
+        depth: usize,
+        include_from_and_to: bool,
+    }
+
+    /// An iterator over all paths in a complete graph,
+    /// in array chunks.
+    #[pyclass]
+    pub struct AllPathsFromCompleteGraphChunksIter {
+        iter: PathChunksIter<AllPathsFromCompleteGraphIter>,
+    }
+
+    #[pymethods]
+    impl AllPathsFromCompleteGraphChunksIter {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__<'py>(
+            mut slf: PyRefMut<'py, Self>,
+            py: Python<'py>,
+        ) -> Option<&'py PyArray2<NodeId>> {
+            slf.iter.next().map(|paths| paths.into_pyarray(py))
         }
     }
 }
@@ -468,6 +532,8 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     let m = pyo3::prelude::PyModule::new(py, "graph")?;
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;
+    m.add_class::<directed::AllPathsFromCompleteGraphIter>()?;
+    m.add_class::<directed::AllPathsFromCompleteGraphChunksIter>()?;
     m.add_class::<directed::AllPathsFromDiGraphIter>()?;
     m.add_class::<directed::AllPathsFromDiGraphChunksIter>()?;
 
