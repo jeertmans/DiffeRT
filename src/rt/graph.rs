@@ -201,8 +201,8 @@ pub mod directed {
             (from, to)
         }
 
-        /// Return an iterator over all paths of length `depth`
-        /// from node `from` to node `to`.
+        /// Return an iterator over all paths of length ``depth``
+        /// from node ``from`` to node ``to``.
         ///
         /// Args:
         ///     from_ (int): The node index to find the paths from.
@@ -227,8 +227,8 @@ pub mod directed {
             AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
         }
 
-        /// Return an an array of all paths of length `depth`
-        /// from node `from` to node `to`.
+        /// Return an array of all paths of length ``depth``
+        /// from node ``from`` to node ``to``.
         ///
         /// Args:
         ///     from_ (int): The node index to find the paths from.
@@ -255,6 +255,49 @@ pub mod directed {
             AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
                 .collect_array()
                 .into_pyarray(py)
+        }
+
+        /// Return an iterator over all paths of length ``depth``
+        /// from node ``from`` to node ``to``, grouped in chunks of
+        /// size of max. ``chunk_size``.
+        ///
+        /// Args:
+        ///     from_ (int): The node index to find the paths from.
+        ///     to (int): The node index to find the paths to.
+        ///     depth (int): The number of nodes to include in each path.
+        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///         and ``to`` nodes in the output paths. If set to
+        ///         :py:data:`False`, the output paths will include
+        ///         ``depth - 2`` nodes.
+        ///     chunk_size (int): The size of each chunk.
+        ///
+        /// Return:
+        ///     ``UInt[ndarray, "num_paths path_depth"]``:
+        ///         An array of all paths.
+        #[pyo3(signature = (from, to, depth, /, include_from_and_to = true, chunk_size = 1000))]
+        #[pyo3(
+            text_signature = "(self, from_, to, depth, /, include_from_and_to = True, chunk_size \
+                              = 1000)"
+        )]
+        pub fn all_paths_array_chunks(
+            &self,
+            from: NodeId,
+            to: NodeId,
+            depth: usize,
+            include_from_and_to: bool,
+            chunk_size: usize,
+        ) -> AllPathsFromDiGraphChunksIter {
+            assert!(chunk_size > 0, "chunk size must be strictly positive");
+            AllPathsFromDiGraphChunksIter {
+                iter: AllPathsFromDiGraphIter::new(
+                    self.clone(),
+                    from,
+                    to,
+                    depth,
+                    include_from_and_to,
+                ),
+                chunk_size,
+            }
         }
     }
 
@@ -314,29 +357,34 @@ pub mod directed {
             // the `all_simple_path` function from
             // the petgraph Rust library.
 
-            // Get list of child nodes
+            // While we have nodes to visit
             while let Some(children) = self.stack.last_mut() {
-                // Get first node in children
-                if let Some(child) = children.pop_front() {
-                    if self.visited.len() < self.depth {
-                        if child == self.to && self.visited.len() + 1 == self.depth {
-                            let path = if self.include_from_and_to {
-                                let mut path = self.visited.clone();
-                                path.push(self.to);
-                                path
-                            } else {
-                                self.visited[1..].to_vec()
-                            };
-                            return Some(path);
+                // Is it the last node we should add?
+                if self.visited.len() + 1 == self.depth {
+                    // If we can actually reach `to`
+                    if children.binary_search(&self.to).is_ok() {
+                        let path = if self.include_from_and_to {
+                            let mut path = self.visited.clone();
+                            path.push(self.to);
+                            path
                         } else {
-                            self.visited.push(child);
-                            self.stack
-                                .push(self.graph.get_adjacent_nodes(child).to_vec().into());
-                        }
-                    } else {
+                            self.visited[1..].to_vec()
+                        };
+                        self.stack.pop();
+                        self.visited.pop();
+                        return Some(path);
+                    }
+                    // Otherwise, we quit the current node (second-last).
+                    else {
                         self.stack.pop();
                         self.visited.pop();
                     }
+                }
+                // Else, try to visit one node deeper
+                else if let Some(child) = children.pop_front() {
+                    self.visited.push(child);
+                    self.stack
+                        .push(self.graph.get_adjacent_nodes(child).to_vec().into());
                 } else {
                     // No more node to visit in children
                     self.stack.pop();
@@ -371,6 +419,49 @@ pub mod directed {
             slf.next().map(|path| PyArray1::from_vec(py, path))
         }
     }
+
+    /// An iterator over all paths in a directed graph,
+    /// in array chunks.
+    #[pyclass]
+    pub struct AllPathsFromDiGraphChunksIter {
+        iter: AllPathsFromDiGraphIter,
+        chunk_size: usize,
+    }
+
+    impl Iterator for AllPathsFromDiGraphChunksIter {
+        type Item = Array2<NodeId>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.iter.next().map(|mut path| {
+                let mut num_paths = 1;
+                let depth = path.len();
+                for _ in 1..(self.chunk_size) {
+                    match self.iter.next() {
+                        Some(other_path) => {
+                            path.extend_from_slice(other_path.as_ref());
+                            num_paths += 1;
+                        },
+                        None => break,
+                    }
+                }
+                Array2::from_shape_vec((num_paths, depth), path).unwrap()
+            })
+        }
+    }
+
+    #[pymethods]
+    impl AllPathsFromDiGraphChunksIter {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__<'py>(
+            mut slf: PyRefMut<'py, Self>,
+            py: Python<'py>,
+        ) -> Option<&'py PyArray2<NodeId>> {
+            slf.next().map(|paths| paths.into_pyarray(py))
+        }
+    }
 }
 
 pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
@@ -378,6 +469,7 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;
     m.add_class::<directed::AllPathsFromDiGraphIter>()?;
+    m.add_class::<directed::AllPathsFromDiGraphChunksIter>()?;
 
     Ok(m)
 }
@@ -500,5 +592,17 @@ mod tests {
         expected.sort_by(|path1, path2| compare_paths(path1, path2));
 
         assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(5, 3)]
+    #[case(8, 3)]
+    fn test_di_graph_array_chunks_is_iter(#[case] num_nodes: usize, #[case] depth: usize) {
+        let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
+        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let iter = graph.all_paths(from, to, depth + 2, true);
+        let chunks_iter = graph.all_paths_array_chunks(from, to, depth + 2, true, 1);
+
+        assert!(iter.eq(chunks_iter.map(|chunk_array| chunk_array.as_slice().unwrap().to_vec())));
     }
 }

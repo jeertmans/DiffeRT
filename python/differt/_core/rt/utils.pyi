@@ -9,3 +9,6 @@ def generate_all_path_candidates(
 def generate_all_path_candidates_iter(
     num_primitives: int, order: int
 ) -> Iterator[UInt[np.ndarray, " order"]]: ...
+def generate_all_path_candidates_chunks_iter(
+    num_primitives: int, order: int, chunk_size: int
+) -> Iterator[UInt[np.ndarray, "chunk_size order"]]: ...

@@ -15,3 +15,4 @@ from .. import _core
 CompleteGraph = _core.rt.graph.CompleteGraph
 DiGraph = _core.rt.graph.DiGraph
 AllPathsFromDiGraphIter = _core.rt.graph.AllPathsFromDiGraphIter
+AllPathsFromDiGraphChunksIter = _core.rt.graph.AllPathsFromDiGraphChunksIter
