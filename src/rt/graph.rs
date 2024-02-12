@@ -30,6 +30,7 @@ pub trait PathsIterator: Iterator<Item = Vec<NodeId>> {
     /// If not all paths have the same depth.
     ///
     /// If it cannot allocate enough memory.
+    #[inline]
     fn collect_array(&mut self) -> Array2<NodeId> {
         let mut flat_vec = Vec::new();
         let mut num_paths = 0;
@@ -104,6 +105,7 @@ pub mod complete {
     #[pymethods]
     impl CompleteGraph {
         #[new]
+        #[inline]
         pub fn new(num_nodes: usize) -> CompleteGraph {
             Self { num_nodes }
         }
@@ -160,6 +162,7 @@ pub mod directed {
             self.edges_list[node].as_ref()
         }
 
+        #[inline]
         pub fn from_adjacency_matrix(adjacency_matrix: &ArrayView2<bool>) -> Self {
             debug_assert!(
                 adjacency_matrix.is_square(),
@@ -366,6 +369,7 @@ pub mod directed {
     }
 
     impl From<CompleteGraph> for DiGraph {
+        #[inline]
         fn from(graph: CompleteGraph) -> Self {
             let num_nodes = graph.num_nodes;
             let mut matrix = Array2::from_elem((num_nodes, num_nodes), true);
@@ -399,8 +403,10 @@ pub mod directed {
             depth: usize,
             include_from_and_to: bool,
         ) -> Self {
-            let stack = vec![graph.get_adjacent_nodes(from).to_vec().into()];
-            let visited = vec![from];
+            let mut stack = Vec::with_capacity(depth);
+            let mut visited = Vec::with_capacity(depth);
+            stack.push(graph.get_adjacent_nodes(from).to_vec().into());
+            visited.push(from);
 
             Self {
                 graph,
@@ -416,6 +422,7 @@ pub mod directed {
     impl Iterator for AllPathsFromDiGraphIter {
         type Item = Vec<NodeId>;
 
+        #[inline]
         fn next(&mut self) -> Option<Self::Item> {
             // The current implementation was derived from
             // the `all_simple_path` function from
@@ -461,6 +468,7 @@ pub mod directed {
     }
 
     impl PathsIterator for AllPathsFromDiGraphIter {
+        #[inline]
         fn depth(&self) -> Option<usize> {
             if self.include_from_and_to {
                 Some(self.depth)
@@ -496,10 +504,12 @@ pub mod directed {
     impl Iterator for AllPathsFromDiGraphChunksIter {
         type Item = Array2<NodeId>;
 
+        #[inline]
         fn next(&mut self) -> Option<Self::Item> {
             self.iter.next().map(|mut path| {
                 let mut num_paths = 1;
                 let depth = path.len();
+                path.reserve_exact((self.chunk_size - 1) * depth);
                 for _ in 1..(self.chunk_size) {
                     match self.iter.next() {
                         Some(other_path) => {
