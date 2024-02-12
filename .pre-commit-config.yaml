@@ -14,7 +14,7 @@ repos:
   - id: pretty-format-toml
     args: [--autofix, --trailing-commas]
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.2.0
+  rev: v0.2.1
   hooks:
   - id: ruff
     args: [--fix]
