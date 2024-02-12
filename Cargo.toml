@@ -1,3 +1,7 @@
+[[bench]]
+harness = false
+name = "bench_main"
+
 [dependencies]
 nalgebra = "0.32.3"
 ndarray = {version = "0.15", features = ["rayon"]}
@@ -6,6 +10,7 @@ obj-rs = "0.7.1"
 pyo3 = "0.20"
 
 [dev-dependencies]
+criterion = "0.5.1"
 pyo3 = {version = "0.20.0", features = ["auto-initialize"]}
 rstest = "0.18.2"
 
@@ -13,6 +18,7 @@ rstest = "0.18.2"
 extension-module = ["pyo3/extension-module"]
 
 [lib]
+bench = false
 crate-type = ["cdylib", "rlib"]
 name = "differt"
 

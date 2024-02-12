@@ -162,14 +162,14 @@ jobs:
       run: pip install numpy
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@nightly
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Install cargo-benchcmp
-      run: |
-        cargo install cargo-benchcmp
+    - uses: taiki-e/install-action@v2
+      with:
+        tool: critcmp@0.1.8
 
     - name: Run Benchmarks on changes
-      run: cargo bench > changes
+      run: cargo bench --bench bench_main -- --save-baseline changes
 
     - uses: actions/checkout@v4
       with:
@@ -177,12 +177,12 @@ jobs:
         clean: false
 
     - name: Run Benchmarks before changes
-      run: cargo bench > before
+      run: cargo bench --bench bench_main -- --save-baseline before
 
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        cargo benchcmp before changes >> $GITHUB_OUTPUT
+        critcmp before changes >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 

@@ -423,6 +423,7 @@ pub mod directed {
     /// An iterator over all paths in a directed graph,
     /// in array chunks.
     #[pyclass]
+    #[derive(Clone, Debug)]
     pub struct AllPathsFromDiGraphChunksIter {
         iter: AllPathsFromDiGraphIter,
         chunk_size: usize,
