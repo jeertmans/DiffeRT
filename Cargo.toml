@@ -13,6 +13,7 @@ rstest = "0.18.2"
 extension-module = ["pyo3/extension-module"]
 
 [lib]
+bench = false
 crate-type = ["cdylib", "rlib"]
 name = "differt"
 
@@ -30,3 +31,7 @@ strip = false
 codegen-units = 1
 lto = "fat"
 strip = true
+
+[[bench]]
+harness = false
+name = "bench_main"
