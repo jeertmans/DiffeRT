@@ -166,7 +166,7 @@ jobs:
 
     - uses: taiki-e/install-action@v2
       with:
-        tool: cargo-hack@0.1.8
+        tool: critcmp@0.1.8
 
     - name: Run Benchmarks on changes
       run: cargo bench --bench bench_main -- --save-baseline changes
