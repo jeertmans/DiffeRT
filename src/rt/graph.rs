@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    ndarray::{parallel::prelude::*, Array2, ArrayView2, Axis},
+    ndarray::{parallel::prelude::*, Array2, ArrayView1, ArrayView2, Axis},
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
 };
 use pyo3::{prelude::*, types::PyType};
@@ -90,6 +90,7 @@ pub mod directed {
         /// where edges[i] is the list of adjacent nodes
         /// of node i.
         edges_list: Vec<Vec<NodeId>>,
+        adjacency_matrix: Array2<bool>,
     }
 
     impl DiGraph {
@@ -114,7 +115,10 @@ pub mod directed {
                 })
                 .collect();
 
-            Self { edges_list }
+            Self {
+                edges_list,
+                adjacency_matrix: adjacency_matrix.to_owned(),
+            }
         }
     }
 
@@ -198,8 +202,26 @@ pub mod directed {
             // `to` is not connected to any node
             self.edges_list.push(vec![]);
 
-            self.get_adjacent_nodes(from);
-            self.get_adjacent_nodes(to);
+            let trues = vec![true; to + 1];
+            let falses = vec![false; to + 1];
+
+            self.adjacency_matrix
+                .push_row(ArrayView1::from(&trues[2..]))
+                .unwrap();
+            self.adjacency_matrix
+                .push_row(ArrayView1::from(&falses[2..]))
+                .unwrap();
+
+            self.adjacency_matrix
+                .push_column(ArrayView1::from(&falses[..]))
+                .unwrap();
+            self.adjacency_matrix
+                .push_column(ArrayView1::from(&trues[..]))
+                .unwrap();
+            self.adjacency_matrix[(from, to)] = direct_path;
+            self.adjacency_matrix[(to, from)] = false;
+            self.adjacency_matrix[(from, from)] = false;
+            self.adjacency_matrix[(to, to)] = false;
 
             (from, to)
         }
@@ -369,7 +391,7 @@ pub mod directed {
                 // Is it the last node we should add?
                 if self.visited.len() + 1 == self.depth {
                     // If we can actually reach `to`
-                    if children.binary_search(&self.to).is_ok() {
+                    if self.graph.adjacency_matrix[(*self.visited.last().unwrap(), self.to)] {
                         let path = if self.include_from_and_to {
                             let mut path = self.visited.clone();
                             path.push(self.to);
