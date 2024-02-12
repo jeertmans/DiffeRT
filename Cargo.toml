@@ -1,3 +1,7 @@
+[[bench]]
+harness = false
+name = "bench_main"
+
 [dependencies]
 nalgebra = "0.32.3"
 ndarray = {version = "0.15", features = ["rayon"]}
@@ -32,7 +36,3 @@ strip = false
 codegen-units = 1
 lto = "fat"
 strip = true
-
-[[bench]]
-harness = false
-name = "bench_main"
