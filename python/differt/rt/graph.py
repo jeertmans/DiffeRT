@@ -8,7 +8,14 @@ A highler-level interface is available in the :py:mod:`differt.rt.utils`
 module.
 """
 
-__all__ = ("CompleteGraph", "DiGraph", "AllPathsFromDiGraphIter")
+__all__ = (
+    "CompleteGraph",
+    "DiGraph",
+    "AllPathsFromCompleteGraphIter",
+    "AllPathsFromCompleteGraphChunksIter",
+    "AllPathsFromDiGraphIter",
+    "AllPathsFromDiGraphChunksIter",
+)
 
 from .. import _core
 
