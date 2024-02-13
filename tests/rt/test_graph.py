@@ -18,12 +18,10 @@ class TestDiGraph:
         from_, to = graph.insert_from_and_to_nodes(direct_path=False)
         assert from_ == 9
         assert to == 10
-        from_, to = graph.insert_from_and_to_nodes(True)
-        assert from_ == 11
-        assert to == 12
-        from_, to = graph.insert_from_and_to_nodes(False)
-        assert from_ == 13
-        assert to == 14
+
+        with pytest.raises(TypeError) as exc:
+            _ = graph.insert_from_and_to_nodes(True)  # type: ignore
+            assert "takes 0 positional arguments but 1 was given" in str(exc)
 
     def test_from_graph(self) -> None:
         graph = CompleteGraph(10)
@@ -35,7 +33,7 @@ class TestDiGraph:
         graph = DiGraph.from_complete_graph(CompleteGraph(5))
 
         with pytest.raises(TypeError) as exc:
-            _ = graph.all_paths(0, 1, 0, True)
+            _ = graph.all_paths(0, 1, 0, True)  # type: ignore
             assert "takes 3 positional arguments but 4 were given" in str(exc)
 
     @pytest.mark.parametrize(
