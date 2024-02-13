@@ -145,8 +145,8 @@ pub mod complete {
         ///     ...     )
         ///     ... )
         ///     >>>
-        ///     >>> iter1 = complete_graph.all_paths(from_, to_, depth)
-        ///     >>> iter2 = di_graph.all_paths(from_, to_, depth)
+        ///     >>> iter1 = complete_graph.all_paths(from_, to, depth)
+        ///     >>> iter2 = di_graph.all_paths(from_, to, depth)
         ///     >>> assert(
         ///     ...     all(
         ///     ...         np.array_equal(p1, p2)
