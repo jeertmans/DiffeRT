@@ -2,8 +2,7 @@ use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
 
 use super::graph::{
-    complete::CompleteGraph,
-    directed::{AllPathsFromDiGraphChunksIter, AllPathsFromDiGraphIter, DiGraph},
+    complete::{AllPathsFromCompleteGraphChunksIter, AllPathsFromCompleteGraphIter, CompleteGraph},
     PathsIterator,
 };
 
@@ -16,8 +15,9 @@ pub fn generate_all_path_candidates(
     order: usize,
 ) -> &PyArray2<usize> {
     // TODO: should we really transpose?
-    let mut graph: DiGraph = CompleteGraph::new(num_primitives).into();
-    let (from, to) = graph.insert_from_and_to_nodes(true);
+    let graph = CompleteGraph::new(num_primitives);
+    let from = num_primitives;
+    let to = num_primitives + 1;
     let array = graph.all_paths(from, to, order + 2, false).collect_array();
     array.reversed_axes().into_pyarray(py)
 }
@@ -27,9 +27,10 @@ pub fn generate_all_path_candidates(
 pub fn generate_all_path_candidates_iter(
     num_primitives: usize,
     order: usize,
-) -> AllPathsFromDiGraphIter {
-    let mut graph: DiGraph = CompleteGraph::new(num_primitives).into();
-    let (from, to) = graph.insert_from_and_to_nodes(true);
+) -> AllPathsFromCompleteGraphIter {
+    let graph = CompleteGraph::new(num_primitives);
+    let from = num_primitives;
+    let to = num_primitives + 1;
     graph.all_paths(from, to, order + 2, false)
 }
 
@@ -40,9 +41,10 @@ pub fn generate_all_path_candidates_chunks_iter(
     num_primitives: usize,
     order: usize,
     chunk_size: usize,
-) -> AllPathsFromDiGraphChunksIter {
-    let mut graph: DiGraph = CompleteGraph::new(num_primitives).into();
-    let (from, to) = graph.insert_from_and_to_nodes(true);
+) -> AllPathsFromCompleteGraphChunksIter {
+    let graph = CompleteGraph::new(num_primitives);
+    let from = num_primitives;
+    let to = num_primitives + 1;
     graph.all_paths_array_chunks(from, to, order + 2, false, chunk_size)
 }
 
