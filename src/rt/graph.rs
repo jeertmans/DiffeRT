@@ -168,6 +168,7 @@ pub mod complete {
         ///
         /// Return:
         ///     AllPathsFromCompleteGraphIter: An iterator over all paths.
+        #[cfg(not(doctest))]
         #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         pub fn all_paths(
