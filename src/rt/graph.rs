@@ -376,6 +376,20 @@ pub mod complete {
         }
     }
 
+    #[pymethods]
+    impl AllPathsFromCompleteGraphIter {
+        fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+            slf
+        }
+
+        fn __next__<'py>(
+            mut slf: PyRefMut<'py, Self>,
+            py: Python<'py>,
+        ) -> Option<&'py PyArray1<NodeId>> {
+            slf.next().map(|path| PyArray1::from_vec(py, path))
+        }
+    }
+
     /// An iterator over all paths in a complete graph,
     /// as array chunks.
     #[pyclass]
