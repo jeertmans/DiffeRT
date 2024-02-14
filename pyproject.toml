@@ -116,7 +116,7 @@ addopts = [
   '--doctest-modules',
   '--doctest-ignore-import-errors',
   '--benchmark-columns',
-  'min,mean,stddev,outliers,rounds,iterations',
+  'mean,stddev,ops',
   '--benchmark-group-by',
   'group',
   '--benchmark-warmup',
