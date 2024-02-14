@@ -175,7 +175,7 @@ jobs:
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        pdm run pytest-benchmark compare before changes changes-pgo >> $GITHUB_OUTPUT
+        pdm run pytest-benchmark compare >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 
