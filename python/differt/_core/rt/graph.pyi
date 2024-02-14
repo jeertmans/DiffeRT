@@ -12,7 +12,13 @@ class CompleteGraph:
         self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
     ) -> UInt[np.ndarray, "num_paths path_depth"]: ...
     def all_paths_array_chunks(
-        self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
+        self,
+        from_: int,
+        to: int,
+        depth: int,
+        *,
+        include_from_and_to: bool = True,
+        chunk_size: int,
     ) -> AllPathsFromCompleteGraphChunksIter: ...
 
 class DiGraph:
@@ -32,7 +38,13 @@ class DiGraph:
         self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
     ) -> UInt[np.ndarray, "num_paths path_depth"]: ...
     def all_paths_array_chunks(
-        self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
+        self,
+        from_: int,
+        to: int,
+        depth: int,
+        *,
+        include_from_and_to: bool = True,
+        chunk_size: int,
     ) -> AllPathsFromDiGraphChunksIter: ...
 
 class AllPathsFromCompleteGraphIter(Iterator):
