@@ -32,6 +32,11 @@ version = "0.0.8"
 debug = true
 strip = false
 
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
+
 [profile.release]
 codegen-units = 1
 lto = "fat"
