@@ -18,6 +18,7 @@ DEPTH: int = 5
 INCLUDE_FROM_AND_TO: bool = False
 
 
+@pytest.mark.benchmark(group="complete_graph_all_paths")
 def test_complete_graph_all_paths(benchmark: BenchmarkFixture) -> None:
     graph = CompleteGraph(NUM_NODES)
     from_ = NUM_NODES
@@ -30,6 +31,7 @@ def test_complete_graph_all_paths(benchmark: BenchmarkFixture) -> None:
 
 
 @pytest.mark.parametrize("chunk_size", [1, 10, 100, 1000])
+@pytest.mark.benchmark(group="complete_graph_all_paths_array_chunks")
 def test_complete_graph_all_paths_array_chunks(
     chunk_size: int, benchmark: BenchmarkFixture
 ) -> None:
@@ -46,9 +48,11 @@ def test_complete_graph_all_paths_array_chunks(
         )
     )
 
+    benchmark.extra_info["scale"] = chunk_size
     _ = benchmark(lambda: next(it))
 
 
+@pytest.mark.benchmark(group="di_graph_from_complete_graph_all_paths")
 def test_di_graph_from_complete_graph_all_paths(benchmark: BenchmarkFixture) -> None:
     graph = DiGraph.from_complete_graph(CompleteGraph(NUM_NODES))
     from_, to = graph.insert_from_and_to_nodes(direct_path=DIRECT_PATH)
@@ -60,6 +64,7 @@ def test_di_graph_from_complete_graph_all_paths(benchmark: BenchmarkFixture) -> 
 
 
 @pytest.mark.parametrize("chunk_size", [1, 10, 100, 1000])
+@pytest.mark.benchmark(group="di_graph_complete_graph_all_paths_array_chunks")
 def test_di_graph_from_complete_graph_all_paths_array_chunks(
     chunk_size: int, benchmark: BenchmarkFixture
 ) -> None:
@@ -75,4 +80,5 @@ def test_di_graph_from_complete_graph_all_paths_array_chunks(
         )
     )
 
+    benchmark.extra_info["scale"] = chunk_size
     _ = benchmark(lambda: next(it))
