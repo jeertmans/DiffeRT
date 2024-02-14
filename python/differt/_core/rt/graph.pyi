@@ -5,6 +5,21 @@ from jaxtyping import Bool, UInt
 
 class CompleteGraph:
     def __init__(self, num_nodes: int) -> None: ...
+    def all_paths(
+        self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
+    ) -> AllPathsFromCompleteGraphIter: ...
+    def all_paths_array(
+        self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
+    ) -> UInt[np.ndarray, "num_paths path_depth"]: ...
+    def all_paths_array_chunks(
+        self,
+        from_: int,
+        to: int,
+        depth: int,
+        *,
+        include_from_and_to: bool = True,
+        chunk_size: int,
+    ) -> AllPathsFromCompleteGraphChunksIter: ...
 
 class DiGraph:
     @classmethod
@@ -23,7 +38,13 @@ class DiGraph:
         self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
     ) -> UInt[np.ndarray, "num_paths path_depth"]: ...
     def all_paths_array_chunks(
-        self, from_: int, to: int, depth: int, *, include_from_and_to: bool = True
+        self,
+        from_: int,
+        to: int,
+        depth: int,
+        *,
+        include_from_and_to: bool = True,
+        chunk_size: int,
     ) -> AllPathsFromDiGraphChunksIter: ...
 
 class AllPathsFromCompleteGraphIter(Iterator):
