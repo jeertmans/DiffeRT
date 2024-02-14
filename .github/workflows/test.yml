@@ -111,7 +111,7 @@ jobs:
         pdm install -G test,github-action
 
     - name: Run Benchmarks on changes
-      run: pdm run pytest --benchmark-only --benchmark-save=changes
+      run: pdm run pytest --benchmark-only --benchmark-save=changes tests/benchmarks
 
     - name: Build wheel with profiling profile
       uses: PyO3/maturin-action@v1
@@ -130,7 +130,7 @@ jobs:
       run: |
         pdm run python -m ensurepip
         pdm run python -m pip install differt --no-index --no-deps --find-links pgo-wheel --force-reinstall
-        pdm run pytest --benchmark-only --benchmark-save=changes
+        pdm run pytest --benchmark-only tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
     - name: Merge GO data
@@ -148,7 +148,7 @@ jobs:
     - name: Run Benchmarks on changes with PGO-optimized wheel
       run: |
         pdm run python -m pip install differt --no-index --no-deps --find-links opt-wheel --force-reinstall
-        pdm run pytest --benchmark-only --benchmark-save=changes-pgo
+        pdm run pytest --benchmark-only --benchmark-save=changes-pgo tests/benchmarks
 
     - name: Checkout base branch
       uses: actions/checkout@v4
@@ -170,7 +170,7 @@ jobs:
     - name: Run Benchmarks before changes
       run: |
         pdm run python -m pip install differt --no-index --no-deps --find-links dist --force-reinstall
-        pdm run pytest --benchmark-only --benchmark-save=before
+        pdm run pytest --benchmark-only --benchmark-save=before tests/benchmarks
 
     - name: Compare benchmarks
       run: |
