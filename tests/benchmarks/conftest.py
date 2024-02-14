@@ -10,9 +10,6 @@ def pytest_benchmark_generate_json(
     machine_info: dict[str, str],
     commit_info: dict[str, str],
 ):
-    raise ValueError(
-        f"{type(config) = }, {type(machine_info) = }, and {type(commit_info) = }"
-    )
     for bench in benchmarks:
         scale = bench.extra_info.get("scale")
         if bench.stats and scale:
