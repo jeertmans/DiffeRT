@@ -50,19 +50,10 @@ jobs:
         python-version: '3.11'
         cache: true
 
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy
-
     - name: Install Rust nightly
       uses: dtolnay/rust-toolchain@nightly
       with:
-        components: rustfmt
-
-    - name: Set default channel to stable
-      run: |
-        rustup default stable
+        components: clippy,rustfmt
 
     - name: Install dependencies
       run: |
