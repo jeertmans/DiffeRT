@@ -8,6 +8,7 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    notebooks/quickstart
    notebooks/advanced_path_tracing
    notebooks/plotting_backend
+   notebooks/diffraction
    notebooks/ray_tracing_at_city_scale
 
 .. toctree::

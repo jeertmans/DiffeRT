@@ -37,7 +37,7 @@ def image_of_vertices_with_respect_to_mirrors(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
-    Returns:
+    Return:
         An array of image vertices.
 
     Examples:
@@ -112,7 +112,7 @@ def intersection_of_line_segments_with_planes(
         plane_normals: an array of plane normals, where each normal has a unit
             length and if perpendicular to the corresponding plane.
 
-    Returns:
+    Return:
         An array of intersection vertices.
     """
     u = segment_ends - segment_starts
@@ -134,13 +134,20 @@ def image_method(
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
 
     Args:
-        from_vertices: *TODO*.
-        to_vertices: *TODO*.
-        mirror_vertices: *TODO*.
-        mirror_normals: *TODO*.
+        from_vertices: An array of ``from`` vertices, i.e., vertices from which the
+            ray paths start. In a radio communications context, this is usually
+            an array of transmitters.
+        to_vertices: An array of ``to`` vertices, i.e., vertices to which the
+            ray paths end. In a radio communications context, this is usually
+            an array of receivers.
+        mirror_vertices: An array of mirror vertices. For each mirror, any
+            vertex on the infinite plane that describes the mirror is considered
+            to be a valid vertex.
+        mirror_normals: An array of mirror normals, where each normal has a unit
+            length and if perpendicular to the corresponding mirror.
 
-    Returns:
-        *TODO*.
+    Return:
+        An array of ray paths obtained with the image method.
 
     .. note::
 
@@ -225,16 +232,20 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     Check if consecutive vertices, but skiping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
     This check is needed after using :func:`image_method` because it can return
-    vertices that are behind a mirror, which causes the path to go trough this
+    vertices that are behind a mirror, which causes the path to go through this
     mirror, and is someone we want to avoid.
 
     Args:
-        vertices: *TODO*.
-        mirror_vertices: *TODO*.
-        mirror_normals: *TODO*.
+        vertices: An array of vertices, usually describing ray paths.
+        mirror_vertices: An array of mirror vertices. For each mirror, any
+            vertex on the infinite plane that describes the mirror is considered
+            to be a valid vertex.
+        mirror_normals: An array of mirror normals, where each normal has a unit
+            length and if perpendicular to the corresponding mirror.
 
-    Returns:
-        *TODO*.
+    Return:
+        A boolean array indicating whether pairs of consecutive vertices
+        are on the same side of the corresponding mirror.
     """
     chex.assert_axis_dimension(vertices, 0, mirror_vertices.shape[0] + 2)
 

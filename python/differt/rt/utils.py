@@ -54,7 +54,7 @@ def generate_all_path_candidates(
         num_primitives: The (positive) number of primitives.
         order: The path order. An order less than one returns an empty array.
 
-    Returns:
+    Return:
         An unsigned array with primitive indices on each columns. Its number of
         columns is actually equal to
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
@@ -75,7 +75,7 @@ def generate_all_path_candidates_iter(
         num_primitives: The (positive) number of primitives.
         order: The path order.
 
-    Returns:
+    Return:
         An iterator of unsigned arrays with primitive indices.
     """
     return map(
@@ -96,7 +96,7 @@ def generate_all_path_candidates_chunks_iter(
         order: The path order.
         chunk_size: The size of each chunk.
 
-    Returns:
+    Return:
         An iterator of unsigned arrays with primitive indices.
     """
     return map(
@@ -133,7 +133,7 @@ def rays_intersect_triangles(
             triangle edges, a very common case if geometries are planes
             split into multiple triangles.
 
-    Returns:
+    Return:
         For each ray, return the scale factor of ``ray_directions`` for the
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.

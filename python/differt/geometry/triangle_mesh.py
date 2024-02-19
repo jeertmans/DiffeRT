@@ -31,7 +31,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
         triangle_vertices: an array of triangle vertices.
         vertices: an array of vertices that will be checked.
 
-    Returns:
+    Return:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     # [*batch 3]
@@ -89,7 +89,7 @@ def paths_intersect_triangles(
             a small portion of the path, to avoid indicating intersection
             when a path *bounces off* a triangle.
 
-    Returns:
+    Return:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     ray_origins = paths[..., :-1, :]
@@ -146,7 +146,7 @@ class TriangleMesh(eqx.Module):
         Args:
             file: The path to the Wavefront .obj file.
 
-        Returns:
+        Return:
             The corresponding mesh containing only triangles.
         """
         mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file))
@@ -163,7 +163,7 @@ class TriangleMesh(eqx.Module):
             kwargs: Keyword arguments passed to
                 :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
 
-        Returns:
+        Return:
             The resulting plot output.
         """
         return draw_mesh(

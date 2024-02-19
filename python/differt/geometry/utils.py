@@ -15,7 +15,7 @@ def pairwise_cross(
         u: First array of vectors.
         v: Second array of vectors.
 
-    Returns:
+    Return:
         A 3D tensor with all cross products.
     """
     return jnp.cross(u[:, None, :], v[None, :, :])
@@ -31,7 +31,7 @@ def normalize(
     Args:
         vector: An array of vectors.
 
-    Returns:
+    Return:
         The normalized vector and their length.
 
     :Examples:
