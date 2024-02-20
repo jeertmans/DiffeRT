@@ -1,11 +1,19 @@
 """General purpose utilities."""
-from typing import Any, Callable
+import sys
+from typing import Any, Callable, Concatenate
 
 import jax
 import jax.numpy as jnp
 import optax
 from jaxtyping import Array, Num, Shaped, jaxtyped
 from typeguard import typechecked as typechecker
+
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
+
+P = ParamSpec("P")
 
 
 @jaxtyped(typechecker=typechecker)
@@ -76,11 +84,12 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     return array[jnp.lexsort(array.T[::-1])]  # type: ignore
 
 
-@jaxtyped(typechecker=typechecker)
+# Cannot type check because jaxtyping fails with fun
+@jaxtyped(typechecker=None)
 def minimize(
-    fun: Callable[[Num[Array, "*batch n"]], Num[Array, " *batch"]],
+    fun: Callable[Concatenate[Num[Array, "*batch n"], P], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
-    fun_args: tuple | None = None,
+    fun_args: tuple = (),
     fun_kwargs: dict[str, Any] | None = None,
     steps: int = 100,
     optimizer: optax.GradientTransformation | None = None,
@@ -123,16 +132,40 @@ def minimize(
         >>> x, y = minimize(f, jnp.zeros(10), fun_kwargs=dict(offset=3.0))
         >>> chex.assert_trees_all_close(x, 3.0 * jnp.ones(10), rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
+
+        This example shows how you can minimize on a batch of arrays.
+        Each signature of the objective function is ``(*batch, n) -> (*batch)``,
+        where each batch is minimized independently.
+
+        >>> from differt.utils import minimize
+        >>> import chex
+        >>>
+        >>> batch = (1, 2, 3)
+        >>> n = 10
+        >>> key = jax.random.PRNGKey(1234)
+        >>> offset = jax.random.uniform(key, (*batch, n))
+        >>>
+        >>> def f(x, offset, scale=2.0):
+        ...     x = scale * x - offset
+        ...     return jnp.sum(x * x, axis=-1)
+        >>>
+        >>> x0 = jnp.zeros((*batch, n))
+        >>> x, y = minimize(f, x0, fun_args=(offset,), steps=1000)
+        >>> chex.assert_trees_all_close(x, offset / 2.0, rtol=1e-2)
+        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
     """
-    fun_args = fun_args if fun_args else tuple()
     fun_kwargs = fun_kwargs if fun_kwargs else {}
     optimizer = optimizer if optimizer else optax.adam(learning_rate=0.1)
 
     f_and_df = jax.value_and_grad(fun)
+
+    for _ in x0.shape[:-1]:
+        f_and_df = jax.vmap(f_and_df)
+
     opt_state = optimizer.init(x0)
 
     # Cannot type check because jaxtyping fails with optax.OptState
-    #  @jaxtyped(typechecker=typechecker)
+    @jaxtyped(typechecker=None)
     def f(
         carry: tuple[Num[Array, "*batch n"], optax.OptState], _: None
     ) -> tuple[tuple[Num[Array, "*batch n"], optax.OptState], Num[Array, " *batch"]]:
@@ -144,4 +177,5 @@ def minimize(
         return carry, loss
 
     (x, _), losses = jax.lax.scan(f, init=(x0, opt_state), xs=None, length=steps)
+
     return x, losses[-1]

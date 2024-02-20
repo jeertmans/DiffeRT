@@ -8,8 +8,12 @@ this means that the path of least time is also the path of last distance.
 
 As a result, this module offers minimization methods for finding ray paths.
 """
+import jax.numpy as jnp
+
 from jaxtyping import Array, Float, jaxtyped
 from typeguard import typechecked as typechecker
+
+from ..utils import minimize
 
 
 @jaxtyped(typechecker=typechecker)
@@ -68,5 +72,23 @@ def fermat_path_on_planar_surfaces(
                 )
             )
     """
-    _mirror_directions = ...
-    raise NotImplementedError
+    num_mirrors, *batch, _ = mirror_vertices.shape
+    num_unknowns = 2 * num_mirrors
+    mirror_directions_1 = ...
+    mirror_directions_2 = ...
+
+    def parametric_to_cartesian(t, origins, directions_1, directions_2):
+        return origins + directions_1 * t[..., 0::2] + directions_2 * t[..., 1::2]
+
+    def loss(st, o, d1, d2):
+        s = st[..., 0::2]
+        t = st[..., 1::2]
+        xyz = o + d1 * s + d2 * t
+        vectors = jnp.diff(xyz, axis=-1)
+        lengths = jnp.linalg.norm(vectors, axis=-1)
+        return jnp.sum(lengths, axis=-1)
+
+    st0 = jnp.zeros((*batch, num_unknowns))
+    st, _ = minimize(loss,  st0, fun_args=(mirror_vertices, mirror_directions_1, mirror_directions_2))
+
+    return st
