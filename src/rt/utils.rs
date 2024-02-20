@@ -14,12 +14,13 @@ pub fn generate_all_path_candidates(
     num_primitives: usize,
     order: usize,
 ) -> &PyArray2<usize> {
-    // TODO: should we really transpose?
     let graph = CompleteGraph::new(num_primitives);
     let from = num_primitives;
     let to = num_primitives + 1;
-    let array = graph.all_paths(from, to, order + 2, false).collect_array();
-    array.reversed_axes().into_pyarray(py)
+    graph
+        .all_paths(from, to, order + 2, false)
+        .collect_array()
+        .into_pyarray(py)
 }
 
 /// Iterator variant of eponym function.

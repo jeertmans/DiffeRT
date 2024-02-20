@@ -9,7 +9,6 @@ this means that the path of least time is also the path of last distance.
 As a result, this module offers minimization methods for finding ray paths.
 """
 import jax.numpy as jnp
-
 from jaxtyping import Array, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
@@ -89,6 +88,8 @@ def fermat_path_on_planar_surfaces(
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, _ = minimize(loss,  st0, fun_args=(mirror_vertices, mirror_directions_1, mirror_directions_2))
+    st, _ = minimize(
+        loss, st0, fun_args=(mirror_vertices, mirror_directions_1, mirror_directions_2)
+    )
 
     return st

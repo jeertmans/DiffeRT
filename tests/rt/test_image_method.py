@@ -125,16 +125,16 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
         [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]]
     )
     # Tile on batch size
-    axis = tuple(range(1, len(batch_size) + 1))
+    axis = tuple(range(0, len(batch_size)))
     from_vertices = jnp.tile(from_vertex, (*batch_size, 1))
     to_vertices = jnp.tile(to_vertex, (*batch_size, 1))
     mirror_vertices = jnp.tile(
-        jnp.expand_dims(mirror_vertices, axis), (1, *batch_size, 1)
+        jnp.expand_dims(mirror_vertices, axis), (*batch_size, 1, 1)
     )
     mirror_normals = jnp.tile(
-        jnp.expand_dims(mirror_normals, axis), (1, *batch_size, 1)
+        jnp.expand_dims(mirror_normals, axis), (*batch_size, 1, 1)
     )
-    expected = jnp.tile(jnp.expand_dims(expected, axis), (1, *batch_size, 1))
+    expected = jnp.tile(jnp.expand_dims(expected, axis), (*batch_size, 1, 1))
     got = image_method(from_vertices, to_vertices, mirror_vertices, mirror_normals)
     chex.assert_trees_all_close(got, expected)
 
@@ -147,8 +147,8 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
     ("vertices,mirror_vertices,mirror_normals,expectation"),
     [
         ((12, 3), (10, 3), (10, 3), does_not_raise()),
-        ((12, 4, 3), (10, 4, 3), (10, 4, 3), does_not_raise()),
-        ((12, 6, 7, 3), (10, 6, 7, 3), (10, 6, 7, 3), does_not_raise()),
+        ((4, 12, 3), (4, 10, 3), (4, 10, 3), does_not_raise()),
+        ((6, 7, 12, 3), (6, 7, 10, 3), (6, 7, 10, 3), does_not_raise()),
         (
             (12, 3),
             (10, 3),

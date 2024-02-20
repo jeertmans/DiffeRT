@@ -127,9 +127,9 @@ def intersection_of_line_segments_with_planes(
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "num_mirrors *batch 3"],
-    mirror_normals: Float[Array, "num_mirrors *batch 3"],
-) -> Float[Array, "num_mirrors *batch 3"]:
+    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
+    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
 
@@ -179,6 +179,11 @@ def image_method(
                 )
             )
     """
+    axis1 = +0
+    axis2 = -2
+
+    mirror_vertices = jnp.swapaxes(mirror_vertices, axis1, axis2)
+    mirror_normals = jnp.swapaxes(mirror_normals, axis1, axis2)
 
     @jaxtyped(typechecker=typechecker)
     def forward(
@@ -219,15 +224,15 @@ def image_method(
         reverse=True,
     )
 
-    return paths
+    return jnp.swapaxes(paths, axis2, axis1)
 
 
 @jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
-    vertices: Float[Array, "num_vertices *batch 3"],
-    mirror_vertices: Float[Array, "num_mirrors *batch 3"],
-    mirror_normals: Float[Array, "num_mirrors *batch 3"],
-) -> Bool[Array, "num_mirrors *batch"]:  # noqa: F821
+    vertices: Float[Array, "*batch num_vertices 3"],
+    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
+    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+) -> Bool[Array, "*batch num_mirrors"]:
     """
     Check if consecutive vertices, but skiping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
@@ -247,10 +252,10 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         A boolean array indicating whether pairs of consecutive vertices
         are on the same side of the corresponding mirror.
     """
-    chex.assert_axis_dimension(vertices, 0, mirror_vertices.shape[0] + 2)
+    chex.assert_axis_dimension(vertices, -2, mirror_vertices.shape[-2] + 2)
 
-    v_prev = vertices[:-2, ...] - mirror_vertices
-    v_next = vertices[+2:, ...] - mirror_vertices
+    v_prev = vertices[..., :-2, :] - mirror_vertices
+    v_next = vertices[..., +2:, :] - mirror_vertices
 
     d_prev = jnp.sum(v_prev * mirror_normals, axis=-1)
     d_next = jnp.sum(v_next * mirror_normals, axis=-1)
