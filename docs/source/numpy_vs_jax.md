@@ -1,4 +1,3 @@
-(numpy-vs-jax-arrays)=
 # NumPy vs JAX arrays
 
 [NumPy](https://numpy.org/)
@@ -23,10 +22,10 @@ majority of the codebase, both as input and as output types.
 
 JAX arrays use the following type annotations:
 `Dtype[Array, 'Shape']` where `Dtype` refers
-to the 
+to the
 [type of array elements](https://docs.kidger.site/jaxtyping/api/array/#dtype),
 and `Shape` describes
-the [array shape](https://docs.kidger.site/jaxtyping/api/array/#shape). 
+the [array shape](https://docs.kidger.site/jaxtyping/api/array/#shape).
 
 ## Where NumPY arrays are used
 

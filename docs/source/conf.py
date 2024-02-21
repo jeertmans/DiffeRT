@@ -78,6 +78,7 @@ ogp_use_first_image = True
 always_document_param_types = True
 
 # -- MyST-nb settings
+myst_heading_anchors = 3
 
 nb_kernel_rgx_aliases = {".*": "DiffeRT"}  # TODO: do not require specific kernel name
 nb_merge_streams = True
