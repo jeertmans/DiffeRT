@@ -3,10 +3,9 @@ build:
   os: ubuntu-22.04
   tools:
     python: '3.11'
-    rust: '1.75'
   jobs:
     post_install:
-    - pip install sphinx-book-theme
+      - pip install sphinx-book-theme "sphinx<5.1"
 sphinx:
   builder: dirhtml
   configuration: docs/conf.py
