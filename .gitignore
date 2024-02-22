@@ -9,8 +9,8 @@ target/
 
 # Docs
 
-docs/build/
-docs/source/reference/*.rst
+docs/_build/
+docs/_reference/*.rst
 
 # Notebooks
 
