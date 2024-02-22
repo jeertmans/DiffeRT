@@ -31,7 +31,7 @@ transmitter and receiver locations.
 Thus, allowing for arbitrary batch dimensions will help you write
 code in a way that is mostly transparent to the number of *repetitions*.
 
-E.g., the following method produces the dot product
+E.g., the following function computes the dot product
 between batch of arrays:
 
 ```python
@@ -53,6 +53,10 @@ z = dot(x, y)
 assert z.shape == batch
 assert jnp.all_close(z, 1.0 * 2.0 * n)
 ```
+
+That is, the resulting output will have a shape of `*batch`,
+where is entry is the result of the dot produt between `n` pairs of values
+from the corresponding entries in `x` and `y` input arguments.
 
 ## When batch axes are not available
 
