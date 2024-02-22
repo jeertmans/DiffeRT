@@ -31,7 +31,28 @@ transmitter and receiver locations.
 Thus, allowing for arbitrary batch dimensions will help you write
 code in a way that is mostly transparent to the number of *repetitions*.
 
-<TODO>
+E.g., the following method produces the dot product
+between batch of arrays:
+
+```python
+import jax
+import jax.numpy as np
+from jaxtyping import Array, Num
+
+
+def dot(x: Num[Array, "*batch n"], y: Num[Array, "*batch n"]) -> Num[Array, " *batch"]:
+    return jnp.sum(x * y, axis=-1)
+
+
+*batch, n = 40, 10, 30, 3  # batch = (40, 10, 30), n = 3
+
+x = jnp.ones((*batch, n)) * 1.0
+y = jnp.ones((*batch, n)) * 2.0
+z = dot(x, y)
+
+assert z.shape == batch
+assert jnp.all_close(z, 1.0 * 2.0 * n)
+```
 
 ## When batch axes are not available
 
@@ -39,7 +60,7 @@ If a function does not offer batch axes, there are two possibilities:
 
 1. you can use vectorization functions, like {func}`jax.vmap`, to
    call a repeat a given function over another array axis;
-2. or you the think code would really benefit from having batch axes.
+2. or you think code would really benefit from having batch axes.
    In that case, we recommend opening an issue on
    [GitHub](https://github.com/jeertmans/DiffeRT).
 
