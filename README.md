@@ -1,121 +1,111 @@
-<div align="center">
-<img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
-</div>
+# Jupyter Server Proxy
 
-<div align="center">
+[![ReadTheDocs badge](https://img.shields.io/readthedocs/jupyter-server-proxy?logo=read-the-docs)](https://jupyter-server-proxy.readthedocs.io/)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jupyterhub/jupyter-server-proxy/test.yaml?logo=github&branch=main)](https://github.com/jupyterhub/jupyter-server-proxy/actions)
+[![PyPI badge](https://img.shields.io/pypi/v/jupyter-server-proxy.svg?logo=pypi)](https://pypi.python.org/pypi/jupyter-server-proxy)
+[![Conda badge](https://img.shields.io/conda/vn/conda-forge/jupyter-server-proxy?logo=conda-forge)](https://anaconda.org/conda-forge/jupyter-server-proxy)
+[![NPM badge](https://img.shields.io/npm/v/@jupyterhub/jupyter-server-proxy.svg?logo=npm)](https://www.npmjs.com/package/@jupyterhub/jupyter-server-proxy)
 
-# DiffeRT
+Jupyter Server Proxy lets you run arbitrary external processes (such as
+RStudio, Shiny Server, Syncthing, PostgreSQL, Code Server, etc)
+alongside your notebook server and provide authenticated web access to
+them using a path like `/rstudio` next to others like `/lab`. Alongside
+the python package that provides the main functionality, the JupyterLab
+extension (`@jupyterhub/jupyter-server-proxy`) provides buttons in the
+JupyterLab launcher window to get to RStudio for example.
 
-[![Latest Release][pypi-version-badge]][pypi-version-url]
-[![Python version][pypi-python-version-badge]][pypi-version-url]
-[![Documentation][documentation-badge]][documentation-url]
-[![Codecov][codecov-badge]][codecov-url]
-[![PDM][pdm-badge]][pdm-url]
+**Note:** This project used to be called **nbserverproxy**. As
+nbserverproxy is an older version of jupyter-server-proxy, uninstall
+nbserverproxy before installing jupyter-server-proxy to avoid conflicts.
 
-</div>
+The primary use cases are:
 
-## Usage
+1.  Use with JupyterHub / Binder to allow launching users into web
+    interfaces that have nothing to do with Jupyter - such as RStudio,
+    Shiny, or OpenRefine.
+2.  Allow access from frontend javascript (in classic notebook or
+    JupyterLab extensions) to access web APIs of other processes running
+    locally in a safe manner. This is used by the [JupyterLab
+    extension](https://github.com/dask/dask-labextension) for
+    [dask](https://www.dask.org/).
 
-> [!WARNING]
-> Until this package reaches version `0.1.x`, breaking changes
-> should be expected.
->
-> If you have any suggestion regarding the development of this package,
-> please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
+[The documentation](https://jupyter-server-proxy.readthedocs.io/)
+contains information on installation & usage.
 
-## Contributing
+## Security warning
 
-> [!IMPORTANT]
-> The current documentation is very light and a more complete guide for
-> new contributors will be written in the near future.
->
-> Until then, do not hesitate to reach me for help with
-> [GitHub issues](https://github.com/jeertmans/DiffeRT/issues)!
+Jupyter Server Proxy is often used to start a user defined process listening to
+some network port (e.g. `http://localhost:4567`) for a user starting a Jupyter Server
+that only that user has permission to access. The user can then access the
+started process proxied through the Jupyter Server.
 
-This project is built using both Python and Rust code, to provide an easy-to-use
-but performant program. It also heavily uses the capabilities brought by
-[JAX](https://github.com/google/jax) for numerical arrays.
+For safe use of Jupyter Server Proxy, you should ensure that the process started
+by Jupyter Server proxy can't be accessed directly by another user and bypass
+the Jupyter Server's authorization!
 
-### Requirements
+A common strategy to enforce access proxied via Jupyter Server is to start
+Jupyter Server within a container and only allow network access to the Jupyter
+Server via the container.
 
-To run build this package locally, you need:
+> For more insights, see [Ryan Lovett's comment about
+> it](https://github.com/jupyterhub/jupyter-server-proxy/pull/359#issuecomment-1350118197).
 
-- [Python 3.9](https://www.python.org/) or above;
-- [Rust](https://www.rust-lang.org/) stable toolchain;
-- [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [PDM](https://pdm-project.org) to manage all Python dependencies.
+## Install
 
-### Building locally
+### Python package
 
-You can build the project locally using:
-
-```bash
-pdm install
-```
-
-### Documentation
-
-To generate the documentation, you first need to install an IPython kernel named
-`DiffeRT`:
+#### `pip`
 
 ```bash
-pdm run ipython kernel install --user --name=DiffeRT
+pip install jupyter-server-proxy
 ```
 
-If you want to use another name for your kernel, please also modify the
-name in [`docs/source/conf.py`](docs/source/conf.py):
-
-```python
-nb_kernel_rgx_aliases = {".*": "DiffeRT"}
-```
-
-Then, you can build the docs with:
+#### `conda`
 
 ```bash
-cd docs
-pdm run make html
+conda install -c conda-forge jupyter-server-proxy
 ```
 
-Finally, you can open `build/html/index.html` to see the generated docs.
+### Jupyter Client Extensions
 
-### Testing
+A JupyterLab and Notebook extension is bundled with the Python package to
+provide:
 
-Both Rust and Python codebases have their own tests and benchmarks.
+- servers in the _New_ dropwdown of the Notebook Tree view
+- launch buttons in JupyterLab's Launcher panel for registered server processes.
+  - ![a screenshot of the JupyterLab Launcher](docs/source/_static/images/labextension-launcher.png "launch proxied servers as JupyterLab panels or new browser tabs")
 
-#### Testing Rust code
+#### Client compatibility
 
-You can very easily test you code using Cargo:
+For historical compatibility ranges, see the table below:
+
+| `jupyter-server-proxy` | `notebook` | `jupyterlab` |
+| :--------------------: | :--------: | :----------: |
+|        `4.1.x`         |  `>=6,<8`  |   `>=3,<5`   |
+|        `4.0.x`         |  `>=6,<7`  |   `>=3,<4`   |
+|         `3.x`          |  `>=6,<7`  |   `>=2,<4`   |
+
+## Disable
+
+### Server extension
 
 ```bash
-cargo test
+jupyter serverextension disable --sys-prefix jupyter_server_proxy
+jupyter server extension disable --sys-prefix jupyter_server_proxy
 ```
 
-or benchmark it:
+### Notebook Classic extension
 
 ```bash
-cargo bench
+jupyter nbextension disable --sys-prefix --py jupyter_server_proxy
 ```
 
-#### Testing Python code
-
-in the same way, you can very test you code with Pytest:
+### JupyterLab extension
 
 ```bash
-pdm run pytest
+jupyter labextension disable @jupyterhub/jupyter-server-proxy
 ```
 
-or benchmark it:
+#### Local development
 
-```bash
-pdm run pytest --benchmark-only
-```
-
-[pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
-[pypi-version-url]: https://pypi.org/project/DiffeRT/
-[pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
-[documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
-[documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=8P4DY9JCE4
-[codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT
-[pdm-badge]: https://img.shields.io/badge/pdm-managed-blueviolet
-[pdm-url]: https://pdm-project.org
+To setup a local development environment, see the [contributing guide](https://github.com/jupyterhub/jupyter-server-proxy/blob/main/CONTRIBUTING.md).
