@@ -25,3 +25,5 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_book_theme'
 html_static_path = []
+html_title = "Sphinx Book Theme"
+html_copy_source = True
