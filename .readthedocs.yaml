@@ -7,6 +7,6 @@ build:
     post_install:
       - pip install sphinx-book-theme "sphinx<5.1"
 sphinx:
-  builder: dirhtml
+  builder: html
   configuration: docs/conf.py
   fail_on_warning: true
