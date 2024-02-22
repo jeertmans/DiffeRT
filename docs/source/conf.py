@@ -111,8 +111,13 @@ html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,
+    "path_to_docs": "docs/source",
     "repository_url": "https://github.com/jeertmans/DiffeRT",
-    "use_repository_button": True,  # add a "link to repository" button
+    "repository_branch": "main",
+    "use_edit_page_button": True,
+    "use_source_button": True,
+    "use_issues_button": True,
+    "use_repository_button": True,
     "navigation_with_keys": False,
 }
 
