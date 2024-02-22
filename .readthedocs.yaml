@@ -5,7 +5,7 @@ build:
     python: '3.11'
   jobs:
     post_install:
-      - pip install pydata-sphinx-theme==0.15.2 sphinx==6.2.1 sphinx-book-theme==1.1.0
+      - pip install sphinx-book-theme==0.3.3
 sphinx:
   builder: html
   configuration: docs/conf.py
