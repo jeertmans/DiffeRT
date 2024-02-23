@@ -127,19 +127,25 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
     # Tile on batch size
     axis = tuple(range(0, len(batch_size)))
     from_vertices = jnp.tile(from_vertex, (*batch_size, 1))
+    assert from_vertices.shape == (*batch_size, 3)
     to_vertices = jnp.tile(to_vertex, (*batch_size, 1))
+    assert to_vertices.shape == (*batch_size, 3)
     mirror_vertices = jnp.tile(
         jnp.expand_dims(mirror_vertices, axis), (*batch_size, 1, 1)
     )
+    assert mirror_vertices.shape == (*batch_size, 3, 3)
     mirror_normals = jnp.tile(
         jnp.expand_dims(mirror_normals, axis), (*batch_size, 1, 1)
     )
+    assert mirror_normals.shape == (*batch_size, 3, 3)
     expected = jnp.tile(jnp.expand_dims(expected, axis), (*batch_size, 1, 1))
+    assert expected.shape == (*batch_size, 3, 3)
     got = image_method(from_vertices, to_vertices, mirror_vertices, mirror_normals)
     chex.assert_trees_all_close(got, expected)
 
     _ = jnp.concatenate(
-        (from_vertices[None, ...], got, to_vertices[None, ...])
+        (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+        axis=-2,
     )  # Check we can concatenate
 
 

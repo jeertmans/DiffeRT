@@ -166,24 +166,14 @@ def image_method(
             )
 
             full_paths = jnp.concatenate(
-                (
-                    from_vertices[
-                        None,
-                        ...,
-                    ],
-                    paths,
-                    to_vertices[
-                        None,
-                        ...,
-                    ],
-                )
+                (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+                axis=-2,
             )
+    )
     """
-    axis1 = +0
-    axis2 = -2
-
-    mirror_vertices = jnp.swapaxes(mirror_vertices, axis1, axis2)
-    mirror_normals = jnp.swapaxes(mirror_normals, axis1, axis2)
+    # Put num_mirrors axis as leading axis
+    mirror_vertices = jnp.moveaxis(mirror_vertices, -2, 0)
+    mirror_normals = jnp.moveaxis(mirror_normals, -2, 0)
 
     @jaxtyped(typechecker=typechecker)
     def forward(
@@ -224,7 +214,7 @@ def image_method(
         reverse=True,
     )
 
-    return jnp.swapaxes(paths, axis2, axis1)
+    return jnp.moveaxis(paths, 0, -2)
 
 
 @jaxtyped(typechecker=typechecker)

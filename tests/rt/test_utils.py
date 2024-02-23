@@ -20,11 +20,11 @@ def uint_array(array_like: Any) -> Array:
 @pytest.mark.parametrize(
     "num_primitives,order,expected",
     [
-        (0, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
-        (8, 0, jnp.empty((0, 1), dtype=jnp.uint32)),
-        (0, 5, jnp.empty((5, 0), dtype=jnp.uint32)),
-        (3, 1, uint_array([[0, 1, 2]])),
-        (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]).T),
+        (0, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
+        (8, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
+        (0, 5, jnp.empty((0, 5), dtype=jnp.uint32)),
+        (3, 1, uint_array([[0], [1], [2]])),
+        (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]])),
         (
             3,
             3,
@@ -43,7 +43,7 @@ def uint_array(array_like: Any) -> Array:
                     [2, 1, 0],
                     [2, 1, 2],
                 ]
-            ).T,
+            ),
         ),
     ],
 )
@@ -51,7 +51,7 @@ def test_generate_all_path_candidates(
     num_primitives: int, order: int, expected: Array
 ) -> None:
     got = generate_all_path_candidates(num_primitives, order)
-    got = sorted_array2(got.T).T  # order may not be the same so we sort
+    got = sorted_array2(got)  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)
 
@@ -67,10 +67,10 @@ def test_generate_all_path_candidates(
 )
 def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> None:
     expected = generate_all_path_candidates(num_primitives, order)
-    expected = sorted_array2(expected.T).T
+    expected = sorted_array2(expected)
     got = list(generate_all_path_candidates_iter(num_primitives, order))
-    got = jnp.asarray(got).T
-    got = sorted_array2(got.T).T
+    got = jnp.asarray(got)
+    got = sorted_array2(got)
 
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)

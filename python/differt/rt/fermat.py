@@ -58,17 +58,8 @@ def fermat_path_on_planar_surfaces(
             )
 
             full_paths = jnp.concatenate(
-                (
-                    from_vertices[
-                        None,
-                        ...,
-                    ],
-                    paths,
-                    to_vertices[
-                        None,
-                        ...,
-                    ],
-                )
+                (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+                axis=-2,
             )
     """
     num_mirrors, *batch, _ = mirror_vertices.shape
