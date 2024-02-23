@@ -1,6 +1,6 @@
 """General purpose utilities."""
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import jax
 import jax.numpy as jnp
@@ -90,9 +90,9 @@ def minimize(
     fun: Callable[Concatenate[Num[Array, "*batch n"], P], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
     fun_args: tuple = (),
-    fun_kwargs: dict[str, Any] | None = None,
+    fun_kwargs: Optional[dict[str, Any]] = None,
     steps: int = 100,
-    optimizer: optax.GradientTransformation | None = None,
+    optimizer: Optional[optax.GradientTransformation] = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
     """
     Minimize a scalar function of one or more variables.

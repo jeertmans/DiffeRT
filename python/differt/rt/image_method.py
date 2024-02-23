@@ -169,7 +169,7 @@ def image_method(
                 (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
                 axis=-2,
             )
-    )
+
     """
     # Put num_mirrors axis as leading axis
     mirror_vertices = jnp.moveaxis(mirror_vertices, -2, 0)
