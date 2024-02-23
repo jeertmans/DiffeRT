@@ -1,4 +1,3 @@
-(batch-axes)=
 # The `*batch` axes
 
 As you will probably notice, many functions we provided accept
