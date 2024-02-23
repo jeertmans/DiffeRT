@@ -17,4 +17,6 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    Public API: differt package<reference/differt>
    numpy_vs_jax.md
    batch_axes.md
+   notebooks/type_checking
+   notebooks/performance_tips
    references
