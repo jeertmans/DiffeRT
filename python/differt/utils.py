@@ -1,6 +1,6 @@
 """General purpose utilities."""
 import sys
-from typing import Any, Callable, Concatenate
+from typing import Any, Callable
 
 import jax
 import jax.numpy as jnp
@@ -9,9 +9,9 @@ from jaxtyping import Array, Num, Shaped, jaxtyped
 from typeguard import typechecked as typechecker
 
 if sys.version_info >= (3, 10):
-    from typing import ParamSpec
+    from typing import Concatenate, ParamSpec
 else:
-    from typing_extensions import ParamSpec
+    from typing_extensions import Concatenate, ParamSpec
 
 P = ParamSpec("P")
 
