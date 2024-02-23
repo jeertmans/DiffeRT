@@ -39,10 +39,10 @@ between batch of arrays:
 >>> import jax.numpy as jnp
 >>> from jaxtyping import Array, Num
 >>>
->>>
->>> def dot(x: Num[Array, "*batch n"], y: Num[Array, "*batch n"]) -> Num[Array, " *batch"]:
+>>> def dot(
+...     x: Num[Array, "*batch n"], y: Num[Array, "*batch n"]
+... ) -> Num[Array, " *batch"]:
 ...     return jnp.sum(x * y, axis=-1)
->>>
 >>>
 >>> *batch, n = 40, 10, 30, 3  # batch = (40, 10, 30), n = 3
 >>>
@@ -54,6 +54,10 @@ between batch of arrays:
 (40, 10, 30)
 >>> jnp.allclose(z, 1.0 * 2.0 * n)
 Array(True, dtype=bool)
+>>> # Of course, you can always use such functions without any *batch axes:
+>>> x = jnp.array([1., 2., 3.])
+>>> dot(x, x)  # 1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0
+Array(14., dtype=float32)
 
 ```
 
