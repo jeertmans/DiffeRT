@@ -35,23 +35,26 @@ E.g., the following function computes the dot product
 between batch of arrays:
 
 ```python
-import jax
-import jax.numpy as np
-from jaxtyping import Array, Num
+>>> import jax
+>>> import jax.numpy as jnp
+>>> from jaxtyping import Array, Num
+>>>
+>>>
+>>> def dot(x: Num[Array, "*batch n"], y: Num[Array, "*batch n"]) -> Num[Array, " *batch"]:
+...     return jnp.sum(x * y, axis=-1)
+>>>
+>>>
+>>> *batch, n = 40, 10, 30, 3  # batch = (40, 10, 30), n = 3
+>>> 
+>>> x = jnp.ones((*batch, n)) * 1.0
+>>> y = jnp.ones((*batch, n)) * 2.0
+>>> z = dot(x, y)
+>>>
+>>> z.shape
+(40, 10, 30)
+>>> jnp.allclose(z, 1.0 * 2.0 * n)
+Array(True, dtype=bool)
 
-
-def dot(x: Num[Array, "*batch n"], y: Num[Array, "*batch n"]) -> Num[Array, " *batch"]:
-    return jnp.sum(x * y, axis=-1)
-
-
-*batch, n = 40, 10, 30, 3  # batch = (40, 10, 30), n = 3
-
-x = jnp.ones((*batch, n)) * 1.0
-y = jnp.ones((*batch, n)) * 2.0
-z = dot(x, y)
-
-assert z.shape == batch
-assert jnp.all_close(z, 1.0 * 2.0 * n)
 ```
 
 That is, the resulting output will have a shape of `*batch`,

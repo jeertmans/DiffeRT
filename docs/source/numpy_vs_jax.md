@@ -48,10 +48,17 @@ Going from one array type to another is pretty simple thanks
 to {func}`jnp.asarray<jax.numpy.asarray>` and {func}`np.asarray<numpy.asarray>`:
 
 ```python
-import jax.numpy as jnp
-import numpy as np
+>>> import jax.numpy as jnp
+>>> import numpy as np
+>>> 
+>>> jax_array = jnp.zeros(10)
+>>> jax_array
+Array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float32)
+>>> numpy_array = np.asarray(jax_array)
+>>> numpy_array
+array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float32)
+>>> jax_array_back = jnp.asarray(numpy_array)
+>>> jax_array_back
+Array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float32)
 
-jax_array = jnp.zeros(10)
-numpy_array = np.asarray(jax_array)
-jax_array_back = jnp.adarray(numpy_array)
 ```
