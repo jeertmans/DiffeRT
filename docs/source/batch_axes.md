@@ -45,7 +45,7 @@ between batch of arrays:
 >>>
 >>>
 >>> *batch, n = 40, 10, 30, 3  # batch = (40, 10, 30), n = 3
->>> 
+>>>
 >>> x = jnp.ones((*batch, n)) * 1.0
 >>> y = jnp.ones((*batch, n)) * 2.0
 >>> z = dot(x, y)

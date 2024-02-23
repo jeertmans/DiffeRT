@@ -50,7 +50,7 @@ to {func}`jnp.asarray<jax.numpy.asarray>` and {func}`np.asarray<numpy.asarray>`:
 ```python
 >>> import jax.numpy as jnp
 >>> import numpy as np
->>> 
+>>>
 >>> jax_array = jnp.zeros(10)
 >>> jax_array
 Array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float32)
