@@ -122,6 +122,7 @@ html_theme_options = {
 }
 
 html_logo = "_static/logo_250px.png"
+html_favicon = "_static/favicon.png"
 
 autosummary_generate = True
 napolean_use_rtype = False
