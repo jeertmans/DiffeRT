@@ -55,21 +55,7 @@ pdm install
 
 ### Documentation
 
-To generate the documentation, you first need to install an IPython kernel named
-`DiffeRT`:
-
-```bash
-pdm run ipython kernel install --user --name=DiffeRT
-```
-
-If you want to use another name for your kernel, please also modify the
-name in [`docs/source/conf.py`](docs/source/conf.py):
-
-```python
-nb_kernel_rgx_aliases = {".*": "DiffeRT"}
-```
-
-Then, you can build the docs with:
+To generate the documentation, please run the following:
 
 ```bash
 cd docs

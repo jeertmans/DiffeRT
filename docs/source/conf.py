@@ -80,7 +80,6 @@ always_document_param_types = True
 # -- MyST-nb settings
 myst_heading_anchors = 3
 
-nb_kernel_rgx_aliases = {".*": "DiffeRT"}  # TODO: do not require specific kernel name
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
