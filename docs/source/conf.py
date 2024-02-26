@@ -80,7 +80,6 @@ always_document_param_types = True
 # -- MyST-nb settings
 myst_heading_anchors = 3
 
-nb_kernel_rgx_aliases = {".*": "DiffeRT"}  # TODO: do not require specific kernel name
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
@@ -122,6 +121,7 @@ html_theme_options = {
 }
 
 html_logo = "_static/logo_250px.png"
+html_favicon = "_static/favicon.png"
 
 autosummary_generate = True
 napolean_use_rtype = False
