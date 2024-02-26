@@ -236,7 +236,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
         mirror_normals: An array of mirror normals, where each normal has a unit
-            length and if perpendicular to the corresponding mirror.
+            length and is perpendicular to the corresponding mirror.
 
     Return:
         A boolean array indicating whether pairs of consecutive vertices

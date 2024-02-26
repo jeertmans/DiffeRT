@@ -40,7 +40,13 @@ def fermat_path_on_planar_mirrors(
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
         mirror_normals: An array of mirror normals, where each normal has a unit
-            length and if perpendicular to the corresponding mirror.
+            length and is perpendicular to the corresponding mirror.
+
+            .. note::
+
+                Unlike with the Image method, the normals do not actually have to
+                be unit vectors. However, we keep the same documentation so it is
+                easier for the user to move from one method to the other.
         kwargs: Keyword arguments passed to
             :py:func:`minimize<differt.utils.minimize>`.
 

@@ -126,8 +126,9 @@ pub mod complete {
         /// .. note::
         ///
         ///     Unlike for :py:class:`DiGraph`'s iterators, ``from_`` and
-        ///     ``to`` nodes may part of the graph (i.e., ``node_id >=
-        ///     num_nodes``). This is especially useful to generate all
+        ///     ``to`` nodes do not need to be part of the graph
+        ///     (i.e., ``node_id >= num_nodes``).
+        ///     This is especially useful to generate all
         ///     paths from ``from_`` to ``to``, where ``from_`` and
         ///     ``to`` will only ever appear in the first and last
         ///     position, respectively.
