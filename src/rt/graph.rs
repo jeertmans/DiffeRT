@@ -1,3 +1,5 @@
+#![allow(unknown_lints, non_local_definitions)]
+
 use std::collections::VecDeque;
 
 use numpy::{
