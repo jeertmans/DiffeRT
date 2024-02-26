@@ -137,7 +137,6 @@ filterwarnings = [
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
-target-version = "py39"
 
 [tool.ruff.format]
 docstring-code-format = true

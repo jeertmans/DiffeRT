@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.geometry.utils import pairwise_cross
+from differt.geometry.utils import normalize, orthogonal_basis, pairwise_cross
 
 from ..utils import random_inputs
 
@@ -38,3 +38,48 @@ def test_pairwise_cross_random_inputs(
             for j in range(v.shape[0]):
                 expected = jnp.cross(u[i, :], v[j, :])
                 chex.assert_trees_all_equal(got[i, j], expected)
+
+
+@pytest.mark.parametrize(
+    "u,expectation",
+    [
+        ((10, 3), does_not_raise()),
+        ((20, 10, 3), does_not_raise()),
+        ((10, 4), pytest.raises(TypeError)),
+    ],
+)
+@random_inputs("u")
+def test_normalize_random_inputs(
+    u: Array, expectation: AbstractContextManager[Exception]
+) -> None:
+    with expectation:
+        nu, lu = normalize(u)
+
+        chex.assert_trees_all_close(u, nu * lu[..., None])
+
+
+@pytest.mark.parametrize(
+    "u",
+    (
+        jnp.array([1.0, 0.0, 0.0]),
+        jnp.array([0.0, 1.0, 0.0]),
+        jnp.array([0.0, 0.0, 1.0]),
+        jnp.array([1.0, 1.0, 1.0]),
+        jnp.arange(30.0).reshape(2, 5, 3),
+    ),
+)
+def test_orthogonal_basis(u: Array) -> None:
+    u, _ = normalize(u)
+    v, w = orthogonal_basis(u)
+
+    for vec in [v, w]:
+        # Vectors should be perpendicular
+        dot = jnp.sum(u * vec, axis=-1)
+        chex.assert_trees_all_close(dot, 0.0, atol=1e-7)
+        # Vectors should have unit length
+        _, length = normalize(vec)
+        chex.assert_trees_all_close(length, 1.0)
+
+    # Vectors should be perpendicular
+    dot = jnp.sum(u * v, axis=-1)
+    chex.assert_trees_all_close(dot, 0.0, atol=1e-7)

@@ -236,7 +236,7 @@ def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
     Args:
         canvas: The canvas that draws the contents of the scene.
 
-    Returns:
+    Return:
         The view on which contents are displayed.
     """
     from vispy.scene.widgets.viewbox import ViewBox
@@ -287,7 +287,7 @@ def process_vispy_kwargs(
         must ensure that ``view in canvas.central_widget.children``
         evaluates to :py:data:`True`.
 
-    Returns:
+    Return:
         The canvas and view used to display contents.
     """
     from vispy import scene
@@ -332,7 +332,7 @@ def process_matplotlib_kwargs(
         must ensure that ``ax in figure.axes``
         evaluates to :py:data:`True`.
 
-    Returns:
+    Return:
         The figure and axes used to display contents.
     """
     import matplotlib.pyplot as plt
@@ -378,7 +378,7 @@ def process_plotly_kwargs(
         figure (:py:class:`Figure<plotly.graph_objects.Figure>`):
             The figure that draws contents of the scene.
 
-    Returns:
+    Return:
         The figure used to display contents.
     """
     import plotly.graph_objects as go

@@ -38,7 +38,7 @@ def draw_mesh(
             or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
 
-    Returns:
+    Return:
         The resulting plot output.
     """
 
@@ -102,7 +102,7 @@ def draw_paths(
             or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
-    Returns:
+    Return:
         The resulting plot output.
     """
 
@@ -165,7 +165,7 @@ def draw_markers(
             or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
-    Returns:
+    Return:
         The resulting plot output.
 
     Warning:

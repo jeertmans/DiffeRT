@@ -37,11 +37,11 @@ from .. import _core
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates(
     num_primitives: int, order: int
-) -> UInt[Array, "order num_candidates"]:
+) -> UInt[Array, "num_candidates order"]:
     """
     Generate an array of all path candidates for fixed path order and a number of primitives.
 
-    The returned array contains, for each column, an array of
+    The returned array contains, for each row, an array of
     ``order`` indices indicating the primitive with which the path interacts.
 
     This list is generated as the list of all paths from one node to
@@ -54,7 +54,7 @@ def generate_all_path_candidates(
         num_primitives: The (positive) number of primitives.
         order: The path order. An order less than one returns an empty array.
 
-    Returns:
+    Return:
         An unsigned array with primitive indices on each columns. Its number of
         columns is actually equal to
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
@@ -75,7 +75,7 @@ def generate_all_path_candidates_iter(
         num_primitives: The (positive) number of primitives.
         order: The path order.
 
-    Returns:
+    Return:
         An iterator of unsigned arrays with primitive indices.
     """
     return map(
@@ -87,7 +87,7 @@ def generate_all_path_candidates_iter(
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int, order: int, chunk_size: int = 1000
-) -> Iterator[UInt[Array, "order chunk_size"]]:
+) -> Iterator[UInt[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -96,11 +96,11 @@ def generate_all_path_candidates_chunks_iter(
         order: The path order.
         chunk_size: The size of each chunk.
 
-    Returns:
+    Return:
         An iterator of unsigned arrays with primitive indices.
     """
     return map(
-        lambda arr: jnp.asarray(arr).T,
+        jnp.asarray,
         _core.rt.utils.generate_all_path_candidates_chunks_iter(
             num_primitives, order, chunk_size
         ),
@@ -133,7 +133,7 @@ def rays_intersect_triangles(
             triangle edges, a very common case if geometries are planes
             split into multiple triangles.
 
-    Returns:
+    Return:
         For each ray, return the scale factor of ``ray_directions`` for the
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.

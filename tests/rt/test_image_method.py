@@ -125,21 +125,27 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
         [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]]
     )
     # Tile on batch size
-    axis = tuple(range(1, len(batch_size) + 1))
+    axis = tuple(range(0, len(batch_size)))
     from_vertices = jnp.tile(from_vertex, (*batch_size, 1))
+    assert from_vertices.shape == (*batch_size, 3)
     to_vertices = jnp.tile(to_vertex, (*batch_size, 1))
+    assert to_vertices.shape == (*batch_size, 3)
     mirror_vertices = jnp.tile(
-        jnp.expand_dims(mirror_vertices, axis), (1, *batch_size, 1)
+        jnp.expand_dims(mirror_vertices, axis), (*batch_size, 1, 1)
     )
+    assert mirror_vertices.shape == (*batch_size, 3, 3)
     mirror_normals = jnp.tile(
-        jnp.expand_dims(mirror_normals, axis), (1, *batch_size, 1)
+        jnp.expand_dims(mirror_normals, axis), (*batch_size, 1, 1)
     )
-    expected = jnp.tile(jnp.expand_dims(expected, axis), (1, *batch_size, 1))
+    assert mirror_normals.shape == (*batch_size, 3, 3)
+    expected = jnp.tile(jnp.expand_dims(expected, axis), (*batch_size, 1, 1))
+    assert expected.shape == (*batch_size, 3, 3)
     got = image_method(from_vertices, to_vertices, mirror_vertices, mirror_normals)
     chex.assert_trees_all_close(got, expected)
 
     _ = jnp.concatenate(
-        (from_vertices[None, ...], got, to_vertices[None, ...])
+        (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+        axis=-2,
     )  # Check we can concatenate
 
 
@@ -147,8 +153,8 @@ def test_image_method(batch_size: tuple[int, ...]) -> None:
     ("vertices,mirror_vertices,mirror_normals,expectation"),
     [
         ((12, 3), (10, 3), (10, 3), does_not_raise()),
-        ((12, 4, 3), (10, 4, 3), (10, 4, 3), does_not_raise()),
-        ((12, 6, 7, 3), (10, 6, 7, 3), (10, 6, 7, 3), does_not_raise()),
+        ((4, 12, 3), (4, 10, 3), (4, 10, 3), does_not_raise()),
+        ((6, 7, 12, 3), (6, 7, 10, 3), (6, 7, 10, 3), does_not_raise()),
         (
             (12, 3),
             (10, 3),

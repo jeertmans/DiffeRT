@@ -80,6 +80,10 @@ always_document_param_types = True
 # -- MyST-nb settings
 myst_heading_anchors = 3
 
+myst_enable_extensions = [
+    "dollarmath",
+]
+
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot

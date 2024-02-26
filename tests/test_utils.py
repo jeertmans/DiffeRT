@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.utils import sorted_array2
+from differt.utils import minimize, sorted_array2
 
 
 @pytest.mark.parametrize(
@@ -46,3 +46,24 @@ def test_sorted_array2(array: Array, expected: Array) -> None:
     got = sorted_array2(array)
 
     chex.assert_trees_all_close(got, expected)
+
+
+def test_minimize() -> None:
+    def fun(x: Array, a: Array, b: Array, c: Array) -> Array:
+        return (x[..., 0] - a) ** 2.0 + (x[..., 1] - b) ** 2.0 + c
+
+    a = jnp.array([0.0, 1.0, 2.0])
+    b = jnp.array([3.0, 4.0, 5.0, 6.0])
+    c = jnp.array([7.0, 8.0])
+
+    a, b, c = jnp.meshgrid(a, b, c)
+    x0 = jnp.zeros((*a.shape, 2))
+
+    got_x, got_loss = minimize(fun, x0, fun_args=(a, b, c), steps=1000)
+
+    expected_x = jnp.stack((a, b), axis=-1)
+
+    chex.assert_trees_all_close(fun(expected_x, a, b, c), c)
+
+    chex.assert_trees_all_close(got_x, expected_x)
+    chex.assert_trees_all_close(got_loss, c)
