@@ -12,16 +12,17 @@ import jax.numpy as jnp
 from jaxtyping import Array, Float, jaxtyped
 from typeguard import typechecked as typechecker
 
+from ..geometry.utils import orthogonal_basis
 from ..utils import minimize
 
 
 @jaxtyped(typechecker=typechecker)
-def fermat_path_on_planar_surfaces(
+def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "num_mirrors *batch 3"],
-    mirror_normals: Float[Array, "num_mirrors *batch 3"],
-) -> Float[Array, "num_mirrors *batch 3"]:
+    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
+    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
 
@@ -50,7 +51,7 @@ def fermat_path_on_planar_surfaces(
 
         .. code-block:: python
 
-            paths = fermat_path_on_planar_surfaces(
+            paths = fermat_path_on_planar_mirrors(
                 from_vertices,
                 to_vertices,
                 mirror_vertices,
@@ -62,25 +63,50 @@ def fermat_path_on_planar_surfaces(
                 axis=-2,
             )
     """
-    num_mirrors, *batch, _ = mirror_vertices.shape
+    *batch, num_mirrors, _ = mirror_vertices.shape
     num_unknowns = 2 * num_mirrors
-    mirror_directions_1 = ...
-    mirror_directions_2 = ...
 
-    def parametric_to_cartesian(t, origins, directions_1, directions_2):
-        return origins + directions_1 * t[..., 0::2] + directions_2 * t[..., 1::2]
+    print(f"{mirror_vertices.shape = }")
 
-    def loss(st, o, d1, d2):
-        s = st[..., 0::2]
-        t = st[..., 1::2]
-        xyz = o + d1 * s + d2 * t
-        vectors = jnp.diff(xyz, axis=-1)
+    if num_mirrors == 0:
+        return jnp.zeros_like(mirror_vertices)
+
+    mirror_directions_1, mirror_directions_2 = orthogonal_basis(mirror_normals)
+
+    def st_to_xyz(st, o, d1, d2):
+        s = st[..., 0::2, None]
+        t = st[..., 1::2, None]
+        return o + d1 * s + d2 * t
+
+    def loss(st, o, d1, d2, from_, to):
+        print(
+            f"Loss f with {st.shape = },  {o.shape = },  {d1.shape = },  {d2.shape = }"
+        )
+        xyz = st_to_xyz(st, o, d1, d2)
+        paths = jnp.concatenate(
+            (jnp.expand_dims(from_, axis=-2), xyz, jnp.expand_dims(to, axis=-2)),
+            axis=-2,
+        )
+        print(f"{paths.shape = }")
+        vectors = jnp.diff(paths, axis=-2)
+        print(f"{vectors.shape = }")
         lengths = jnp.linalg.norm(vectors, axis=-1)
+        print(f"{lengths.shape = }")
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, _ = minimize(
-        loss, st0, fun_args=(mirror_vertices, mirror_directions_1, mirror_directions_2)
+    st, losses = minimize(
+        loss,
+        st0,
+        fun_args=(
+            mirror_vertices,
+            mirror_directions_1,
+            mirror_directions_2,
+            from_vertices,
+            to_vertices,
+        ),
     )
 
-    return st
+    print(losses)
+
+    return st_to_xyz(st, mirror_vertices, mirror_directions_1, mirror_directions_2)
