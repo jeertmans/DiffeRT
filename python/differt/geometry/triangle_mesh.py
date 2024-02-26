@@ -1,6 +1,5 @@
 """Mesh geometry made of triangles and utilities."""
 from functools import cached_property
-from pathlib import Path
 from typing import Any
 
 import equinox as eqx
@@ -134,7 +133,7 @@ class TriangleMesh(eqx.Module):
         raise NotImplementedError
 
     @classmethod
-    def load_obj(cls, file: Path) -> "TriangleMesh":
+    def load_obj(cls, file: str) -> "TriangleMesh":
         """
         Load a triangle mesh from a Wavefront .obj file.
 
@@ -149,7 +148,7 @@ class TriangleMesh(eqx.Module):
         Return:
             The corresponding mesh containing only triangles.
         """
-        mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(str(file))
+        mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
         return cls(
             vertices=mesh.vertices,
             triangles=mesh.triangles,

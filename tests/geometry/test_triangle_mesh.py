@@ -18,12 +18,17 @@ from ..utils import random_inputs
 
 
 @pytest.fixture(scope="module")
-def two_buildings_obj_file() -> Iterator[Path]:
-    yield Path(__file__).parent.joinpath("two_buildings.obj").resolve(strict=True)
+def two_buildings_obj_file() -> Iterator[str]:
+    yield (
+        Path(__file__)
+        .parent.joinpath("two_buildings.obj")
+        .resolve(strict=True)
+        .as_posix()
+    )
 
 
 @pytest.fixture(scope="module")
-def two_buildings_mesh(two_buildings_obj_file: Path) -> Iterator[TriangleMesh]:
+def two_buildings_mesh(two_buildings_obj_file: str) -> Iterator[TriangleMesh]:
     yield TriangleMesh.load_obj(two_buildings_obj_file)
 
 
@@ -105,16 +110,16 @@ class TestTriangleMesh:
         with pytest.raises(jaxtyping.TypeCheckError):
             _ = TriangleMesh(vertices=vertices, triangles=triangles)
 
-    def test_load_obj(self, two_buildings_obj_file: Path) -> None:
+    def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
 
     def test_compare_with_open3d(
-        self, two_buildings_obj_file: Path, two_buildings_mesh: TriangleMesh
+        self, two_buildings_obj_file: str, two_buildings_mesh: TriangleMesh
     ) -> None:
         o3d = pytest.importorskip("open3d")
         mesh = o3d.io.read_triangle_mesh(
-            str(two_buildings_obj_file)
+            two_buildings_obj_file
         ).compute_triangle_normals()
 
         got_triangles = two_buildings_mesh.triangles

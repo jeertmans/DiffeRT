@@ -91,7 +91,7 @@ def minimize(
     x0: Num[Array, "*batch n"],
     fun_args: tuple = (),
     fun_kwargs: Optional[dict[str, Any]] = None,
-    steps: int = 100,
+    steps: int = 1000,
     optimizer: Optional[optax.GradientTransformation] = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
     """
