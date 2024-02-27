@@ -7,7 +7,7 @@ nalgebra = "0.32.3"
 ndarray = {version = "0.15", features = ["rayon"]}
 numpy = "0.20"
 obj-rs = "0.7.1"
-pyo3 = "0.20"
+pyo3 = "0.20,<=0.20.2"
 
 [dev-dependencies]
 criterion = "0.5.1"

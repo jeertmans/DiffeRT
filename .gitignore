@@ -3,7 +3,6 @@
 *.pyc
 *.so
 
-Cargo.lock
 dist/
 target/
 

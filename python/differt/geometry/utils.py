@@ -44,7 +44,7 @@ def normalize(
         >>>
         >>> vector = jnp.array([1.0, 1.0, 1.0])
         >>> normalize(vector)  # [1., 1., 1.] / sqrt(3), sqrt(3)
-        (Array([0.57735026, 0.57735026, 0.57735026], dtype=float32),
+        (Array([0.5773503, 0.5773503, 0.5773503], dtype=float32),
          Array(1.7320508, dtype=float32))
         >>> zero = jnp.array([0.0, 0.0, 0.0])
         >>> normalize(zero)  # Special behavior at 0.
@@ -87,8 +87,8 @@ def orthogonal_basis(
         (Array([ 0., -1.,  0.], dtype=float32), Array([ 0.,  0., -1.], dtype=float32))
         >>> u, _ = normalize(jnp.array([1.0, 1.0, 1.0]))
         >>> orthogonal_basis(u)
-        (Array([ 0.40824828, -0.81649655,  0.40824828], dtype=float32),
-         Array([ 7.0710677e-01,  8.3821083e-09, -7.0710677e-01], dtype=float32))
+        (Array([ 0.4082483, -0.8164966,  0.4082483], dtype=float32),
+         Array([ 0.7071068,  0.       , -0.7071068], dtype=float32))
     """
     vp = jnp.stack((u[..., 2], -u[..., 0], u[..., 1]), axis=-1)
     w = jnp.cross(u, vp, axis=-1)
