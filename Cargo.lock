@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "_core"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "criterion",
  "nalgebra",
