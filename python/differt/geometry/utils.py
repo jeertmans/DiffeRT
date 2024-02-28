@@ -1,7 +1,7 @@
 """Utilities for working with 3D geometries."""
 import jax.numpy as jnp
+from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
-from typeguard import typechecked as typechecker
 
 
 @jaxtyped(typechecker=typechecker)

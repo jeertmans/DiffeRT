@@ -1,19 +1,23 @@
 """General purpose utilities."""
 import sys
-from typing import Callable, Optional
+from collections.abc import Iterable, Mapping
+from typing import Any, Callable, Optional, Union
 
+import chex
 import jax
 import jax.numpy as jnp
 import optax
+from beartype import beartype as typechecker
 from jaxtyping import Array, Num, Shaped, jaxtyped
-from typeguard import typechecked as typechecker
 
-if sys.version_info >= (3, 10):
-    from typing import Concatenate, ParamSpec
+if sys.version_info >= (3, 11):
+    from typing import TypeVarTuple, Unpack
 else:
-    from typing_extensions import Concatenate, ParamSpec
+    from typing_extensions import TypeVarTuple, Unpack
 
-P = ParamSpec("P")
+# Redefined here, because chex uses deprecated type hints
+OptState = Union[chex.Array, Iterable["OptState"], Mapping[Any, "OptState"]]
+Ts = TypeVarTuple("Ts")
 
 
 @jaxtyped(typechecker=typechecker)
@@ -84,12 +88,12 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     return array[jnp.lexsort(array.T[::-1])]  # type: ignore
 
 
-# Cannot type check because jaxtyping fails with fun
+# Beartype does not support TypeVarTuple at the moment
 @jaxtyped(typechecker=None)
 def minimize(
-    fun: Callable[Concatenate[Num[Array, "*batch n"], P], Num[Array, " *batch"]],
+    fun: Callable[[Num[Array, "*batch n"], *Ts], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
-    args: tuple = (),
+    args: tuple[Unpack[Ts]] = (),
     steps: int = 1000,
     optimizer: Optional[optax.GradientTransformation] = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
@@ -199,11 +203,10 @@ def minimize(
 
     opt_state = optimizer.init(x0)
 
-    # Cannot type check because jaxtyping fails with optax.OptState
-    @jaxtyped(typechecker=None)
+    @jaxtyped(typechecker=typechecker)
     def f(
-        carry: tuple[Num[Array, "*batch n"], optax.OptState], _: None
-    ) -> tuple[tuple[Num[Array, "*batch n"], optax.OptState], Num[Array, " *batch"]]:
+        carry: tuple[Num[Array, "*batch n"], OptState], _: None
+    ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)

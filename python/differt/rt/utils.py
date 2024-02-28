@@ -28,8 +28,8 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 from collections.abc import Iterator
 
 import jax.numpy as jnp
+from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
-from typeguard import typechecked as typechecker
 
 from .. import _core
 

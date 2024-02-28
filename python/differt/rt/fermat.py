@@ -11,8 +11,8 @@ As a result, this module offers minimization methods for finding ray paths.
 from typing import Any
 
 import jax.numpy as jnp
+from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
-from typeguard import typechecked as typechecker
 
 from ..geometry.utils import orthogonal_basis
 from ..utils import minimize
