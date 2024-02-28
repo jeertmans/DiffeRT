@@ -27,6 +27,7 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 from collections.abc import Iterator
 
+import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
@@ -108,6 +109,7 @@ def generate_all_path_candidates_chunks_iter(
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],

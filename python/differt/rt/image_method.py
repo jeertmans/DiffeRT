@@ -21,6 +21,7 @@ from jaxtyping import Array, Bool, Float, jaxtyped
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*batch 3"],
     mirror_vertices: Float[Array, "*batch 3"],
@@ -87,6 +88,7 @@ def image_of_vertices_with_respect_to_mirrors(
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def intersection_of_line_segments_with_planes(
     segment_starts: Float[Array, "*batch 3"],
     segment_ends: Float[Array, "*batch 3"],
@@ -124,6 +126,7 @@ def intersection_of_line_segments_with_planes(
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
@@ -218,6 +221,7 @@ def image_method(
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "*batch num_vertices 3"],
     mirror_vertices: Float[Array, "*batch num_mirrors 3"],

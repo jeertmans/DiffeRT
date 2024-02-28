@@ -1,6 +1,7 @@
 """General purpose utilities."""
 import sys
 from collections.abc import Iterable, Mapping
+from functools import partial
 from typing import Any, Callable, Optional, Union
 
 import chex
@@ -21,6 +22,7 @@ Ts = TypeVarTuple("Ts")
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     """
     Sort a 2D array by row and (then) by column.
@@ -90,6 +92,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 
 # Beartype does not support TypeVarTuple at the moment
 @jaxtyped(typechecker=None)
+@partial(jax.jit, static_argnames=("fun", "steps", "optimizer"))
 def minimize(
     fun: Callable[[Num[Array, "*batch n"], *Ts], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
@@ -153,6 +156,13 @@ def minimize(
         >>> # It is also possible to pass positional arguments
         >>> x, y = minimize(f, jnp.zeros(10), args=(2.0,))
         >>> chex.assert_trees_all_close(x, 2.0 * jnp.ones(10), rtol=1e-2)
+        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
+        >>>
+        >>> # You can also change the optimizer and the number of steps
+        >>> import optax
+        >>> optimizer = optax.noisy_sgd(learning_rate=0.003)
+        >>> x, y = minimize(f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer)
+        >>> chex.assert_trees_all_close(x, 4.0 * jnp.ones(5), rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
 
         This example shows how you can minimize on a batch of arrays.

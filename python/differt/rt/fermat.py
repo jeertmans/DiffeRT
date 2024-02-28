@@ -8,8 +8,10 @@ this means that the path of least time is also the path of last distance.
 
 As a result, this module offers minimization methods for finding ray paths.
 """
+from functools import partial
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
@@ -19,6 +21,7 @@ from ..utils import minimize
 
 
 @jaxtyped(typechecker=typechecker)
+@partial(jax.jit, static_argnames=("steps", "optimizer"))
 def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],

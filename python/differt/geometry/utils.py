@@ -1,10 +1,14 @@
 """Utilities for working with 3D geometries."""
+from functools import partial
+
+import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def pairwise_cross(
     u: Float[Array, "m 3"], v: Float[Array, "n 3"]
 ) -> Float[Array, "m n 3"]:
@@ -22,6 +26,7 @@ def pairwise_cross(
 
 
 @jaxtyped(typechecker=typechecker)
+@jax.jit
 def normalize(
     vector: Float[Array, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]:
@@ -57,6 +62,7 @@ def normalize(
 
 
 @jaxtyped(typechecker=typechecker)
+@partial(jax.jit, static_argnames=("normalize",))
 def orthogonal_basis(
     u: Float[Array, "*batch 3"], normalize: bool = True
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
