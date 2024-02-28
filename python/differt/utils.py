@@ -1,6 +1,6 @@
 """General purpose utilities."""
 import sys
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import jax
 import jax.numpy as jnp
@@ -89,19 +89,42 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 def minimize(
     fun: Callable[Concatenate[Num[Array, "*batch n"], P], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
-    fun_args: tuple = (),
-    fun_kwargs: Optional[dict[str, Any]] = None,
+    args: tuple = (),
     steps: int = 1000,
     optimizer: Optional[optax.GradientTransformation] = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
     """
     Minimize a scalar function of one or more variables.
 
+    The minimization is achieved by computing the
+    gradient of the objective function, and performing
+    a fixed (i.e., ``step``) number of iterations.
+
     Args:
         fun: The objective function to be minimized.
         x0: The initial guess.
-        fun_args: Positional arguments to be passed to ``fun``.
-        fun_kwargs: Keyword arguments to be passed to ``fun``.
+        args: Positional arguments passed to ``fun``.
+
+            .. note::
+
+                Those argument are also expected have
+                batch dimensions similar to ``x0``.
+
+                If your function has static arguments,
+                please wrap the function with :func:`functools.partial`:
+
+                .. code-block:: python
+
+                    fun_p = partial(fun, static_arg=static_value)
+
+                If your function has keyword-only
+                arguments, create a wrapper function that
+                maps positional arguments to keyword only arguments:
+
+                .. code-block:: python
+
+                    fun_p = lambda x, kw_only_value: fun(x, kw_only_arg=kw_only_value)
+
         steps: The number of steps to perform.
         optimizer: The optimizer to use. If not provided,
             uses :func:`optax.adam` with a learning rate of ``0.1``.
@@ -124,17 +147,12 @@ def minimize(
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
         >>>
         >>> # It is also possible to pass positional arguments
-        >>> x, y = minimize(f, jnp.zeros(10), fun_args=(2.0,))
+        >>> x, y = minimize(f, jnp.zeros(10), args=(2.0,))
         >>> chex.assert_trees_all_close(x, 2.0 * jnp.ones(10), rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
-        >>>
-        >>> # Or even keyword arguments
-        >>> x, y = minimize(f, jnp.zeros(10), fun_kwargs=dict(offset=3.0))
-        >>> chex.assert_trees_all_close(x, 3.0 * jnp.ones(10), rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
 
         This example shows how you can minimize on a batch of arrays.
-        Each signature of the objective function is ``(*batch, n) -> (*batch)``,
+        The signature of the objective function is ``(*batch, n) -> (*batch)``,
         where each batch is minimized independently.
 
         >>> from differt.utils import minimize
@@ -150,11 +168,28 @@ def minimize(
         ...     return jnp.sum(x * x, axis=-1)
         >>>
         >>> x0 = jnp.zeros((*batch, n))
-        >>> x, y = minimize(f, x0, fun_args=(offset,), steps=1000)
+        >>> x, y = minimize(f, x0, args=(offset,), steps=1000)
         >>> chex.assert_trees_all_close(x, offset / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
+        >>>
+        >>> # By default, arguments are expected to have batch
+        >>> # dimensions like `x0`, so `offset` cannot be a static
+        >>> # value (i.e., float):
+        >>> offset = 10.0
+        >>> x, y = minimize(
+        ...     f, x0, args=(offset,), steps=1000
+        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        ValueError: vmap was requested to map its arguments along axis 0, ...
+        >>>
+        >>> # For static arguments, use functools.partial
+        >>> from functools import partial
+        >>>
+        >>> fp = partial(f, offset=offset)
+        >>> x, y = minimize(fp, x0, steps=1000)
+        >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
+        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
-    fun_kwargs = fun_kwargs if fun_kwargs else {}
     optimizer = optimizer if optimizer else optax.adam(learning_rate=0.1)
 
     f_and_df = jax.value_and_grad(fun)
@@ -170,7 +205,7 @@ def minimize(
         carry: tuple[Num[Array, "*batch n"], optax.OptState], _: None
     ) -> tuple[tuple[Num[Array, "*batch n"], optax.OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
-        loss, grads = f_and_df(x, *fun_args, **fun_kwargs)
+        loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)
         x = x + updates
         carry = (x, opt_state)

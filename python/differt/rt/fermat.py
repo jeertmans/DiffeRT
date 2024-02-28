@@ -112,7 +112,7 @@ def fermat_path_on_planar_mirrors(
     st, losses = minimize(
         loss,
         st0,
-        fun_args=(
+        args=(
             mirror_vertices,
             mirror_directions_1,
             mirror_directions_2,
