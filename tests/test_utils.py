@@ -59,7 +59,7 @@ def test_minimize() -> None:
     a, b, c = jnp.meshgrid(a, b, c)
     x0 = jnp.zeros((*a.shape, 2))
 
-    got_x, got_loss = minimize(fun, x0, fun_args=(a, b, c), steps=1000)
+    got_x, got_loss = minimize(fun, x0, args=(a, b, c), steps=1000)
 
     expected_x = jnp.stack((a, b), axis=-1)
 

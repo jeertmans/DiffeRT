@@ -16,8 +16,8 @@ of incidence and of reflection.
 import chex
 import jax
 import jax.numpy as jnp
+from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, jaxtyped
-from typeguard import typechecked as typechecker
 
 
 @jaxtyped(typechecker=typechecker)

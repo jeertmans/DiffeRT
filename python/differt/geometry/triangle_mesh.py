@@ -5,8 +5,8 @@ from typing import Any
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
+from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
-from typeguard import typechecked as typechecker
 
 from .. import _core
 from ..plotting import draw_mesh

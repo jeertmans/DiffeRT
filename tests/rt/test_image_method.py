@@ -15,6 +15,7 @@ from differt.rt.image_method import (
 )
 
 from ..utils import random_inputs
+from .utils import PlanarMirrorsSetup
 
 
 def test_image_of_vertices_with_respect_to_mirrors() -> None:
@@ -92,7 +93,7 @@ def test_intersection_of_line_segments_with_planes() -> None:
 
 
 @pytest.mark.parametrize(
-    "batch_size",
+    "batch",
     [
         (),
         (10,),
@@ -103,50 +104,15 @@ def test_intersection_of_line_segments_with_planes() -> None:
         ),
     ],
 )
-def test_image_method(batch_size: tuple[int, ...]) -> None:
-    """
-    Test a setup that looks something like:
-
-                1           3
-             ───────     ───────
-           0                     4
-    (from) x                     x (to)
-
-                   ───────
-                      2
-
-    where xs are starting and ending vertices, and '───────' are mirrors.
-    """
-    from_vertex = jnp.array([0.0, 0.0, 0.0])
-    to_vertex = jnp.array([1.0, 0.0, 0.0])
-    mirror_vertices = jnp.array([[0.0, +1.0, 0.0], [0.0, -1.0, 0.0], [0.0, +1.0, 0.0]])
-    mirror_normals = jnp.array([[0.0, -1.0, 0.0], [0.0, +1.0, 0.0], [0.0, -1.0, 0.0]])
-    expected = jnp.array(
-        [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]]
+def test_image_method(batch: tuple[int, ...]) -> None:
+    setup = PlanarMirrorsSetup(*batch)
+    got = image_method(
+        setup.from_vertices,
+        setup.to_vertices,
+        setup.mirror_vertices,
+        setup.mirror_normals,
     )
-    # Tile on batch size
-    axis = tuple(range(0, len(batch_size)))
-    from_vertices = jnp.tile(from_vertex, (*batch_size, 1))
-    assert from_vertices.shape == (*batch_size, 3)
-    to_vertices = jnp.tile(to_vertex, (*batch_size, 1))
-    assert to_vertices.shape == (*batch_size, 3)
-    mirror_vertices = jnp.tile(
-        jnp.expand_dims(mirror_vertices, axis), (*batch_size, 1, 1)
-    )
-    assert mirror_vertices.shape == (*batch_size, 3, 3)
-    mirror_normals = jnp.tile(
-        jnp.expand_dims(mirror_normals, axis), (*batch_size, 1, 1)
-    )
-    assert mirror_normals.shape == (*batch_size, 3, 3)
-    expected = jnp.tile(jnp.expand_dims(expected, axis), (*batch_size, 1, 1))
-    assert expected.shape == (*batch_size, 3, 3)
-    got = image_method(from_vertices, to_vertices, mirror_vertices, mirror_normals)
-    chex.assert_trees_all_close(got, expected)
-
-    _ = jnp.concatenate(
-        (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
-        axis=-2,
-    )  # Check we can concatenate
+    chex.assert_trees_all_close(got, setup.paths)
 
 
 @pytest.mark.parametrize(

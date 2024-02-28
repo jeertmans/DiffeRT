@@ -156,7 +156,7 @@ def draw_markers(
         markers: The array of marker vertices.
         labels: The marker labels.
         text_kwargs: A mapping of keyword arguments
-            to be passed to :py:class:`Text<vispy.scene.visuals.Text>`
+            passed to :py:class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
             By default, ``font_sise=1000`` is used.

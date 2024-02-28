@@ -11,8 +11,8 @@ As a result, this module offers minimization methods for finding ray paths.
 from typing import Any
 
 import jax.numpy as jnp
+from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
-from typeguard import typechecked as typechecker
 
 from ..geometry.utils import orthogonal_basis
 from ..utils import minimize
@@ -112,7 +112,7 @@ def fermat_path_on_planar_mirrors(
     st, losses = minimize(
         loss,
         st0,
-        fun_args=(
+        args=(
             mirror_vertices,
             mirror_directions_1,
             mirror_directions_2,
