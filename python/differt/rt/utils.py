@@ -108,8 +108,8 @@ def generate_all_path_candidates_chunks_iter(
     )
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],

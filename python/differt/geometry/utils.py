@@ -7,8 +7,8 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def pairwise_cross(
     u: Float[Array, "m 3"], v: Float[Array, "n 3"]
 ) -> Float[Array, "m n 3"]:
@@ -25,8 +25,8 @@ def pairwise_cross(
     return jnp.cross(u[:, None, :], v[None, :, :])
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def normalize(
     vector: Float[Array, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]:
@@ -61,8 +61,8 @@ def normalize(
     return vector / length, jnp.squeeze(length, axis=-1)
 
 
-@jaxtyped(typechecker=typechecker)
 @partial(jax.jit, static_argnames=("normalize",))
+@jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
     u: Float[Array, "*batch 3"], normalize: bool = True
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:

@@ -21,8 +21,8 @@ OptState = Union[chex.Array, Iterable["OptState"], Mapping[Any, "OptState"]]
 Ts = TypeVarTuple("Ts")
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     """
     Sort a 2D array by row and (then) by column.
@@ -91,8 +91,8 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 
 
 # Beartype does not support TypeVarTuple at the moment
-@jaxtyped(typechecker=None)
 @partial(jax.jit, static_argnames=("fun", "steps", "optimizer"))
+@jaxtyped(typechecker=None)
 def minimize(
     fun: Callable[[Num[Array, "*batch n"], *Ts], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
