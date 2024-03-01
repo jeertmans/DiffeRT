@@ -1,3 +1,5 @@
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 from typing import Any
 
 import chex
@@ -8,9 +10,12 @@ from jaxtyping import Array
 from differt.rt.utils import (
     generate_all_path_candidates,
     generate_all_path_candidates_iter,
+    rays_intersect_any_triangle,
     rays_intersect_triangles,
 )
 from differt.utils import sorted_array2
+
+from ..utils import random_inputs
 
 
 def uint_array(array_like: Any) -> Array:
@@ -97,3 +102,64 @@ def test_rays_intersect_triangles(
     )
     got = (t < 1.0) & hit
     chex.assert_trees_all_equal(got, expected)
+
+
+@pytest.mark.parametrize(
+    ("ray_origins,ray_directions,triangle_vertices,expectation"),
+    [
+        ((20, 10, 3), (20, 10, 3), (15, 3, 3), does_not_raise()),
+        ((10, 3), (10, 3), (15, 3, 3), does_not_raise()),
+        ((3,), (3,), (1, 3, 3), does_not_raise()),
+        (
+            (10, 3),
+            (20, 3),
+            (15, 3, 3),
+            pytest.raises(TypeError),
+        ),
+        (
+            (10, 3),
+            (10, 4),
+            (15, 3, 3),
+            pytest.raises(TypeError),
+        ),
+    ],
+)
+@pytest.mark.parametrize("epsilon", (1e-6, 1e-2))
+@pytest.mark.parametrize("hit_threshold", (1.0, 0.999, 1.5, 0.5))
+@random_inputs("ray_origins", "ray_directions", "triangle_vertices")
+def test_rays_intersect_any_triangle(
+    ray_origins: Array,
+    ray_directions: Array,
+    triangle_vertices: Array,
+    epsilon: float,
+    hit_threshold: float,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with expectation:
+        *batch, _ = ray_origins.shape
+        num_triangles = triangle_vertices.shape[0]
+        print(f"{ray_directions.shape = }")
+        print(f"{ray_origins.shape = }")
+        print(f"{triangle_vertices.shape = }")
+        got = rays_intersect_any_triangle(
+            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon, hit_threshold=hit_threshold
+        )
+        shape = (*batch, num_triangles, 3)
+        print(f"{shape = }")
+        ray_origins = jnp.broadcast_to(
+            jnp.expand_dims(ray_origins, axis=-2),
+            shape,
+        )
+        print(f"{ray_origins.shape = }")
+        ray_directions = jnp.broadcast_to(
+            jnp.expand_dims(ray_directions, axis=-2),
+            shape,
+        )
+        triangle_vertices = jnp.broadcast_to(triangle_vertices, (*shape, 3))
+        print(f"{ray_directions.shape = }")
+        expected_t, expected_hit = rays_intersect_triangles(
+            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
+        )
+        expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
+
+        chex.assert_trees_all_equal(got, expected)

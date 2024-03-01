@@ -109,7 +109,7 @@ def generate_all_path_candidates_chunks_iter(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
+# @jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
@@ -168,3 +168,48 @@ def rays_intersect_triangles(
     cond_t = t <= epsilon
 
     return t, ~(cond_a | cond_u | cond_v | cond_t)
+
+
+@jax.jit
+# @jaxtyped(typechecker=typechecker)
+def rays_intersect_any_triangle(
+    ray_origins: Float[Array, "*batch 3"],
+    ray_directions: Float[Array, "*batch 3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    epsilon: float = 1e-6,
+    hit_threshold: float = 0.999,
+) -> Bool[Array, " *batch"]:
+    """
+    Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
+
+    The current implementation closely follows the C++ code from Wikipedia.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        epsilon: A small tolerance threshold that allows rays
+            to hit the triangles slightly outside the actual area.
+            A positive value virtually increases the size of the triangles,
+            a negative value will have the opposite effect.
+
+            Such a tolerance is especially useful when rays are hitting
+            triangle edges, a very common case if geometries are planes
+            split into multiple triangles.
+
+    Return:
+        For each ray, return the scale factor of ``ray_directions`` for the
+        vector to reach the corresponding triangle, and whether the intersection
+        actually lies inside the triangle.
+    """
+    *batch, _ = ray_origins.shape
+
+    def inner(triangle_vertex):
+        triangle_vertices = jnp.broadcast_to(triangle_vertex, (*batch, 3, 3))
+        t, hit = rays_intersect_triangles(
+            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
+        )
+        return (t < hit_threshold) & hit
+
+    return jnp.any(jax.vmap(inner)(triangle_vertices), axis=0)
