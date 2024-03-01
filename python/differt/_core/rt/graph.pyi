@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Sized
 
 import numpy as np
 from jaxtyping import Bool, UInt
@@ -47,13 +47,15 @@ class DiGraph:
         chunk_size: int,
     ) -> AllPathsFromDiGraphChunksIter: ...
 
-class AllPathsFromCompleteGraphIter(Iterator):
+class AllPathsFromCompleteGraphIter(Iterator, Sized):
     def __iter__(self) -> AllPathsFromCompleteGraphIter: ...
     def __next__(self) -> UInt[np.ndarray, " path_depth"]: ...
+    def __len__(self) -> int:
 
-class AllPathsFromCompleteGraphChunksIter(Iterator):
+class AllPathsFromCompleteGraphChunksIter(Iterator, Sized):
     def __iter__(self) -> AllPathsFromCompleteGraphChunksIter: ...
     def __next__(self) -> UInt[np.ndarray, "chunk_size path_depth"]: ...
+    def __len__(self) -> int:
 
 class AllPathsFromDiGraphIter(Iterator):
     def __iter__(self) -> AllPathsFromDiGraphIter: ...

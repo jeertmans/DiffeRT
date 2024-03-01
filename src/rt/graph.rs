@@ -99,10 +99,20 @@ where
             Array2::from_shape_vec((num_paths, depth), path).unwrap()
         })
     }
+
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lower, maybe_upper) = self.iter.size_hint();
+
+        (lower.div_ceil(self.chunk_size), maybe_upper.map(|upper| upper.div_ceil(self.chunk_size)))
+    }
 }
 
 pub mod complete {
     use super::*;
+
+    use std::iter::ExactSizeIterator;
 
     /// A complete graph, i.e.,
     /// a simple undirected graph in which every pair of
@@ -268,6 +278,8 @@ pub mod complete {
         include_from_and_to: bool,
         visited: Vec<NodeId>,
         counter: Vec<usize>,
+        paths_count: usize,
+        paths_total_count: usize,
     }
 
     impl AllPathsFromCompleteGraphIter {
@@ -284,6 +296,29 @@ pub mod complete {
             visited.push(from);
             counter.push(graph.num_nodes); // num_nodes means we visited all
             // first nodes, because first not is fixed
+            
+            let paths_count = 0;
+            let mut num_adjacent_nodes_per_depth = vec![graph.num_nodes.saturating_sub(1); depth.saturating_sub(2)];
+
+            // `from` has actually `num_nodes` adjacent nodes
+            if from >= graph.num_nodes {
+                if let Some(first) = num_adjacent_nodes_per_depth.first_mut() {
+                    *first = graph.num_nodes;
+                }
+            }
+            // `to` node cannot be chosen as second-last node to be visited,
+            // so we decrease the number of adjacent nodes by 1.
+            if to < graph.num_nodes {
+                if let Some(last) = num_adjacent_nodes_per_depth.last_mut() {
+                    *last  = last.saturating_sub(1);
+                }
+            }
+
+            println!("{from}, {to}, {depth}, num_nodes: {}", graph.num_nodes);
+
+            println!("{num_adjacent_nodes_per_depth:?}");
+
+            let paths_total_count = num_adjacent_nodes_per_depth.into_iter().product();
 
             Self {
                 graph,
@@ -292,6 +327,8 @@ pub mod complete {
                 include_from_and_to,
                 visited,
                 counter,
+                paths_count,
+                paths_total_count,
             }
         }
     }
@@ -320,6 +357,7 @@ pub mod complete {
                         } else {
                             self.visited[1..].to_vec()
                         };
+                        self.paths_count += 1;
                         Some(path)
                     } else {
                         None
@@ -366,7 +404,16 @@ pub mod complete {
             }
             None
         }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let size = self.paths_total_count.saturating_sub(self.paths_count);
+
+            (size, Some(size))
+        }
     }
+
+    impl ExactSizeIterator for AllPathsFromCompleteGraphIter {}
 
     impl PathsIterator for AllPathsFromCompleteGraphIter {
         #[inline]
@@ -391,6 +438,10 @@ pub mod complete {
         ) -> Option<&'py PyArray1<NodeId>> {
             slf.next().map(|path| PyArray1::from_vec(py, path))
         }
+
+        fn __len__<'py>(&self) -> usize {
+            self.len()
+        }
     }
 
     /// An iterator over all paths in a complete graph,
@@ -408,7 +459,14 @@ pub mod complete {
         fn next(&mut self) -> Option<Self::Item> {
             self.iter.next()
         }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.iter.size_hint()
+        }
     }
+
+    impl ExactSizeIterator for AllPathsFromCompleteGraphChunksIter {}
 
     #[pymethods]
     impl AllPathsFromCompleteGraphChunksIter {
@@ -421,6 +479,10 @@ pub mod complete {
             py: Python<'py>,
         ) -> Option<&'py PyArray2<NodeId>> {
             slf.iter.next().map(|paths| paths.into_pyarray(py))
+        }
+
+        fn __len__<'py>(&self) -> usize {
+            self.len()
         }
     }
 }
@@ -867,6 +929,30 @@ mod tests {
         ];
 
         assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(8, 5, 8, 9)]
+    #[case(8, 5, 0, 9)]
+    #[case(8, 5, 8, 0)]
+    #[case(4, 4, 4, 0)]
+    #[case(8, 5, 0, 1)]
+    #[case(5, 3, 8, 9)]
+    #[case(5, 3, 0, 9)]
+    #[case(5, 3, 8, 0)]
+    #[case(5, 3, 0, 1)]
+    fn test_complete_graph_all_paths_len(
+        #[case] num_nodes: usize,
+        #[case] depth: usize,
+        #[case] from: usize,
+        #[case] to: usize,
+    ) {
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let got = iter.len();
+        let paths: Vec<_> = iter.collect();
+        let expected = paths.len();
+
+        assert_eq!(got, expected);//, "Got {paths:#?}");
     }
 
     #[test]
