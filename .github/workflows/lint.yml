@@ -60,7 +60,7 @@ jobs:
         pdm install -G test,github-action
 
     - name: Run pre-commit hooks
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1
 
     - name: Apply fixes when present
       uses: pre-commit-ci/lite-action@v1.0.1
