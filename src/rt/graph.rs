@@ -100,12 +100,14 @@ where
         })
     }
 
-
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, maybe_upper) = self.iter.size_hint();
 
-        (lower.div_ceil(self.chunk_size), maybe_upper.map(|upper| upper.div_ceil(self.chunk_size)))
+        (
+            lower.div_ceil(self.chunk_size),
+            maybe_upper.map(|upper| upper.div_ceil(self.chunk_size)),
+        )
     }
 }
 
@@ -296,29 +298,63 @@ pub mod complete {
             visited.push(from);
             counter.push(graph.num_nodes); // num_nodes means we visited all
             // first nodes, because first not is fixed
-            
+
             let paths_count = 0;
-            let mut num_adjacent_nodes_per_depth = vec![graph.num_nodes.saturating_sub(1); depth.saturating_sub(2)];
+            let paths_total_count = if depth < 2 {
+                0
+            } else if depth == 2 {
+                if from == to { 0 } else { 1 }
+            } else {
+                let num_intermediate_nodes = (depth - 2) as u32;
+                let num_nodes = graph.num_nodes;
 
-            // `from` has actually `num_nodes` adjacent nodes
-            if from >= graph.num_nodes {
-                if let Some(first) = num_adjacent_nodes_per_depth.first_mut() {
-                    *first = graph.num_nodes;
+                let from_in_graph = from < num_nodes;
+                let to_in_graph = to < num_nodes;
+
+                match (from_in_graph, to_in_graph) {
+                    (true, true) => {
+                        if num_intermediate_nodes == 1 {
+                            if from == to {
+                                num_nodes.saturating_sub(1)
+                            } else {
+                                num_nodes.saturating_sub(2)
+                            }
+                        } else {
+                            // (num_nodes - 1)^num_intermediate_nodes
+                            // - (num_nodes - 2)(num_nodes - 1)^(num_intermediate_nodes - 1)
+                            /*
+                            (num_nodes.saturating_sub(1).saturating_mul(2)).saturating_mul(
+                                num_nodes
+                                    .saturating_sub(1)
+                                    .pow(depth.saturating_sub(4) as u32),
+                            )*/
+
+                            let num_paths_starting_with_from = (num_nodes.saturating_sub(1))
+                                .saturating_pow(num_intermediate_nodes);
+                            let num_paths_ending_with_to =
+                                num_nodes.saturating_sub(2).saturating_mul(
+                                    num_nodes
+                                        .saturating_sub(1)
+                                        .saturating_pow(num_intermediate_nodes.saturating_sub(2)),
+                                ).saturating_add(if from == to { 0 } else { 1 });
+
+                            num_paths_starting_with_from.saturating_sub(num_paths_ending_with_to)
+                        }
+                    },
+                    (false, false) => {
+                        // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
+                        (num_nodes).saturating_mul(
+                            num_nodes
+                                .saturating_sub(1)
+                                .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
+                        )
+                    },
+                    _ => {
+                        // (num_nodes - 1)^num_intermediate_nodes
+                        (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
+                    },
                 }
-            }
-            // `to` node cannot be chosen as second-last node to be visited,
-            // so we decrease the number of adjacent nodes by 1.
-            if to < graph.num_nodes {
-                if let Some(last) = num_adjacent_nodes_per_depth.last_mut() {
-                    *last  = last.saturating_sub(1);
-                }
-            }
-
-            println!("{from}, {to}, {depth}, num_nodes: {}", graph.num_nodes);
-
-            println!("{num_adjacent_nodes_per_depth:?}");
-
-            let paths_total_count = num_adjacent_nodes_per_depth.into_iter().product();
+            };
 
             Self {
                 graph,
@@ -932,27 +968,48 @@ mod tests {
     }
 
     #[rstest]
-    #[case(8, 5, 8, 9)]
-    #[case(8, 5, 0, 9)]
-    #[case(8, 5, 8, 0)]
-    #[case(4, 4, 4, 0)]
-    #[case(8, 5, 0, 1)]
-    #[case(5, 3, 8, 9)]
-    #[case(5, 3, 0, 9)]
-    #[case(5, 3, 8, 0)]
-    #[case(5, 3, 0, 1)]
+    //#[case(0, 2, 0, 1)] // One path of depth 2 [0, 1]
+    //#[case(0, 2, 0, 0)] // No path of depth 2 (because can't be [0, 0])
+    //#[case(4, 2, 0, 1)] // One path of depth 2 [0, 1]
+    //#[case(1, 3, 1, 2)] // One path of depth 3 [1, 0, 2]
+    //#[case(8, 5, 8, 9)]
+    //#[case(8, 5, 0, 9)]
+    //#[case(8, 5, 8, 0)]
+    //#[case(4, 4, 4, 0)]
+    //#[case(4, 3, 0, 0)]
+    //#[case(4, 3, 0, 1)]
+    //#[case(4, 4, 0, 1)]
+    //#[case(4, 4, 0, 1)]
+    //#[case(6, 4, 0, 1)]
+    //#[case(4, 5, 0, 1)]
+    //#[case(4, 5, 0, 0)]
+    //#[case(3, 5, 0, 1)]
+    //#[case(8, 5, 0, 1)]
+    //#[case(5, 3, 8, 9)]
+    //#[case(5, 3, 0, 9)]
+    //#[case(5, 3, 8, 0)]
+    //#[case(5, 3, 0, 1)]
+    #[case(4, 2, 0, 1)]
+    #[case(4, 3, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(4, 5, 0, 1)]
+    #[case(4, 6, 0, 1)]
+    #[case(4, 7, 0, 1)]
     fn test_complete_graph_all_paths_len(
         #[case] num_nodes: usize,
         #[case] depth: usize,
         #[case] from: usize,
         #[case] to: usize,
     ) {
-        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
         let got = iter.len();
         let paths: Vec<_> = iter.collect();
         let expected = paths.len();
 
-        assert_eq!(got, expected);//, "Got {paths:#?}");
+
+        println!("num_nodes: {num_nodes}, from: {from}, to: {to}, depth: {depth}, num_paths {got}");
+        assert!(false, );//"Got {paths:?}");
+        assert_eq!(got, expected);//, "Got {paths:?}");
     }
 
     #[test]
