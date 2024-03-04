@@ -110,12 +110,12 @@ def generate_all_path_candidates_chunks_iter(
 
 
 @jax.jit
-# @jaxtyped(typechecker=typechecker)
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
-    epsilon: float = 1e-6,
+    epsilon: float | Float[Array, " "] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
@@ -172,18 +172,23 @@ def rays_intersect_triangles(
 
 
 @jax.jit
-# @jaxtyped(typechecker=typechecker)
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_any_triangle(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: float = 1e-6,
-    hit_threshold: float = 0.999,
+    epsilon: float | Float[Array, " "] = 1e-6,
+    hit_threshold: float | Float[Array, " "] = 0.999,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
 
-    The current implementation closely follows the C++ code from Wikipedia.
+    This function should be used when allocating an array of size
+    ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
+    checking if at least one of the triangles is intersect.
+
+    A triangle is considered to be intersected if
+    ``t < hit_threshold & hit`` evaluates to :py:data:`True`.
 
     Args:
         ray_origins: An array of origin vertices.
@@ -198,19 +203,25 @@ def rays_intersect_any_triangle(
             Such a tolerance is especially useful when rays are hitting
             triangle edges, a very common case if geometries are planes
             split into multiple triangles.
+        hit_threshold: A threshold value below which a hit is considered to be valid.
+            Above this threshold, the ray will only hit the triangle if prolonged.
+            In theory, this threshold value should be equal to ``1.0``, but in a
+            small tolerance must be used.
 
     Return:
-        For each ray, return the scale factor of ``ray_directions`` for the
-        vector to reach the corresponding triangle, and whether the intersection
-        actually lies inside the triangle.
+        For each ray, whether it intersects with any of the triangles.
     """
+
+    def scan_fun(carry, x):
+        triangle_vertex = jnp.broadcast_to(x, (*ray_origins.shape, 3))
+        t, hit = rays_intersect_triangles(
+            ray_origins, ray_directions, triangle_vertex, epsilon=epsilon
+        )
+        intersect = carry | ((t < hit_threshold) & hit)
+        return intersect, None
+
     *batch, _ = ray_origins.shape
 
-    def inner(triangle_vertex):
-        triangle_vertices = jnp.broadcast_to(triangle_vertex, (*batch, 3, 3))
-        t, hit = rays_intersect_triangles(
-            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
-        )
-        return (t < hit_threshold) & hit
-
-    return jnp.any(jax.vmap(inner)(triangle_vertices), axis=0)
+    return jax.lax.scan(
+        scan_fun, init=jnp.zeros(batch, dtype=jnp.bool_), xs=triangle_vertices
+    )[0]

@@ -138,25 +138,23 @@ def test_rays_intersect_any_triangle(
     with expectation:
         *batch, _ = ray_origins.shape
         num_triangles = triangle_vertices.shape[0]
-        print(f"{ray_directions.shape = }")
-        print(f"{ray_origins.shape = }")
-        print(f"{triangle_vertices.shape = }")
         got = rays_intersect_any_triangle(
-            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon, hit_threshold=hit_threshold
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            epsilon=epsilon,
+            hit_threshold=hit_threshold,
         )
         shape = (*batch, num_triangles, 3)
-        print(f"{shape = }")
         ray_origins = jnp.broadcast_to(
             jnp.expand_dims(ray_origins, axis=-2),
             shape,
         )
-        print(f"{ray_origins.shape = }")
         ray_directions = jnp.broadcast_to(
             jnp.expand_dims(ray_directions, axis=-2),
             shape,
         )
         triangle_vertices = jnp.broadcast_to(triangle_vertices, (*shape, 3))
-        print(f"{ray_directions.shape = }")
         expected_t, expected_hit = rays_intersect_triangles(
             ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
         )
