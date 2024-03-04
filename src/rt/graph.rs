@@ -114,8 +114,6 @@ where
 pub mod complete {
     use super::*;
 
-    use std::iter::ExactSizeIterator;
-
     /// A complete graph, i.e.,
     /// a simple undirected graph in which every pair of
     /// distinc nodes is connected by a unique edge.
@@ -271,6 +269,14 @@ pub mod complete {
     }
 
     /// An iterator over all paths in a complete graph.
+    ///
+    /// # Note
+    ///
+    /// Even though this iterator is generally sized, this is not true
+    /// when its length is so large that overflow occured when computing
+    /// its theoritical length.
+    /// For lengths close or above [`usize::MAX`], do not rely
+    /// on the provided size hint nor the length.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {
@@ -293,6 +299,8 @@ pub mod complete {
             depth: usize,
             include_from_and_to: bool,
         ) -> Self {
+            use std::cmp::Ordering::*;
+
             let mut visited = Vec::with_capacity(depth);
             let mut counter = Vec::with_capacity(depth);
             visited.push(from);
@@ -300,60 +308,59 @@ pub mod complete {
             // first nodes, because first not is fixed
 
             let paths_count = 0;
-            let paths_total_count = if depth < 2 {
-                0
-            } else if depth == 2 {
-                if from == to { 0 } else { 1 }
-            } else {
-                let num_intermediate_nodes = (depth - 2) as u32;
-                let num_nodes = graph.num_nodes;
+            let paths_total_count = match depth.cmp(&2) {
+                Less => 0,
+                Equal if from == to => 0,
+                Equal => 1,
+                Greater => {
+                    let num_intermediate_nodes = (depth - 2) as u32;
+                    let num_nodes = graph.num_nodes;
 
-                let from_in_graph = from < num_nodes;
-                let to_in_graph = to < num_nodes;
+                    let from_in_graph = from < num_nodes;
+                    let to_in_graph = to < num_nodes;
 
-                match (from_in_graph, to_in_graph) {
-                    (true, true) => {
-                        if num_intermediate_nodes == 1 {
-                            if from == to {
-                                num_nodes.saturating_sub(1)
+                    match (from_in_graph, to_in_graph) {
+                        (true, true) => {
+                            //This solution was obtained thanks to user @ronno, see:
+                            // https://math.stackexchange.com/a/4874894/1297520.
+                            let depth_minus_1 = depth.saturating_sub(1) as u32;
+                            let depth_minus_2 = depth.saturating_sub(2) as u32;
+                            let num_nodes_minus_1 = num_nodes.saturating_sub(1);
+                            if from != to {
+                                num_nodes_minus_1
+                                    .saturating_pow(depth_minus_1)
+                                    .saturating_add_signed(if depth_minus_1 % 2 == 0 {
+                                        -1
+                                    } else {
+                                        1
+                                    })
+                                    / num_nodes
                             } else {
-                                num_nodes.saturating_sub(2)
+                                num_nodes_minus_1
+                                    .saturating_pow(depth_minus_2)
+                                    .saturating_add_signed(if depth_minus_2 % 2 == 0 {
+                                        -1
+                                    } else {
+                                        1
+                                    })
+                                    * num_nodes_minus_1
+                                    / num_nodes
                             }
-                        } else {
-                            // (num_nodes - 1)^num_intermediate_nodes
-                            // - (num_nodes - 2)(num_nodes - 1)^(num_intermediate_nodes - 1)
-                            /*
-                            (num_nodes.saturating_sub(1).saturating_mul(2)).saturating_mul(
+                        },
+                        (false, false) => {
+                            // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
+                            (num_nodes).saturating_mul(
                                 num_nodes
                                     .saturating_sub(1)
-                                    .pow(depth.saturating_sub(4) as u32),
-                            )*/
-
-                            let num_paths_starting_with_from = (num_nodes.saturating_sub(1))
-                                .saturating_pow(num_intermediate_nodes);
-                            let num_paths_ending_with_to =
-                                num_nodes.saturating_sub(2).saturating_mul(
-                                    num_nodes
-                                        .saturating_sub(1)
-                                        .saturating_pow(num_intermediate_nodes.saturating_sub(2)),
-                                ).saturating_add(if from == to { 0 } else { 1 });
-
-                            num_paths_starting_with_from.saturating_sub(num_paths_ending_with_to)
-                        }
-                    },
-                    (false, false) => {
-                        // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
-                        (num_nodes).saturating_mul(
-                            num_nodes
-                                .saturating_sub(1)
-                                .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
-                        )
-                    },
-                    _ => {
-                        // (num_nodes - 1)^num_intermediate_nodes
-                        (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
-                    },
-                }
+                                    .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
+                            )
+                        },
+                        _ => {
+                            // (num_nodes - 1)^num_intermediate_nodes
+                            (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
+                        },
+                    }
+                },
             };
 
             Self {
@@ -475,7 +482,7 @@ pub mod complete {
             slf.next().map(|path| PyArray1::from_vec(py, path))
         }
 
-        fn __len__<'py>(&self) -> usize {
+        fn __len__(&self) -> usize {
             self.len()
         }
     }
@@ -517,7 +524,7 @@ pub mod complete {
             slf.iter.next().map(|paths| paths.into_pyarray(py))
         }
 
-        fn __len__<'py>(&self) -> usize {
+        fn __len__(&self) -> usize {
             self.len()
         }
     }
@@ -968,27 +975,27 @@ mod tests {
     }
 
     #[rstest]
-    //#[case(0, 2, 0, 1)] // One path of depth 2 [0, 1]
-    //#[case(0, 2, 0, 0)] // No path of depth 2 (because can't be [0, 0])
-    //#[case(4, 2, 0, 1)] // One path of depth 2 [0, 1]
-    //#[case(1, 3, 1, 2)] // One path of depth 3 [1, 0, 2]
-    //#[case(8, 5, 8, 9)]
-    //#[case(8, 5, 0, 9)]
-    //#[case(8, 5, 8, 0)]
-    //#[case(4, 4, 4, 0)]
-    //#[case(4, 3, 0, 0)]
-    //#[case(4, 3, 0, 1)]
-    //#[case(4, 4, 0, 1)]
-    //#[case(4, 4, 0, 1)]
-    //#[case(6, 4, 0, 1)]
-    //#[case(4, 5, 0, 1)]
-    //#[case(4, 5, 0, 0)]
-    //#[case(3, 5, 0, 1)]
-    //#[case(8, 5, 0, 1)]
-    //#[case(5, 3, 8, 9)]
-    //#[case(5, 3, 0, 9)]
-    //#[case(5, 3, 8, 0)]
-    //#[case(5, 3, 0, 1)]
+    #[case(0, 2, 0, 1)] // One path of depth 2 [0, 1]
+    #[case(0, 2, 0, 0)] // No path of depth 2 (because can't be [0, 0])
+    #[case(4, 2, 0, 1)] // One path of depth 2 [0, 1]
+    #[case(1, 3, 1, 2)] // One path of depth 3 [1, 0, 2]
+    #[case(8, 5, 8, 9)]
+    #[case(8, 5, 0, 9)]
+    #[case(8, 5, 8, 0)]
+    #[case(4, 4, 4, 0)]
+    #[case(4, 3, 0, 0)]
+    #[case(4, 3, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(6, 4, 0, 1)]
+    #[case(4, 5, 0, 1)]
+    #[case(4, 5, 0, 0)]
+    #[case(3, 5, 0, 1)]
+    #[case(8, 5, 0, 1)]
+    #[case(5, 3, 8, 9)]
+    #[case(5, 3, 0, 9)]
+    #[case(5, 3, 8, 0)]
+    #[case(5, 3, 0, 1)]
     #[case(4, 2, 0, 1)]
     #[case(4, 3, 0, 1)]
     #[case(4, 4, 0, 1)]
@@ -1006,10 +1013,8 @@ mod tests {
         let paths: Vec<_> = iter.collect();
         let expected = paths.len();
 
-
         println!("num_nodes: {num_nodes}, from: {from}, to: {to}, depth: {depth}, num_paths {got}");
-        assert!(false, );//"Got {paths:?}");
-        assert_eq!(got, expected);//, "Got {paths:?}");
+        assert_eq!(got, expected, "Got {paths:?}");
     }
 
     #[test]
