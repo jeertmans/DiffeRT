@@ -95,17 +95,14 @@ class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
         self,
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     def register(
         self,
         backend: str,
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        ...
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
-    def dispatch(self, backend: str) -> Callable[P, T]:
-        ...
+    def dispatch(self, backend: str) -> Callable[P, T]: ...
 
 
 def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:

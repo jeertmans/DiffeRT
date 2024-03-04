@@ -99,6 +99,16 @@ where
             Array2::from_shape_vec((num_paths, depth), path).unwrap()
         })
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lower, maybe_upper) = self.iter.size_hint();
+
+        (
+            lower.div_ceil(self.chunk_size),
+            maybe_upper.map(|upper| upper.div_ceil(self.chunk_size)),
+        )
+    }
 }
 
 pub mod complete {
@@ -259,6 +269,14 @@ pub mod complete {
     }
 
     /// An iterator over all paths in a complete graph.
+    ///
+    /// # Note
+    ///
+    /// Even though this iterator is generally sized, this is not true
+    /// when its length is so large that overflow occured when computing
+    /// its theoritical length.
+    /// For lengths close or above [`usize::MAX`], do not rely
+    /// on the provided size hint nor the length.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {
@@ -268,6 +286,8 @@ pub mod complete {
         include_from_and_to: bool,
         visited: Vec<NodeId>,
         counter: Vec<usize>,
+        paths_count: usize,
+        paths_total_count: usize,
     }
 
     impl AllPathsFromCompleteGraphIter {
@@ -279,11 +299,69 @@ pub mod complete {
             depth: usize,
             include_from_and_to: bool,
         ) -> Self {
+            use std::cmp::Ordering::*;
+
             let mut visited = Vec::with_capacity(depth);
             let mut counter = Vec::with_capacity(depth);
             visited.push(from);
             counter.push(graph.num_nodes); // num_nodes means we visited all
             // first nodes, because first not is fixed
+
+            let paths_count = 0;
+            let paths_total_count = match depth.cmp(&2) {
+                Less => 0,
+                Equal if from == to => 0,
+                Equal => 1,
+                Greater => {
+                    let num_intermediate_nodes = (depth - 2) as u32;
+                    let num_nodes = graph.num_nodes;
+
+                    let from_in_graph = from < num_nodes;
+                    let to_in_graph = to < num_nodes;
+
+                    match (from_in_graph, to_in_graph) {
+                        (true, true) => {
+                            //This solution was obtained thanks to user @ronno, see:
+                            // https://math.stackexchange.com/a/4874894/1297520.
+                            let depth_minus_1 = depth.saturating_sub(1) as u32;
+                            let depth_minus_2 = depth.saturating_sub(2) as u32;
+                            let num_nodes_minus_1 = num_nodes.saturating_sub(1);
+                            if from != to {
+                                num_nodes_minus_1
+                                    .saturating_pow(depth_minus_1)
+                                    .saturating_add_signed(if depth_minus_1 % 2 == 0 {
+                                        -1
+                                    } else {
+                                        1
+                                    })
+                                    / num_nodes
+                            } else {
+                                num_nodes_minus_1
+                                    .saturating_pow(depth_minus_2)
+                                    .saturating_add_signed(if depth_minus_2 % 2 == 0 {
+                                        -1
+                                    } else {
+                                        1
+                                    })
+                                    * num_nodes_minus_1
+                                    / num_nodes
+                            }
+                        },
+                        (false, false) => {
+                            // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
+                            (num_nodes).saturating_mul(
+                                num_nodes
+                                    .saturating_sub(1)
+                                    .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
+                            )
+                        },
+                        _ => {
+                            // (num_nodes - 1)^num_intermediate_nodes
+                            (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
+                        },
+                    }
+                },
+            };
 
             Self {
                 graph,
@@ -292,6 +370,8 @@ pub mod complete {
                 include_from_and_to,
                 visited,
                 counter,
+                paths_count,
+                paths_total_count,
             }
         }
     }
@@ -320,6 +400,7 @@ pub mod complete {
                         } else {
                             self.visited[1..].to_vec()
                         };
+                        self.paths_count += 1;
                         Some(path)
                     } else {
                         None
@@ -366,7 +447,16 @@ pub mod complete {
             }
             None
         }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            let size = self.paths_total_count.saturating_sub(self.paths_count);
+
+            (size, Some(size))
+        }
     }
+
+    impl ExactSizeIterator for AllPathsFromCompleteGraphIter {}
 
     impl PathsIterator for AllPathsFromCompleteGraphIter {
         #[inline]
@@ -391,6 +481,10 @@ pub mod complete {
         ) -> Option<&'py PyArray1<NodeId>> {
             slf.next().map(|path| PyArray1::from_vec(py, path))
         }
+
+        fn __len__(&self) -> usize {
+            self.len()
+        }
     }
 
     /// An iterator over all paths in a complete graph,
@@ -408,7 +502,14 @@ pub mod complete {
         fn next(&mut self) -> Option<Self::Item> {
             self.iter.next()
         }
+
+        #[inline]
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.iter.size_hint()
+        }
     }
+
+    impl ExactSizeIterator for AllPathsFromCompleteGraphChunksIter {}
 
     #[pymethods]
     impl AllPathsFromCompleteGraphChunksIter {
@@ -421,6 +522,10 @@ pub mod complete {
             py: Python<'py>,
         ) -> Option<&'py PyArray2<NodeId>> {
             slf.iter.next().map(|paths| paths.into_pyarray(py))
+        }
+
+        fn __len__(&self) -> usize {
+            self.len()
         }
     }
 }
@@ -865,6 +970,63 @@ mod tests {
             [1, 1, 0, 1, 0],
             [1, 1, 1, 0, 1],
         ];
+
+        assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(0, 2, 0, 1)] // One path of depth 2 [0, 1]
+    #[case(0, 2, 0, 0)] // No path of depth 2 (because can't be [0, 0])
+    #[case(4, 2, 0, 1)] // One path of depth 2 [0, 1]
+    #[case(1, 3, 1, 2)] // One path of depth 3 [1, 0, 2]
+    #[case(8, 5, 8, 9)]
+    #[case(8, 5, 0, 9)]
+    #[case(8, 5, 8, 0)]
+    #[case(4, 4, 4, 0)]
+    #[case(4, 3, 0, 0)]
+    #[case(4, 3, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(6, 4, 0, 1)]
+    #[case(4, 5, 0, 1)]
+    #[case(4, 5, 0, 0)]
+    #[case(3, 5, 0, 1)]
+    #[case(8, 5, 0, 1)]
+    #[case(5, 3, 8, 9)]
+    #[case(5, 3, 0, 9)]
+    #[case(5, 3, 8, 0)]
+    #[case(5, 3, 0, 1)]
+    #[case(4, 2, 0, 1)]
+    #[case(4, 3, 0, 1)]
+    #[case(4, 4, 0, 1)]
+    #[case(4, 5, 0, 1)]
+    #[case(4, 6, 0, 1)]
+    #[case(4, 7, 0, 1)]
+    #[case(4000, 3, 0, 1)]
+    fn test_complete_graph_all_paths_len(
+        #[case] num_nodes: usize,
+        #[case] depth: usize,
+        #[case] from: usize,
+        #[case] to: usize,
+    ) {
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let iter_cloned = iter.clone();
+        let got = iter.len();
+        let expected = iter.count();
+
+        assert_eq!(got, expected);
+
+        let iter_skipped = iter_cloned.skip(10);
+
+        let got = iter_skipped.len();
+        let expected = iter_skipped.count();
+
+        assert_eq!(got, expected);
+
+        let iter_chunks =
+            CompleteGraph::new(num_nodes).all_paths_array_chunks(from, to, depth, false, 100);
+        let got = iter_chunks.len();
+        let expected = iter_chunks.count();
 
         assert_eq!(got, expected);
     }
