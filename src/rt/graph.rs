@@ -1002,6 +1002,7 @@ mod tests {
     #[case(4, 5, 0, 1)]
     #[case(4, 6, 0, 1)]
     #[case(4, 7, 0, 1)]
+    #[case(4000, 3, 0, 1)]
     fn test_complete_graph_all_paths_len(
         #[case] num_nodes: usize,
         #[case] depth: usize,
@@ -1009,12 +1010,18 @@ mod tests {
         #[case] to: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
+        let iter_cloned = iter.clone();
         let got = iter.len();
-        let paths: Vec<_> = iter.collect();
-        let expected = paths.len();
+        let expected = iter.count();
 
-        println!("num_nodes: {num_nodes}, from: {from}, to: {to}, depth: {depth}, num_paths {got}");
-        assert_eq!(got, expected, "Got {paths:?}");
+        assert_eq!(got, expected);
+
+        let iter_skipped = iter_cloned.skip(10);
+
+        let got = iter_skipped.len();
+        let expected = iter_skipped.count();
+
+        assert_eq!(got, expected);
     }
 
     #[test]
