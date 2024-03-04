@@ -25,6 +25,7 @@ present in this module do not take care of the interaction type.
 
 You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
+
 from collections.abc import Iterator
 
 import jax

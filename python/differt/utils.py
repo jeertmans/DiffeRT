@@ -1,4 +1,5 @@
 """General purpose utilities."""
+
 import sys
 from collections.abc import Iterable, Mapping
 from functools import partial

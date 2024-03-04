@@ -25,8 +25,7 @@ from differt.plotting._utils import (
 
 
 class MissingModulesContextGenerator(Protocol):
-    def __call__(self, *names: str) -> ContextManager[pytest.MonkeyPatch]:
-        ...
+    def __call__(self, *names: str) -> ContextManager[pytest.MonkeyPatch]: ...
 
 
 @pytest.fixture
@@ -118,14 +117,18 @@ def test_missing_default_backend_module(
 ) -> None:
     use(backend)  # Change the default backend
 
-    with missing_modules(backend), pytest.raises(
-        ImportError,
-        match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+    with (
+        missing_modules(backend),
+        pytest.raises(
+            ImportError,
+            match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+        ),
     ):
         _ = my_plot()
 
-    with missing_modules(backend), pytest.raises(
-        ImportError, match=f"Could not load backend '{backend}'"
+    with (
+        missing_modules(backend),
+        pytest.raises(ImportError, match=f"Could not load backend '{backend}'"),
     ):
         use(backend)
 
@@ -134,9 +137,12 @@ def test_missing_default_backend_module(
 def test_missing_backend_module(
     backend: str, missing_modules: MissingModulesContextGenerator
 ) -> None:
-    with missing_modules(backend), pytest.raises(
-        ImportError,
-        match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+    with (
+        missing_modules(backend),
+        pytest.raises(
+            ImportError,
+            match=f"An import error occured when dispatching plot utility to backend '{backend}'.",
+        ),
     ):
         _ = my_plot(backend=backend)  # type: ignore
 

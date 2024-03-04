@@ -86,6 +86,7 @@ To re-use an existing ``figure`` object, you can do the same as with
 the Matplotlib backend.
 
 """
+
 __all__ = (
     "dispatch",
     "use",

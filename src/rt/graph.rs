@@ -1023,7 +1023,8 @@ mod tests {
 
         assert_eq!(got, expected);
 
-        let iter_chunks = CompleteGraph::new(num_nodes).all_paths_array_chunks(from, to, depth, false, 100);
+        let iter_chunks =
+            CompleteGraph::new(num_nodes).all_paths_array_chunks(from, to, depth, false, 100);
         let got = iter_chunks.len();
         let expected = iter_chunks.count();
 
