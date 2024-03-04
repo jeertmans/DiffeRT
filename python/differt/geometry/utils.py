@@ -1,4 +1,5 @@
 """Utilities for working with 3D geometries."""
+
 from functools import partial
 
 import jax

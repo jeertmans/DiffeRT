@@ -13,6 +13,7 @@ sure that the returned path is correct.
 Otherwise, the returned path will, for each reflection, have equal angles
 of incidence and of reflection.
 """
+
 import chex
 import jax
 import jax.numpy as jnp

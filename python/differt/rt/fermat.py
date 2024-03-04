@@ -8,6 +8,7 @@ this means that the path of least time is also the path of last distance.
 
 As a result, this module offers minimization methods for finding ray paths.
 """
+
 from functools import partial
 from typing import Any
 
