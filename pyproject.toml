@@ -24,7 +24,7 @@ dependencies = [
   "jaxtyping>=0.2.24",
   "numpy>=1.26.1",
   "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version < '3.10'",
+  "typing-extensions>=4.9.0;python_version < '3.11'",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["license", "readme", "version"]
@@ -49,6 +49,7 @@ docs = [
   "sphinxext-opengraph>=0.9.0",
   "sphinxcontrib-apidoc>=0.4.0",
   "sphinxcontrib-bibtex>=2.5.0",
+  "tqdm>=4.66.2",
 ]
 jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
 maplotlib = ["matplotlib>=3.8.1"]

@@ -21,8 +21,8 @@ from ..geometry.utils import orthogonal_basis
 from ..utils import minimize
 
 
-@jaxtyped(typechecker=typechecker)
 @partial(jax.jit, static_argnames=("steps", "optimizer"))
+@jaxtyped(typechecker=typechecker)
 def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],

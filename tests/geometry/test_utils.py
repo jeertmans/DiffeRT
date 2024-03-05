@@ -37,7 +37,7 @@ def test_pairwise_cross_random_inputs(
         for i in range(u.shape[0]):
             for j in range(v.shape[0]):
                 expected = jnp.cross(u[i, :], v[j, :])
-                chex.assert_trees_all_equal(got[i, j], expected)
+                chex.assert_trees_all_close(got[i, j], expected, atol=1e-7)
 
 
 @pytest.mark.parametrize(

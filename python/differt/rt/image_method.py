@@ -21,8 +21,8 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, jaxtyped
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*batch 3"],
     mirror_vertices: Float[Array, "*batch 3"],
@@ -88,8 +88,8 @@ def image_of_vertices_with_respect_to_mirrors(
     )
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def intersection_of_line_segments_with_planes(
     segment_starts: Float[Array, "*batch 3"],
     segment_ends: Float[Array, "*batch 3"],
@@ -126,8 +126,8 @@ def intersection_of_line_segments_with_planes(
     return segment_starts + offset
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
@@ -221,8 +221,8 @@ def image_method(
     return jnp.moveaxis(paths, 0, -2)
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "*batch num_vertices 3"],
     mirror_vertices: Float[Array, "*batch num_mirrors 3"],

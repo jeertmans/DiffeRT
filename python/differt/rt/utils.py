@@ -27,6 +27,7 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 
 from collections.abc import Iterator
+from typing import Callable, Generic, TypeVar, Union
 
 import jax
 import jax.numpy as jnp
@@ -34,6 +35,45 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 
 from .. import _core
+
+T = TypeVar("T")
+
+
+class _SizedIterator(Generic[T]):
+    """A custom generatic class that is both :py:class:`Iterator<collections.abc.Iterator>` and :py:class:`Sized<collections.abc.Sized>`.
+
+    Args:
+        iter_: The iterator.
+        size: The size, i.e., length, of the iterator, or a callable that returns its current length.
+
+    Examples:
+        The following example shows how to create a sized iterator:
+
+        >>> from differt.rt.utils import _SizedIterator
+        >>> l = [1, 2, 3, 4, 5]
+        >>> it = _SizedIterator(iter_=iter(l), size=5)
+        >>> len(it)
+        5
+        >>> it = _SizedIterator(iter_=iter(l), size=l.__len__)
+        >>> len(it)
+        5
+
+    """
+
+    def __init__(self, iter_: Iterator[T], size: Union[int, Callable[[], int]]) -> None:
+        self.iter_ = iter_
+        self.size = size
+
+    def __iter__(self) -> "_SizedIterator[T]":
+        return self
+
+    def __next__(self) -> T:
+        return next(self.iter_)
+
+    def __len__(self) -> int:
+        if isinstance(self.size, int):
+            return self.size
+        return self.size()
 
 
 @jaxtyped(typechecker=typechecker)
@@ -69,7 +109,7 @@ def generate_all_path_candidates(
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
     num_primitives: int, order: int
-) -> Iterator[UInt[Array, " order"]]:
+) -> _SizedIterator[UInt[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
 
@@ -80,16 +120,18 @@ def generate_all_path_candidates_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    return map(
+    it = _core.rt.utils.generate_all_path_candidates_iter(num_primitives, order)
+    m = map(
         jnp.asarray,
-        _core.rt.utils.generate_all_path_candidates_iter(num_primitives, order),
+        it,
     )
+    return _SizedIterator(m, size=it.__len__)
 
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int, order: int, chunk_size: int = 1000
-) -> Iterator[UInt[Array, "chunk_size order"]]:
+) -> _SizedIterator[UInt[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -101,21 +143,23 @@ def generate_all_path_candidates_chunks_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    return map(
-        jnp.asarray,
-        _core.rt.utils.generate_all_path_candidates_chunks_iter(
-            num_primitives, order, chunk_size
-        ),
+    it = _core.rt.utils.generate_all_path_candidates_chunks_iter(
+        num_primitives, order, chunk_size
     )
+    m = map(
+        jnp.asarray,
+        it,
+    )
+    return _SizedIterator(m, size=it.__len__)
 
 
-@jaxtyped(typechecker=typechecker)
 @jax.jit
+@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
-    epsilon: float = 1e-6,
+    epsilon: Union[float, Float[Array, " "]] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
@@ -169,3 +213,59 @@ def rays_intersect_triangles(
     cond_t = t <= epsilon
 
     return t, ~(cond_a | cond_u | cond_v | cond_t)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def rays_intersect_any_triangle(
+    ray_origins: Float[Array, "*batch 3"],
+    ray_directions: Float[Array, "*batch 3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    epsilon: Union[float, Float[Array, " "]] = 1e-6,
+    hit_threshold: Union[float, Float[Array, " "]] = 0.999,
+) -> Bool[Array, " *batch"]:
+    """
+    Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
+
+    This function should be used when allocating an array of size
+    ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
+    checking if at least one of the triangles is intersect.
+
+    A triangle is considered to be intersected if
+    ``t < hit_threshold & hit`` evaluates to :py:data:`True`.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        epsilon: A small tolerance threshold that allows rays
+            to hit the triangles slightly outside the actual area.
+            A positive value virtually increases the size of the triangles,
+            a negative value will have the opposite effect.
+
+            Such a tolerance is especially useful when rays are hitting
+            triangle edges, a very common case if geometries are planes
+            split into multiple triangles.
+        hit_threshold: A threshold value below which a hit is considered to be valid.
+            Above this threshold, the ray will only hit the triangle if prolonged.
+            In theory, this threshold value should be equal to ``1.0``, but in a
+            small tolerance must be used.
+
+    Return:
+        For each ray, whether it intersects with any of the triangles.
+    """
+
+    def scan_fun(carry, x):
+        triangle_vertex = jnp.broadcast_to(x, (*ray_origins.shape, 3))
+        t, hit = rays_intersect_triangles(
+            ray_origins, ray_directions, triangle_vertex, epsilon=epsilon
+        )
+        intersect = carry | ((t < hit_threshold) & hit)
+        return intersect, None
+
+    *batch, _ = ray_origins.shape
+
+    return jax.lax.scan(
+        scan_fun, init=jnp.zeros(batch, dtype=jnp.bool_), xs=triangle_vertices
+    )[0]
