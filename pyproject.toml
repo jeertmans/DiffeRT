@@ -49,6 +49,7 @@ docs = [
   "sphinxext-opengraph>=0.9.0",
   "sphinxcontrib-apidoc>=0.4.0",
   "sphinxcontrib-bibtex>=2.5.0",
+  "tqdm>=4.66.2",
 ]
 jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
 maplotlib = ["matplotlib>=3.8.1"]

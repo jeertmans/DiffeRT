@@ -27,6 +27,7 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 
 from collections.abc import Iterator
+from typing import Callable, Generic, TypeVar
 
 import jax
 import jax.numpy as jnp
@@ -34,6 +35,45 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 
 from .. import _core
+
+T = TypeVar("T")
+
+
+class SizedIterator(Generic[T]):
+    """A custom generatic class that is both :py:class:`Iterator<collections.abc.Iterator>` and :py:class:`Sized<collections.abc.Sized>`.
+
+    Args:
+        iter_: The iterator.
+        size: The size, i.e., length, of the iterator, or a callable that returns its current length.
+
+    Examples:
+        The following example shows how to create a sized iterator:
+
+        >>> from differt.rt.utils import SizedIterator
+        >>> l = [1, 2, 3, 4, 5]
+        >>> it = SizedIterator(iter_=iter(l), size=5)
+        >>> len(it)
+        5
+        >>> it = SizedIterator(iter_=iter(l), size=l.__len__)
+        >>> len(it)
+        5
+
+    """
+
+    def __init__(self, iter_: Iterator[T], size: int | Callable[[], int]) -> None:  # noqa: D107
+        self.iter_ = iter_
+        self.size = size
+
+    def __iter__(self) -> "SizedIterator[T]":  # noqa: D105
+        return self
+
+    def __next__(self) -> T:  # noqa: D105
+        return next(self.iter_)
+
+    def __len__(self) -> int:  # noqa: D105
+        if isinstance(self.size, int):
+            return self.size
+        return self.size()
 
 
 @jaxtyped(typechecker=typechecker)
@@ -69,7 +109,7 @@ def generate_all_path_candidates(
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
     num_primitives: int, order: int
-) -> Iterator[UInt[Array, " order"]]:
+) -> SizedIterator[UInt[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
 
@@ -80,10 +120,12 @@ def generate_all_path_candidates_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    return map(
+    it = _core.rt.utils.generate_all_path_candidates_iter(num_primitives, order)
+    m = map(
         jnp.asarray,
-        _core.rt.utils.generate_all_path_candidates_iter(num_primitives, order),
+        it,
     )
+    return SizedIterator(m, size=it.__len__)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -101,12 +143,14 @@ def generate_all_path_candidates_chunks_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    return map(
-        jnp.asarray,
-        _core.rt.utils.generate_all_path_candidates_chunks_iter(
-            num_primitives, order, chunk_size
-        ),
+    it = _core.rt.utils.generate_all_path_candidates_chunks_iter(
+        num_primitives, order, chunk_size
     )
+    m = map(
+        jnp.asarray,
+        it,
+    )
+    return SizedIterator(m, size=it.__len__)
 
 
 @jax.jit
