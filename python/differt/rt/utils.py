@@ -49,12 +49,12 @@ class _SizedIterator(Generic[T]):
     Examples:
         The following example shows how to create a sized iterator:
 
-        >>> from differt.rt.utils import SizedIterator
+        >>> from differt.rt.utils import _SizedIterator
         >>> l = [1, 2, 3, 4, 5]
-        >>> it = SizedIterator(iter_=iter(l), size=5)
+        >>> it = _SizedIterator(iter_=iter(l), size=5)
         >>> len(it)
         5
-        >>> it = SizedIterator(iter_=iter(l), size=l.__len__)
+        >>> it = _SizedIterator(iter_=iter(l), size=l.__len__)
         >>> len(it)
         5
 
