@@ -39,7 +39,7 @@ from .. import _core
 T = TypeVar("T")
 
 
-class SizedIterator(Generic[T]):
+class _SizedIterator(Generic[T]):
     """A custom generatic class that is both :py:class:`Iterator<collections.abc.Iterator>` and :py:class:`Sized<collections.abc.Sized>`.
 
     Args:
@@ -60,17 +60,17 @@ class SizedIterator(Generic[T]):
 
     """
 
-    def __init__(self, iter_: Iterator[T], size: int | Callable[[], int]) -> None:  # noqa: D107
+    def __init__(self, iter_: Iterator[T], size: int | Callable[[], int]) -> None:
         self.iter_ = iter_
         self.size = size
 
-    def __iter__(self) -> "SizedIterator[T]":  # noqa: D105
+    def __iter__(self) -> "_SizedIterator[T]":
         return self
 
-    def __next__(self) -> T:  # noqa: D105
+    def __next__(self) -> T:
         return next(self.iter_)
 
-    def __len__(self) -> int:  # noqa: D105
+    def __len__(self) -> int:
         if isinstance(self.size, int):
             return self.size
         return self.size()
@@ -109,7 +109,7 @@ def generate_all_path_candidates(
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
     num_primitives: int, order: int
-) -> SizedIterator[UInt[Array, " order"]]:
+) -> _SizedIterator[UInt[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
 
@@ -125,13 +125,13 @@ def generate_all_path_candidates_iter(
         jnp.asarray,
         it,
     )
-    return SizedIterator(m, size=it.__len__)
+    return _SizedIterator(m, size=it.__len__)
 
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int, order: int, chunk_size: int = 1000
-) -> Iterator[UInt[Array, "chunk_size order"]]:
+) -> _SizedIterator[UInt[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -150,7 +150,7 @@ def generate_all_path_candidates_chunks_iter(
         jnp.asarray,
         it,
     )
-    return SizedIterator(m, size=it.__len__)
+    return _SizedIterator(m, size=it.__len__)
 
 
 @jax.jit
