@@ -76,3 +76,17 @@ If a function does not offer batch axes, there are two possibilities:
 
 For the latter, you can also directly suggest a patch if you know how to
 implement the batch axes.
+
+## When too large batches cause out-of-memory errors
+
+The biggest cost of using many batch dimensions is mainly in the memory footprint.
+
+E.g., in Ray Tracing applications, when dealing with larges scene (i.e., a large number of objects) or high-order paths, the size of some dimensions can rapidly become so large than they cannot fit inside your memory. This is also why we propose chunked iterators (e.g., {class}`AllPathsFromCompleteGraphChunksIter<differt.rt.graph.AllPathsFromCompleteGraphChunksIter>`) as an alternative.
+
+Likewise, when a dimension is getting too big, it is recommend to just iterator of batches, rather
+than computing *everything all at once*.
+
+However, iterations are slow and this can become also a bottleneck in your pipeline. In some cases,
+if you are only interested in a *reduced* result, JAX may be able to optimize the computation such that some batch dimensions are never allocated. See [jax#1929](https://github.com/google/jax/issues/1923) for reference.
+
+In general, this is a trial-and-error process, when the solution will highly depend on your problem parameters.
