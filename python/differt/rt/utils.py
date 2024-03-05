@@ -159,7 +159,7 @@ def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
-    epsilon: float | Float[Array, " "] = 1e-6,
+    epsilon: Union[float, Float[Array, " "]] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
@@ -221,8 +221,8 @@ def rays_intersect_any_triangle(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: float | Float[Array, " "] = 1e-6,
-    hit_threshold: float | Float[Array, " "] = 0.999,
+    epsilon: Union[float, Float[Array, " "]] = 1e-6,
+    hit_threshold: Union[float, Float[Array, " "]] = 0.999,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
