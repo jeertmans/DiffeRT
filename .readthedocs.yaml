@@ -12,7 +12,7 @@ build:
     post_system_dependencies:
     - nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
 sphinx:
-  builder: dirhtml
+  builder: html
   configuration: docs/source/conf.py
   fail_on_warning: true
 python:
