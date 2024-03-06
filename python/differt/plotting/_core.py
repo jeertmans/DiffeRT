@@ -314,10 +314,11 @@ def draw_image(
     data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
     x: Float[np.ndarray, " *m"] | None = None,
     y: Float[np.ndarray, " *n"] | None = None,
+    z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore
     """
-    Plot a 2D image on a 3D canvas.
+    Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
 
     Args:
         data: The image data array. Can be grayscale, RGB or RGBA.
@@ -330,16 +331,18 @@ def draw_image(
         y: The y-coordinates corresponding to second dimension
             of the image. Those coordinates will be used to scale and translate
             the image.
+        z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
             :py:class:`Mesh<vispy.scene.visuals.Image>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Heatmap>`, depending on the
+            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface>`,
+            or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
     Return:
         The resulting plot output.
 
     Warning:
-        Unsupported backend(s): Matplotlib.
+        Matplotlib backend requires ``data`` to be either RGB or RGBA array.
 
     Examples:
         The following example shows how plot a 2-D image,
@@ -350,8 +353,8 @@ def draw_image(
 
             >>> from differt.plotting import draw_image
             >>>
-            >>> x = np.linspace(-1., +1., 100)
-            >>> y = np.linspace(-4., +4., 200)
+            >>> x = np.linspace(-1.0, +1.0, 100)
+            >>> y = np.linspace(-4.0, +4.0, 200)
             >>> X, Y = np.meshgrid(x, y)
             >>> Z = np.sin(X) * np.cos(Y)
             >>> fig1 = draw_image(Z, backend="plotly")
@@ -368,6 +371,7 @@ def _(
     data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
     x: Float[np.ndarray, " ..."] | None = None,
     y: Float[np.ndarray, " ..."] | None = None,
+    z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:
     from vispy.scene.visuals import Image
@@ -402,7 +406,7 @@ def _(
 
     image.transform = STTransform(
         scale=(xscale, yscale),
-        translate=(xshift, yshift),
+        translate=(xshift, yshift, z0),
     )
 
     view.add(image)
@@ -415,9 +419,14 @@ def _(
     data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
     x: Float[np.ndarray, " ..."] | None = None,
     y: Float[np.ndarray, " ..."] | None = None,
+    z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:
-    raise NotImplementedError  # TODO
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    ax.plot_surface(X=x, Y=y, Z=np.full_like(data, z0), color=data, **kwargs)
+
+    return fig
 
 
 @draw_image.register("plotly")
@@ -425,8 +434,11 @@ def _(
     data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
     x: Float[np.ndarray, " ..."] | None = None,
     y: Float[np.ndarray, " ..."] | None = None,
+    z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
-    return fig.add_heatmap(x=x, y=y, z=data, **kwargs)
+    return fig.add_surface(
+        x=x, y=y, z=np.full_like(data, z0), surfacecolor=data, **kwargs
+    )
