@@ -36,6 +36,7 @@ extensions = [
     "sphinx_autodoc_typehints",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinx_plotly_directive",
     "sphinx_remove_toctrees",
 ]
 
@@ -108,6 +109,12 @@ bibtex_bibfiles = ["references.bib"]
 html_js_files = [
     "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
 ]
+
+# -- Plotly directive
+
+plotly_include_source = True
+plotly_html_show_source_link = False
+plotly_html_show_formats = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

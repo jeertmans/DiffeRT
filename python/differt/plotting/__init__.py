@@ -90,6 +90,7 @@ the Matplotlib backend.
 __all__ = (
     "dispatch",
     "use",
+    "draw_image",
     "draw_markers",
     "draw_mesh",
     "draw_paths",
@@ -99,7 +100,7 @@ __all__ = (
     "view_from_canvas",
 )
 
-from ._core import draw_markers, draw_mesh, draw_paths
+from ._core import draw_image, draw_markers, draw_mesh, draw_paths
 from ._utils import (
     dispatch,
     process_matplotlib_kwargs,
