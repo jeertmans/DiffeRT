@@ -5,7 +5,7 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-
+import os
 from datetime import date
 
 from differt import __version__
@@ -88,6 +88,7 @@ myst_enable_extensions = [
     "html_admonition",
 ]
 
+nb_execution_mode = "off" if os.environ.get("NB_OFF") else "auto"
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot

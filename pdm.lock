@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy", "vispy-backend"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:59368e3c203f965c9872ddd075568713055866a0958ac6c8454ff71e982cb0d7"
+content_hash = "sha256:a93e8caa36cf56f33de6b84e29c7e0aa9ec94900bc13c6e425d386a8ee8394bb"
 
 [[package]]
 name = "absl-py"
