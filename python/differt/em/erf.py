@@ -24,7 +24,7 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
 
     Args:
         z: The array of real or complex points to evaluate.
-        steps: TODO.
+        steps: <TODO>.
 
     Return:
         The values of the error function at the given point.
@@ -53,6 +53,7 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
         return erfx(z)
     # https://math.stackexchange.com/questions/712434/erfaib-error-function-separate-into-real-and-imaginary-part#comment1491304_712568
     # https://granite.phys.s.u-tokyo.ac.jp/svn/LCGT/trunk/sensitivity/Matlab/bKAGRA/@double/erfz.pdf
+    # TODO: fixme
     x, y = z.real, z.imag
 
     two_x = 2 * x

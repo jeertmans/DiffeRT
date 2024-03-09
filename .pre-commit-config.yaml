@@ -43,4 +43,4 @@ repos:
   rev: v1.9.0  # DO NOT CHANGE, see https://github.com/FlamingTempura/bibtex-tidy/issues/419
   hooks:
   - id: bibtex-tidy
-    args: [--no-backup, --sort-fields]
+    args: [--no-backup, --sort, --sort-fields]
