@@ -111,8 +111,28 @@ html_js_files = [
     "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
 ]
 
+# -- Matplotlib directive
+
+plot_pre_code = """
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+"""
+plot_include_source = True
+plot_html_show_source_link = False
+plot_html_show_formats = False
+
 # -- Plotly directive
 
+plotly_pre_code = """
+import jax
+import jax.numpy as jnp
+import numpy as np
+import plotly
+import plotly.express as px
+import plotly.graph_objects as go
+"""
 plotly_include_source = True
 plotly_html_show_source_link = False
 plotly_html_show_formats = False

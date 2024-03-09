@@ -29,13 +29,22 @@ def erf(z: Num[Array, " *batch"], steps: int = 100) -> Complex[Array, " *batch"]
     Examples:
         The following plots the error function for real-valued inputs.
 
-        .. plotly::
+        .. plot::
 
-            >>> import jax.numpy as jnp
             >>> from differt.em.erf import erf
             >>>
-            >>> z = jnp.linspace(0.0, 5.0)
-            >>> erf(z)
+            >>> x = jnp.linspace(-3.0, +3.0)
+            >>> y = erf(x)
+            >>> plt.plot(x, y.real)
+
+        .. plotly::
+
+            >>> from differt.em.erf import erf
+            >>>
+            >>> x = y = jnp.linspace(-2.0, +2.0)
+            >>> a, b = jnp.meshgrid(x, y)
+            >>> z = erf(a + 1j * b)
+            >>> go.Figure(data=[go.Surface(x=x, y=y, z=jnp.abs(x), surfacecolor=jnp.angle(z))])
     """
     # https://math.stackexchange.com/questions/712434/erfaib-error-function-separate-into-real-and-imaginary-part#comment1491304_712568
     # https://granite.phys.s.u-tokyo.ac.jp/svn/LCGT/trunk/sensitivity/Matlab/bKAGRA/@double/erfz.pdf

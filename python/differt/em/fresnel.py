@@ -32,14 +32,14 @@ def fresnel(
     Examples:
         The following plots the Fresnel for real-valued inputs.
 
-        .. plotly::
+        .. plot::
 
-            >>> import jax.numpy as jnp
             >>> from differt.em.fresnel import fresnel
             >>>
-            >>> t = jnp.linspace(0.0, 5.0)
+            >>> t = jnp.linspace(0.0, 5.0, 200)
             >>> s, c = fresnel(t)
             >>> s
+            >>> plt.plot(t, s.real, t, c.real)
     """
     # Constant factors
     sqrtpi_2_4 = 0.31332853432887503  # 0.25 * jnp.sqrt(0.5 * jnp.pi)
