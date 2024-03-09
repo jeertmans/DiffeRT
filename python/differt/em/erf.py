@@ -47,7 +47,7 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
             >>> x = y = jnp.linspace(-2.0, +2.0)
             >>> a, b = jnp.meshgrid(x, y)
             >>> z = erf(a + 1j * b)
-            >>> go.Figure(data=[go.Surface(x=x, y=y, z=jnp.abs(x), surfacecolor=jnp.angle(z))])
+            >>> go.Figure(data=[go.Surface(x=x, y=y, z=jnp.abs(z), surfacecolor=jnp.angle(z))])
     """
     if jnp.issubdtype(z.dtype, jnp.floating):
         return erfx(z)
