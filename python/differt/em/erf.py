@@ -6,18 +6,21 @@ import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jax.scipy.special import erf as erfx
-from jaxtyping import Array, Complex, Num, jaxtyped
+from jaxtyping import Array, Inexact, jaxtyped
 
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def erf(z: Num[Array, " *batch"], steps: int = 100) -> Complex[Array, " *batch"]:
+def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *batch"]:
     """
     Evaluate the error function at the given points.
 
     This current implementation is written using
     the error function :py:func:`erf<jax.scipy.special.erf>`
     and the approximation as detail in <TODO>.
+
+    The output type (real or complex) is determined by the
+    input type.
 
     Args:
         z: The array of real or complex points to evaluate.
@@ -46,6 +49,8 @@ def erf(z: Num[Array, " *batch"], steps: int = 100) -> Complex[Array, " *batch"]
             >>> z = erf(a + 1j * b)
             >>> go.Figure(data=[go.Surface(x=x, y=y, z=jnp.abs(x), surfacecolor=jnp.angle(z))])
     """
+    if jnp.issubdtype(z.dtype, jnp.floating):
+        return erfx(z)
     # https://math.stackexchange.com/questions/712434/erfaib-error-function-separate-into-real-and-imaginary-part#comment1491304_712568
     # https://granite.phys.s.u-tokyo.ac.jp/svn/LCGT/trunk/sensitivity/Matlab/bKAGRA/@double/erfz.pdf
     x, y = z.real, z.imag

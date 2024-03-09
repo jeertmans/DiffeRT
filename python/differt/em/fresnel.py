@@ -6,7 +6,7 @@ JAX implementation of the SciPy function :py:func:`scipy.special.fresnel`.
 
 import jax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Complex, Num, jaxtyped
+from jaxtyping import Array, Inexact, jaxtyped
 
 from .erf import erf
 
@@ -14,14 +14,17 @@ from .erf import erf
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def fresnel(
-    z: Num[Array, " *batch"],
-) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
+    z: Inexact[Array, " *batch"],
+) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
     """
     Evaluate the two Fresnel integrals at the given points.
 
     This current implementation is written using
     the error function :py:func:`erf<differt.em.erf>`
     see :cite:`fresnel-integrals`.
+
+    The output type (real or complex) is determined by the
+    input type.
 
     Args:
         z: The array of real or complex points to evaluate.
