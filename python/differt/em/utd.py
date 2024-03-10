@@ -3,7 +3,9 @@ Uniform Theory of Diffraction (UTD) utilities.
 
 The foundamentals of UTD are described in :cite:`utd-mcnamara`.
 """
+import jax.numpy as jnp
 
+from scipy.special import erfc
 
 def F(x: float) -> float:  # noqa: N802
     r"""
@@ -12,15 +14,15 @@ def F(x: float) -> float:  # noqa: N802
     The transition function is defined as follows:
 
     .. math::
-        F(x) = 2j \sqrt{x} e^{j x} \int\limits_\sqrt{x}^\infty e^{-j u^2} \text{d}u,
+        F(z) = 2j \sqrt{z} e^{j z} \int\limits_\sqrt{z}^\infty e^{-j u^2} \text{d}u,
 
     where :math:`j^2 = -1`.
 
     As detailed in :cite:`utd-mcnamara{p. 164}`, the integral can be expressed in
-    terms of Fresnel integrals (:math:`C(x)` and :math:`S(x)`), so that:
+    terms of Fresnel integrals (:math:`C(z)` and :math:`S(z)`), so that:
 
     .. math::
-        C(x) - j S(x) = \int\limits_\sqrt{x}^\infty e^{-j u^2} \text{d}u.
+        C(z) - j S(z) = \int\limits_\sqrt{z}^\infty e^{-j u^2} \text{d}u.
 
     Because JAX does not provide a XLA implementation of
     :py:func:`scipy.special.fresnel`, this implementation relies on a
@@ -29,6 +31,13 @@ def F(x: float) -> float:  # noqa: N802
 
     .. math::
         C(z) - j S(z) = \sqrt{\frac{\pi}{2}}\frac{1-i}{2}\text{erf}\left(\frac{1+i}{\sqrt{2}}z\right).
+
+    As a result, we can further simplify :math:`F(z)` to:
+
+    .. math::
+        F(z) = \sqrt{\frac{\pi}{2}} \sqrt{z} e^{j z} (1 - j) \text{erfc}\left(\frac{1+i}{\sqrt{2}}z\right),
+
+    where :math:`\text{erfc}` is the complementary error function.
 
     Args:
         x: <TODO>.
@@ -59,4 +68,12 @@ def F(x: float) -> float:  # noqa: N802
             >>> ax2.set_ylabel("Phase (°) - dashed line")
             >>> plt.tight_layout()
     """
-    return x  # TODO
+
+    factor = jnp.sqrt(jnp.pi / 2)
+    sqrtx = jnp.sqrt(x)
+
+    return (
+        (1 + 1j) * factor * sqrtx * jnp.exp(1j * x) * erfc((1 + 1j) * sqrtx / jnp.sqrt(2))
+        # We changed the parenthesis so that
+        # \sqrt{pi/2} now multiplies C and S
+    )
