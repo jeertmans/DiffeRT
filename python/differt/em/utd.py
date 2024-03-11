@@ -4,11 +4,17 @@ Uniform Theory of Diffraction (UTD) utilities.
 The foundamentals of UTD are described in :cite:`utd-mcnamara`.
 """
 
+import jax
 import jax.numpy as jnp
-from scipy.special import erfc
+from beartype import beartype as typechecker
+from jaxtyping import Array, Complex, Inexact, jaxtyped
+
+from .special import erfc
 
 
-def F(x: float) -> float:  # noqa: N802
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
     r"""
     Evaluate the transition function :cite:`utd-mcnamara{p. 184}` at the given points.
 
@@ -26,7 +32,7 @@ def F(x: float) -> float:  # noqa: N802
         C(z) - j S(z) = \int\limits_\sqrt{z}^\infty e^{-j u^2} \text{d}u.
 
     Because JAX does not provide a XLA implementation of
-    :py:func:`scipy.special.fresnel`, this implementation relies on a
+    :py:data:`scipy.special.fresnel`, this implementation relies on a
     custom complex-valued implementation of the error function and
     the fact that:
 
@@ -41,10 +47,10 @@ def F(x: float) -> float:  # noqa: N802
     where :math:`\text{erfc}` is the complementary error function.
 
     Args:
-        x: <TODO>.
+        z: The array of real or complex points to evaluate.
 
     Return:
-        <TODO>
+        The values of the transition function at the given point.
 
     Examples:
         .. plot::
@@ -62,22 +68,21 @@ def F(x: float) -> float:  # noqa: N802
             >>>
             >>> fig, ax1 = plt.subplots()
             >>>
-            >>> ax1.semilogx(x, A, "k-")
-            >>> ax1.set_ylabel("Magnitude - solid line")
+            >>> ax1.semilogx(x, A)  # doctest: +SKIP
+            >>> ax1.set_xlabel("$x$")  # doctest: +SKIP
+            >>> ax1.set_ylabel("Magnitude - solid line")  # doctest: +SKIP
             >>> ax2 = plt.twinx()
-            >>> ax2.semilogx(x, P, "k--")
-            >>> ax2.set_ylabel("Phase (°) - dashed line")
-            >>> plt.tight_layout()
+            >>> ax2.semilogx(x, P, "--")  # doctest: +SKIP
+            >>> ax2.set_ylabel("Phase (°) - dashed line")  # doctest: +SKIP
+            >>> plt.tight_layout()  # doctest: +SKIP
     """
     factor = jnp.sqrt(jnp.pi / 2)
-    sqrtx = jnp.sqrt(x)
+    sqrt_z = jnp.sqrt(z)
 
     return (
         (1 + 1j)
         * factor
-        * sqrtx
-        * jnp.exp(1j * x)
-        * erfc((1 + 1j) * sqrtx / jnp.sqrt(2))
-        # We changed the parenthesis so that
-        # \sqrt{pi/2} now multiplies C and S
+        * sqrt_z
+        * jnp.exp(1j * z)
+        * erfc((1 + 1j) * sqrt_z / jnp.sqrt(2))
     )

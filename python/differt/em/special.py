@@ -19,24 +19,27 @@ from jax.scipy.special import erf as erfx
 from jaxtyping import Array, Inexact, jaxtyped
 
 
-# @jax.jit
+@jax.jit
 @jaxtyped(typechecker=typechecker)
-def erf(z: Inexact[Array, " *batch"], steps: int = 20) -> Inexact[Array, " *batch"]:
-    """
+def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
+    r"""
     Evaluate the error function at the given points.
 
-    This current implementation is written using
-    the error function :py:func:`erf<jax.scipy.special.erf>`
-    and the approximation as detailed in <TODO>.
+    The current implementation is written using
+    the real-valued error function :py:func:`erf<jax.scipy.special.erf>`
+    and the approximation as detailed in :cite:`erf-complex`.
 
     The output type (real or complex) is determined by the
     input type.
 
+    Warning:
+        Currently, we observe that
+        this function and :py:data:`scipy.special.erf`
+        starts to diverge for :math:`|z| > 6`. If you know
+        how to avoid this problem, please contact us!
+
     Args:
         z: The array of real or complex points to evaluate.
-        steps: The number of steps used to approximate the
-            infinite sum. Not used if the input array
-            is not complex.
 
     Return:
         The values of the error function at the given point.
@@ -50,88 +53,157 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 20) -> Inexact[Array, " *batc
             >>>
             >>> x = jnp.linspace(-3.0, +3.0)
             >>> y = erf(x)
-            >>> plt.plot(x, y.real)
+            >>> plt.plot(x, y.real)  # doctest: +SKIP
+            >>> plt.xlabel("$x$")  # doctest: +SKIP
+            >>> plt.ylabel(r"$\text{erf}(x)$")  # doctest: +SKIP
 
         The following plots the error function for complex-valued inputs.
 
         .. plotly::
 
             >>> from differt.em.special import erf
+            >>> from scipy.special import erf
             >>>
             >>> x = y = jnp.linspace(-2.0, +2.0, 200)
             >>> a, b = jnp.meshgrid(x, y)
             >>> z = erf(a + 1j * b)
-            >>> go.Figure(data=[go.Surface(x=x, y=y, z=jnp.abs(z), surfacecolor=jnp.angle(z))])
+            >>> fig = go.Figure(
+            ...     data=[
+            ...         go.Surface(
+            ...             x=x,
+            ...             y=y,
+            ...             z=jnp.abs(z),
+            ...             colorscale="phase",
+            ...             surfacecolor=jnp.angle(z),
+            ...             colorbar=dict(title="Arg(erf(z))"),
+            ...         )
+            ...     ]
+            ... )
+            >>> fig.update_layout(
+            ...     scene=dict(
+            ...         xaxis=dict(title="Re(z)"),
+            ...         yaxis=dict(title="Im(z)"),
+            ...         zaxis=dict(title="Abs(erf(z))"),
+            ...     )
+            ... )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
     """
     if jnp.issubdtype(z.dtype, jnp.floating):
         return erfx(z)
-    # https://math.stackexchange.com/questions/712434/erfaib-error-function-separate-into-real-and-imaginary-part#comment1491304_712568
     # https://granite.phys.s.u-tokyo.ac.jp/svn/LCGT/trunk/sensitivity/Matlab/bKAGRA/@double/erfz.pdf
-    # TODO: fixme
-    x, y = z.real, z.imag
 
-    print(f"{x = }")
-    print(f"{y = }")
+    if jnp.issubdtype(z.dtype, jnp.complex128):  # double precision
+        N = 13  # noqa: N806
+        M = 14  # noqa: N806
+    else:  # single precision
+        N = 9  # noqa: N806
+        M = 10  # noqa: N806
 
-    two_x = 2 * x
-    two_x_y = two_x * y
-    x_squared = x * x
-    four_x_squared = x_squared
-    cos_two_x_y = jnp.cos(two_x_y)
-    sin_two_x_y = jnp.sin(two_x_y)
+    r = z.real
+    i = jnp.abs(z.imag)
+    r_squared = r * r
 
-    exp = jnp.exp(-x_squared)
+    exp_r_squared = jnp.exp(-r_squared)
+    exp_2j_r_i = jnp.exp(-2j * r * i)
 
-    def scan_fun(carry_sum, k):
-        k_squared = k * k
-        k_y = k * y
-        print(f"{k = }")
-        print(f"{k_y = }")
-        cosh_k_y = jnp.cosh(k_y)
-        sinh_k_y = jnp.sinh(k_y)
-        cosh_k_y = 1.0
-        #sinh_k_y = 1.0
+    def f_scan(carrying_sum, n):
+        n_squared = n * n
+        n_squared_over_four = n_squared / 4
+        exp = jnp.exp(-n_squared_over_four)
 
+        return carrying_sum + exp / (n_squared_over_four + r_squared), None
 
-        factor = jnp.exp(-k_squared * 0.25) / (k_squared + four_x_squared)
-        factor = 1.0
+    def g_scan(carrying_sum, n):
+        n_squared = n * n
+        n_squared_over_four = n_squared / 4
+        exp = jnp.exp(
+            n * i
+            - n_squared_over_four
+            - r_squared
+            - jnp.log(2 * jnp.pi)
+            - jnp.log(n_squared_over_four + r_squared)
+        )
 
-        f = two_x * (1 - cos_two_x_y * cosh_k_y) + k * cos_two_x_y * sinh_k_y
-        g = two_x * sin_two_x_y * cosh_k_y + k * cos_two_x_y * sinh_k_y
+        # return carrying_sum + exp * (r - 1j * n / 2), None
+        exp = jnp.exp(+n * i - n_squared_over_four)
 
-        return carry_sum + factor * (f + 1j * g), None
+        return carrying_sum + exp * (r - 1j * n / 2) / (
+            n_squared_over_four + r_squared
+        ), None
 
-    print(z.dtype)
+    def h_scan(carrying_sum, n):
+        n_squared = n * n
+        n_squared_over_four = n_squared / 4
+        exp = jnp.exp(-n * i - n_squared_over_four)
 
-    carry_sum = jnp.zeros_like(z)
+        return carrying_sum + exp * (r + 1j * n / 2) / (
+            n_squared_over_four + r_squared
+        ), None
 
-    for k in jnp.arange(1.0, steps + 1.0, dtype=z.dtype):
-        carry_sum, _ = scan_fun(carry_sum, k)
-
-    """
-    carry_sum = jax.lax.scan(
-        scan_fun,
+    f_sum = jax.lax.scan(
+        f_scan,
         init=jnp.zeros_like(z),
-        xs=jnp.arange(1.0, steps + 1.0, dtype=z.dtype),
+        xs=jnp.arange(1.0, N + 1.0, dtype=z.dtype),
     )[0]
+
+    g_sum = jax.lax.scan(
+        g_scan,
+        init=jnp.zeros_like(z),
+        xs=jnp.arange(1.0, N + M + 1.0, dtype=z.dtype),
+    )[0]
+
+    h_sum = jax.lax.scan(
+        h_scan,
+        init=jnp.zeros_like(z),
+        xs=jnp.arange(1.0, N + 1.0, dtype=z.dtype),
+    )[0]
+
+    r_non_zero = jnp.where(r == 0.0, 1.0, r)
+    e = jnp.where(
+        r == 0.0,
+        1j * i / jnp.pi,
+        (exp_r_squared * (1 - exp_2j_r_i)) / (2 * jnp.pi * r_non_zero),
+    )  # Fixes limit r -> 0
+    f = r * exp_r_squared * f_sum / jnp.pi
+    g = exp_r_squared * g_sum / (2 * jnp.pi)
+    h = exp_r_squared * h_sum / (2 * jnp.pi)
+
+    res = erfx(r) + e + f - exp_2j_r_i * (g + h)
+    res = jnp.where(z.imag < 0, jnp.conj(res), res)
+    return res
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def erfc(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
+    r"""
+    Evaluate the complementary error function at the given points.
+
+    The output type (real or complex) is determined by the
+    input type.
+
+    See :py:func:`erf` for more details.
+
+    Args:
+        z: The array of real or complex points to evaluate.
+
+    Return:
+        The values of the complementary error function at the given point.
+
+    Examples:
+        The following plots the complementary error function for real-valued inputs.
+
+        .. plot::
+
+            >>> from differt.em.special import erfc
+            >>>
+            >>> x = jnp.linspace(-3.0, +3.0)
+            >>> y = erfc(x)
+            >>> plt.plot(x, y.real)  # doctest: +SKIP
+            >>> plt.xlabel("$x$")  # doctest: +SKIP
+            >>> plt.ylabel(r"$\text{erfc}(x)$")  # doctest: +SKIP
     """
-
-    print("after carry sum")
-
-    # e = (exp_one * (1.0 - exp_two)) / (jnp.pi * two_x)
-
-    # e = jnp.where(x == 0.0, 1j * x / jnp.pi, e)
-
-    x_non_zero = jnp.where(x == 0.0, 1.0, x)
-    a = jnp.where(
-        x == 0.0,
-        1j * y / jnp.pi,
-        ((1 - cos_two_x_y) + 1j * sin_two_x_y) * exp / (2 * jnp.pi * x_non_zero),
-    )  # Fix limit x -> 0
-    print(a)
-    b = carry_sum * exp * 2 / jnp.pi
-
-    return erfx(x) + a + b
+    return 1.0 - erf(z)
 
 
 @jax.jit
@@ -164,7 +236,11 @@ def fresnel(
             >>>
             >>> t = jnp.linspace(0.0, 5.0, 200)
             >>> s, c = fresnel(t)
-            >>> plt.plot(t, s.real, t, c.real)
+            >>> plt.plot(t, s.real, label=r"$y=S(x)$")  # doctest: +SKIP
+            >>> plt.plot(t, c.real, "--", label=r"$y=C(x)$")  # doctest: +SKIP
+            >>> plt.xlabel("$x$")  # doctest: +SKIP
+            >>> plt.ylabel("$y$")  # doctest: +SKIP
+            >>> plt.legend()  # doctest: +SKIP
     """
     # Constant factors
     sqrtpi_2_4 = 0.31332853432887503  # 0.25 * jnp.sqrt(0.5 * jnp.pi)
