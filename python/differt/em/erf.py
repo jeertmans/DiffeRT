@@ -60,9 +60,10 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
     two_x_y = two_x * y
     x_squared = x * x
     four_x_squared = x_squared
+    cos_two_x_y = jnp.cos(two_x_y)
+    sin_two_x_y = jnp.sin(two_x_y)
 
-    exp_one = jnp.exp(-x_squared)
-    exp_two = jnp.exp(-2j * two_x_y)
+    exp = jnp.exp(-x_squared)
 
     def scan_fun(carry_sum, k):
         k_squared = k * k
@@ -72,10 +73,12 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
 
         print(f"{k = }")
 
-        f1 = jnp.exp(-k_squared * 0.25) / (k_squared + four_x_squared)
-        f2 = two_x - exp_two * (two_x * cosh_k_y - 1j * k * sinh_k_y)
+        factor = jnp.exp(-k_squared * 0.25) / (k_squared + four_x_squared)
 
-        return carry_sum + f1 * f2, None
+        f = two_x * (1 - cos_two_x_y * cosh_k_y) + k * cos_two_x_y * sinh_k_y
+        g = two_x * sin_two_x_y * cosh_k_y + k * cos_two_x_y * sinh_k_y
+
+        return carry_sum + factor * (f + 1j * g), None
 
     carry_sum = jax.lax.scan(
         scan_fun,
@@ -83,10 +86,11 @@ def erf(z: Inexact[Array, " *batch"], steps: int = 100) -> Inexact[Array, " *bat
         xs=jnp.arange(1.0, steps + 1.0),
     )[0]
 
-    e = (exp_one * (1.0 - exp_two)) / (jnp.pi * two_x)
+    #e = (exp_one * (1.0 - exp_two)) / (jnp.pi * two_x)
 
-    e = jnp.where(x == 0.0, 1j * x / jnp.pi, e)
+    #e = jnp.where(x == 0.0, 1j * x / jnp.pi, e)
 
-    s = 2 * exp_one * carry_sum / jnp.pi
+    a = ((1 - cos_two_x_y) + 1j * sin_two_x_y) * exp / (2 * jnp.pi * x)
+    b = carry_sum * exp * 2 / jnp.pi
 
-    return erfx(x) + e + s
+    return erfx(x) + a + b
