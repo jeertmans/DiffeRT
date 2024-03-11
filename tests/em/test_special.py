@@ -5,14 +5,14 @@ import pytest
 from chex import Array
 from scipy.special import erf as erf_scipy
 
-from differt.em.erf import erf
+from differt.em.special import erf
 
 
 @pytest.mark.parametrize(
     "z",
     (
         # jnp.linspace(-10.0, +10.0),
-        1j * jnp.linspace(+5.0, +10.0),
+        1j * jnp.linspace(-5.0, +5.0),
         # jnp.linspace(-10.0, +10.0) + 1j * jnp.linspace(-10.0, +10.0),
     ),
 )

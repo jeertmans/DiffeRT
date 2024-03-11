@@ -5,7 +5,7 @@
 groups = ["default", "all", "dev", "docs", "github-action", "jupyter", "maplotlib", "plotly", "test", "vispy", "vispy-backend"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:73222ae3dea3e810ff6e43239311e53563d99f0493ad6dce74247f92b294fc4d"
+content_hash = "sha256:bdb1432a880526df8848bb1463713fe1c6c0ebec2432cb75a07c2f32da436907"
 
 [[package]]
 name = "absl-py"
@@ -406,6 +406,17 @@ files = [
 ]
 
 [[package]]
+name = "cloudpickle"
+version = "3.0.0"
+requires_python = ">=3.8"
+summary = "Pickler class to extend the standard pickle.Pickler functionality"
+groups = ["default"]
+files = [
+    {file = "cloudpickle-3.0.0-py3-none-any.whl", hash = "sha256:246ee7d0c295602a036e86369c77fecda4ab17b506496730f2f576d9016fd9c7"},
+    {file = "cloudpickle-3.0.0.tar.gz", hash = "sha256:996d9a482c6fb4f33c1a35335cf8afd065d2a56e973270364840712d9131a882"},
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
@@ -637,7 +648,7 @@ name = "decorator"
 version = "5.1.1"
 requires_python = ">=3.5"
 summary = "Decorators for Humans"
-groups = ["all", "docs", "jupyter", "test"]
+groups = ["all", "default", "docs", "jupyter", "test"]
 files = [
     {file = "decorator-5.1.1-py3-none-any.whl", hash = "sha256:b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186"},
     {file = "decorator-5.1.1.tar.gz", hash = "sha256:637996211036b6385ef91435e4fae22989472f9d571faba8927ba8253acbc330"},
@@ -662,6 +673,46 @@ groups = ["dev"]
 files = [
     {file = "distlib-0.3.8-py2.py3-none-any.whl", hash = "sha256:034db59a0b96f8ca18035f36290806a9a6e6bd9d1ff91e45a7f172eb17e51784"},
     {file = "distlib-0.3.8.tar.gz", hash = "sha256:1530ea13e350031b6312d8580ddb6b27a104275a31106523b8f123787f494f64"},
+]
+
+[[package]]
+name = "dm-tree"
+version = "0.1.8"
+summary = "Tree is a library for working with nested data structures."
+groups = ["default"]
+files = [
+    {file = "dm-tree-0.1.8.tar.gz", hash = "sha256:0fcaabbb14e7980377439e7140bd05552739ca5e515ecb3119f234acee4b9430"},
+    {file = "dm_tree-0.1.8-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:35cc164a79336bfcfafb47e5f297898359123bbd3330c1967f0c4994f9cf9f60"},
+    {file = "dm_tree-0.1.8-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:39070ba268c0491af9fe7a58644d99e8b4f2cde6e5884ba3380bddc84ed43d5f"},
+    {file = "dm_tree-0.1.8-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2869228d9c619074de501a3c10dc7f07c75422f8fab36ecdcb859b6f1b1ec3ef"},
+    {file = "dm_tree-0.1.8-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d20f2faa3672b52e5013f4077117bfb99c4cfc0b445d3bde1584c34032b57436"},
+    {file = "dm_tree-0.1.8-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5483dca4d7eb1a0d65fe86d3b6a53ae717face83c1f17e0887b1a4a64ae5c410"},
+    {file = "dm_tree-0.1.8-cp310-cp310-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:1d7c26e431fc93cc7e0cba867eb000db6a05f6f2b25af11ac4e9dada88fc5bca"},
+    {file = "dm_tree-0.1.8-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e4d714371bb08839e4e5e29024fc95832d9affe129825ef38836b143028bd144"},
+    {file = "dm_tree-0.1.8-cp310-cp310-win_amd64.whl", hash = "sha256:d40fa4106ca6edc66760246a08f500ec0c85ef55c762fb4a363f6ee739ba02ee"},
+    {file = "dm_tree-0.1.8-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:ad16ceba90a56ec47cf45b21856d14962ac314787975ef786efb5e6e9ca75ec7"},
+    {file = "dm_tree-0.1.8-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:803bfc53b4659f447ac694dbd04235f94a73ef7c1fd1e0df7c84ac41e0bc963b"},
+    {file = "dm_tree-0.1.8-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:378cc8ad93c5fe3590f405a309980721f021c790ca1bdf9b15bb1d59daec57f5"},
+    {file = "dm_tree-0.1.8-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1607ce49aa42f010d1e5e616d92ce899d66835d4d8bea49679582435285515de"},
+    {file = "dm_tree-0.1.8-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:343a4a4ebaa127451ff971254a4be4084eb4bdc0b2513c32b46f6f728fd03f9e"},
+    {file = "dm_tree-0.1.8-cp311-cp311-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:fa42a605d099ee7d41ba2b5fb75e21423951fd26e5d50583a00471238fb3021d"},
+    {file = "dm_tree-0.1.8-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:83b7764de0d855338abefc6e3ee9fe40d301668310aa3baea3f778ff051f4393"},
+    {file = "dm_tree-0.1.8-cp311-cp311-win_amd64.whl", hash = "sha256:a5d819c38c03f0bb5b3b3703c60e4b170355a0fc6b5819325bf3d4ceb3ae7e80"},
+    {file = "dm_tree-0.1.8-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:ea9e59e0451e7d29aece402d9f908f2e2a80922bcde2ebfd5dcb07750fcbfee8"},
+    {file = "dm_tree-0.1.8-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:94d3f0826311f45ee19b75f5b48c99466e4218a0489e81c0f0167bda50cacf22"},
+    {file = "dm_tree-0.1.8-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:435227cf3c5dc63f4de054cf3d00183790bd9ead4c3623138c74dde7f67f521b"},
+    {file = "dm_tree-0.1.8-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:09964470f76a5201aff2e8f9b26842976de7889300676f927930f6285e256760"},
+    {file = "dm_tree-0.1.8-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:75c5d528bb992981c20793b6b453e91560784215dffb8a5440ba999753c14ceb"},
+    {file = "dm_tree-0.1.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c0a94aba18a35457a1b5cd716fd7b46c5dafdc4cf7869b4bae665b91c4682a8e"},
+    {file = "dm_tree-0.1.8-cp312-cp312-win_amd64.whl", hash = "sha256:96a548a406a6fb15fe58f6a30a57ff2f2aafbf25f05afab00c8f5e5977b6c715"},
+    {file = "dm_tree-0.1.8-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:d16e1f2a073604cfcc09f7131ae8d534674f43c3aef4c25742eae295bc60d04f"},
+    {file = "dm_tree-0.1.8-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:250b692fb75f45f02e2f58fbef9ab338904ef334b90557565621fa251df267cf"},
+    {file = "dm_tree-0.1.8-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:81fce77f22a302d7a5968aebdf4efafef4def7ce96528719a354e6990dcd49c7"},
+    {file = "dm_tree-0.1.8-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f7ac31b9aecccb2c6e1ab29706f6ded3eba0c2c69c770322c9c685929c3d6afb"},
+    {file = "dm_tree-0.1.8-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:1fe962015b2fe1282892b28ebe962faed53c7f98d942da9a4625cbf27baef913"},
+    {file = "dm_tree-0.1.8-cp39-cp39-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:28c52cbf4f8b3dbd0beaedf44f69fa85eec5e9dede612e08035e06ada6ec9426"},
+    {file = "dm_tree-0.1.8-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:181c35521d480d0365f39300542cb6cd7fd2b77351bb43d7acfda15aef63b317"},
+    {file = "dm_tree-0.1.8-cp39-cp39-win_amd64.whl", hash = "sha256:8ed3564abed97c806db122c2d3e1a2b64c74a63debe9903aad795167cc301368"},
 ]
 
 [[package]]
@@ -814,6 +865,17 @@ files = [
     {file = "freetype_py-2.4.0-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:c6276d92ac401c8ce02ea391fc854de413b01a8d835fb394ee5eb6f04fc947f5"},
     {file = "freetype_py-2.4.0-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:9614f68876e9c62e821dfa811dd6160e00279d9d98cf60118cb264be48da1472"},
     {file = "freetype_py-2.4.0-py3-none-win_amd64.whl", hash = "sha256:a2620788d4f0c00bd75fee2dfca61635ab0da856131598c96e2355d5257f70e5"},
+]
+
+[[package]]
+name = "gast"
+version = "0.5.4"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+summary = "Python AST that abstracts the underlying Python version"
+groups = ["default"]
+files = [
+    {file = "gast-0.5.4-py3-none-any.whl", hash = "sha256:6fc4fa5fa10b72fb8aab4ae58bcb023058386e67b6fa2e3e34cec5c769360316"},
+    {file = "gast-0.5.4.tar.gz", hash = "sha256:9c270fe5f4b130969b54174de7db4e764b09b4f7f67ccfc32480e29f78348d97"},
 ]
 
 [[package]]
@@ -3026,7 +3088,7 @@ name = "six"
 version = "1.16.0"
 requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 summary = "Python 2 and 3 compatibility utilities"
-groups = ["all", "docs", "jupyter", "maplotlib", "test"]
+groups = ["all", "default", "docs", "jupyter", "maplotlib", "test"]
 files = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
@@ -3391,6 +3453,41 @@ dependencies = [
 files = [
     {file = "terminado-0.18.0-py3-none-any.whl", hash = "sha256:87b0d96642d0fe5f5abd7783857b9cab167f221a39ff98e3b9619a788a3c0f2e"},
     {file = "terminado-0.18.0.tar.gz", hash = "sha256:1ea08a89b835dd1b8c0c900d92848147cef2537243361b2e3f4dc15df9b6fded"},
+]
+
+[[package]]
+name = "tfp-nightly"
+version = "0.24.0.dev20240311"
+requires_python = ">=3.9"
+summary = "Probabilistic modeling and statistical inference in TensorFlow"
+groups = ["default"]
+dependencies = [
+    "absl-py",
+    "cloudpickle>=1.3",
+    "decorator",
+    "dm-tree",
+    "gast>=0.3.2",
+    "numpy>=1.13.3",
+    "six>=1.10.0",
+]
+files = [
+    {file = "tfp_nightly-0.24.0.dev20240311-py2.py3-none-any.whl", hash = "sha256:151d93c27eab6125ed4bce1532943d31c9be8ee937348d96e1b22d1becebe0ec"},
+]
+
+[[package]]
+name = "tfp-nightly"
+version = "0.24.0.dev20240311"
+extras = ["jax"]
+requires_python = ">=3.9"
+summary = "Probabilistic modeling and statistical inference in TensorFlow"
+groups = ["default"]
+dependencies = [
+    "jax",
+    "jaxlib",
+    "tfp-nightly==0.24.0.dev20240311",
+]
+files = [
+    {file = "tfp_nightly-0.24.0.dev20240311-py2.py3-none-any.whl", hash = "sha256:151d93c27eab6125ed4bce1532943d31c9be8ee937348d96e1b22d1becebe0ec"},
 ]
 
 [[package]]

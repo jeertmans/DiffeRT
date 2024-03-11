@@ -3,9 +3,10 @@ Uniform Theory of Diffraction (UTD) utilities.
 
 The foundamentals of UTD are described in :cite:`utd-mcnamara`.
 """
-import jax.numpy as jnp
 
+import jax.numpy as jnp
 from scipy.special import erfc
+
 
 def F(x: float) -> float:  # noqa: N802
     r"""
@@ -68,12 +69,15 @@ def F(x: float) -> float:  # noqa: N802
             >>> ax2.set_ylabel("Phase (°) - dashed line")
             >>> plt.tight_layout()
     """
-
     factor = jnp.sqrt(jnp.pi / 2)
     sqrtx = jnp.sqrt(x)
 
     return (
-        (1 + 1j) * factor * sqrtx * jnp.exp(1j * x) * erfc((1 + 1j) * sqrtx / jnp.sqrt(2))
+        (1 + 1j)
+        * factor
+        * sqrtx
+        * jnp.exp(1j * x)
+        * erfc((1 + 1j) * sqrtx / jnp.sqrt(2))
         # We changed the parenthesis so that
         # \sqrt{pi/2} now multiplies C and S
     )
