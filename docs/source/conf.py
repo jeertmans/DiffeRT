@@ -5,7 +5,7 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-
+import os
 from datetime import date
 
 from differt import __version__
@@ -58,6 +58,7 @@ intersphinx_mapping = {
     "optax": ("https://optax.readthedocs.io/en/latest", None),
     "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "vispy": ("https://vispy.org", None),
 }
 
@@ -88,6 +89,7 @@ myst_enable_extensions = [
     "html_admonition",
 ]
 
+nb_execution_mode = "off" if os.environ.get("NB_OFF") else "auto"
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
@@ -110,8 +112,28 @@ html_js_files = [
     "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
 ]
 
+# -- Matplotlib directive
+
+plot_pre_code = """
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+"""
+plot_include_source = True
+plot_html_show_source_link = False
+plot_html_show_formats = False
+
 # -- Plotly directive
 
+plotly_pre_code = """
+import jax
+import jax.numpy as jnp
+import numpy as np
+import plotly
+import plotly.express as px
+import plotly.graph_objects as go
+"""
 plotly_include_source = True
 plotly_html_show_source_link = False
 plotly_html_show_formats = False
