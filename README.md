@@ -18,7 +18,8 @@
 
 > [!WARNING]
 > Until this package reaches version `0.1.x`, breaking changes
-> should be expected.
+> should be expected. Checkout the [ROADMAP](./ROADMAP.md) for
+> future features.
 >
 > If you have any suggestion regarding the development of this package,
 > please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
