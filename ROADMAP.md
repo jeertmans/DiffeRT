@@ -44,5 +44,3 @@ If you feel something is missing, please create
 
 - Create more labels for issues and pull requests
 - Add CITATION.cff file
-
--
