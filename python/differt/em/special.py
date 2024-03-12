@@ -26,7 +26,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Evaluate the error function at the given points.
 
     The current implementation is written using
-    the real-valued error function :py:func:`erf<jax.scipy.special.erf>`
+    the real-valued error function :py:func:`jax.scipy.special.erf`
     and the approximation as detailed in :cite:`erf-complex`.
 
     The output type (real or complex) is determined by the
@@ -43,6 +43,18 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
 
     Return:
         The values of the error function at the given point.
+
+    Notes:
+        Regarding performances, there are two possible outputs:
+
+        1. If ``z`` is real, then this function compiles to
+           :py:func:`jax.scipy.special.erf`, and will therefore
+           have the same performances (when JIT compilation
+           is done). Compared to the SciPy equivalent, we measured
+           that our implementation is **~ 10 times faster**.
+        2. If ``z`` is complex, then our implementation is a
+           bit less than **~ 10 times slower** than
+           :py:data:`scipy.special.erf`.
 
     Examples:
         The following plots the error function for real-valued inputs.
