@@ -36,7 +36,9 @@ If you feel something is missing, please create
 
 ## Testing
 
-- Improve test coverage
+- Fix failing tests
+- Improve plotting tests
+- Improve global test coverage
 
 ## GitHub
 
