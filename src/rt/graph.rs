@@ -270,13 +270,12 @@ pub mod complete {
 
     /// An iterator over all paths in a complete graph.
     ///
-    /// # Note
-    ///
-    /// Even though this iterator is generally sized, this is not true
-    /// when its length is so large that overflow occured when computing
-    /// its theoritical length.
-    /// For lengths close or above [`usize::MAX`], do not rely
-    /// on the provided size hint nor the length.
+    /// Note:
+    ///     Even though this iterator is generally sized, this is not true
+    ///     when its length is so large that overflow occured when computing
+    ///     its theoritical length.
+    ///     For lengths close or above ``usize::MAX``, do not rely
+    ///     on the provided size hint nor the length.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {

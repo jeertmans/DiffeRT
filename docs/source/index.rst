@@ -20,4 +20,5 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    batch_axes.md
    notebooks/type_checking
    notebooks/performance_tips
+   notebooks/path_candidates
    references

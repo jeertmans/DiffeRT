@@ -12,6 +12,24 @@ sure that the returned path is correct.
 
 Otherwise, the returned path will, for each reflection, have equal angles
 of incidence and of reflection.
+
+Examples:
+    The following image shows how the Image Method (IM) can be applied
+    to find a path between two nodes (i.e., BS and UE).
+
+    .. figure:: ../_static/image-method.svg
+        :width: 70%
+        :align: center
+        :alt: Image Method example.
+
+        Example application of IM in RT. The method determines the only
+        valid path that can be taken to join BS and UE with, in between, reflection with
+        two mirrors (the interaction order is important). First, the consecutive images
+        of the BS are determined through each mirror, using line symmetry. Second,
+        intersections with mirrors are computed backward, `i.e.`, from last mirror to
+        first, by joining the UE, then the intersections points, with the images of the
+        BS. Finally, the valid path can be obtained by joining BS, the intermediary
+        intersection points, and the UE :cite:`mpt-eucap2023{fig. 5}`.
 """
 
 import chex

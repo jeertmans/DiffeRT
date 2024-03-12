@@ -84,6 +84,7 @@ always_document_param_types = True
 myst_heading_anchors = 3
 
 myst_enable_extensions = [
+    "amsmath",
     "colon_fence",
     "dollarmath",
     "html_admonition",
