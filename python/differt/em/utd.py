@@ -37,12 +37,12 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
     the fact that:
 
     .. math::
-        C(z) - j S(z) = \sqrt{\frac{\pi}{2}}\frac{1-i}{2}\text{erf}\left(\frac{1+i}{\sqrt{2}}z\right).
+        C(z) - j S(z) = \sqrt{\frac{\pi}{2}}\frac{1-j}{2}\text{erf}\left(\frac{1+j}{\sqrt{2}}z\right).
 
     As a result, we can further simplify :math:`F(z)` to:
 
     .. math::
-        F(z) = \sqrt{\frac{\pi}{2}} \sqrt{z} e^{j z} (1 - j) \text{erfc}\left(\frac{1+i}{\sqrt{2}}z\right),
+        F(z) = \sqrt{\frac{\pi}{2}} \sqrt{z} e^{j z} (1 - j) \text{erfc}\left(\frac{1+j}{\sqrt{2}}z\right),
 
     where :math:`\text{erfc}` is the complementary error function.
 
