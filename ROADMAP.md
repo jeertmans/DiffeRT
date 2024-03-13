@@ -22,6 +22,10 @@ If you feel something is missing, please create
 - Add Fresnel coefficients utilities
 - Add UTD coefficients utilities
 - Add antenna / path polarization utilities
+- Read optional color from `.obj` file and use it for 3D plots
+- Extend mesh support to quad meshes?
+- Support point clouds?
+- Investigate zoom-issue on Vispy plots with large scenes (camera issue?)
 
 ## Documentation
 
