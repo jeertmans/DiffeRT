@@ -5,6 +5,7 @@ repos:
   - id: check-yaml
   - id: check-toml
   - id: end-of-file-fixer
+    exclude: .*\.svg$
   - id: trailing-whitespace
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: v2.12.0
