@@ -52,8 +52,8 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
            have the same performances (when JIT compilation
            is done). Compared to the SciPy equivalent, we measured
            that our implementation is **~ 10 times faster**.
-        2. If ``z`` is complex, then our implementation is a
-           **~ 3 times faster**
+        2. If ``z`` is complex, then our implementation is
+           **~ 3 times faster** than
            :py:data:`scipy.special.erf`.
 
         Those results were measured on centered random uniform arrays
