@@ -52,9 +52,12 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
            have the same performances (when JIT compilation
            is done). Compared to the SciPy equivalent, we measured
            that our implementation is **~ 10 times faster**.
-        2. If ``z`` is complex, then our implementation is a
-           bit less than **~ 10 times slower** than
+        2. If ``z`` is complex, then our implementation is
+           **~ 3 times faster** than
            :py:data:`scipy.special.erf`.
+
+        Those results were measured on centered random uniform arrays
+        with :math:`10^5` elements.
 
     Examples:
         The following plots the error function for real-valued inputs.
@@ -118,57 +121,28 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     exp_r_squared = jnp.exp(-r_squared)
     exp_2j_r_i = jnp.exp(-2j * r * i)
 
-    def f_scan(carrying_sum, n):
+    f_sum = jnp.zeros_like(z)
+    g_sum = jnp.zeros_like(z)
+    h_sum = jnp.zeros_like(z)
+
+    for n in range(1, N + 1):
         n_squared = n * n
         n_squared_over_four = n_squared / 4
-        exp = jnp.exp(-n_squared_over_four)
+        den = 1 / (n_squared_over_four + r_squared)
+        exp_f = jnp.exp(-n_squared_over_four)
+        exp_g = jnp.exp(+n * i - n_squared_over_four)
+        exp_h = jnp.exp(-n * i - n_squared_over_four)
 
-        return carrying_sum + exp / (n_squared_over_four + r_squared), None
+        f_sum += exp_f * den
+        g_sum += exp_g * (r - 1j * n / 2) * den
+        h_sum += exp_h * (r + 1j * n / 2) * den
 
-    def g_scan(carrying_sum, n):
+    for n in range(N + 1, N + M + 1):
         n_squared = n * n
         n_squared_over_four = n_squared / 4
-        exp = jnp.exp(
-            n * i
-            - n_squared_over_four
-            - r_squared
-            - jnp.log(2 * jnp.pi)
-            - jnp.log(n_squared_over_four + r_squared)
-        )
+        exp_g = jnp.exp(+n * i - n_squared_over_four)
 
-        # return carrying_sum + exp * (r - 1j * n / 2), None
-        exp = jnp.exp(+n * i - n_squared_over_four)
-
-        return carrying_sum + exp * (r - 1j * n / 2) / (
-            n_squared_over_four + r_squared
-        ), None
-
-    def h_scan(carrying_sum, n):
-        n_squared = n * n
-        n_squared_over_four = n_squared / 4
-        exp = jnp.exp(-n * i - n_squared_over_four)
-
-        return carrying_sum + exp * (r + 1j * n / 2) / (
-            n_squared_over_four + r_squared
-        ), None
-
-    f_sum = jax.lax.scan(
-        f_scan,
-        init=jnp.zeros_like(z),
-        xs=jnp.arange(1.0, N + 1.0, dtype=z.dtype),
-    )[0]
-
-    g_sum = jax.lax.scan(
-        g_scan,
-        init=jnp.zeros_like(z),
-        xs=jnp.arange(1.0, N + M + 1.0, dtype=z.dtype),
-    )[0]
-
-    h_sum = jax.lax.scan(
-        h_scan,
-        init=jnp.zeros_like(z),
-        xs=jnp.arange(1.0, N + 1.0, dtype=z.dtype),
-    )[0]
+        g_sum += exp_g * (r - 1j * n / 2) / (n_squared_over_four + r_squared)
 
     r_non_zero = jnp.where(r == 0.0, 1.0, r)
     e = jnp.where(
