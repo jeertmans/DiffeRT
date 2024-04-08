@@ -47,7 +47,7 @@ impl TriangleMesh {
     fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
         let obj: RawObj = parse_obj(input).map_err(|err| {
-            PyValueError::new_err(format!("An error occured while reading obj file: {}", err))
+            PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
         })?;
         obj.try_into()
     }
@@ -94,7 +94,7 @@ impl TryFrom<RawObj> for TriangleMesh {
         // Steps:
         // 1. Sort vertices
         // 2. Identify same vertices (consecutive)
-        // 3. Remap triangles to point to first occurence
+        // 3. Remap triangles to point to first occurrence
         // 4. Resize the triangles array and renumber from 0 to ...
 
         Ok(Self {

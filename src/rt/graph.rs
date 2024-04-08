@@ -11,7 +11,7 @@ use pyo3::{prelude::*, types::PyType};
 /// NodeId type.
 pub type NodeId = usize;
 
-/// An iterator over paths that have contant depth.
+/// An iterator over paths that have constant depth.
 pub trait PathsIterator: Iterator<Item = Vec<NodeId>> {
     /// Hint about the actual path depth.
     ///
@@ -272,8 +272,8 @@ pub mod complete {
     ///
     /// Note:
     ///     Even though this iterator is generally sized, this is not true
-    ///     when its length is so large that overflow occured when computing
-    ///     its theoritical length.
+    ///     when its length is so large that overflow occurred when computing
+    ///     its theoretical length.
     ///     For lengths close or above ``usize::MAX``, do not rely
     ///     on the provided size hint nor the length.
     #[pyclass]

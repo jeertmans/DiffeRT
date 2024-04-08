@@ -17,7 +17,7 @@ and provides just-in-time compilation to optimize your code.
 
 ## Where JAX arrays are used
 
-As a results of the aforementionned pros, JAX arrays are used in the vast
+As a results of the aforementioned pros, JAX arrays are used in the vast
 majority of the codebase, both as input and as output types.
 
 JAX arrays use the following type annotations:

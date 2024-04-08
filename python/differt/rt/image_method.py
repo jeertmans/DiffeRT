@@ -247,7 +247,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror_normals: Float[Array, "*batch num_mirrors 3"],
 ) -> Bool[Array, "*batch num_mirrors"]:
     """
-    Check if consecutive vertices, but skiping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
+    Check if consecutive vertices, but skipping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
     This check is needed after using :func:`image_method` because it can return
     vertices that are behind a mirror, which causes the path to go through this

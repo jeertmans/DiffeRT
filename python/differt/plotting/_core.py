@@ -236,7 +236,7 @@ def draw_markers(
         Unsupported backend(s): Matplotlib.
 
     Examples:
-        The following example shows how to plot several annotated markes.
+        The following example shows how to plot several annotated markers.
 
         .. plotly::
 

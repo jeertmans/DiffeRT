@@ -1,1 +1,1 @@
-"""Electromagnetic fields utilies."""
+"""Electromagnetic fields utilities."""

@@ -1,5 +1,5 @@
 """
-Ray Tracing utilies.
+Ray Tracing utilities.
 
 To generate a subset of all paths between two vertices, e.g.,
 a transmitter TX and a received RX, methods generate each

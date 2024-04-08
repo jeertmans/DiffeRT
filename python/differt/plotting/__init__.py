@@ -31,7 +31,7 @@ to display contents, on which a view is attached. The view
 is what contains
 the data to be plotted.
 
-To re-use an existing ``canvas`` object, just pass it as a keyword
+To reuse an existing ``canvas`` object, just pass it as a keyword
 argument to any of the ``draw_*`` functions in this module, i.e.,
 with ``draw_*(..., canvas=canvas)``.
 In turn, each of those functions returns a figure on which you
@@ -50,7 +50,7 @@ Matplotlib uses :py:class:`Figure<matplotlib.figure.Figure>` objects
 to display contents, on which multiple axes can be attached. In turn, each
 axis can contain data to be plotted.
 
-To re-use an existing ``figure`` object, just pass it as a keyword
+To reuse an existing ``figure`` object, just pass it as a keyword
 argument to any of the ``draw_*`` functions in this module, i.e.,
 with ``draw_*(..., figure=figure)``.
 In turn, each of those functions returns a figure on which you
@@ -64,7 +64,7 @@ on which data will be plotted: ``draw_*(..., ax=ax)``.
 
     By default, Matplotlib instantiates 2D axes, but this module
     extensively uses 3D plot methods. If an axis is provided,
-    it is your responsability to ensure that it can plot 3D data
+    it is your responsibility to ensure that it can plot 3D data
     when needed.
 
 By default, Matpotlib displays static images in Jupyter notebooks.
@@ -82,7 +82,7 @@ Plots are fully contained inside
 :py:class:`Figure<plotly.graph_objects.Figure>` objects, and can be nicely
 displayed within Jupyter notebooks without further configuration.
 
-To re-use an existing ``figure`` object, you can do the same as with
+To reuse an existing ``figure`` object, you can do the same as with
 the Matplotlib backend.
 
 """

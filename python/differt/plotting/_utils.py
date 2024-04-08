@@ -165,7 +165,7 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
     def register(
         backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        """Register a new implemenation."""
+        """Register a new implementation."""
         if backend not in SUPPORTED_BACKENDS:
             raise ValueError(
                 f"Unsupported backend '{backend}', "
@@ -173,7 +173,7 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
-            """Actually register the backend implemention."""
+            """Actually register the backend implementation."""
 
             @wraps(impl)
             def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
@@ -181,7 +181,7 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
                     return impl(*args, **kwargs)
                 except ImportError as e:
                     raise ImportError(
-                        "An import error occured when dispatching "
+                        "An import error occurred when dispatching "
                         f"plot utility to backend '{backend}'. "
                         "Did you correctly install it?"
                     ) from e
