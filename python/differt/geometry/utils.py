@@ -44,6 +44,9 @@ def normalize(
         The normalized vector and their length.
 
     Examples:
+        The following examples shows how normalization works and
+        its special behavior at zero.
+
         >>> from differt.geometry.utils import (
         ...     normalize,
         ... )
@@ -84,6 +87,8 @@ def orthogonal_basis(
         A pair of unit vectors, ``v`` and ``w``.
 
     Examples:
+        The following example shows how this function works on basic input vectors.
+
         >>> from differt.geometry.utils import (
         ...     normalize,
         ...     orthogonal_basis,
@@ -106,3 +111,38 @@ def orthogonal_basis(
         w = w / jnp.linalg.norm(w, axis=-1, keepdims=True)
 
     return v, w
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def path_lengths(
+    paths: Float[Array, "*batch path_length 3"],
+) -> Float[Array, " *batch"]:
+    """
+    Compute the path length of each path.
+
+    Each path is exactly made of ``path_length`` vertices.
+
+    Args:
+        paths: The array of path vertices.
+
+    Return:
+        The array of path lengths.
+
+    Examples:
+        The following example shows how to compute the length of a very simple path.
+
+        >>> from differt.geometry.utils import (
+        ...     path_lengths,
+        ... )
+        >>>
+        >>> path = jnp.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
+        >>> path_lengths(path)
+        Array(1., dtype=float32)
+        >>> path_lengths(jnp.vstack((path, path[::-1, :])))
+        Array(2., dtype=float32)
+    """
+    vectors = jnp.diff(paths, axis=-2)
+    lengths = jnp.linalg.norm(vectors, axis=-1)
+
+    return jnp.sum(lengths, axis=-1)

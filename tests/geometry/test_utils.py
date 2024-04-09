@@ -6,7 +6,12 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.geometry.utils import normalize, orthogonal_basis, pairwise_cross
+from differt.geometry.utils import (
+    normalize,
+    orthogonal_basis,
+    pairwise_cross,
+    path_lengths,
+)
 
 from ..utils import random_inputs
 
@@ -83,3 +88,24 @@ def test_orthogonal_basis(u: Array) -> None:
     # Vectors should be perpendicular
     dot = jnp.sum(u * v, axis=-1)
     chex.assert_trees_all_close(dot, 0.0, atol=1e-7)
+
+
+@pytest.mark.parametrize(
+    "paths,expectation",
+    [
+        ((10, 3), does_not_raise()),
+        ((20, 10, 3), does_not_raise()),
+        ((10, 4), pytest.raises(TypeError)),
+        ((1, 3), does_not_raise()),
+        ((0, 3), does_not_raise()),
+    ],
+)
+@random_inputs("paths")
+def test_path_lengths_random_inputs(
+    paths: Array, expectation: AbstractContextManager[Exception]
+) -> None:
+    with expectation:
+        got = path_lengths(paths)
+        expected = jnp.sum(jnp.linalg.norm(jnp.diff(paths, axis=-2), axis=-1), axis=-1)
+
+        chex.assert_trees_all_close(got, expected)

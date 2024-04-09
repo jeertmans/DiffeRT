@@ -47,7 +47,7 @@ class _SizedIterator(Generic[T]):
         size: The size, i.e., length, of the iterator, or a callable that returns its current length.
 
     Examples:
-        The following example shows how to create a sized iterator:
+        The following example shows how to create a sized iterator.
 
         >>> from differt.rt.utils import _SizedIterator
         >>> l = [1, 2, 3, 4, 5]
