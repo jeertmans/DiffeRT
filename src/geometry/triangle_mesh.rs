@@ -2,6 +2,7 @@ use std::{fs::File, io::BufReader};
 
 use numpy::{Element, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
+use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 #[pyclass]
@@ -31,6 +32,52 @@ fn pyarray2_from_vec_tuple<'py, T: Copy + Element>(
     }
 }
 
+struct PlyVertex {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl ply::PropertyAccess for PlyVertex {
+    fn new() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
+    }
+    fn set_property(&mut self, key: String, property: ply::Property) {
+        match (key.as_ref(), property) {
+            ("x", ply::Property::Float(v)) => self.x = v,
+            ("y", ply::Property::Float(v)) => self.y = v,
+            ("z", ply::Property::Float(v)) => self.z = v,
+            (k, property) => {
+                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+            },
+        }
+    }
+}
+
+struct PlyFace {
+    pub vertex_indices: Vec<u32>,
+}
+
+impl ply::PropertyAccess for PlyFace {
+    fn new() -> Self {
+        Self {
+            vertex_indices: Vec::new(),
+        }
+    }
+    fn set_property(&mut self, key: String, property: ply::Property) {
+        match (key.as_ref(), property) {
+            ("vertex_indices", ply::Property::ListUInt(vec)) => self.vertex_indices = vec,
+            (k, property) => {
+                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+            },
+        }
+    }
+}
+
 #[pymethods]
 impl TriangleMesh {
     #[getter]
@@ -49,14 +96,83 @@ impl TriangleMesh {
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
         })?;
-        obj.try_into()
+        Ok(obj.into())
+    }
+
+    #[classmethod]
+    fn load_ply(_: &PyType, filename: &str) -> PyResult<Self> {
+        let mut input = BufReader::new(File::open(filename)?);
+
+        let vertex_parser = parser::Parser::<PlyVertex>::new();
+        let face_parser = parser::Parser::<PlyFace>::new();
+
+        let header = vertex_parser.read_header(&mut input).map_err(|err| {
+            PyValueError::new_err(format!(
+                "An error occurred while reading the header of ply file: {}",
+                err
+            ))
+        })?;
+
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+
+        for (_, element) in &header.elements {
+            match element.name.as_ref() {
+                "vertex" => {
+                    vertices.extend(
+                        vertex_parser
+                            .read_payload_for_element(&mut input, element, &header)
+                            .map_err(|err| {
+                                PyValueError::new_err(format!(
+                                    "An error occurred while reading the vertex elements of ply \
+                                     file: {}",
+                                    err
+                                ))
+                            })?
+                            .into_iter()
+                            .map(|vertex| (vertex.x, vertex.y, vertex.z)),
+                    );
+                },
+                "face" => {
+                    triangles.extend(
+                        face_parser
+                            .read_payload_for_element(&mut input, element, &header)
+                            .map_err(|err| {
+                                PyValueError::new_err(format!(
+                                    "An error occurred while reading the face elements of ply \
+                                     file: {}",
+                                    err
+                                ))
+                            })?
+                            .into_iter()
+                            .filter_map(|face| {
+                                if face.vertex_indices.len() == 3 {
+                                    let indices = face.vertex_indices;
+                                    Some((
+                                        indices[0] as usize,
+                                        indices[1] as usize,
+                                        indices[2] as usize,
+                                    ))
+                                } else {
+                                    log::warn!("Face: skipping because it is not a triangle.");
+                                    None
+                                }
+                            }),
+                    );
+                },
+                name => log::warn!("Unexpeced element: {name}, skipping"),
+            }
+        }
+
+        Ok(Self {
+            vertices,
+            triangles,
+        })
     }
 }
 
-impl TryFrom<RawObj> for TriangleMesh {
-    type Error = PyErr;
-
-    fn try_from(raw_obj: RawObj) -> Result<Self, Self::Error> {
+impl From<RawObj> for TriangleMesh {
+    fn from(raw_obj: RawObj) -> Self {
         use obj::raw::object::Polygon::*;
 
         let vertices = raw_obj
@@ -82,10 +198,7 @@ impl TryFrom<RawObj> for TriangleMesh {
                     triangles.push((v[0].0, v[1].0, v[2].0));
                 },
                 _ => {
-                    return Err(PyValueError::new_err(
-                        "Cannot create TriangleMesh from an object that contains something else \
-                         than triangles",
-                    ));
+                    log::warn!("Skipping a polygon because it is not a triangle.")
                 },
             }
         }
@@ -97,10 +210,10 @@ impl TryFrom<RawObj> for TriangleMesh {
         // 3. Remap triangles to point to first occurrence
         // 4. Resize the triangles array and renumber from 0 to ...
 
-        Ok(Self {
+        Self {
             vertices,
             triangles,
-        })
+        }
     }
 }
 
