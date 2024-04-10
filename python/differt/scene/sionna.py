@@ -19,9 +19,6 @@ class _Str(str):
     def __repr__(self) -> str:
         return "'<path-to-differt>/scene/scenes'"
 
-    def __str__(self) -> str:
-        return super().__str__()
-
 
 SIONNA_SCENES_FOLDER = _Str(str(Path(__file__).parent.joinpath("scenes")))
 
