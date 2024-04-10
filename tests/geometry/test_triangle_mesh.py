@@ -28,6 +28,16 @@ def two_buildings_obj_file() -> Iterator[str]:
 
 
 @pytest.fixture(scope="module")
+def two_buildings_ply_file() -> Iterator[str]:
+    yield (
+        Path(__file__)
+        .parent.joinpath("two_buildings.ply")
+        .resolve(strict=True)
+        .as_posix()
+    )
+
+
+@pytest.fixture(scope="module")
 def two_buildings_mesh(two_buildings_obj_file: str) -> Iterator[TriangleMesh]:
     yield TriangleMesh.load_obj(two_buildings_obj_file)
 
@@ -112,6 +122,10 @@ class TestTriangleMesh:
 
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
+        assert mesh.triangles.shape == (24, 3)
+
+    def test_load_ply(self, two_buildings_ply_file: str) -> None:
+        mesh = TriangleMesh.load_ply(two_buildings_ply_file)
         assert mesh.triangles.shape == (24, 3)
 
     def test_compare_with_open3d(

@@ -141,8 +141,6 @@ class TriangleMesh(eqx.Module):
         Currently, only vertices and triangles are loaded. Triangle normals
         are computed afterward (when first accessed).
 
-        This method will fail if it contains any geometry that is not a triangle.
-
         Args:
             file: The path to the Wavefront .obj file.
 
@@ -150,6 +148,26 @@ class TriangleMesh(eqx.Module):
             The corresponding mesh containing only triangles.
         """
         mesh = _core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
+        return cls(
+            vertices=mesh.vertices,
+            triangles=mesh.triangles,
+        )
+
+    @classmethod
+    def load_ply(cls, file: str) -> "TriangleMesh":
+        """
+        Load a triangle mesh from a Stanford PLY .ply file.
+
+        Currently, only vertices and triangles are loaded. Triangle normals
+        are computed afterward (when first accessed).
+
+        Args:
+            file: The path to the Stanford PLY .ply file.
+
+        Return:
+            The corresponding mesh containing only triangles.
+        """
+        mesh = _core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
         return cls(
             vertices=mesh.vertices,
             triangles=mesh.triangles,

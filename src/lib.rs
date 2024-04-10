@@ -6,6 +6,8 @@ pub mod rt;
 /// Core of DiffeRT module, implemented in Rust.
 #[pymodule]
 fn _core(py: Python, m: &PyModule) -> PyResult<()> {
+    pyo3_log::init();
+
     let mut version = env!("CARGO_PKG_VERSION").to_string();
     version = version.replace("-alpha", "a").replace("-beta", "b");
     m.add("__version__", version)?;
