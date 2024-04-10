@@ -65,7 +65,7 @@ intersphinx_mapping = {
 # -- API docs settings
 apidoc_module_dir = "../../python/differt"
 apidoc_output_dir = "reference"
-apidoc_excluded_paths = ["conftest.py"]
+apidoc_excluded_paths = ["conftest.py", "scene/scenes"]
 apidoc_separate_modules = True
 apidoc_toc_file = False
 apidoc_module_first = False

@@ -11,6 +11,9 @@ target/
 docs/build/
 docs/source/reference/*.rst
 
+# Sionna data
+python/differt/scene/scenes/
+
 # Notebooks
 
 .ipynb_checkpoints/
