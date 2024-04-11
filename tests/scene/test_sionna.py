@@ -17,5 +17,8 @@ class TestSionnaScene:
         file = get_sionna_scene(scene_name)
         scene = SionnaScene.load_xml(file)
 
-        assert len(scene.objects) > 0
+        assert len(scene.shapes) > 0
         assert len(scene.materials) > 0
+
+        for shape in scene.shapes.values():
+            assert shape.material_id in scene.materials

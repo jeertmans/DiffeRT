@@ -4,6 +4,13 @@ Provide a compatibility layer with Sionna's scenes.
 Sionna uses the simple XML-based format from Mitsuba 3.
 """
 
+__all__ = (
+    "download_sionna_scenes",
+    "get_sionna_scene",
+    "list_sionna_scenes",
+    "SionnaScene",
+)
+
 import tarfile
 import tempfile
 from pathlib import Path
@@ -131,4 +138,6 @@ def get_sionna_scene(scene_name: str, *, folder: str = SIONNA_SCENES_FOLDER) -> 
     return str(p)
 
 
+Material = _core.scene.sionna.Material
+Shape = _core.scene.sionna.Shape
 SionnaScene = _core.scene.sionna.SionnaScene

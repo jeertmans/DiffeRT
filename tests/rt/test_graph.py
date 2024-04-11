@@ -21,7 +21,7 @@ class TestDiGraph:
 
         with pytest.raises(TypeError) as exc:
             _ = graph.insert_from_and_to_nodes(True)  # type: ignore
-            assert "takes 0 positional arguments but 1 was given" in str(exc)
+        assert "takes 0 positional arguments but 1 was given" in str(exc)
 
     def test_from_graph(self) -> None:
         graph = CompleteGraph(10)
