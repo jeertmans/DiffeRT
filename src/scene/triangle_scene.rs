@@ -1,30 +1,25 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use pyo3::prelude::*;
-use pyo3::exceptions::PyValueError;
-use pyo3::types::PyType;
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 use crate::geometry::triangle_mesh::TriangleMesh;
 
 use super::sionna::SionnaScene;
 
+#[derive(Clone)]
 #[pyclass]
+#[pyo3(get_all)]
 struct TriangleScene {
     meshes: HashMap<String, TriangleMesh>,
 }
 
 #[pymethods]
 impl TriangleScene {
-    /// Load a triangle scene from a XML file.
-    ///
-    /// This method uses
-    /// :meth:`SionnaScene.load_xml<differt.scene.sionna.SionnaScene.load_xml>`
-    /// internally.
     #[classmethod]
     fn load_xml(cls: &PyType, file: &str) -> PyResult<Self> {
         // TODO: create a Rust variant without PyType?
-        let sionna = SionnaScene::load_xml(cls, file)?;
+        let sionna_scene_py_type = PyType::new::<SionnaScene>(cls.py());
+        let sionna = SionnaScene::load_xml(sionna_scene_py_type, file)?;
 
         let path = PathBuf::from(file);
         let folder = path.parent().ok_or_else(|| {
@@ -36,6 +31,8 @@ impl TriangleScene {
 
         let mut meshes = HashMap::with_capacity(sionna.shapes.len());
 
+        let triangle_mesh_py_type = PyType::new::<TriangleMesh>(cls.py());
+
         for (id, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);
             let mesh_file = mesh_file_path.to_str().ok_or_else(|| {
@@ -44,8 +41,8 @@ impl TriangleScene {
                 ))
             })?;
             let mesh = match shape.r#type.as_str() {
-                "obj" => TriangleMesh::load_obj(cls, mesh_file)?,
-                "ply" => TriangleMesh::load_ply(cls, mesh_file)?,
+                "obj" => TriangleMesh::load_obj(triangle_mesh_py_type, mesh_file)?,
+                "ply" => TriangleMesh::load_ply(triangle_mesh_py_type, mesh_file)?,
                 ty => {
                     log::warn!("Unsupported shape type {ty}, skipping.");
                     continue;
