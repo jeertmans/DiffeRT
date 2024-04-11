@@ -4,4 +4,4 @@ from differt.scene.sionna import download_sionna_scenes
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    scene = download_sionna_scenes()
+    download_sionna_scenes()
