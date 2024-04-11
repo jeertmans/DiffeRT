@@ -14,7 +14,6 @@ __all__ = (
 import tarfile
 import tempfile
 from pathlib import Path
-from typing import List
 
 import requests
 from tqdm import tqdm
@@ -98,7 +97,7 @@ def download_sionna_scenes(
             tar.extractall(path=folder, members=members(tar))
 
 
-def list_sionna_scenes(*, folder: str = SIONNA_SCENES_FOLDER) -> List[str]:
+def list_sionna_scenes(*, folder: str = SIONNA_SCENES_FOLDER) -> list[str]:
     """
     List available Sionna scenes, by name.
 

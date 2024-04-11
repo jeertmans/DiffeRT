@@ -6,7 +6,7 @@ use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 #[pyclass]
-struct TriangleMesh {
+pub(crate) struct TriangleMesh {
     /// Array of size [num_vertices 3].
     vertices: Vec<(f32, f32, f32)>,
     /// Array of size [num_triangles 3].
@@ -91,7 +91,7 @@ impl TriangleMesh {
     }
 
     #[classmethod]
-    fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
@@ -100,7 +100,7 @@ impl TriangleMesh {
     }
 
     #[classmethod]
-    fn load_ply(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_ply(_: &PyType, filename: &str) -> PyResult<Self> {
         let mut input = BufReader::new(File::open(filename)?);
 
         let vertex_parser = parser::Parser::<PlyVertex>::new();
@@ -160,7 +160,7 @@ impl TriangleMesh {
                             }),
                     );
                 },
-                name => log::warn!("Unexpeced element: {name}, skipping"),
+                name => log::warn!("Unexpeced element: {name}, skipping."),
             }
         }
 
