@@ -13,14 +13,14 @@ use serde::{de, Deserialize};
 /// :class:`TriangleScene<differt.scene.triangle_scene.TriangleScene>`.
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
-struct SionnaScene {
-    /// A mapping between material ids and actual
+pub(crate) struct SionnaScene {
+    /// A mapping between material IDs and actual
     /// materials.
     ///
     /// Currently, only BSDF materials are used.
     #[serde(rename = "bsdf", deserialize_with = "deserialize_materials")]
-    materials: HashMap<String, Material>,
-    /// A mapping between shape ids and actual
+    pub(crate) materials: HashMap<String, Material>,
+    /// A mapping between shape IDs and actual
     /// materials.
     ///
     /// Currently, only shapes from files are supported.
@@ -28,7 +28,7 @@ struct SionnaScene {
     /// Also, face normals attribute is ignored, as normals are always
     /// recomputed.
     #[serde(rename = "shape", deserialize_with = "deserialize_shapes")]
-    shapes: HashMap<String, Shape>,
+    pub(crate) shapes: HashMap<String, Shape>,
 }
 
 fn deserialize_materials<'de, D>(deserializer: D) -> Result<HashMap<String, Material>, D::Error>
@@ -40,7 +40,10 @@ where
 
         for material in v {
             if let Some(material) = map.insert(material.id.clone(), material) {
-                log::warn!("duplicate material id, cannot insert '{:?}'", material);
+                log::warn!(
+                    "duplicate material ID, the latter was removed '{:?}'",
+                    material
+                );
             }
         }
 
@@ -57,7 +60,7 @@ where
 
         for shape in v {
             if let Some(shape) = map.insert(shape.id.clone(), shape) {
-                log::warn!("duplicate shape id, cannot insert '{:?}'", shape);
+                log::warn!("duplicate shape ID, the latter was removed '{:?}'", shape);
             }
         }
 
@@ -67,38 +70,38 @@ where
 
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
-struct Material {
+pub(crate) struct Material {
     #[serde(rename(deserialize = "@type"))]
-    r#type: String,
+    pub(crate) r#type: String,
     #[serde(rename(deserialize = "@id"))]
-    id: String,
+    pub(crate) id: String,
 }
 
 /// A shape, that is part of a scene.
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
-struct Shape {
+pub(crate) struct Shape {
     /// The type of the shape file.
     ///
     /// E.g., `ply` for Stanford PLY format.
     #[serde(rename(deserialize = "@type"))]
-    r#type: String,
-    /// The shape id.
+    pub(crate) r#type: String,
+    /// The shape ID.
     ///
     /// It should be unique (in a given scene).
     #[serde(rename(deserialize = "@id"))]
-    id: String,
+    pub(crate) id: String,
     /// The path to the shape file.
     ///
     /// This path is relative to the scene config file.
     #[serde(rename(deserialize = "string"), deserialize_with = "deserialize_file")]
-    file: String,
-    /// The material id attached to this object.
+    pub(crate) file: String,
+    /// The material ID attached to this object.
     #[serde(
         rename(deserialize = "ref"),
         deserialize_with = "deserialize_material_id"
     )]
-    material_id: String,
+    pub(crate) material_id: String,
 }
 
 fn deserialize_file<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -139,13 +142,9 @@ where
 
 #[pymethods]
 impl SionnaScene {
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-
     /// Load a Sionna scene from a XML file.
     #[classmethod]
-    fn load_xml(_: &PyType, file: &str) -> PyResult<Self> {
+    pub(crate) fn load_xml(_: &PyType, file: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading XML file: {}", err))
