@@ -90,6 +90,7 @@ the Matplotlib backend.
 __all__ = (
     "dispatch",
     "use",
+    "reuse",
     "draw_image",
     "draw_markers",
     "draw_mesh",
@@ -106,6 +107,7 @@ from ._utils import (
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,
+    reuse,
     use,
     view_from_canvas,
 )

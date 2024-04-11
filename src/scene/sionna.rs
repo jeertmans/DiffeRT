@@ -143,6 +143,12 @@ where
 #[pymethods]
 impl SionnaScene {
     /// Load a Sionna scene from a XML file.
+    ///
+    /// Args:
+    ///     file: The path to the XML file.
+    ///
+    /// Return:
+    ///     The corresponding scene.
     #[classmethod]
     pub(crate) fn load_xml(_: &PyType, file: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);

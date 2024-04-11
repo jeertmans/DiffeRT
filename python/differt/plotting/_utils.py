@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import MutableMapping
+from contextlib import contextmanager
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
 
-CURRENT_BACKEND = None
 DEFAULT_BACKEND = "vispy"
 SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+
+VISPY_KWARGS = {}
+MATPLOTLIB_KWARGS = {}
+PLOTLY_KWARGS = {}
 
 if TYPE_CHECKING:
     import sys
@@ -289,6 +293,9 @@ def process_vispy_kwargs(
     """
     from vispy import scene
 
+    for key, value in VISPY_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     maybe_view = kwargs.pop("view", None)
     canvas = (
         kwargs.pop("canvas", None)
@@ -335,6 +342,9 @@ def process_matplotlib_kwargs(
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
+    for key, value in MATPLOTLIB_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     maybe_ax = kwargs.pop("ax", None)
     figure = (
         kwargs.pop("figure", None)
@@ -380,4 +390,47 @@ def process_plotly_kwargs(
     """
     import plotly.graph_objects as go
 
+    for key, value in PLOTLY_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     return kwargs.pop("figure", None) or go.Figure()
+
+
+@contextmanager
+def reuse(**kwargs: Any):
+    """Create a context manager that will automatically reuse the current canvas / figure.
+
+    TODO: document this.
+    """
+    old_backend = DEFAULT_BACKEND
+    backend: str = kwargs.pop("backend", DEFAULT_BACKEND)
+    use(backend)
+    if backend == "vispy":
+        global VISPY_KWARGS
+        old = VISPY_KWARGS
+        canvas, view = process_vispy_kwargs(kwargs)
+        try:
+            VISPY_KWARGS = {"canvas": canvas, "view": view}
+            yield canvas
+        finally:
+            VISPY_KWARGS = old
+    elif backend == "matplotlib":
+        global MATPLOTLIB_KWARGS
+        old = MATPLOTLIB_KWARGS
+        figure, ax = process_matplotlib_kwargs(kwargs)
+        try:
+            MATPLOTLIB_KWARGS = {"figure": figure, "ax": ax}
+            yield figure
+        finally:
+            MATPLOTLIB_KWARGS = old
+    else:
+        global PLOTLY_KWARGS
+        old = PLOTLY_KWARGS
+        figure = process_plotly_kwargs(kwargs)
+        try:
+            PLOTLY_KWARGS = {"figure": figure}
+            yield figure
+        finally:
+            PLOTLY_KWARGS = old
+
+    use(old_backend)

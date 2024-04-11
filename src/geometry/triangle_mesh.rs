@@ -5,6 +5,7 @@ use obj::raw::object::{parse_obj, RawObj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
+#[derive(Clone)]
 #[pyclass]
 pub(crate) struct TriangleMesh {
     /// Array of size [num_vertices 3].
@@ -52,7 +53,7 @@ impl ply::PropertyAccess for PlyVertex {
             ("y", ply::Property::Float(v)) => self.y = v,
             ("z", ply::Property::Float(v)) => self.z = v,
             (k, property) => {
-                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+                log::info!("Face: unexpected key/value combination: key: {k}/{property:?}")
             },
         }
     }
@@ -154,13 +155,13 @@ impl TriangleMesh {
                                         indices[2] as usize,
                                     ))
                                 } else {
-                                    log::warn!("Face: skipping because it is not a triangle.");
+                                    log::info!("Face: skipping because it is not a triangle.");
                                     None
                                 }
                             }),
                     );
                 },
-                name => log::warn!("Unexpeced element: {name}, skipping."),
+                name => log::info!("Unexpeced element: {name}, skipping."),
             }
         }
 
@@ -198,7 +199,7 @@ impl From<RawObj> for TriangleMesh {
                     triangles.push((v[0].0, v[1].0, v[2].0));
                 },
                 _ => {
-                    log::warn!("Skipping a polygon because it is not a triangle.")
+                    log::info!("Skipping a polygon because it is not a triangle.")
                 },
             }
         }
