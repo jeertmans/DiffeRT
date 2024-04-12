@@ -89,6 +89,7 @@ the Matplotlib backend.
 
 __all__ = (
     "dispatch",
+    "set_defaults",
     "use",
     "reuse",
     "draw_image",
@@ -108,6 +109,7 @@ from ._utils import (
     process_plotly_kwargs,
     process_vispy_kwargs,
     reuse,
+    set_defaults,
     use,
     view_from_canvas,
 )

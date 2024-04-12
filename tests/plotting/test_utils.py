@@ -98,7 +98,8 @@ def test_use_unsupported() -> None:
     with pytest.raises(
         ValueError, match="The backend 'bokeh' is not supported. We currently support:"
     ):
-        use("bokeh")
+        with use(backend="bokeh"):
+            pass
 
 
 def test_register_unsupported() -> None:
@@ -115,22 +116,22 @@ def test_register_unsupported() -> None:
 def test_missing_default_backend_module(
     backend: str, missing_modules: MissingModulesContextGenerator
 ) -> None:
-    use(backend)  # Change the default backend
-
-    with (
-        missing_modules(backend),
-        pytest.raises(
-            ImportError,
-            match=f"An import error occurred when dispatching plot utility to backend '{backend}'.",
-        ),
-    ):
-        _ = my_plot()
+    with use(backend=backend):  # Change the default backend
+        with (
+            missing_modules(backend),
+            pytest.raises(
+                ImportError,
+                match=f"An import error occurred when dispatching plot utility to backend '{backend}'.",
+            ),
+        ):
+            _ = my_plot()
 
     with (
         missing_modules(backend),
         pytest.raises(ImportError, match=f"Could not load backend '{backend}'"),
     ):
-        use(backend)
+        with use(backend=backend):
+            pass
 
 
 @pytest.mark.parametrize("backend", ("vispy", "matplotlib", "plotly"))

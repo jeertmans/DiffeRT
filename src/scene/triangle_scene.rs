@@ -1,20 +1,38 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, ops::Range, path::PathBuf};
 
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PySlice, PyType},
+};
 
 use crate::geometry::triangle_mesh::TriangleMesh;
 
 use super::sionna::SionnaScene;
 
+/// TODO.
 #[derive(Clone)]
 #[pyclass]
-#[pyo3(get_all)]
 struct TriangleScene {
-    meshes: HashMap<String, TriangleMesh>,
+    #[pyo3(get)]
+    mesh: TriangleMesh,
+    mesh_ids: HashMap<String, Range<usize>>,
 }
 
 #[pymethods]
 impl TriangleScene {
+    #[getter]
+    fn mesh_ids<'py>(&self, py: Python<'py>) -> HashMap<String, &'py PySlice> {
+        self.mesh_ids
+            .iter()
+            .map(|(id, range)| {
+                (
+                    id.clone(),
+                    PySlice::new(py, range.start as _, range.end as _, 1),
+                )
+            })
+            .collect()
+    }
     #[classmethod]
     fn load_xml(cls: &PyType, file: &str) -> PyResult<Self> {
         // TODO: create a Rust variant without PyType?
@@ -29,9 +47,12 @@ impl TriangleScene {
             ))
         })?;
 
-        let mut meshes = HashMap::with_capacity(sionna.shapes.len());
+        let mut mesh = TriangleMesh::default();
+        let mut mesh_ids = HashMap::with_capacity(sionna.shapes.len());
 
         let triangle_mesh_py_type = PyType::new::<TriangleMesh>(cls.py());
+
+        let mut start = 0;
 
         for (id, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);
@@ -40,7 +61,7 @@ impl TriangleScene {
                     "Could not convert path {mesh_file_path:?} to valid unicode string"
                 ))
             })?;
-            let mesh = match shape.r#type.as_str() {
+            let mut other_mesh = match shape.r#type.as_str() {
                 "obj" => TriangleMesh::load_obj(triangle_mesh_py_type, mesh_file)?,
                 "ply" => TriangleMesh::load_ply(triangle_mesh_py_type, mesh_file)?,
                 ty => {
@@ -48,9 +69,12 @@ impl TriangleScene {
                     continue;
                 },
             };
-            meshes.insert(id, mesh);
+            mesh.append(&mut other_mesh);
+            let end = mesh.triangles.len();
+            mesh_ids.insert(id, start..end);
+            start = end;
         }
-        Ok(Self { meshes })
+        Ok(Self { mesh, mesh_ids })
     }
 }
 
