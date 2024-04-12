@@ -9,6 +9,8 @@ __all__ = (
     "get_sionna_scene",
     "list_sionna_scenes",
     "SionnaScene",
+    "Shape",
+    "Material",
 )
 
 import tarfile

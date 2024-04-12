@@ -120,6 +120,12 @@ class TestTriangleMesh:
         with pytest.raises(jaxtyping.TypeCheckError):
             _ = TriangleMesh(vertices=vertices, triangles=triangles)
 
+    def test_empty(self) -> None:
+        assert TriangleMesh.empty().is_empty
+
+    def test_not_empty(self, two_buildings_mesh: TriangleMesh) -> None:
+        assert not two_buildings_mesh.is_empty
+
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)

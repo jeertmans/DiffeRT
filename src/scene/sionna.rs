@@ -1,3 +1,4 @@
+// TODO: fix attribute type hint in docs.
 use std::{collections::HashMap, fs::File, io::BufReader};
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
@@ -9,8 +10,15 @@ use serde::{de, Deserialize};
 /// Only a subset of the XML file is actually used.
 ///
 /// This class is useless unless converted
-/// in another scene type, like
+/// to another scene type, like
 /// :class:`TriangleScene<differt.scene.triangle_scene.TriangleScene>`.
+///
+/// Warning:
+///     Currently, the ``'etoile'`` scene from Sionna cannot be loaded
+///     properly, as the material properties are encoded differently.
+///
+///     We are still thinking of a better way to parse those XML files,
+///     please reach out us if you would like to help!
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct SionnaScene {
@@ -68,13 +76,57 @@ where
     })
 }
 
+/// A basic material, that can be linked to EM properties.
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct Material {
-    #[serde(rename(deserialize = "@type"))]
-    pub(crate) r#type: String,
+    /// The material ID.
+    ///
+    /// This can be, e.g., an ITU identifier.
+    ///
+    /// # type: str
     #[serde(rename(deserialize = "@id"))]
     pub(crate) id: String,
+    /// The material color, used when plotted.
+    #[serde(rename(deserialize = "bsdf"), deserialize_with = "deserialize_rgb")]
+    pub(crate) rgb: (f32, f32, f32),
+}
+
+fn deserialize_rgb<'de, D>(deserializer: D) -> Result<(f32, f32, f32), D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    struct Bsdf {
+        rgb: Rgb,
+    }
+
+    #[derive(Deserialize)]
+    struct Rgb {
+        #[serde(rename(deserialize = "@value"))]
+        value: String,
+    }
+
+    let Bsdf { rgb } = Bsdf::deserialize(deserializer)?;
+
+    match rgb
+        .value
+        .split_ascii_whitespace()
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [r_str, g_str, b_str] => {
+            let r = r_str.parse().map_err(de::Error::custom)?;
+            let g = g_str.parse().map_err(de::Error::custom)?;
+            let b = b_str.parse().map_err(de::Error::custom)?;
+            Ok((r, g, b))
+        },
+        _ => {
+            Err(de::Error::custom(
+                "value of <rgb> element must contain three floats",
+            ))
+        },
+    }
 }
 
 /// A shape, that is part of a scene.

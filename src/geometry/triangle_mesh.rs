@@ -5,13 +5,13 @@ use obj::raw::object::{parse_obj, RawObj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[pyclass]
 pub(crate) struct TriangleMesh {
     /// Array of size [num_vertices 3].
-    vertices: Vec<(f32, f32, f32)>,
+    pub(crate) vertices: Vec<(f32, f32, f32)>,
     /// Array of size [num_triangles 3].
-    triangles: Vec<(usize, usize, usize)>,
+    pub(crate) triangles: Vec<(usize, usize, usize)>,
 }
 
 #[inline]
@@ -49,18 +49,21 @@ impl ply::PropertyAccess for PlyVertex {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("x", ply::Property::Float(v)) => self.x = v,
-            ("y", ply::Property::Float(v)) => self.y = v,
-            ("z", ply::Property::Float(v)) => self.z = v,
+            ("x", ply::Property::Float(v)) => self.x = v as _,
+            ("y", ply::Property::Float(v)) => self.y = v as _,
+            ("z", ply::Property::Float(v)) => self.z = v as _,
+            ("x", ply::Property::Double(v)) => self.x = v as _,
+            ("y", ply::Property::Double(v)) => self.y = v as _,
+            ("z", ply::Property::Double(v)) => self.z = v as _,
             (k, property) => {
-                log::info!("Face: unexpected key/value combination: key: {k}/{property:?}")
+                log::info!("vertex: unexpected key/value combination: {k}/{property:?}")
             },
         }
     }
 }
 
 struct PlyFace {
-    pub vertex_indices: Vec<u32>,
+    pub vertex_indices: Vec<usize>,
 }
 
 impl ply::PropertyAccess for PlyFace {
@@ -71,9 +74,14 @@ impl ply::PropertyAccess for PlyFace {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("vertex_indices", ply::Property::ListUInt(vec)) => self.vertex_indices = vec,
+            ("vertex_indices", ply::Property::ListUInt(vec)) => {
+                self.vertex_indices = vec.iter().map(|&x| x as _).collect()
+            },
+            ("vertex_indices", ply::Property::ListInt(vec)) => {
+                self.vertex_indices = vec.iter().map(|&x| x as _).collect()
+            },
             (k, property) => {
-                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+                log::info!("face: unexpected key/value combination: {k}/{property:?}")
             },
         }
     }
@@ -81,6 +89,19 @@ impl ply::PropertyAccess for PlyFace {
 
 #[pymethods]
 impl TriangleMesh {
+    pub(crate) fn append(&mut self, other: &mut Self) {
+        let offset = self.vertices.len();
+        self.vertices.append(&mut other.vertices);
+
+        self.triangles.reserve(other.triangles.len());
+
+        for (v0, v1, v2) in &other.triangles {
+            self.triangles.push((v0 + offset, v1 + offset, v2 + offset));
+        }
+
+        other.triangles.clear();
+    }
+
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> &'py PyArray2<f32> {
         pyarray2_from_vec_tuple(py, &self.vertices)
@@ -149,11 +170,7 @@ impl TriangleMesh {
                             .filter_map(|face| {
                                 if face.vertex_indices.len() == 3 {
                                     let indices = face.vertex_indices;
-                                    Some((
-                                        indices[0] as usize,
-                                        indices[1] as usize,
-                                        indices[2] as usize,
-                                    ))
+                                    Some((indices[0], indices[1], indices[2]))
                                 } else {
                                     log::info!("Face: skipping because it is not a triangle.");
                                     None

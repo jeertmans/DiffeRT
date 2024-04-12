@@ -1,6 +1,7 @@
 """Mesh geometry made of triangles and utilities."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, Optional
 
 import equinox as eqx
@@ -11,18 +12,23 @@ from jaxtyping import Array, Float, jaxtyped
 
 from .. import _core
 from ..geometry.triangle_mesh import TriangleMesh
-from ..plotting import draw_markers
+from ..plotting import draw_markers, reuse
 
 
 @jaxtyped(typechecker=typechecker)
-class TriangleScene(eqx.Module):
+@dataclass  # TODO: see if we can still use eqx.Module (mutability issue)
+class TriangleScene:
     """
-    A simple scene made of triangle meshes, transmitters and receivers.
+    A simple scene made of one triangle mesh, some transmitters and some receivers.
+
+    The triangle mesh can be the result of multiple triangle meshes being concatenated.
 
     Args:
         transmitters: The array of transmitter vertices.
         receivers: The array of receiver vertices.
-        meshes: The list of triangle meshes.
+        mesh: The triangle mesh.
+        mesh_ids: A mapping between mesh IDs and the corresponding slice
+            in :py:data:`mesh.triangles`.
     """
 
     transmitters: Float[Array, "num_transmitters 3"] = eqx.field(
@@ -33,8 +39,10 @@ class TriangleScene(eqx.Module):
         converter=jnp.asarray, default_factory=lambda: jnp.empty((0, 3))
     )
     """The array of receiver vertices."""
-    meshes: list[TriangleMesh] = eqx.field(default_factory=list)
-    """The list of triangle meshes."""
+    mesh: TriangleMesh = eqx.field(default_factory=TriangleMesh.empty)
+    """The triangle mesh."""
+    mesh_ids: dict[str, slice] = eqx.field(default_factory=dict)
+    """A mapping between mesh IDs and the corresponding slice in :py:data:`mesh.triangles`."""
 
     @classmethod
     def load_xml(cls, file: str) -> "TriangleScene":
@@ -53,17 +61,16 @@ class TriangleScene(eqx.Module):
         """
         scene = _core.scene.triangle_scene.TriangleScene.load_xml(file)
 
-        meshes = [
-            TriangleMesh(vertices=mesh.vertices, triangles=mesh.triangles)
-            for mesh in scene.meshes.values()
-        ]
-        return cls(meshes=meshes)
+        mesh = TriangleMesh(
+            vertices=scene.mesh.vertices, triangles=scene.mesh.triangles
+        )
+        return cls(mesh=mesh, mesh_ids=scene.mesh_ids)
 
     def plot(
         self,
         tx_kwargs: Optional[Mapping[str, Any]] = None,
         rx_kwargs: Optional[Mapping[str, Any]] = None,
-        meshes_kwargs: Optional[Mapping[str, Any]] = None,
+        mesh_kwargs: Optional[Mapping[str, Any]] = None,
         **kwargs: Any,
     ) -> Any:
         """
@@ -74,7 +81,7 @@ class TriangleScene(eqx.Module):
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
             rx_kwargs: A mutable mapping of keyword arguments passed to
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
-            meshes_kwargs: A mutable mapping of keyword arguments passed to
+            mesh_kwargs: A mutable mapping of keyword arguments passed to
                 :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
             kwargs: Keyword arguments passed to both
                 :py:func:`draw_markers<differt.plotting.draw_markers>` and
@@ -84,23 +91,21 @@ class TriangleScene(eqx.Module):
             The resulting plot output.
         """
         if tx_kwargs is None:
-            tx_kwargs = {}
+            tx_kwargs = {"labels": "tx"}
 
         if rx_kwargs is None:
-            rx_kwargs = {}
+            rx_kwargs = {"labels": "rx"}
 
-        if meshes_kwargs is None:
-            meshes_kwargs = {}
+        if mesh_kwargs is None:
+            mesh_kwargs = {}
 
-        result = None
+        with reuse(**kwargs) as result:
+            if self.transmitters.size > 0:
+                draw_markers(np.asarray(self.transmitters), **tx_kwargs)
 
-        if self.transmitters.size > 0:
-            result = draw_markers(np.asarray(self.transmitters), **tx_kwargs, **kwargs)
+            if self.receivers.size > 0:
+                draw_markers(np.asarray(self.receivers), **rx_kwargs)
 
-        if self.receivers.size > 0:
-            result = draw_markers(np.asarray(self.receivers), **rx_kwargs, **kwargs)
-
-        for mesh in self.meshes:
-            result = mesh.plot(**meshes_kwargs, **kwargs)
+            self.mesh.plot(**mesh_kwargs)
 
         return result
