@@ -260,3 +260,21 @@ jobs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+  linkcheck-docs:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: '3.11'
+        cache: true
+
+    - name: Install dependencies (before changes)
+      run: |
+        pdm install -G docs,github-action
+
+    - name: Check links in documentation
+      run: NB_OFF=1 pdm run make linkcheck
