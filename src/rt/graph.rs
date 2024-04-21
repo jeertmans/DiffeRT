@@ -218,10 +218,10 @@ pub mod complete {
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
-        ) -> &'py PyArray2<NodeId> {
+        ) -> Bound<'py, PyArray2<NodeId>> {
             AllPathsFromCompleteGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
                 .collect_array()
-                .into_pyarray(py)
+                .into_pyarray_bound(py)
         }
 
         /// Return an iterator over all paths of length ``depth``
@@ -477,8 +477,8 @@ pub mod complete {
         fn __next__<'py>(
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
-        ) -> Option<&'py PyArray1<NodeId>> {
-            slf.next().map(|path| PyArray1::from_vec(py, path))
+        ) -> Option<Bound<'py, PyArray1<NodeId>>> {
+            slf.next().map(|path| PyArray1::from_vec_bound(py, path))
         }
 
         fn __len__(&self) -> usize {
@@ -519,8 +519,8 @@ pub mod complete {
         fn __next__<'py>(
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
-        ) -> Option<&'py PyArray2<NodeId>> {
-            slf.iter.next().map(|paths| paths.into_pyarray(py))
+        ) -> Option<Bound<'py, PyArray2<NodeId>>> {
+            slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
         }
 
         fn __len__(&self) -> usize {
@@ -586,7 +586,7 @@ pub mod directed {
         #[pyo3(name = "from_adjacency_matrix")]
         #[pyo3(text_signature = "(cls, adjacency_matrix)")]
         fn py_from_adjacency_matrix(
-            _cls: &PyType,
+            _: Bound<'_, PyType>,
             adjacency_matrix: PyReadonlyArray2<'_, bool>,
         ) -> Self {
             Self::from_adjacency_matrix(&adjacency_matrix.as_array())
@@ -606,7 +606,7 @@ pub mod directed {
         #[classmethod]
         #[pyo3(name = "from_complete_graph")]
         #[pyo3(text_signature = "(cls, graph)")]
-        fn py_from_complete_graph(_cls: &PyType, graph: CompleteGraph) -> Self {
+        fn py_from_complete_graph(_: Bound<'_, PyType>, graph: CompleteGraph) -> Self {
             graph.into()
         }
 
@@ -704,10 +704,10 @@ pub mod directed {
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
-        ) -> &'py PyArray2<NodeId> {
+        ) -> Bound<'py, PyArray2<NodeId>> {
             AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
                 .collect_array()
-                .into_pyarray(py)
+                .into_pyarray_bound(py)
         }
 
         /// Return an iterator over all paths of length ``depth``
@@ -873,8 +873,8 @@ pub mod directed {
         fn __next__<'py>(
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
-        ) -> Option<&'py PyArray1<NodeId>> {
-            slf.next().map(|path| PyArray1::from_vec(py, path))
+        ) -> Option<Bound<'py, PyArray1<NodeId>>> {
+            slf.next().map(|path| PyArray1::from_vec_bound(py, path))
         }
     }
 
@@ -904,14 +904,14 @@ pub mod directed {
         fn __next__<'py>(
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
-        ) -> Option<&'py PyArray2<NodeId>> {
-            slf.iter.next().map(|paths| paths.into_pyarray(py))
+        ) -> Option<Bound<'py, PyArray2<NodeId>>> {
+            slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
         }
     }
 }
 
-pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "graph")?;
+pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let m = pyo3::prelude::PyModule::new_bound(py, "graph")?;
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;
     m.add_class::<complete::AllPathsFromCompleteGraphIter>()?;
