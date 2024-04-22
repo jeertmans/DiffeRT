@@ -6,7 +6,11 @@ import importlib
 from collections.abc import MutableMapping
 from contextlib import AbstractContextManager, contextmanager
 from functools import wraps
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
+
+BACKEND_LOCK = Lock()
+"""A Lock to avoid modifying backend (and defaults) in multiple threads at the same time (e.g., with Pytest."""
 
 DEFAULT_BACKEND = "vispy"
 SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
@@ -93,15 +97,16 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
             f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
         )
 
-    try:
-        importlib.import_module(f"{backend}")
-        DEFAULT_BACKEND = backend
-        DEFAULT_KWARGS = kwargs
-        return backend
-    except ImportError:
-        raise ImportError(
-            f"Could not load backend '{backend}', did you install it?"
-        ) from None
+    with BACKEND_LOCK:
+        try:
+            importlib.import_module(f"{backend}")
+            DEFAULT_BACKEND = backend
+            DEFAULT_KWARGS = kwargs
+            return backend
+        except ImportError:
+            raise ImportError(
+                f"Could not load backend '{backend}', did you install it?"
+            ) from None
 
 
 @contextmanager
