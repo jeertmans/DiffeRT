@@ -924,12 +924,12 @@ pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{complete::CompleteGraph, directed::DiGraph, *};
-
     use std::cmp::Ordering;
 
     use ndarray::array;
     use rstest::*;
+
+    use super::{complete::CompleteGraph, directed::DiGraph, *};
 
     fn compare_paths(path1: &[usize], path2: &[usize]) -> Ordering {
         let mut iter1 = path1.iter();

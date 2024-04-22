@@ -6,9 +6,8 @@ use pyo3::{
     types::{PySlice, PyType},
 };
 
-use crate::geometry::triangle_mesh::TriangleMesh;
-
 use super::sionna::SionnaScene;
+use crate::geometry::triangle_mesh::TriangleMesh;
 
 /// TODO.
 #[derive(Clone)]
