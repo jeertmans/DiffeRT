@@ -3,19 +3,26 @@
 from __future__ import annotations
 
 import importlib
-from collections.abc import MutableMapping
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Iterator, MutableMapping
+from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
 
+# Immutables
+
+SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+"""The list of supported backends."""
+
 BACKEND_LOCK = Lock()
 """A Lock to avoid modifying backend (and defaults) in multiple threads at the same time (e.g., with Pytest."""
 
-DEFAULT_BACKEND = "vispy"
-SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+# Mutables
 
+DEFAULT_BACKEND = "vispy"
+"""The default backend."""
 DEFAULT_KWARGS: MutableMapping[str, Any] = {}
+"""The default keyword arguments."""
 
 if TYPE_CHECKING:
     import sys
@@ -110,9 +117,12 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
 
 
 @contextmanager
-def use(*args: Any, **kwargs: Any) -> AbstractContextManager[str]:
+def use(*args: Any, **kwargs: Any) -> Iterator[str]:
     """
     Create a context manager that sets plotting defaults and returns the current default backend.
+
+    When exiting the context, the previous default backend
+    and default keyword arguments are set back.
 
     Args:
         args: Positional arguments passed to
@@ -445,7 +455,7 @@ def process_plotly_kwargs(
 
 
 @contextmanager
-def reuse(**kwargs: Any) -> AbstractContextManager[SceneCanvas | MplFigure | Figure]:
+def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:

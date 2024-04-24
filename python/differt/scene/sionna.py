@@ -38,6 +38,7 @@ def download_sionna_scenes(
     cached: bool = True,
     chunk_size: int = 1024,
     progress: bool = True,
+    leave: bool = False,
 ) -> None:
     """
     Download the scenes from Sionna, and stores them in the given folder.
@@ -54,6 +55,8 @@ def download_sionna_scenes(
         chunk_size: The chunk size, in bytes, used when downloading
             the data.
         progress: Whether to output a progress bar when downloading.
+        leave: If ``progress` is :py:data:`True`, whether to leave
+            the progress bar upon completion.
     """
     folder_p = Path(folder)
 
@@ -86,7 +89,7 @@ def download_sionna_scenes(
             unit_scale=True,
             unit_divisor=chunk_size,
             disable=not progress,
-            leave=True,
+            leave=leave,
         ) as bar,
     ):
         for chunk in stream:
