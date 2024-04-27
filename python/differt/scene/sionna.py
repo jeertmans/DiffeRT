@@ -16,25 +16,20 @@ __all__ = (
 import tarfile
 import tempfile
 from pathlib import Path
+from typing import Union
 
 import requests
 from tqdm import tqdm
 
 from .. import _core
 
-
-class _Str(str):
-    def __repr__(self) -> str:
-        return "'<path-to-differt>/scene/scenes'"
-
-
-SIONNA_SCENES_FOLDER = _Str(str(Path(__file__).parent.joinpath("scenes")))
+SIONNA_SCENES_FOLDER = Path(__file__) / "scenes"
 
 
 def download_sionna_scenes(
     branch_or_tag: str = "main",
     *,
-    folder: str = SIONNA_SCENES_FOLDER,
+    folder: Union[str, Path] = SIONNA_SCENES_FOLDER,
     cached: bool = True,
     chunk_size: int = 1024,
     progress: bool = True,
@@ -55,16 +50,17 @@ def download_sionna_scenes(
         chunk_size: The chunk size, in bytes, used when downloading
             the data.
         progress: Whether to output a progress bar when downloading.
-        leave: If ``progress` is :py:data:`True`, whether to leave
+        leave: If ``progress`` is :py:data:`True`, whether to leave
             the progress bar upon completion.
     """
-    folder_p = Path(folder)
+    if isinstance(folder, str):
+        folder = Path(folder)
 
-    if folder_p.exists():
+    if folder.exists():
         if cached:
             return
 
-        folder_p.rmdir()
+        folder.rmdir()
 
     url = f"https://codeload.github.com/NVlabs/sionna/tar.gz/{branch_or_tag}"
 
@@ -102,7 +98,7 @@ def download_sionna_scenes(
             tar.extractall(path=folder, members=members(tar))
 
 
-def list_sionna_scenes(*, folder: str = SIONNA_SCENES_FOLDER) -> list[str]:
+def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> list[str]:
     """
     List available Sionna scenes, by name.
 
@@ -112,14 +108,15 @@ def list_sionna_scenes(*, folder: str = SIONNA_SCENES_FOLDER) -> list[str]:
     Return:
         The list of scene names.
     """
-    folder_p = Path(folder)
+    if isinstance(folder, str):
+        folder = Path(folder)
 
-    return [
-        p.name for p in folder_p.iterdir() if p.is_dir() and p.name != "__pycache__"
-    ]
+    return [p.name for p in folder.iterdir() if p.is_dir() and p.name != "__pycache__"]
 
 
-def get_sionna_scene(scene_name: str, *, folder: str = SIONNA_SCENES_FOLDER) -> str:
+def get_sionna_scene(
+    scene_name: str, *, folder: Union[str, Path] = SIONNA_SCENES_FOLDER
+) -> str:
     """
     Return the path to the given Sionna scene.
 
@@ -131,7 +128,7 @@ def get_sionna_scene(scene_name: str, *, folder: str = SIONNA_SCENES_FOLDER) -> 
         The path, relative to the current working directory,
         to the given ``scene.xml`` file.
     """
-    p = Path(folder) / scene_name / f"{scene_name}.xml"
+    p = folder / scene_name / f"{scene_name}.xml"
 
     if not p.exists():
         scenes = ", ".join(list_sionna_scenes(folder=folder))
