@@ -202,7 +202,7 @@ impl SionnaScene {
     /// Return:
     ///     The corresponding scene.
     #[classmethod]
-    pub(crate) fn load_xml(_: &PyType, file: &str) -> PyResult<Self> {
+    pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading XML file: {}", err))
@@ -210,8 +210,8 @@ impl SionnaScene {
     }
 }
 
-pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "sionna")?;
+pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let m = pyo3::prelude::PyModule::new_bound(py, "sionna")?;
     m.add_class::<Material>()?;
     m.add_class::<SionnaScene>()?;
     m.add_class::<Shape>()?;

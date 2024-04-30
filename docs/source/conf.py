@@ -5,8 +5,11 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+
+import inspect
 import os
 from datetime import date
+from typing import Any
 
 from differt import __version__
 
@@ -180,3 +183,24 @@ def fix_signature(app, what, name, obj, options, signature, return_annotation):
 def setup(app):
     app.connect("autodoc-process-signature", fix_signature, priority=999)
 """
+
+
+def fix_sionna_folder(app, obj: Any, bound_method: bool) -> None:
+    """
+    Rename the default folder to a more readeable name.
+    """
+    if obj.__name__.endswith("_sionna_scenes"):
+        sig = inspect.signature(obj)
+        parameters = []
+
+        for param_name, parameter in sig.parameters.items():
+            if param_name == "folder":
+                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")
+
+            parameters.append(parameter)
+
+        obj.__signature__ = sig.replace(parameters=parameters)
+
+
+def setup(app):
+    app.connect("autodoc-before-process-signature", fix_sionna_folder)

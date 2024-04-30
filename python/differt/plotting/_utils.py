@@ -3,15 +3,26 @@
 from __future__ import annotations
 
 import importlib
-from collections.abc import MutableMapping
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Iterator, MutableMapping
+from contextlib import contextmanager
 from functools import wraps
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
 
-DEFAULT_BACKEND = "vispy"
-SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+# Immutables
 
+SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+"""The list of supported backends."""
+
+BACKEND_LOCK = Lock()
+"""A Lock to avoid modifying backend (and defaults) in multiple threads at the same time (e.g., with Pytest."""
+
+# Mutables
+
+DEFAULT_BACKEND = "vispy"
+"""The default backend."""
 DEFAULT_KWARGS: MutableMapping[str, Any] = {}
+"""The default keyword arguments."""
 
 if TYPE_CHECKING:
     import sys
@@ -93,15 +104,44 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
             f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
         )
 
+    with BACKEND_LOCK:
+        try:
+            importlib.import_module(f"{backend}")
+            DEFAULT_BACKEND = backend
+            DEFAULT_KWARGS = kwargs
+            return backend
+        except ImportError:
+            raise ImportError(
+                f"Could not load backend '{backend}', did you install it?"
+            ) from None
+
+
+@contextmanager
+def use(*args: Any, **kwargs: Any) -> Iterator[str]:
+    """
+    Create a context manager that sets plotting defaults and returns the current default backend.
+
+    When exiting the context, the previous default backend
+    and default keyword arguments are set back.
+
+    Args:
+        args: Positional arguments passed to
+            :py:func:`set_defaults`.
+        kwargs: Keywords arguments passed to
+            :py:func:`set_defaults`.
+
+    Return:
+        The name of the default backend used in this context.
+    """
+    global DEFAULT_BACKEND, DEFAULT_KWARGS
+    default_backend = DEFAULT_BACKEND
+    default_kwargs = DEFAULT_KWARGS
+
     try:
-        importlib.import_module(f"{backend}")
-        DEFAULT_BACKEND = backend
-        DEFAULT_KWARGS = kwargs
-        return backend
-    except ImportError:
-        raise ImportError(
-            f"Could not load backend '{backend}', did you install it?"
-        ) from None
+        yield set_defaults(*args, **kwargs)
+    finally:
+        DEFAULT_BACKEND = default_backend
+        DEFAULT_KWARGS = default_kwargs
 
 
 @contextmanager
@@ -440,7 +480,7 @@ def process_plotly_kwargs(
 
 
 @contextmanager
-def reuse(**kwargs: Any) -> AbstractContextManager[SceneCanvas | MplFigure | Figure]:
+def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:

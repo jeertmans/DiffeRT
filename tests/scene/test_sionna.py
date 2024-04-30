@@ -5,10 +5,8 @@ from differt.scene.sionna import SionnaScene, get_sionna_scene, list_sionna_scen
 
 @pytest.mark.parametrize("scene_name", ("foo", "bar"))
 def test_get_unexisting_sionna_scene(scene_name: str) -> None:
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="Cannot find scene_name"):
         _ = get_sionna_scene(scene_name)
-
-    assert "Cannot find scene_name" in str(exc)
 
 
 class TestSionnaScene:

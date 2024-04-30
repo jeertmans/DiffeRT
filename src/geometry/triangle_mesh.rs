@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader};
 
-use numpy::{Element, PyArray2};
+use numpy::{prelude::*, Element, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
@@ -18,10 +18,10 @@ pub(crate) struct TriangleMesh {
 fn pyarray2_from_vec_tuple<'py, T: Copy + Element>(
     py: Python<'py>,
     v: &[(T, T, T)],
-) -> &'py PyArray2<T> {
+) -> Bound<'py, PyArray2<T>> {
     let n = v.len();
     unsafe {
-        let arr = PyArray2::<T>::new(py, [n, 3], false);
+        let arr = PyArray2::<T>::new_bound(py, [n, 3], false);
 
         for i in 0..n {
             let tup = v.get_unchecked(i);
@@ -103,17 +103,17 @@ impl TriangleMesh {
     }
 
     #[getter]
-    fn vertices<'py>(&self, py: Python<'py>) -> &'py PyArray2<f32> {
+    fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         pyarray2_from_vec_tuple(py, &self.vertices)
     }
 
     #[getter]
-    fn triangles<'py>(&self, py: Python<'py>) -> &'py PyArray2<usize> {
+    fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         pyarray2_from_vec_tuple(py, &self.triangles)
     }
 
     #[classmethod]
-    pub(crate) fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
@@ -122,7 +122,7 @@ impl TriangleMesh {
     }
 
     #[classmethod]
-    pub(crate) fn load_ply(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_ply(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let mut input = BufReader::new(File::open(filename)?);
 
         let vertex_parser = parser::Parser::<PlyVertex>::new();
@@ -235,8 +235,8 @@ impl From<RawObj> for TriangleMesh {
     }
 }
 
-pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "triangle_mesh")?;
+pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let m = pyo3::prelude::PyModule::new_bound(py, "triangle_mesh")?;
     m.add_class::<TriangleMesh>()?;
 
     Ok(m)
