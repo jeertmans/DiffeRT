@@ -13,14 +13,14 @@ pub fn generate_all_path_candidates(
     py: Python<'_>,
     num_primitives: usize,
     order: usize,
-) -> &PyArray2<usize> {
+) -> Bound<'_, PyArray2<usize>> {
     let graph = CompleteGraph::new(num_primitives);
     let from = num_primitives;
     let to = num_primitives + 1;
     graph
         .all_paths(from, to, order + 2, false)
         .collect_array()
-        .into_pyarray(py)
+        .into_pyarray_bound(py)
 }
 
 /// Iterator variant of eponym function.
@@ -49,13 +49,13 @@ pub fn generate_all_path_candidates_chunks_iter(
     graph.all_paths_array_chunks(from, to, order + 2, false, chunk_size)
 }
 
-pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "utils")?;
-    m.add_function(wrap_pyfunction!(generate_all_path_candidates, m)?)?;
-    m.add_function(wrap_pyfunction!(generate_all_path_candidates_iter, m)?)?;
+pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let m = pyo3::prelude::PyModule::new_bound(py, "utils")?;
+    m.add_function(wrap_pyfunction!(generate_all_path_candidates, &m)?)?;
+    m.add_function(wrap_pyfunction!(generate_all_path_candidates_iter, &m)?)?;
     m.add_function(wrap_pyfunction!(
         generate_all_path_candidates_chunks_iter,
-        m
+        &m
     )?)?;
 
     Ok(m)

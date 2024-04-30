@@ -3,13 +3,26 @@
 from __future__ import annotations
 
 import importlib
-from collections.abc import MutableMapping
+from collections.abc import Iterator, MutableMapping
+from contextlib import contextmanager
 from functools import wraps
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
 
-CURRENT_BACKEND = None
-DEFAULT_BACKEND = "vispy"
+# Immutables
+
 SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+"""The list of supported backends."""
+
+BACKEND_LOCK = Lock()
+"""A Lock to avoid modifying backend (and defaults) in multiple threads at the same time (e.g., with Pytest."""
+
+# Mutables
+
+DEFAULT_BACKEND = "vispy"
+"""The default backend."""
+DEFAULT_KWARGS: MutableMapping[str, Any] = {}
+"""The default keyword arguments."""
 
 if TYPE_CHECKING:
     import sys
@@ -32,12 +45,19 @@ else:
     T = TypeVar("T")
 
 
-def use(backend: str) -> None:
+def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
     """
-    Tell future plotting utilities to use this backend by default.
+    Set default keyword arguments for future plotting utilities.
 
     Args:
-        backend: The name of the backend to use.
+        backend: The name of the backend to use, or
+            :py:data:`None` to use the current default.
+        kwargs: Keyword arguments that will be passed to the
+            corresponding ``process_*_kwargs`` function, and
+            plot utilities.
+
+    Return:
+        The name of the (new) default backend.
 
     Raises:
         ValueError: If the backend is not supported.
@@ -66,28 +86,87 @@ def use(backend: str) -> None:
         >>> my_plot(backend="matplotlib")  # We can force the backend
         Using matplotlib backend
         >>>
-        >>> dplt.use("matplotlib")  # Or change the default backend...
-        >>>
+        >>> dplt.set_defaults("matplotlib")  # Or change the default backend...
+        'matplotlib'
         >>> my_plot()  # So that now it defaults to 'matplotlib'
         Using matplotlib backend
         >>>
         >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
         Using vispy backend
     """
+    global DEFAULT_BACKEND, DEFAULT_KWARGS
+
+    if backend is None:
+        backend = DEFAULT_BACKEND
     if backend not in SUPPORTED_BACKENDS:
         raise ValueError(
             f"The backend '{backend}' is not supported. "
             f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
         )
 
+    with BACKEND_LOCK:
+        try:
+            importlib.import_module(f"{backend}")
+            DEFAULT_BACKEND = backend
+            DEFAULT_KWARGS = kwargs
+            return backend
+        except ImportError:
+            raise ImportError(
+                f"Could not load backend '{backend}', did you install it?"
+            ) from None
+
+
+@contextmanager
+def use(*args: Any, **kwargs: Any) -> Iterator[str]:
+    """
+    Create a context manager that sets plotting defaults and returns the current default backend.
+
+    When exiting the context, the previous default backend
+    and default keyword arguments are set back.
+
+    Args:
+        args: Positional arguments passed to
+            :py:func:`set_defaults`.
+        kwargs: Keywords arguments passed to
+            :py:func:`set_defaults`.
+
+    Return:
+        The name of the default backend used in this context.
+    """
+    global DEFAULT_BACKEND, DEFAULT_KWARGS
+    default_backend = DEFAULT_BACKEND
+    default_kwargs = DEFAULT_KWARGS
+
     try:
-        importlib.import_module(f"{backend}")
-        global DEFAULT_BACKEND
-        DEFAULT_BACKEND = backend
-    except ImportError:
-        raise ImportError(
-            f"Could not load backend '{backend}', did you install it?"
-        ) from None
+        yield set_defaults(*args, **kwargs)
+    finally:
+        DEFAULT_BACKEND = default_backend
+        DEFAULT_KWARGS = default_kwargs
+
+
+@contextmanager
+def use(*args: Any, **kwargs: Any) -> AbstractContextManager[str]:
+    """
+    Create a context manager that sets plotting defaults and returns the current default backend.
+
+    Args:
+        args: Positional arguments passed to
+            :py:func:`set_defaults`.
+        kwargs: Keywords arguments passed to
+            :py:func:`set_defaults`.
+
+    Return:
+        The name of the default backend used in this context.
+    """
+    global DEFAULT_BACKEND, DEFAULT_KWARGS
+    default_backend = DEFAULT_BACKEND
+    default_kwargs = DEFAULT_KWARGS
+
+    try:
+        yield set_defaults(*args, **kwargs)
+    finally:
+        DEFAULT_BACKEND = default_backend
+        DEFAULT_KWARGS = default_kwargs
 
 
 class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
@@ -108,6 +187,14 @@ class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
 def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
     """
     Transform a function into a backend dispatcher for plot functions.
+
+    Args:
+        fun: The callable that will register future dispatch
+            functions for each backend implementation.
+
+    Return:
+        The same callable, wrapped in a :py:class:`Dispatcher`
+        class instance.
 
     Examples:
         The following example shows how one can implement plotting
@@ -206,7 +293,7 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         **kwargs: P.kwargs,
     ) -> T:
         # We cannot currently add keyword argument to the signature,
-        # at least Pyright we not allow that,
+        # at least Pyright will not allow that,
         # see: https://github.com/microsoft/pyright/issues/5844.
         #
         # The motivation is detailed in P612:
@@ -289,6 +376,9 @@ def process_vispy_kwargs(
     """
     from vispy import scene
 
+    for key, value in DEFAULT_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     maybe_view = kwargs.pop("view", None)
     canvas = (
         kwargs.pop("canvas", None)
@@ -335,6 +425,9 @@ def process_matplotlib_kwargs(
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
+    for key, value in DEFAULT_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     maybe_ax = kwargs.pop("ax", None)
     figure = (
         kwargs.pop("figure", None)
@@ -380,4 +473,41 @@ def process_plotly_kwargs(
     """
     import plotly.graph_objects as go
 
+    for key, value in DEFAULT_KWARGS.items():
+        kwargs.setdefault(key, value)
+
     return kwargs.pop("figure", None) or go.Figure()
+
+
+@contextmanager
+def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
+    """Create a context manager that will automatically reuse the current canvas / figure.
+
+    Args:
+        args: Positional arguments passed to
+            :py:func:`set_defaults`.
+        kwargs: Keywords arguments passed to
+            :py:func:`set_defaults`.
+
+    Return:
+        The canvas or figure that is reused for this context.
+    """
+    global DEFAULT_KWARGS
+    backend: str | None = kwargs.pop("backend", None)
+
+    with use(backend=backend) as b:
+        try:
+            if b == "vispy":
+                canvas, view = process_vispy_kwargs(kwargs)
+                DEFAULT_KWARGS = {"canvas": canvas, "view": view, **kwargs}
+                yield canvas
+            elif b == "matplotlib":
+                figure, ax = process_matplotlib_kwargs(kwargs)
+                DEFAULT_KWARGS = {"figure": figure, "ax": ax, **kwargs}
+                yield figure
+            else:
+                figure = process_plotly_kwargs(kwargs)
+                DEFAULT_KWARGS = {"figure": figure, **kwargs}
+                yield figure
+        finally:
+            pass  # No need to reset anything, use(...) will do this

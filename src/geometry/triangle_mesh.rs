@@ -1,26 +1,27 @@
 use std::{fs::File, io::BufReader};
 
-use numpy::{Element, PyArray2};
+use numpy::{prelude::*, Element, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
+#[derive(Clone, Default)]
 #[pyclass]
-struct TriangleMesh {
+pub(crate) struct TriangleMesh {
     /// Array of size [num_vertices 3].
-    vertices: Vec<(f32, f32, f32)>,
+    pub(crate) vertices: Vec<(f32, f32, f32)>,
     /// Array of size [num_triangles 3].
-    triangles: Vec<(usize, usize, usize)>,
+    pub(crate) triangles: Vec<(usize, usize, usize)>,
 }
 
 #[inline]
 fn pyarray2_from_vec_tuple<'py, T: Copy + Element>(
     py: Python<'py>,
     v: &[(T, T, T)],
-) -> &'py PyArray2<T> {
+) -> Bound<'py, PyArray2<T>> {
     let n = v.len();
     unsafe {
-        let arr = PyArray2::<T>::new(py, [n, 3], false);
+        let arr = PyArray2::<T>::new_bound(py, [n, 3], false);
 
         for i in 0..n {
             let tup = v.get_unchecked(i);
@@ -48,18 +49,21 @@ impl ply::PropertyAccess for PlyVertex {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("x", ply::Property::Float(v)) => self.x = v,
-            ("y", ply::Property::Float(v)) => self.y = v,
-            ("z", ply::Property::Float(v)) => self.z = v,
+            ("x", ply::Property::Float(v)) => self.x = v as _,
+            ("y", ply::Property::Float(v)) => self.y = v as _,
+            ("z", ply::Property::Float(v)) => self.z = v as _,
+            ("x", ply::Property::Double(v)) => self.x = v as _,
+            ("y", ply::Property::Double(v)) => self.y = v as _,
+            ("z", ply::Property::Double(v)) => self.z = v as _,
             (k, property) => {
-                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+                log::info!("vertex: unexpected key/value combination: {k}/{property:?}")
             },
         }
     }
 }
 
 struct PlyFace {
-    pub vertex_indices: Vec<u32>,
+    pub vertex_indices: Vec<usize>,
 }
 
 impl ply::PropertyAccess for PlyFace {
@@ -70,9 +74,14 @@ impl ply::PropertyAccess for PlyFace {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("vertex_indices", ply::Property::ListUInt(vec)) => self.vertex_indices = vec,
+            ("vertex_indices", ply::Property::ListUInt(vec)) => {
+                self.vertex_indices = vec.iter().map(|&x| x as _).collect()
+            },
+            ("vertex_indices", ply::Property::ListInt(vec)) => {
+                self.vertex_indices = vec.iter().map(|&x| x as _).collect()
+            },
             (k, property) => {
-                log::warn!("Face: unexpected key/value combination: key: {k}/{property:?}")
+                log::info!("face: unexpected key/value combination: {k}/{property:?}")
             },
         }
     }
@@ -80,18 +89,31 @@ impl ply::PropertyAccess for PlyFace {
 
 #[pymethods]
 impl TriangleMesh {
+    pub(crate) fn append(&mut self, other: &mut Self) {
+        let offset = self.vertices.len();
+        self.vertices.append(&mut other.vertices);
+
+        self.triangles.reserve(other.triangles.len());
+
+        for (v0, v1, v2) in &other.triangles {
+            self.triangles.push((v0 + offset, v1 + offset, v2 + offset));
+        }
+
+        other.triangles.clear();
+    }
+
     #[getter]
-    fn vertices<'py>(&self, py: Python<'py>) -> &'py PyArray2<f32> {
+    fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         pyarray2_from_vec_tuple(py, &self.vertices)
     }
 
     #[getter]
-    fn triangles<'py>(&self, py: Python<'py>) -> &'py PyArray2<usize> {
+    fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         pyarray2_from_vec_tuple(py, &self.triangles)
     }
 
     #[classmethod]
-    fn load_obj(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
         let obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
@@ -100,7 +122,7 @@ impl TriangleMesh {
     }
 
     #[classmethod]
-    fn load_ply(_: &PyType, filename: &str) -> PyResult<Self> {
+    pub(crate) fn load_ply(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let mut input = BufReader::new(File::open(filename)?);
 
         let vertex_parser = parser::Parser::<PlyVertex>::new();
@@ -148,19 +170,15 @@ impl TriangleMesh {
                             .filter_map(|face| {
                                 if face.vertex_indices.len() == 3 {
                                     let indices = face.vertex_indices;
-                                    Some((
-                                        indices[0] as usize,
-                                        indices[1] as usize,
-                                        indices[2] as usize,
-                                    ))
+                                    Some((indices[0], indices[1], indices[2]))
                                 } else {
-                                    log::warn!("Face: skipping because it is not a triangle.");
+                                    log::info!("Face: skipping because it is not a triangle.");
                                     None
                                 }
                             }),
                     );
                 },
-                name => log::warn!("Unexpeced element: {name}, skipping"),
+                name => log::info!("Unexpeced element: {name}, skipping."),
             }
         }
 
@@ -198,7 +216,7 @@ impl From<RawObj> for TriangleMesh {
                     triangles.push((v[0].0, v[1].0, v[2].0));
                 },
                 _ => {
-                    log::warn!("Skipping a polygon because it is not a triangle.")
+                    log::info!("Skipping a polygon because it is not a triangle.")
                 },
             }
         }
@@ -217,8 +235,8 @@ impl From<RawObj> for TriangleMesh {
     }
 }
 
-pub(crate) fn create_module(py: Python<'_>) -> PyResult<&PyModule> {
-    let m = pyo3::prelude::PyModule::new(py, "triangle_mesh")?;
+pub(crate) fn create_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    let m = pyo3::prelude::PyModule::new_bound(py, "triangle_mesh")?;
     m.add_class::<TriangleMesh>()?;
 
     Ok(m)

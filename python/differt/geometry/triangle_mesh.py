@@ -134,6 +134,23 @@ class TriangleMesh(eqx.Module):
         raise NotImplementedError
 
     @classmethod
+    def empty(cls) -> "TriangleMesh":
+        """
+        Create an empty scene.
+
+        Return:
+            A new empty scene.
+        """
+        return cls(
+            vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=jnp.uint32)
+        )
+
+    @property
+    def is_empty(self) -> bool:
+        """Whether this scene has no triangle."""
+        return self.triangles.size == 0
+
+    @classmethod
     def load_obj(cls, file: str) -> "TriangleMesh":
         """
         Load a triangle mesh from a Wavefront .obj file.
