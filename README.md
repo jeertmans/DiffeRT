@@ -1,7 +1,4 @@
 <div align="center">
-
-[tool.rye.workspace]
-members = ["differt-core"]
 <img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
 </div>
 
