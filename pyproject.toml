@@ -1,6 +1,6 @@
 [build-system]
-build-backend = "maturin"
-requires = ["maturin>=1.3,<2.0"]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
@@ -29,50 +29,19 @@ dependencies = [
   "tqdm>=4.66.2",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
-dynamic = ["license", "readme", "version"]
+dynamic = ["license", "readme"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "DiffeRT"
 requires-python = ">=3.9"
+version = "0.0.10"  # TODO: reset dynamic version
 
 [project.optional-dependencies]
 all = [
   "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
 ]
-dev = [
-  "pre-commit>=3.5.0",
-  "mypy>=1.8.0",
-]
-docs = [
-  "differt[all]",
-  "myst-nb>=0.17.2",
-  "pillow>=10.1.0",
-  "sphinx>=6",
-  "sphinx-autodoc-typehints>=1.23",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx-copybutton>=0.5.2",
-  "sphinx-design>=0.5.0",
-  "sphinx-remove-toctrees>=0.0.3",
-  "sphinxext-opengraph>=0.9.0",
-  "sphinxcontrib-apidoc>=0.4.0",
-  "sphinxcontrib-bibtex>=2.6.0",
-  "sphinx-plotly-directive>=0.1.3",
-]
-github-action = [
-  "jax[cpu]>=0.4.20",
-]
 jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
-maplotlib = ["matplotlib>=3.8.1"]
+matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
-test = [
-  "chex>=0.1.84",
-  "differt[all]",
-  "pytest>=7.4.3",
-  "pytest-benchmark>=4.0.0",
-  "pytest-cov>=4.1.0",
-  "pytest-env>=1.1.3",
-  "pytest-xdist>=3.3.1",
-  "scipy>=1.12.0",
-]
 vispy = ["vispy>=0.14.1"]
 vispy-backend = ["PyQt6>=6.6.1"]
 
@@ -87,7 +56,7 @@ Repository = "https://github.com/jeertmans/DiffeRT"
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,ue"
-skip = "docs/source/conf.py,pdm.lock,pyproject.toml"
+skip = "docs/source/conf.py,pyproject.toml"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -101,24 +70,11 @@ precision = 2
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
 
-[tool.maturin]
-bindings = "pyo3"
-exclude = [
-  ".*",
-  ".github/**/*",
-  "benches/**/*",
-  "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
-  "docs/**/*",
-  "tests/**/*",
-]
-features = ["pyo3/extension-module"]
-module-name = "differt._core"
-python-source = "python"
-
-[tool.pdm]
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pyright]
-include = ["python/differt", "tests"]
+include = ["src/differt", "tests"]
 venv = ".venv"
 venvPath = "."
 
@@ -160,7 +116,7 @@ extend-ignore = [
   "F722",  # Syntax error in forward annotation
 ]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
-isort = {known-first-party = ["differt", "tests"]}
+isort = {known-first-party = ["differt", "differt_core", "tests"]}
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field"]
@@ -171,7 +127,39 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = ["B018"]
 "**/{tests,docs}/*" = ["D"]
-"python/differt/conftest.py" = ["D"]
+"src/differt/conftest.py" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.rye]
+dev-dependencies = [
+  "differt[all]",
+  # dev
+  "pre-commit>=3.5.0",
+  # docs
+  "myst-nb>=0.17.2",
+  "pillow>=10.1.0",
+  "sphinx>=6",
+  "sphinx-autodoc-typehints>=1.23",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton>=0.5.2",
+  "sphinx-design>=0.5.0",
+  "sphinx-remove-toctrees>=0.0.3",
+  "sphinxext-opengraph>=0.9.0",
+  "sphinxcontrib-apidoc>=0.4.0",
+  "sphinxcontrib-bibtex>=2.6.0",
+  "sphinx-plotly-directive>=0.1.3",
+  # tests
+  "chex>=0.1.84",
+  "pytest>=7.4.3",
+  "pytest-benchmark>=4.0.0",
+  "pytest-cov>=4.1.0",
+  "pytest-env>=1.1.3",
+  "pytest-xdist>=3.3.1",
+  "scipy>=1.12.0",
+]
+managed = true
+
+[tool.rye.workspace]
+members = ["differt-core"]

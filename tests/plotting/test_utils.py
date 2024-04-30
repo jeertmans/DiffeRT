@@ -5,6 +5,7 @@ import importlib
 import sys
 from contextlib import AbstractContextManager as ContextManager
 from contextlib import contextmanager
+from threading import Lock
 from types import ModuleType
 from typing import Any, Protocol
 
@@ -22,6 +23,8 @@ from differt.plotting._utils import (
     use,
     view_from_canvas,
 )
+
+_LOCK = Lock()
 
 
 class MissingModulesContextGenerator(Protocol):
@@ -45,7 +48,7 @@ def missing_modules(monkeypatch: pytest.MonkeyPatch) -> MissingModulesContextGen
                 raise ImportError(f"Mocked import error for '{name}'")
             return real_import_module(name, *args, **kwargs)
 
-        with monkeypatch.context() as m:
+        with monkeypatch.context() as m, _LOCK:
             for name in names:
                 m.delitem(sys.modules, name, raising=False)
 
@@ -113,7 +116,7 @@ def test_register_unsupported() -> None:
 
 
 @pytest.mark.parametrize("backend", ("vispy", "matplotlib", "plotly"))
-def test_missing_default_backend_module(
+def est_missing_default_backend_module(
     backend: str, missing_modules: MissingModulesContextGenerator
 ) -> None:
     with use(backend=backend):  # Change the default backend

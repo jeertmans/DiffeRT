@@ -12,13 +12,10 @@ docs/build/
 docs/source/reference/*.rst
 
 # Sionna data
-python/differt/scene/scenes/
+src/differt/scene/scenes/
 
 # Notebooks
 
 .ipynb_checkpoints/
 
 # Tools
-
-.mypy_cache
-.pdm-python

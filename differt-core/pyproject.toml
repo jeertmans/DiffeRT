@@ -1,0 +1,32 @@
+[build-system]
+build-backend = "maturin"
+requires = ["maturin>=1.3,<2.0"]
+
+[project]
+authors = [
+  {name = "Jérome Eertmans", email = "jeertmans@icloud.com"},
+]
+dependencies = ["numpy>=1.20"]
+description = "Add your description here"
+name = "differt-core"
+readme = "README.md"
+requires-python = ">= 3.9"
+version = "0.1.0"
+
+[tool.maturin]
+bindings = "pyo3"
+exclude = [
+  ".*",
+  ".github/**/*",
+  "benches/**/*",
+  "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
+  "docs/**/*",
+  "tests/**/*",
+]
+features = ["pyo3/extension-module"]
+module-name = "differt_core._lowlevel"
+python-source = "python"
+
+[tool.rye]
+dev-dependencies = []
+managed = true

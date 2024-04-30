@@ -1,4 +1,7 @@
 <div align="center">
+
+[tool.rye.workspace]
+members = ["differt-core"]
 <img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
 </div>
 
@@ -10,7 +13,6 @@
 [![Python version][pypi-python-version-badge]][pypi-version-url]
 [![Documentation][documentation-badge]][documentation-url]
 [![Codecov][codecov-badge]][codecov-url]
-[![PDM][pdm-badge]][pdm-url]
 
 </div>
 
@@ -44,14 +46,14 @@ To run build this package locally, you need:
 - [Python 3.9](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [PDM](https://pdm-project.org) to manage all Python dependencies.
+- and [Rye](https://rye-up.com/) to manage this project.
 
 ### Building locally
 
 You can build the project locally using:
 
 ```bash
-pdm install
+rye sync
 ```
 
 ### Documentation
@@ -60,7 +62,7 @@ To generate the documentation, please run the following:
 
 ```bash
 cd docs
-pdm run make html
+pdm run make html  # TODO: change me
 ```
 
 Finally, you can open `build/html/index.html` to see the generated docs.
@@ -74,13 +76,13 @@ Both Rust and Python codebases have their own tests and benchmarks.
 You can very easily test you code using Cargo:
 
 ```bash
-cargo test
+cargo test  # TODO: change me
 ```
 
 or benchmark it:
 
 ```bash
-cargo bench
+cargo bench  # TODO: change me
 ```
 
 #### Testing Python code
@@ -88,13 +90,13 @@ cargo bench
 in the same way, you can very test you code with Pytest:
 
 ```bash
-pdm run pytest
+pdm run pytest  # TODO: change me
 ```
 
 or benchmark it:
 
 ```bash
-pdm run pytest --benchmark-only
+pdm run pytest --benchmark-only  # TODO: change me
 ```
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
@@ -104,5 +106,3 @@ pdm run pytest --benchmark-only
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=8P4DY9JCE4
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT
-[pdm-badge]: https://img.shields.io/badge/pdm-managed-blueviolet
-[pdm-url]: https://pdm-project.org
