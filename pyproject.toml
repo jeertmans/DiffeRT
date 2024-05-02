@@ -4,6 +4,33 @@ name = "differt-dev"
 requires-python = ">=3.9"
 version = "1.0.0"
 
+[tool.bumpversion]
+allow_dirty = false
+commit = true
+commit_args = ""
+current_version = "0.0.10"
+ignore_missing_version = false
+message = "chore(deps): bump version from {current_version} to {new_version}"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+regex = false
+replace = "{new_version}"
+search = "{current_version}"
+serialize = ["{major}.{minor}.{patch}"]
+sign_tags = false
+tag = false
+tag_message = "Bump version: {current_version} → {new_version}"
+tag_name = "v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "differt-core/Cargo.toml"
+replace = "version = {new_version}"
+search = "^version = {current_version}"
+
+[[tool.bumpversion.files]]
+filename = "differt/pyproject.toml"
+replace = "differt-core{new_version}"
+search = "differt-core=={current_version}"
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
@@ -32,17 +59,6 @@ venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
-  "--doctest-modules",
-  "--doctest-ignore-import-errors",
-  "--doctest-glob=*.md",
-  "--doctest-glob=*.rst",
-  "--benchmark-columns",
-  "mean,stddev,ops",
-  "--benchmark-group-by",
-  "group",
-  "--benchmark-warmup",
-  "on",
-  "--benchmark-skip",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
@@ -88,6 +104,7 @@ convention = "google"
 dev-dependencies = [
   "differt[all]",
   # dev
+  "bump-my-version>=0.20.3",
   "pre-commit>=3.5.0",
   # docs
   "myst-nb>=0.17.2",
