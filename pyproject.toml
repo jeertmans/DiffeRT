@@ -23,8 +23,8 @@ tag_name = "v{new_version}"
 
 [[tool.bumpversion.files]]
 filename = "differt-core/Cargo.toml"
-replace = "version = {new_version}"
-search = "^version = {current_version}"
+replace = 'version = "{new_version}"'
+search = 'version = "{current_version}"'
 
 [[tool.bumpversion.files]]
 filename = "differt/pyproject.toml"
