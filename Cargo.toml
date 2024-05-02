@@ -1,3 +1,12 @@
+[profile.bench]
+debug = true
+strip = false
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+strip = true
+
 [workspace]
 members = ["differt-core"]
 resolver = "2"

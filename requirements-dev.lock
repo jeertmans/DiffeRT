@@ -8,7 +8,9 @@
 #   with-sources: false
 
 -e file:.
+-e file:differt
 -e file:differt-core
+    # via differt
 absl-py==2.1.0
     # via chex
     # via optax

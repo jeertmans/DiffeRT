@@ -31,9 +31,9 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     # Additional
+    "differt_dev.sphinxext.apidoc",
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
-    "sphinxcontrib.apidoc",
     "sphinxcontrib.bibtex",
     "sphinxext.opengraph",
     "sphinx_autodoc_typehints",
@@ -66,13 +66,16 @@ intersphinx_mapping = {
 }
 
 # -- API docs settings
-apidoc_module_dir = "../../python/differt"
-apidoc_output_dir = "reference"
-apidoc_excluded_paths = ["conftest.py", "scene/scenes"]
-apidoc_separate_modules = True
-apidoc_toc_file = False
-apidoc_module_first = False
-apidoc_extra_args = ["--maxdepth=1", "--templatedir=source/_templates"]
+apidoc_module_dirs = [
+    "../../differt/src/differt",
+    "../../differt-core/python/differt_core",
+]
+apidoc_output_dirs = "reference"
+apidoc_exclude_patterns = ["conftest.py", "*scene/scenes/*"]
+apidoc_separate = True
+apidoc_no_toc = True
+apidoc_max_depth = 1
+apidoc_templatedir = "source/_templates"
 
 # -- OpenGraph settings
 

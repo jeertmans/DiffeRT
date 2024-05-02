@@ -1,56 +1,8 @@
-[build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
-
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Topic :: Scientific/Engineering",
-  "Programming Language :: Rust",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
-]
-dependencies = [
-  "beartype>=0.17.2",
-  "equinox>=0.11.2",
-  "jax>=0.4.20",
-  "jaxtyping>=0.2.24",
-  "numpy>=1.26.1",
-  "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version < '3.11'",
-  "requests>=2.31.0",
-  "tqdm>=4.66.2",
-]
-description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
-dynamic = ["license", "readme"]
-keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
-name = "DiffeRT"
+name = "differt-dev"
 requires-python = ">=3.9"
-version = "0.0.10"  # TODO: reset dynamic version
-
-[project.optional-dependencies]
-all = [
-  "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
-]
-jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
-matplotlib = ["matplotlib>=3.8.1"]
-plotly = ["plotly>=5.18.0"]
-vispy = ["vispy>=0.14.1"]
-vispy-backend = ["PyQt6>=6.6.1"]
-
-[project.urls]
-Changelog = "https://github.com/jeertmans/DiffeRT/releases"
-Documentation = "https://eertmans.be/DiffeRT"
-Founding = "https://github.com/sponsors/jeertmans"
-Homepage = "https://github.com/jeertmans/DiffeRT"
-Repository = "https://github.com/jeertmans/DiffeRT"
+version = "1.0.0"
 
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
@@ -74,7 +26,7 @@ omit = ["**/*/conftest.py"]
 allow-direct-references = true
 
 [tool.pyright]
-include = ["src/differt", "tests"]
+include = ["differt/src/differt", "tests"]
 venv = ".venv"
 venvPath = "."
 
@@ -126,8 +78,8 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = ["B018"]
-"**/{tests,docs}/*" = ["D"]
-"src/differt/conftest.py" = ["D"]
+"**/{docs,differt_dev,tests}/*" = ["D"]
+"differt/src/differt/conftest.py" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -162,4 +114,4 @@ dev-dependencies = [
 managed = true
 
 [tool.rye.workspace]
-members = ["differt-core"]
+members = ["differt", "differt-core"]

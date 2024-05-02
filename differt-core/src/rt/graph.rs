@@ -147,7 +147,7 @@ pub mod complete {
         ///
         ///     Therefore, those iterators are equivalents:
         ///
-        ///     >>> from differt.rt.graph import CompleteGraph, DiGraph
+        ///     >>> from differt_core.rt.graph import CompleteGraph, DiGraph
         ///     >>>
         ///     >>> num_nodes, depth = 100, 5
         ///     >>> complete_graph = CompleteGraph(num_nodes)
@@ -182,16 +182,16 @@ pub mod complete {
         /// Return:
         ///     AllPathsFromCompleteGraphIter: An iterator over all paths.
         #[cfg(not(doctest))]
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         pub fn all_paths(
             &self,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
         ) -> AllPathsFromCompleteGraphIter {
-            AllPathsFromCompleteGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
+            AllPathsFromCompleteGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
         }
 
         /// Return an array of all paths of length ``depth``
@@ -209,17 +209,17 @@ pub mod complete {
         /// Return:
         ///     ``UInt[ndarray, "num_paths path_depth"]``:
         ///         An array of all paths.
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         fn all_paths_array<'py>(
             &self,
             py: Python<'py>,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
         ) -> Bound<'py, PyArray2<NodeId>> {
-            AllPathsFromCompleteGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
+            AllPathsFromCompleteGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
                 .collect_array()
                 .into_pyarray_bound(py)
         }
@@ -241,14 +241,14 @@ pub mod complete {
         /// Return:
         ///     AllPathsFromCompleteGraphChunksIter:
         ///         An iterator over all paths, as array chunks.
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true, chunk_size = 1000))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true, chunk_size = 1000))]
         #[pyo3(
             text_signature = "(self, from_, to, depth, *, include_from_and_to = True, chunk_size \
                               = 1000)"
         )]
         pub fn all_paths_array_chunks(
             &self,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
@@ -258,7 +258,7 @@ pub mod complete {
             AllPathsFromCompleteGraphChunksIter {
                 iter: AllPathsFromCompleteGraphIter::new(
                     self.clone(),
-                    from,
+                    from_,
                     to,
                     depth,
                     include_from_and_to,
@@ -668,16 +668,16 @@ pub mod directed {
         ///
         /// Return:
         ///     AllPathsFromDiGraphIter: An iterator over all paths.
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         pub fn all_paths(
             &self,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
         ) -> AllPathsFromDiGraphIter {
-            AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
+            AllPathsFromDiGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
         }
 
         /// Return an array of all paths of length ``depth``
@@ -695,17 +695,17 @@ pub mod directed {
         /// Return:
         ///     ``UInt[ndarray, "num_paths path_depth"]``:
         ///         An array of all paths.
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         fn all_paths_array<'py>(
             &self,
             py: Python<'py>,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
         ) -> Bound<'py, PyArray2<NodeId>> {
-            AllPathsFromDiGraphIter::new(self.clone(), from, to, depth, include_from_and_to)
+            AllPathsFromDiGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
                 .collect_array()
                 .into_pyarray_bound(py)
         }
@@ -727,14 +727,14 @@ pub mod directed {
         /// Return:
         ///     AllPathsFromDiGraphChunksIter:
         ///         An iterator over all paths, as array chunks.
-        #[pyo3(signature = (from, to, depth, *, include_from_and_to = true, chunk_size = 1000))]
+        #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true, chunk_size = 1000))]
         #[pyo3(
             text_signature = "(self, from_, to, depth, *, include_from_and_to = True, chunk_size \
                               = 1000)"
         )]
         pub fn all_paths_array_chunks(
             &self,
-            from: NodeId,
+            from_: NodeId,
             to: NodeId,
             depth: usize,
             include_from_and_to: bool,
@@ -744,7 +744,7 @@ pub mod directed {
             AllPathsFromDiGraphChunksIter {
                 iter: AllPathsFromDiGraphIter::new(
                     self.clone(),
-                    from,
+                    from_,
                     to,
                     depth,
                     include_from_and_to,

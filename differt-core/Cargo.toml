@@ -32,12 +32,3 @@ edition = "2021"
 name = "differt-core"
 rust-version = "1.75.0"
 version = "0.0.10"
-
-[profile.bench]
-debug = true
-strip = false
-
-[profile.release]
-codegen-units = 1
-lto = "fat"
-strip = true

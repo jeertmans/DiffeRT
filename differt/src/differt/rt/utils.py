@@ -34,7 +34,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, UInt, jaxtyped
 
-import differt_core.rt.utils
+from differt_core.rt.graph import CompleteGraph
 
 T = TypeVar("T")
 
@@ -102,7 +102,12 @@ def generate_all_path_candidates(
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
     return jnp.asarray(
-        differt_core.rt.utils.generate_all_path_candidates(num_primitives, order),
+        CompleteGraph(num_primitives).all_paths_array(
+            from_=num_primitives,
+            to=num_primitives + 1,
+            depth=order + 2,
+            include_from_and_to=False,
+        )
     )
 
 
@@ -120,11 +125,13 @@ def generate_all_path_candidates_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    it = differt_core.rt.utils.generate_all_path_candidates_iter(num_primitives, order)
-    m = map(
-        jnp.asarray,
-        it,
+    it = CompleteGraph(num_primitives).all_paths(
+        from_=num_primitives,
+        to=num_primitives + 1,
+        depth=order + 2,
+        include_from_and_to=False,
     )
+    m = map(jnp.asarray, it)
     return _SizedIterator(m, size=it.__len__)
 
 
@@ -143,13 +150,13 @@ def generate_all_path_candidates_chunks_iter(
     Return:
         An iterator of unsigned arrays with primitive indices.
     """
-    it = differt_core.rt.utils.generate_all_path_candidates_chunks_iter(
-        num_primitives, order, chunk_size
+    it = CompleteGraph(num_primitives).all_paths_array_chunks(
+        from_=num_primitives,
+        to=num_primitives + 1,
+        depth=order + 2,
+        include_from_and_to=False,
     )
-    m = map(
-        jnp.asarray,
-        it,
-    )
+    m = map(jnp.asarray, it)
     return _SizedIterator(m, size=it.__len__)
 
 

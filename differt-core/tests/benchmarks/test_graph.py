@@ -10,7 +10,7 @@ from itertools import cycle
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from differt.rt.graph import CompleteGraph, DiGraph
+from differt_core.rt.graph import CompleteGraph, DiGraph
 
 NUM_NODES: int = 1000
 DIRECT_PATH: bool = True

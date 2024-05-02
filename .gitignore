@@ -2,6 +2,7 @@
 
 *.pyc
 *.so
+*.egg-info
 
 dist/
 target/
@@ -12,7 +13,7 @@ docs/build/
 docs/source/reference/*.rst
 
 # Sionna data
-src/differt/scene/scenes/
+differt/src/differt/scene/scenes/
 
 # Notebooks
 

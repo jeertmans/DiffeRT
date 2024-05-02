@@ -10,7 +10,7 @@ import numpy as np
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
-import differt_core
+from differt_core.scene.triangle_scene import TriangleScene as _TriangleScene
 
 from ..geometry.triangle_mesh import TriangleMesh
 from ..plotting import draw_markers, reuse
@@ -60,7 +60,7 @@ class TriangleScene:
         Return:
             The corresponding scene containing only triangle meshes.
         """
-        scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
+        scene = _TriangleScene.load_xml(file)
 
         mesh = TriangleMesh(
             vertices=scene.mesh.vertices, triangles=scene.mesh.triangles

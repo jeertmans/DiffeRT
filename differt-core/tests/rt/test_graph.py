@@ -1,6 +1,6 @@
 import pytest
 
-from differt.rt.graph import (
+from differt_core.rt.graph import (
     CompleteGraph,
     DiGraph,
 )
