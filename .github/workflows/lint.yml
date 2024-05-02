@@ -44,11 +44,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install PDM
-      uses: pdm-project/setup-pdm@v4
-      with:
-        python-version: '3.11'
-        cache: true
+    - name: Setup Rye
+      if: matrix.os != 'windows-latest'
+      env:
+        RYE_INSTALL_OPTION: --yes
+      run: |
+        curl -sSf https://rye-up.com/get | bash
+        echo "$HOME/.rye/shims" >> $GITHUB_PATH
+
+    - name: Configure Rye
+      shell: bash
+      run: rye config --set-bool behavior.use-uv=true
 
     - name: Install Rust nightly
       uses: dtolnay/rust-toolchain@nightly
@@ -56,8 +62,7 @@ jobs:
         components: clippy,rustfmt
 
     - name: Install dependencies
-      run: |
-        pdm install -G test,github-action
+      run: rye sync
 
     - name: Run pre-commit hooks
       uses: pre-commit/action@v3.0.1
