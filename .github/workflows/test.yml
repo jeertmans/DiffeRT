@@ -139,6 +139,7 @@ jobs:
         args: >
           --release
           --out pgo-wheel
+        working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -162,6 +163,7 @@ jobs:
         args: >
           --release
           --out opt-wheel
+        working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
@@ -185,6 +187,7 @@ jobs:
         args: >
           --release
           --out dist
+        working-directory: differt-core
 
     - name: Run Benchmarks before changes
       run: |
