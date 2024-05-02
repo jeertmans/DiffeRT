@@ -10,6 +10,9 @@ on:
 
 jobs:
   msrv_check:
+    defaults:
+      run:
+        working-directory: differt-core
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository

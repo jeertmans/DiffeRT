@@ -1,93 +1,41 @@
-[build-system]
-build-backend = "maturin"
-requires = ["maturin>=1.3,<2.0"]
-
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Topic :: Scientific/Engineering",
-  "Programming Language :: Rust",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
-]
-dependencies = [
-  "beartype>=0.17.2",
-  "equinox>=0.11.2",
-  "jax>=0.4.20",
-  "jaxtyping>=0.2.24",
-  "numpy>=1.26.1",
-  "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version < '3.11'",
-  "requests>=2.31.0",
-  "tqdm>=4.66.2",
-]
-description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
-dynamic = ["license", "readme", "version"]
-keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
-name = "DiffeRT"
+name = "differt-dev"
 requires-python = ">=3.9"
+version = "1.0.0"
 
-[project.optional-dependencies]
-all = [
-  "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
-]
-dev = [
-  "pre-commit>=3.5.0",
-  "mypy>=1.8.0",
-]
-docs = [
-  "differt[all]",
-  "myst-nb>=0.17.2",
-  "pillow>=10.1.0",
-  "sphinx>=6",
-  "sphinx-autodoc-typehints>=1.23",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx-copybutton>=0.5.2",
-  "sphinx-design>=0.5.0",
-  "sphinx-remove-toctrees>=0.0.3",
-  "sphinxext-opengraph>=0.9.0",
-  "sphinxcontrib-apidoc>=0.4.0",
-  "sphinxcontrib-bibtex>=2.6.0",
-  "sphinx-plotly-directive>=0.1.3",
-]
-github-action = [
-  "jax[cpu]>=0.4.20",
-]
-jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
-maplotlib = ["matplotlib>=3.8.1"]
-plotly = ["plotly>=5.18.0"]
-test = [
-  "chex>=0.1.84",
-  "differt[all]",
-  "pytest>=7.4.3",
-  "pytest-benchmark>=4.0.0",
-  "pytest-cov>=4.1.0",
-  "pytest-env>=1.1.3",
-  "pytest-xdist>=3.3.1",
-  "scipy>=1.12.0",
-]
-vispy = ["vispy>=0.14.1"]
-vispy-backend = ["PyQt6>=6.6.1"]
+[tool.bumpversion]
+allow_dirty = false
+commit = true
+commit_args = ""
+current_version = "0.0.10"
+ignore_missing_version = false
+message = "chore(deps): bump version from {current_version} to {new_version}"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+regex = false
+replace = "{new_version}"
+search = "{current_version}"
+serialize = ["{major}.{minor}.{patch}"]
+sign_tags = false
+tag = false
+tag_message = "Bump version: {current_version} → {new_version}"
+tag_name = "v{new_version}"
 
-[project.urls]
-Changelog = "https://github.com/jeertmans/DiffeRT/releases"
-Documentation = "https://eertmans.be/DiffeRT"
-Founding = "https://github.com/sponsors/jeertmans"
-Homepage = "https://github.com/jeertmans/DiffeRT"
-Repository = "https://github.com/jeertmans/DiffeRT"
+[[tool.bumpversion.files]]
+filename = "differt-core/Cargo.toml"
+replace = 'version = "{new_version}"'
+search = 'version = "{current_version}"'
+
+[[tool.bumpversion.files]]
+filename = "differt/pyproject.toml"
+replace = "differt-core=={new_version}"
+search = "differt-core=={current_version}"
 
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,ue"
-skip = "docs/source/conf.py,pdm.lock,pyproject.toml"
+skip = "docs/source/conf.py,pyproject.toml"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -101,39 +49,24 @@ precision = 2
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
 
-[tool.maturin]
-bindings = "pyo3"
-exclude = [
-  ".*",
-  ".github/**/*",
-  "benches/**/*",
-  "conftest.py",  # Path relative to source (python/differt/conftest.py does not work)
-  "docs/**/*",
-  "tests/**/*",
-]
-features = ["pyo3/extension-module"]
-module-name = "differt._core"
-python-source = "python"
-
-[tool.pdm]
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pyright]
-include = ["python/differt", "tests"]
+include = ["differt/src/differt", "tests"]
 venv = ".venv"
 venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
+  "--import-mode=importlib",
   "--doctest-modules",
   "--doctest-ignore-import-errors",
   "--doctest-glob=*.md",
   "--doctest-glob=*.rst",
-  "--benchmark-columns",
-  "mean,stddev,ops",
-  "--benchmark-group-by",
-  "group",
-  "--benchmark-warmup",
-  "on",
+  "--benchmark-columns=mean,stddev,ops",
+  "--benchmark-group-by=group",
+  "--benchmark-warmup=on",
   "--benchmark-skip",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
@@ -160,7 +93,7 @@ extend-ignore = [
   "F722",  # Syntax error in forward annotation
 ]
 extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
-isort = {known-first-party = ["differt", "tests"]}
+isort = {known-first-party = ["differt", "differt_core", "tests"]}
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field"]
@@ -170,8 +103,41 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = ["B018"]
-"**/{tests,docs}/*" = ["D"]
-"python/differt/conftest.py" = ["D"]
+"**/{docs,differt_dev,tests}/*" = ["D"]
+"differt/src/differt/conftest.py" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.rye]
+dev-dependencies = [
+  "differt[all]",
+  # dev
+  "bump-my-version>=0.20.3",
+  "pre-commit>=3.5.0",
+  # docs
+  "myst-nb>=0.17.2",
+  "pillow>=10.1.0",
+  "sphinx>=6",
+  "sphinx-autodoc-typehints>=1.23",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton>=0.5.2",
+  "sphinx-design>=0.5.0",
+  "sphinx-remove-toctrees>=0.0.3",
+  "sphinxext-opengraph>=0.9.0",
+  "sphinxcontrib-apidoc>=0.4.0",
+  "sphinxcontrib-bibtex>=2.6.0",
+  "sphinx-plotly-directive>=0.1.3",
+  # tests
+  "chex>=0.1.84",
+  "pytest>=7.4.3",
+  "pytest-benchmark>=4.0.0",
+  "pytest-cov>=4.1.0",
+  "pytest-env>=1.1.3",
+  "pytest-xdist>=3.3.1",
+  "scipy>=1.12.0",
+]
+managed = true
+
+[tool.rye.workspace]
+members = ["differt", "differt-core"]

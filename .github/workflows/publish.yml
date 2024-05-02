@@ -1,4 +1,4 @@
-name: Publish Python Package
+name: Publish Python Packages
 on:
   pull_request:
     branches:
@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   linux:
+    name: Build Linux-${{ matrix.target}} wheels for differt-core
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,14 +36,16 @@ jobs:
         args: --release --out dist --find-interpreter
         sccache: 'true'
         manylinux: auto
+        working-directory: differt-core
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-linux-${{ matrix.target }}
+        name: core-wheels-linux-${{ matrix.target }}
         path: dist
 
   windows:
+    name: Build Windows-${{ matrix.target}} wheels for differt-core
     runs-on: windows-latest
     strategy:
       matrix:
@@ -63,14 +66,16 @@ jobs:
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
+        working-directory: differt-core
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-windows-${{ matrix.target }}
+        name: core-wheels-windows-${{ matrix.target }}
         path: dist
 
   macos:
+    name: Build macOS-${{ matrix.target }} wheels for differt-core
     runs-on: macos-latest
     strategy:
       matrix:
@@ -90,14 +95,16 @@ jobs:
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
         sccache: 'true'
+        working-directory: differt-core
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-macos-${{ matrix.target }}
+        name: core-wheels-macos-${{ matrix.target }}
         path: dist
 
   sdist:
+    name: Build sdist for differt-core
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -108,15 +115,16 @@ jobs:
       with:
         command: sdist
         args: --out dist
+        working-directory: differt-core
 
     - name: Upload sdist
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-sdist
+        name: core-wheels-sdist
         path: dist
 
-  release:
-    name: Release
+  release-core:
+    name: Release differt-core
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     needs: [linux, windows, macos, sdist]
@@ -131,4 +139,37 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         command: upload
-        args: --non-interactive --skip-existing wheels-*/*
+        args: --non-interactive --skip-existing core-wheels-*/*
+
+  build-and-release:
+    name: Build and release differt
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Rye
+      env:
+        RYE_INSTALL_OPTION: --yes
+      run: |
+        curl -sSf https://rye-up.com/get | bash
+        echo "$HOME/.rye/shims" >> $GITHUB_PATH
+
+    - name: Configure Rye
+      run: rye config --set-bool behavior.use-uv=true
+
+    - name: Build package
+      run: rye build -p differt
+
+    - name: Upload sdist
+      uses: actions/upload-artifact@v4
+      with:
+        name: differt-wheels-and-sdist
+        path: dist
+
+    - name: Publish to PyPI
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@release/v1

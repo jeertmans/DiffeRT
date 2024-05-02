@@ -2,6 +2,7 @@
 
 *.pyc
 *.so
+*.egg-info
 
 dist/
 target/
@@ -12,13 +13,10 @@ docs/build/
 docs/source/reference/*.rst
 
 # Sionna data
-python/differt/scene/scenes/
+differt/src/differt/scene/scenes/
 
 # Notebooks
 
 .ipynb_checkpoints/
 
 # Tools
-
-.mypy_cache
-.pdm-python

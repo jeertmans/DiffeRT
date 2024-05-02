@@ -1,0 +1,23 @@
+[build-system]
+build-backend = "maturin"
+requires = ["maturin>=1.3,<2.0"]
+
+[project]
+authors = [
+  {name = "Jérome Eertmans", email = "jeertmans@icloud.com"},
+]
+dependencies = ["numpy>=1.20"]
+description = "Add your description here"
+dynamic = ["license", "readme", "version"]
+name = "differt-core"
+requires-python = ">= 3.9"
+
+[tool.maturin]
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
+module-name = "differt_core._lowlevel"
+python-source = "python"
+
+[tool.rye]
+dev-dependencies = []
+managed = true

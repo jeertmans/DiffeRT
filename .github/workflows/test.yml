@@ -23,6 +23,30 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Setup Rye
+      if: matrix.os != 'windows-latest'
+      env:
+        RYE_TOOLCHAIN_VERSION: ${{ matrix.pyversion}}
+        RYE_INSTALL_OPTION: --yes
+      run: |
+        curl -sSf https://rye-up.com/get | bash
+        echo "$HOME/.rye/shims" >> $GITHUB_PATH
+
+    # Stolen from https://github.com/bluss/pyproject-local-kernel/blob/2b641290694adc998fb6bceea58d3737523a68b7/.github/workflows/ci.yaml
+    - name: Install Rye (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        C:/msys64/usr/bin/wget.exe -q 'https://github.com/astral-sh/rye/releases/latest/download/rye-x86_64-windows.exe' -O rye-x86_64-windows.exe
+        ./rye-x86_64-windows.exe self install --toolchain-version ${{ matrix.pyversion }} --modify-path -y
+        echo "$HOME\\.rye\\shims" >> $GITHUB_PATH
+
+    - name: Configure Rye
+      shell: bash
+      run: |
+        rye config --set-bool behavior.use-uv=true
+        rye pin ${{ matrix.pyversion }}
+
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -35,27 +59,22 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ssciwr/setup-mesa-dist-win@v2
 
-    - name: Install PDM
-      uses: pdm-project/setup-pdm@v4
-      with:
-        python-version: ${{ matrix.pyversion }}
-        cache: true
-
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      run: |
-        pdm install -G test,github-action
+      shell: bash
+      run: rye sync
 
     - name: Run Pytest
       if: matrix.os != 'ubuntu-latest' || matrix.pyversion != '3.12'
+      shell: bash
       run: |
-        pdm run pytest -n auto
+        rye run pytest -n auto
 
-    - name: Run pytest and coverage
+    - name: Run pytest and coverage for differt
       if: matrix.os == 'ubuntu-latest' && matrix.pyversion == '3.12'
-      run: pdm run pytest --cov-report xml --cov=differt tests/
+      run: rye run pytest --cov-report xml --cov=differt differt/tests/
 
     - name: Upload to codecov.io
       if: matrix.os == 'ubuntu-latest' && matrix.pyversion == '3.12'
@@ -63,6 +82,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
+
   cargo-test:
     strategy:
       fail-fast: false
@@ -87,6 +107,7 @@ jobs:
     - name: Run Cargo test
       run: |
         cargo test
+
   python-benchmark:
     runs-on: ubuntu-latest
     permissions:
@@ -95,11 +116,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install PDM
-      uses: pdm-project/setup-pdm@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        cache: true
+        cache: pip
+        cache-dependency-path: requirements-dev.lock
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -107,11 +128,10 @@ jobs:
         components: llvm-tools
 
     - name: Install dependencies
-      run: |
-        pdm install -G test,github-action
+      run: pip install -r requirements-dev.lock
 
     - name: Run Benchmarks on changes
-      run: pdm run pytest --benchmark-only --benchmark-save=changes tests/benchmarks
+      run: pytest --benchmark-only --benchmark-save=changes differt-core/tests/benchmarks
 
     - name: Build wheel with profiling profile
       uses: PyO3/maturin-action@v1
@@ -119,6 +139,7 @@ jobs:
         args: >
           --release
           --out pgo-wheel
+        working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -128,9 +149,9 @@ jobs:
 
     - name: Generate profile data
       run: |
-        pdm run python -m ensurepip
-        pdm run python -m pip install differt --no-index --no-deps --find-links pgo-wheel --force-reinstall
-        pdm run pytest --benchmark-only tests/benchmarks
+        python -m ensurepip
+        python -m pip install differt --no-index --no-deps --find-links pgo-wheel --force-reinstall
+        pytest --benchmark-only differt-core/tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
     - name: Merge GO data
@@ -142,13 +163,14 @@ jobs:
         args: >
           --release
           --out opt-wheel
+        working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
     - name: Run Benchmarks on changes with PGO-optimized wheel
       run: |
-        pdm run python -m pip install differt --no-index --no-deps --find-links opt-wheel --force-reinstall
-        pdm run pytest --benchmark-only --benchmark-save=pgo tests/benchmarks
+        python -m pip install differt --no-index --no-deps --find-links opt-wheel --force-reinstall
+        pytest --benchmark-only --benchmark-save=pgo differt-core/tests/benchmarks
 
     - name: Checkout base branch
       uses: actions/checkout@v4
@@ -157,8 +179,7 @@ jobs:
         clean: false
 
     - name: Install dependencies (before changes)
-      run: |
-        pdm install -G test,github-action
+      run: pip install -r requirements-dev.lock
 
     - name: Build wheel before changes
       uses: PyO3/maturin-action@v1
@@ -166,16 +187,17 @@ jobs:
         args: >
           --release
           --out dist
+        working-directory: differt-core
 
     - name: Run Benchmarks before changes
       run: |
-        pdm run python -m pip install differt --no-index --no-deps --find-links dist --force-reinstall
-        pdm run pytest --benchmark-only --benchmark-save=before tests/benchmarks
+        python -m pip install differt --no-index --no-deps --find-links dist --force-reinstall
+        pytest --benchmark-only --benchmark-save=before differt-core/tests/benchmarks
 
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        pdm run pytest-benchmark compare --group-by=group --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
+        pytest-benchmark compare --group-by=group --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 
@@ -199,6 +221,7 @@ jobs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+
   rust-benchmark:
     runs-on: ubuntu-latest
     permissions:
@@ -260,23 +283,23 @@ jobs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+
   linkcheck-docs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install PDM
-      uses: pdm-project/setup-pdm@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        cache: true
+        cache: pip
+        cache-dependency-path: requirements-dev.lock
 
-    - name: Install dependencies (before changes)
-      run: |
-        pdm install -G docs,github-action
+    - name: Install dependencies
+      run: pip install -r requirements-dev.lock
 
     - name: Check links in documentation
       run: |
         cd docs
-        NB_OFF=1 pdm run make linkcheck
+        NB_OFF=1 make linkcheck

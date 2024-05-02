@@ -1,0 +1,78 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "beartype>=0.17.2",
+  "differt-core==0.0.10",
+  "equinox>=0.11.2",
+  "jax>=0.4.20",
+  "jaxtyping>=0.2.24",
+  "numpy>=1.26.1",
+  "optax>=0.1.7",
+  "typing-extensions>=4.9.0;python_version < '3.11'",
+  "requests>=2.31.0",
+  "tqdm>=4.66.2",
+]
+description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
+dynamic = ["license", "readme", "version"]
+keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
+name = "DiffeRT"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+all = [
+  "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
+]
+jupyter = ["notebook>=7", "jupyter-rfb>=0.4.2", "ipympl"]
+matplotlib = ["matplotlib>=3.8.1"]
+plotly = ["plotly>=5.18.0"]
+vispy = ["vispy>=0.14.1"]
+vispy-backend = ["PyQt6>=6.6.1"]
+
+[project.urls]
+Changelog = "https://github.com/jeertmans/DiffeRT/releases"
+Documentation = "https://eertmans.be/DiffeRT"
+Founding = "https://github.com/sponsors/jeertmans"
+Homepage = "https://github.com/jeertmans/DiffeRT"
+Repository = "https://github.com/jeertmans/DiffeRT"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  ".*",  # Hidden files
+  "conftest.py",
+  "tests",
+]
+packages = ["src/differt"]
+
+[tool.hatch.build.targets.wheel]
+exclude = [
+  "conftest.py",
+]
+packages = ["src/differt"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.version]
+path = "../differt-core/Cargo.toml"
+pattern = "^version = \"(?P<version>[^\"]+)"
+
+[tool.rye]
+dev-dependencies = []
+managed = true
