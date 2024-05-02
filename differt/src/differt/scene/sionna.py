@@ -123,6 +123,9 @@ def get_sionna_scene(
         The path, relative to the current working directory,
         to the given ``scene.xml`` file.
     """
+    if isinstance(folder, str):
+        folder = Path(folder)
+
     p = folder / scene_name / f"{scene_name}.xml"
 
     if not p.exists():

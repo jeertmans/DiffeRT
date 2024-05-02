@@ -1,6 +1,7 @@
 import pytest
 
-from differt.scene.sionna import SionnaScene, get_sionna_scene, list_sionna_scenes
+from differt.scene.sionna import get_sionna_scene, list_sionna_scenes
+from differt_core.scene.sionna import SionnaScene
 
 
 @pytest.mark.parametrize("scene_name", ("foo", "bar"))

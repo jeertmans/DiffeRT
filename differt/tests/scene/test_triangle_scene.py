@@ -1,7 +1,8 @@
 import pytest
 
-from differt.scene.sionna import SionnaScene, get_sionna_scene, list_sionna_scenes
+from differt.scene.sionna import get_sionna_scene, list_sionna_scenes
 from differt.scene.triangle_scene import TriangleScene
+from differt_core.scene.sionna import SionnaScene
 
 
 class TestTriangleScene:

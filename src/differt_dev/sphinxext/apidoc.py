@@ -11,7 +11,7 @@ from sphinx.util import logging
 logger = logging.getLogger(__name__)
 
 
-def builder_inited(app: Sphinx) -> None:
+def builder_inited(app: Sphinx) -> None:  # noqa: C901
     module_dirs = app.config.apidoc_module_dirs
     output_dirs = app.config.apidoc_output_dirs
     exclude_patterns = app.config.apidoc_exclude_patterns
@@ -21,9 +21,6 @@ def builder_inited(app: Sphinx) -> None:
 
     if isinstance(output_dirs, str):
         output_dirs: list[str] = [output_dirs for _ in module_dirs]
-
-    print(f"{module_dirs!r}")
-    print(f"{output_dirs!r}")
 
     if len(module_dirs) != len(output_dirs):
         raise ValueError(

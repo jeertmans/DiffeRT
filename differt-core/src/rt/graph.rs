@@ -171,7 +171,7 @@ pub mod complete {
         ///     :py:meth:`all_paths_array_chunks`.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``
@@ -181,7 +181,6 @@ pub mod complete {
         ///
         /// Return:
         ///     AllPathsFromCompleteGraphIter: An iterator over all paths.
-        #[cfg(not(doctest))]
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
         pub fn all_paths(
@@ -198,7 +197,7 @@ pub mod complete {
         /// from node ``from`` to node ``to``.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``
@@ -229,7 +228,7 @@ pub mod complete {
         /// size of max. ``chunk_size``.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``
@@ -658,7 +657,7 @@ pub mod directed {
         /// from node ``from`` to node ``to``.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``
@@ -684,7 +683,7 @@ pub mod directed {
         /// from node ``from`` to node ``to``.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``
@@ -715,7 +714,7 @@ pub mod directed {
         /// size of max. ``chunk_size``.
         ///
         /// Args:
-        ///     from_ (int): The node index to find the paths from.
+        ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from``

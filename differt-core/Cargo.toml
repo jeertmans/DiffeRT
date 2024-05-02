@@ -25,6 +25,7 @@ extension-module = ["pyo3/extension-module"]
 [lib]
 bench = false
 crate-type = ["cdylib", "rlib"]
+doctest = false
 name = "differt_core"
 
 [package]
