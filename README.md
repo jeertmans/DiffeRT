@@ -23,6 +23,16 @@
 > If you have any suggestion regarding the development of this package,
 > please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
 
+The easiest way to install DiffeRT is through pip:
+
+```bash
+pip install differt
+```
+
+We provide pre-built binaries for most platforms. If you want (or need)
+to build the package from the source distribution, check out the
+requirements below.
+
 ## Contributing
 
 > [!IMPORTANT]
@@ -42,15 +52,24 @@ To run build this package locally, you need:
 
 - [Python 3.9](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
+- `make` (e.g., GNU Make or Make for Windows);
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
 - and [Rye](https://rye-up.com/) to manage this project.
 
-### Building locally
 
-You can build the project locally using:
+## Local development
+
+The following commands assume that you installed
+the project locally with:
 
 ```bash
 rye sync
+```
+
+and that you activate the corresponding Python virtual environment:
+
+```bash
+. .venv/bin/activate  # or .venv\Scripts\activate on Windows
 ```
 
 ### Documentation
@@ -59,7 +78,7 @@ To generate the documentation, please run the following:
 
 ```bash
 cd docs
-pdm run make html  # TODO: change me
+make html
 ```
 
 Finally, you can open `build/html/index.html` to see the generated docs.
@@ -73,13 +92,13 @@ Both Rust and Python codebases have their own tests and benchmarks.
 You can very easily test you code using Cargo:
 
 ```bash
-cargo test  # TODO: change me
+cargo test
 ```
 
 or benchmark it:
 
 ```bash
-cargo bench  # TODO: change me
+cargo bench
 ```
 
 #### Testing Python code
@@ -87,13 +106,13 @@ cargo bench  # TODO: change me
 in the same way, you can very test you code with Pytest:
 
 ```bash
-pdm run pytest  # TODO: change me
+pytest
 ```
 
 or benchmark it:
 
 ```bash
-pdm run pytest --benchmark-only  # TODO: change me
+pytest --benchmark-only
 ```
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet

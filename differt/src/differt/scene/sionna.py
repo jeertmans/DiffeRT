@@ -8,9 +8,6 @@ __all__ = (
     "download_sionna_scenes",
     "get_sionna_scene",
     "list_sionna_scenes",
-    "SionnaScene",
-    "Shape",
-    "Material",
 )
 
 import tarfile
@@ -20,8 +17,6 @@ from typing import Union
 
 import requests
 from tqdm import tqdm
-
-from differt_core.scene.sionna import Material, Shape, SionnaScene
 
 SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
 
