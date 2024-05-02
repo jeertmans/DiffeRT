@@ -65,7 +65,7 @@ jobs:
       run: rye sync
 
     - name: Run pre-commit hooks
-      uses: pre-commit/action@v3.0.1
+      run: rye run pre-commit --show-diff-on-failure --color=always
 
     - name: Apply fixes when present
       uses: pre-commit-ci/lite-action@v1.0.2
