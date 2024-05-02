@@ -1,8 +1,11 @@
 import pytest
 
-from differt.scene.sionna import download_sionna_scenes, get_sionna_scene, list_sionna_scenes
+from differt.scene.sionna import (
+    download_sionna_scenes,
+    get_sionna_scene,
+    list_sionna_scenes,
+)
 from differt_core.scene.sionna import SionnaScene
-
 
 download_sionna_scenes()
 

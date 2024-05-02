@@ -140,7 +140,7 @@ jobs:
       with:
         command: upload
         args: --non-interactive --skip-existing core-wheels-*/*
-  
+
   build-and-release:
     name: Build and release differt
     runs-on: ubuntu-latest
