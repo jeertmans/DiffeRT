@@ -59,6 +59,15 @@ venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
+  "--import-mode=importlib",
+  "--doctest-modules",
+  "--doctest-ignore-import-errors",
+  "--doctest-glob=*.md",
+  "--doctest-glob=*.rst",
+  "--benchmark-columns=mean,stddev,ops",
+  "--benchmark-group-by=group",
+  "--benchmark-warmup=on",
+  "--benchmark-skip",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
