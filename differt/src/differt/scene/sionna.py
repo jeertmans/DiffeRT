@@ -13,12 +13,15 @@ __all__ = (
 import tarfile
 import tempfile
 from pathlib import Path
+from threading import Lock
 from typing import Union
 
 import requests
 from tqdm import tqdm
 
 SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
+
+_LOCK = Lock()
 
 
 def download_sionna_scenes(
@@ -51,46 +54,47 @@ def download_sionna_scenes(
     if isinstance(folder, str):
         folder = Path(folder)
 
-    if folder.exists():
-        if cached:
-            return
+    with _LOCK:
+        if folder.exists():
+            if cached:
+                return
 
-        folder.rmdir()
+            folder.rmdir()
 
-    url = f"https://codeload.github.com/NVlabs/sionna/tar.gz/{branch_or_tag}"
+        url = f"https://codeload.github.com/NVlabs/sionna/tar.gz/{branch_or_tag}"
 
-    response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True)
 
-    stream = response.iter_content(chunk_size=chunk_size)
-    total = int(response.headers.get("content-length", 0))
+        stream = response.iter_content(chunk_size=chunk_size)
+        total = int(response.headers.get("content-length", 0))
 
-    def members(tar: tarfile.TarFile):
-        for member in tar.getmembers():
-            if (index := member.path.find("sionna/rt/scenes/")) >= 0:
-                member.path = member.path[index + 17 :]
-                yield member
+        def members(tar: tarfile.TarFile):
+            for member in tar.getmembers():
+                if (index := member.path.find("sionna/rt/scenes/")) >= 0:
+                    member.path = member.path[index + 17 :]
+                    yield member
 
-    with (
-        tempfile.NamedTemporaryFile(suffix=".tar.gz") as f,
-        tqdm(
-            stream,
-            desc="Downloading Sionna's repository archive...",
-            total=total,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=chunk_size,
-            disable=not progress,
-            leave=leave,
-        ) as bar,
-    ):
-        for chunk in stream:
-            size = f.write(chunk)
-            bar.update(size)
+        with (
+            tempfile.NamedTemporaryFile(suffix=".tar.gz") as f,
+            tqdm(
+                stream,
+                desc="Downloading Sionna's repository archive...",
+                total=total,
+                unit="iB",
+                unit_scale=True,
+                unit_divisor=chunk_size,
+                disable=not progress,
+                leave=leave,
+            ) as bar,
+        ):
+            for chunk in stream:
+                size = f.write(chunk)
+                bar.update(size)
 
-        f.flush()
+            f.flush()
 
-        with tarfile.open(f.name) as tar:
-            tar.extractall(path=folder, members=members(tar))
+            with tarfile.open(f.name) as tar:
+                tar.extractall(path=folder, members=members(tar))
 
 
 def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> list[str]:
