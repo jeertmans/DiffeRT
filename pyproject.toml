@@ -28,7 +28,7 @@ search = "^version = {current_version}"
 
 [[tool.bumpversion.files]]
 filename = "differt/pyproject.toml"
-replace = "differt-core{new_version}"
+replace = "differt-core=={new_version}"
 search = "differt-core=={current_version}"
 
 [tool.codespell]
