@@ -6,9 +6,23 @@ requires = ["maturin>=1.3,<2.0"]
 authors = [
   {name = "Jérome Eertmans", email = "jeertmans@icloud.com"},
 ]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
 dependencies = ["numpy>=1.20"]
-description = "Add your description here"
+description = "Core backend of DifffeRT implemented in Rust"
 dynamic = ["license", "readme", "version"]
+keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "differt-core"
 requires-python = ">= 3.9"
 
@@ -19,5 +33,4 @@ module-name = "differt_core._lowlevel"
 python-source = "python"
 
 [tool.rye]
-dev-dependencies = []
 managed = true

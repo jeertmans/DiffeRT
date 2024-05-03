@@ -1,3 +1,1 @@
-# differt-core
-
-Describe your project here.
+../README.md

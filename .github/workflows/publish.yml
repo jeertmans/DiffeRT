@@ -140,6 +140,7 @@ jobs:
       with:
         command: upload
         args: --non-interactive --skip-existing core-wheels-*/*
+        working-directory: differt-core
 
   build-and-release:
     name: Build and release differt

@@ -13,9 +13,6 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Topic :: Scientific/Engineering",
-  "Programming Language :: Rust",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   "beartype>=0.17.2",
@@ -74,5 +71,4 @@ path = "../differt-core/Cargo.toml"
 pattern = "^version = \"(?P<version>[^\"]+)"
 
 [tool.rye]
-dev-dependencies = []
 managed = true

@@ -1,3 +1,1 @@
-# differt
-
-Describe your project here.
+../README.md
