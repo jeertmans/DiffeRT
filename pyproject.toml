@@ -31,6 +31,11 @@ filename = "differt/pyproject.toml"
 replace = "differt-core=={new_version}"
 search = "differt-core=={current_version}"
 
+[[tool.bumpversion.files]]
+filename = "Cargo.lock"
+replace = 'name = "differt-core"\nversion = "{new_version}"'
+search = 'name = "differt-core"\nversion = "{current_version}"'
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
