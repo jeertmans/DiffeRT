@@ -83,7 +83,7 @@ replacement = '> **\1:**'
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\(./([^)]+)\)'
-replacement = '(https://github.com/jeertmas/DiffeRT/blob/main/\1)'
+replacement = '(https://github.com/jeertmans/DiffeRT/blob/main/\1)'
 
 [tool.rye]
 managed = true
