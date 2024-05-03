@@ -1,4 +1,4 @@
->
+<div>
 <img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
 </div>
 
@@ -27,7 +27,7 @@ The installation procedure, contributing guidelines, and documentation,
 are shared with the
 [main DiffeRT package](https://github.com/jeertmans/DiffeRT).
 
-[pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT-core?label=DiffeRT&color=blueviolet
+[pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT-core?label=DiffeRT-core&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT-core/
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT-core?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt-core/badge/?version=latest
