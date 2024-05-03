@@ -27,9 +27,11 @@ dependencies = [
   "tqdm>=4.66.2",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
-dynamic = ["license", "readme", "version"]
+dynamic = ["version"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
+license = "MIT"
 name = "DiffeRT"
+readme = "README.md"
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
