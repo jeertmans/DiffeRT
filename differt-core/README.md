@@ -1,4 +1,4 @@
-<div>
+<div align="center">
 <img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
 </div>
 
