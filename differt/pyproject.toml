@@ -67,10 +67,6 @@ packages = ["src/differt"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
-[tool.hatch.version]
-path = "../differt-core/Cargo.toml"
-pattern = "^version = \"(?P<version>[^\"]+)"
-
 [tool.hatch.metadata.hooks.fancy-pypi-readme]
 content-type = "text/markdown"
 
@@ -84,6 +80,10 @@ replacement = '> **\1:**'
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\(./([^)]+)\)'
 replacement = '(https://github.com/jeertmans/DiffeRT/blob/main/\1)'
+
+[tool.hatch.version]
+path = "../differt-core/Cargo.toml"
+pattern = 'version = "(?P<version>[^"]+)'
 
 [tool.rye]
 managed = true
