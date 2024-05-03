@@ -1,4 +1,4 @@
-<div>
+<div align="center">
 <img src="https://raw.githubusercontent.com/jeertmans/DiffeRT/main/static/logo_250px.png" alt="DiffeRT logo"></img>
 </div>
 
@@ -30,7 +30,7 @@ are shared with the
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT-core?label=DiffeRT-core&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT-core/
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT-core?color=orange
-[documentation-badge]: https://readthedocs.org/projects/differt-core/badge/?version=latest
+[documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT-core/branch/main/graph/badge.svg?token=8P4DY9JCE4
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT-core
