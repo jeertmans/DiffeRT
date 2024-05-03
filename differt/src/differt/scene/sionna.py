@@ -75,7 +75,7 @@ def download_sionna_scenes(
                     yield member
 
         with (
-            tempfile.NamedTemporaryFile(suffix=".tar.gz") as f,
+            tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as f,
             tqdm(
                 stream,
                 desc="Downloading Sionna's repository archive...",
