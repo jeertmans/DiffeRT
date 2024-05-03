@@ -81,5 +81,9 @@ path = "README.md"
 pattern = '> \[!([A-Z]+)\]'
 replacement = '> **\1:**'
 
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\(./([^)]+)\)'
+replacement = '(https://github.com/jeertmas/DiffeRT/blob/main/\1)'
+
 [tool.rye]
 managed = true

@@ -66,7 +66,7 @@ the project locally with:
 rye sync
 ```
 
-and that you activate the corresponding Python virtual environment:
+and that you activated the corresponding Python virtual environment:
 
 ```bash
 . .venv/bin/activate  # or .venv\Scripts\activate on Windows

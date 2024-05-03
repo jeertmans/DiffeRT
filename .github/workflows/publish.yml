@@ -137,12 +137,15 @@ jobs:
 
     - name: Download build wheels
       uses: actions/download-artifact@v4
+      with:
+        path: differt-core
+        pattern: core-wheels-*
 
     - name: Publish to PyPI
       uses: PyO3/maturin-action@v1
       with:
         command: upload
-        args: --non-interactive --skip-existing ../core-wheels-*/*
+        args: --non-interactive --skip-existing core-wheels-*/*
         working-directory: differt-core
 
   build-and-release:
