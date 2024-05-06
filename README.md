@@ -120,5 +120,5 @@ pytest --benchmark-only
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=8P4DY9JCE4
+[codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=v63alnTWzu
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT

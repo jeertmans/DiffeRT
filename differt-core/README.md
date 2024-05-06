@@ -9,7 +9,6 @@
 [![Latest Release][pypi-version-badge]][pypi-version-url]
 [![Python version][pypi-python-version-badge]][pypi-version-url]
 [![Documentation][documentation-badge]][documentation-url]
-[![Codecov][codecov-badge]][codecov-url]
 
 </div>
 
@@ -32,5 +31,3 @@ are shared with the
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT-core?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT-core/branch/main/graph/badge.svg?token=8P4DY9JCE4
-[codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT-core
