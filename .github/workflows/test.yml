@@ -149,7 +149,7 @@ jobs:
     - name: Generate profile data
       run: |
         python -m ensurepip
-        python -m pip install differt --no-index --no-deps --find-links pgo-wheel --force-reinstall
+        python -m pip install differt --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
         pytest --benchmark-only differt-core/tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
@@ -168,7 +168,7 @@ jobs:
 
     - name: Run Benchmarks on changes with PGO-optimized wheel
       run: |
-        python -m pip install differt --no-index --no-deps --find-links opt-wheel --force-reinstall
+        python -m pip install differt --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
         pytest --benchmark-only --benchmark-save=pgo differt-core/tests/benchmarks
 
     - name: Checkout base branch
@@ -190,7 +190,7 @@ jobs:
 
     - name: Run Benchmarks before changes
       run: |
-        python -m pip install differt --no-index --no-deps --find-links dist --force-reinstall
+        python -m pip install differt --no-index --no-deps --find-links differt-core/dist --force-reinstall
         pytest --benchmark-only --benchmark-save=before differt-core/tests/benchmarks
 
     - name: Compare benchmarks
