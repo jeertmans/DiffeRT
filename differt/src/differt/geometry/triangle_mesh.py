@@ -4,10 +4,11 @@ from functools import cached_property
 from typing import Any
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, Key, UInt, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 
@@ -134,6 +135,13 @@ class TriangleMesh(eqx.Module):
         """The diffraction edges."""
         raise NotImplementedError
 
+    @cached_property
+    def bounding_box(self) -> Float[Array, "2 3"]:
+        """The bounding box (min. and max. coordinates)."""
+        return jnp.vstack(
+            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0))
+        )
+
     @classmethod
     def empty(cls) -> "TriangleMesh":
         """
@@ -207,3 +215,24 @@ class TriangleMesh(eqx.Module):
             triangles=np.asarray(self.triangles),
             **kwargs,
         )
+
+    @eqx.filter_jit
+    def sample(self, size: int, replace: bool = False, *, key: Key) -> "TriangleMesh":
+        """
+        Generate a new mesh by randomly sampling triangles from this geometry.
+
+        Args:
+            size: The size of the sample, i.e., the number of triangles.
+            replace: Whether to sample with or without replacement.
+            key: The :class:`jax.random.PRNGKey` to be used.
+
+        Return:
+            A new random mesh.
+        """
+        triangles = self.triangles[
+            jax.random.choice(
+                key, self.triangles.shape[0], shape=(size,), replace=replace
+            ),
+            :,
+        ]
+        return TriangleMesh(vertices=self.vertices, triangles=triangles)

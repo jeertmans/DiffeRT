@@ -1,9 +1,10 @@
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.utils import minimize, sorted_array2
+from differt.utils import minimize, sample_points_in_bounding_box, sorted_array2
 
 
 @pytest.mark.parametrize(
@@ -67,3 +68,28 @@ def test_minimize() -> None:
 
     chex.assert_trees_all_close(got_x, expected_x)
     chex.assert_trees_all_close(got_loss, c)
+
+
+def test_sample_points_in_bounding_box(key: jax.random.PRNGKey) -> None:
+    def assert_in_bounds(a: Array, bounds: Array) -> None:
+        if a.ndim == 1:
+            a = jnp.reshape(a, (1, a.size))
+
+        assert bounds.shape[0] == 2
+        assert a.shape[1] == bounds.shape[1]
+
+        for i in range(a.shape[1]):
+            assert jnp.all(a[:, i] >= bounds[0, i])
+            assert jnp.all(a[:, i] <= bounds[1, i])
+
+    bounding_box = jnp.array([[-1.0, -2.0, -3.0], [+4.0, +5.0, +6.0]])
+
+    got = sample_points_in_bounding_box(bounding_box, key=key)
+
+    assert_in_bounds(got, bounding_box)
+    assert got.shape == (3,)
+
+    got = sample_points_in_bounding_box(bounding_box, size=100, key=key)
+
+    assert_in_bounds(got, bounding_box)
+    assert got.shape == (100, 3)

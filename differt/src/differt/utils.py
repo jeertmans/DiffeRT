@@ -6,11 +6,12 @@ from functools import partial
 from typing import Any, Callable, Optional, Union
 
 import chex
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Num, Shaped, jaxtyped
+from jaxtyping import Array, Float, Key, Num, Shaped, jaxtyped
 
 if sys.version_info >= (3, 11):
     from typing import TypeVarTuple, Unpack
@@ -228,3 +229,31 @@ def minimize(
     (x, _), losses = jax.lax.scan(f, init=(x0, opt_state), xs=None, length=steps)
 
     return x, losses[-1]
+
+
+@eqx.filter_jit
+def sample_points_in_bounding_box(
+    bounding_box: Float[Array, "2 3"], size: Optional[int] = None, *, key: Key
+) -> Float[Array, "?size 3"]:
+    """
+    Sample point(s) in a 3D bounding box.
+
+    Args:
+        bounding_box: The bounding box (min. and max. coordinates).
+        size: The sample size or :py:data:`None`. If :py:data:`None`,
+            the returned array is 1D. Otherwise, it is 2D.
+        key: The :class:`jax.random.PRNGKey` to be used.
+
+    Return:
+        An array of points randomly sampled.
+    """
+    amin = bounding_box[0, :]
+    amax = bounding_box[1, :]
+    scale = amax - amin
+
+    if size is None:
+        r = jax.random.uniform(key, shape=(3,))
+        return r * scale + amin
+
+    r = jax.random.uniform(key, shape=(size, 3))
+    return r * scale[None, :] + amin[None, :]

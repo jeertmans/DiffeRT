@@ -1,8 +1,19 @@
 from pathlib import Path
 
+import jax
 import pytest
 
 from differt.scene.sionna import download_sionna_scenes
+
+
+@pytest.fixture
+def seed() -> int:
+    return 1234
+
+
+@pytest.fixture
+def key(seed: int) -> jax.random.PRNGKey:
+    return jax.random.PRNGKey(seed)
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
