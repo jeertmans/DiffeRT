@@ -94,7 +94,7 @@ def download_sionna_scenes(
             f.flush()
 
             with tarfile.open(f.name) as tar:
-                tar.extractall(path=folder, members=members(tar))
+                tar.extractall(path=folder, members=members(tar), filter="data")
 
 
 def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> list[str]:
