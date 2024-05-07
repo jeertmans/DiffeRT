@@ -2,6 +2,7 @@ from pathlib import Path
 
 import jax
 import pytest
+from jaxtyping import PRNGKeyArray
 
 from differt.scene.sionna import download_sionna_scenes
 
@@ -12,7 +13,7 @@ def seed() -> int:
 
 
 @pytest.fixture
-def key(seed: int) -> jax.random.PRNGKey:
+def key(seed: int) -> PRNGKeyArray:
     return jax.random.PRNGKey(seed)
 
 

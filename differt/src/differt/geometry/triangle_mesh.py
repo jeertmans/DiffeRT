@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, Key, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, PRNGKeyArray, UInt, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 
@@ -217,7 +217,9 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    def sample(self, size: int, replace: bool = False, *, key: Key) -> "TriangleMesh":
+    def sample(
+        self, size: int, replace: bool = False, *, key: PRNGKeyArray
+    ) -> "TriangleMesh":
         """
         Generate a new mesh by randomly sampling triangles from this geometry.
 

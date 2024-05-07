@@ -1,8 +1,7 @@
 import chex
-import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
 from differt.utils import minimize, sample_points_in_bounding_box, sorted_array2
 
@@ -70,7 +69,7 @@ def test_minimize() -> None:
     chex.assert_trees_all_close(got_loss, c)
 
 
-def test_sample_points_in_bounding_box(key: jax.random.PRNGKey) -> None:
+def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:
     def assert_in_bounds(a: Array, bounds: Array) -> None:
         if a.ndim == 1:
             a = jnp.reshape(a, (1, a.size))
