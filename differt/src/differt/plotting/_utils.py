@@ -7,7 +7,7 @@ from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 # Immutables
 
@@ -144,19 +144,81 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
         DEFAULT_KWARGS = default_kwargs
 
 
-class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
+class Dispatcher(Generic[P, T]):
+    """A callable that automatically dispatches between different backends."""
+
+    def __init__(self) -> None:
+        self.__registry: dict[str, Callable[P, T]] = {}
+
     def __call__(
         self,
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T: ...
+    ) -> T:
+        """
+        Call the appropriate backend implementation based on the default backend and the provided arguments.
+
+        Args:
+            args: Positional arguments passed to the correct backend implementation.
+            kwargs: Keyword arguments passed to the correct backend implementation.
+
+        Return:
+            The result of the call.
+        """
+        # We cannot currently add keyword argument to the signature,
+        # at least Pyright will not allow that,
+        # see: https://github.com/microsoft/pyright/issues/5844.
+        #
+        # The motivation is detailed in P612:
+        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
+        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
+
+        try:
+            return self.__registry[backend](*args, **kwargs)
+        except KeyError:
+            raise NotImplementedError(
+                f"No backend implementation for '{backend}'"
+            ) from None
 
     def register(
         self,
         backend: str,
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+        """
+        Return a wrapper that will call the decorated function for the specified backend.
 
-    def dispatch(self, backend: str) -> Callable[P, T]: ...
+        Args:
+            backend: The name of backend for which the decorated
+                function will be called.
+
+        Return:
+            A wrapper to be put before the backend-specific implementation.
+        """
+        if backend not in SUPPORTED_BACKENDS:
+            raise ValueError(
+                f"Unsupported backend '{backend}', "
+                f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}."
+            )
+
+        def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
+            """Actually register the backend implementation."""
+
+            @wraps(impl)
+            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
+                try:
+                    return impl(*args, **kwargs)
+                except ImportError as e:
+                    raise ImportError(
+                        "An import error occurred when dispatching "
+                        f"plot utility to backend '{backend}'. "
+                        "Did you correctly install it?"
+                    ) from e
+
+            self.__registry[backend] = __wrapper__
+
+            return __wrapper__
+
+        return wrapper
 
 
 def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
@@ -222,65 +284,9 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    registry = {}
+    dispatcher: Dispatcher[P, T] = Dispatcher()
 
-    def register(
-        backend: str,
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        """Register a new implementation."""
-        if backend not in SUPPORTED_BACKENDS:
-            raise ValueError(
-                f"Unsupported backend '{backend}', "
-                f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}."
-            )
-
-        def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
-            """Actually register the backend implementation."""
-
-            @wraps(impl)
-            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
-                try:
-                    return impl(*args, **kwargs)
-                except ImportError as e:
-                    raise ImportError(
-                        "An import error occurred when dispatching "
-                        f"plot utility to backend '{backend}'. "
-                        "Did you correctly install it?"
-                    ) from e
-
-            registry[backend] = __wrapper__
-
-            return __wrapper__
-
-        return wrapper
-
-    def dispatch(backend: str) -> Callable[P, T]:
-        try:
-            return registry[backend]
-        except KeyError:
-            raise NotImplementedError(
-                f"No backend implementation for '{backend}'"
-            ) from None
-
-    @wraps(fun)
-    def main_wrapper(
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> T:
-        # We cannot currently add keyword argument to the signature,
-        # at least Pyright will not allow that,
-        # see: https://github.com/microsoft/pyright/issues/5844.
-        #
-        # The motivation is detailed in P612:
-        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
-        return dispatch(backend)(*args, **kwargs)
-
-    main_wrapper.register = register  # type: ignore[attr-defined]
-    main_wrapper.dispatch = dispatch  # type: ignore[attr-defined]
-    main_wrapper.registry = registry  # type: ignore[attr-defined]
-
-    return main_wrapper  # type: ignore[return-value]
+    return wraps(fun)(dispatcher)  # type: ignore
 
 
 def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
