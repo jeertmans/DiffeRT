@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
-from functools import wraps
+from functools import update_wrapper, wraps
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
@@ -104,16 +104,15 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
             f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
         )
 
-    with BACKEND_LOCK:
-        try:
-            importlib.import_module(f"{backend}")
-            DEFAULT_BACKEND = backend
-            DEFAULT_KWARGS = kwargs
-            return backend
-        except ImportError:
-            raise ImportError(
-                f"Could not load backend '{backend}', did you install it?"
-            ) from None
+    try:
+        importlib.import_module(f"{backend}")
+        DEFAULT_BACKEND = backend
+        DEFAULT_KWARGS = kwargs
+        return backend
+    except ImportError:
+        raise ImportError(
+            f"Could not load backend '{backend}', did you install it?"
+        ) from None
 
 
 @contextmanager
@@ -137,18 +136,81 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
     default_backend = DEFAULT_BACKEND
     default_kwargs = DEFAULT_KWARGS
 
-    try:
-        yield set_defaults(*args, **kwargs)
-    finally:
-        DEFAULT_BACKEND = default_backend
-        DEFAULT_KWARGS = default_kwargs
+    with BACKEND_LOCK:
+        try:
+            yield set_defaults(*args, **kwargs)
+        finally:
+            DEFAULT_BACKEND = default_backend
+            DEFAULT_KWARGS = default_kwargs
 
 
-class Dispatcher(Generic[P, T]):
-    """A callable that automatically dispatches between different backends."""
+class dispatch(Generic[P, T]):
+    """
+    A class that transforms a function into a backend dispatcher for plot functions.
 
-    def __init__(self) -> None:
+    Args:
+        fun: The callable that will register future dispatch
+            functions for each backend implementation.
+
+    Notes:
+        Only the functions registered with :meth:`register` will be called.
+        The :data:`fun` argument wrapped inside :class:`dispatch` is
+        only used for documentation, but never called.
+
+    Examples:
+        The following example shows how one can implement plotting
+        utilities on different backends for a given plot.
+
+        >>> import differt.plotting as dplt
+        >>>
+        >>> @dplt.dispatch
+        ... def plot_line(vertices, color):
+        ...     pass
+        >>>
+        >>> @plot_line.register("matplotlib")
+        ... def _(vertices, color):
+        ...     print("Using matplotlib backend")
+        >>>
+        >>> @plot_line.register("plotly")
+        ... def _(vertices, color):
+        ...     print("Using plotly backend")
+        >>>
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="matplotlib",
+        ... )
+        Using matplotlib backend
+        >>>
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="plotly",
+        ... )
+        Using plotly backend
+        >>>
+        >>> plot_line(
+        ...     _,
+        ...     _,
+        ...     backend="vispy",
+        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        NotImplementedError: No backend implementation for 'vispy'
+        >>>
+        >>> # The default backend is VisPy so unimplemented too.
+        >>> plot_line(_, _)  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        NotImplementedError: No backend implementation for 'vispy'
+        >>>
+        >>> @plot_line.register("numpy")  # doctest: +IGNORE_EXCEPTION_DETAIL
+        ... def _(vertices, color):
+        ...     pass
+        Traceback (most recent call last):
+        ValueError: Unsupported backend 'numpy', allowed values are: ...
+    """
+    def __init__(self, fun: Callable[P, T]) -> None:
         self.__registry: dict[str, Callable[P, T]] = {}
+        update_wrapper(self, fun)
 
     def __call__(
         self,
@@ -219,74 +281,6 @@ class Dispatcher(Generic[P, T]):
             return __wrapper__
 
         return wrapper
-
-
-def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
-    """
-    Transform a function into a backend dispatcher for plot functions.
-
-    Args:
-        fun: The callable that will register future dispatch
-            functions for each backend implementation.
-
-    Return:
-        The same callable, wrapped in a :py:class:`Dispatcher`
-        class instance.
-
-    Examples:
-        The following example shows how one can implement plotting
-        utilities on different backends for a given plot.
-
-        >>> import differt.plotting as dplt
-        >>>
-        >>> @dplt.dispatch
-        ... def plot_line(vertices, color):
-        ...     pass
-        >>>
-        >>> @plot_line.register("matplotlib")
-        ... def _(vertices, color):
-        ...     print("Using matplotlib backend")
-        >>>
-        >>> @plot_line.register("plotly")
-        ... def _(vertices, color):
-        ...     print("Using plotly backend")
-        >>>
-        >>> plot_line(
-        ...     _,
-        ...     _,
-        ...     backend="matplotlib",
-        ... )
-        Using matplotlib backend
-        >>>
-        >>> plot_line(
-        ...     _,
-        ...     _,
-        ...     backend="plotly",
-        ... )
-        Using plotly backend
-        >>>
-        >>> plot_line(
-        ...     _,
-        ...     _,
-        ...     backend="vispy",
-        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
-        Traceback (most recent call last):
-        NotImplementedError: No backend implementation for 'vispy'
-        >>>
-        >>> # The default backend is VisPy so unimplemented too.
-        >>> plot_line(_, _)  # doctest: +IGNORE_EXCEPTION_DETAIL
-        Traceback (most recent call last):
-        NotImplementedError: No backend implementation for 'vispy'
-        >>>
-        >>> @plot_line.register("numpy")  # doctest: +IGNORE_EXCEPTION_DETAIL
-        ... def _(vertices, color):
-        ...     pass
-        Traceback (most recent call last):
-        ValueError: Unsupported backend 'numpy', allowed values are: ...
-    """
-    dispatcher: Dispatcher[P, T] = Dispatcher()
-
-    return wraps(fun)(dispatcher)  # type: ignore
 
 
 def view_from_canvas(canvas: SceneCanvas) -> ViewBox:

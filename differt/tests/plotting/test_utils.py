@@ -142,9 +142,7 @@ def est_missing_default_backend_module(
     (
         "vispy",
         "matplotlib",
-        pytest.param(
-            "plotly", marks=pytest.mark.xfail(reason="Unknown, to be investigated...")
-        ),
+        "plotly"
     ),
 )
 def test_missing_backend_module(

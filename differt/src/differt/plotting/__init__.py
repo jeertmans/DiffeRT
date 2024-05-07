@@ -88,7 +88,6 @@ the Matplotlib backend.
 """
 
 __all__ = (
-    "Dispatcher",
     "dispatch",
     "set_defaults",
     "use",
@@ -105,7 +104,6 @@ __all__ = (
 
 from ._core import draw_image, draw_markers, draw_mesh, draw_paths
 from ._utils import (
-    Dispatcher,
     dispatch,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
