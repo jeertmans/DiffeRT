@@ -226,7 +226,7 @@ class TriangleMesh(eqx.Module):
         Args:
             size: The size of the sample, i.e., the number of triangles.
             replace: Whether to sample with or without replacement.
-            key: The :class:`jax.random.PRNGKey` to be used.
+            key: The :func:`jax.random.PRNGKey` to be used.
 
         Return:
             A new random mesh.
