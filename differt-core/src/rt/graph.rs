@@ -119,7 +119,7 @@ pub mod complete {
     /// distinc nodes is connected by a unique edge.
     ///
     /// Args:
-    ///     num_nodes: The number of nodes.
+    ///     num_nodes (int): The number of nodes.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct CompleteGraph {
@@ -584,7 +584,7 @@ pub mod directed {
         /// an adjacency matrix will all entries equal to :py:data:`False`.
         ///
         /// Args:
-        ///     graph (CompleteGraph): The number of nodes.
+        ///     num\_nodes (int): The number of nodes.
         ///
         /// Return:
         ///     DiGraph: A directed graph.
