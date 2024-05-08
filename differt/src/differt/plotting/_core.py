@@ -137,12 +137,12 @@ def draw_paths(
             >>> from differt.plotting import draw_paths
             >>>
             >>> def rotation(angle: float) -> np.ndarray:
-            ...     c = np.cos(angle)
-            ...     s = np.sin(angle)
+            ...     co = np.cos(angle)
+            ...     si = np.sin(angle)
             ...     return np.array(
             ...         [
-            ...             [+c, -s, 0.0],
-            ...             [+s, +c, 0.0],
+            ...             [+co, -si, 0.0],
+            ...             [+si, +co, 0.0],
             ...             [0.0, 0.0, 1.0],
             ...         ]
             ...     )
