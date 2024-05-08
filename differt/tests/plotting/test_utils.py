@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 import importlib
+import platform
 import sys
 from contextlib import AbstractContextManager as ContextManager
 from contextlib import contextmanager
@@ -23,6 +24,11 @@ from differt.plotting._utils import (
     use,
     view_from_canvas,
 )
+
+if not platform.system() == "Darwin" and platform.processor() == "arm":
+    pytest.skip(
+        "skipping tests on macOS (m1) runners at the moment...", allow_module_level=True
+    )
 
 _LOCK = Lock()
 

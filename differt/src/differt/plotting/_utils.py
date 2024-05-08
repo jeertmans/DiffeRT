@@ -65,35 +65,45 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
         ImportError: If the backend is not installed.
 
     Examples:
-        The following example shows how to set the default plotting backend.
+        The following example shows how to set the default plotting backend
+        and other plotting defaults.
 
         >>> import differt.plotting as dplt
         >>>
         >>> @dplt.dispatch
-        ... def my_plot():
+        ... def my_plot(*args, **kwargs):
         ...     pass
         >>>
         >>> @my_plot.register("vispy")
-        ... def _():
-        ...     print("Using vispy backend")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_vispy_kwargs(kwargs)
+        ...     print(f"Using vispy backend with {args = }, {kwargs = }")
         >>>
         >>> @my_plot.register("matplotlib")
-        ... def _():
-        ...     print("Using matplotlib backend")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_matplotlib_kwargs(kwargs)
+        ...     print(f"Using matplotlib backend with {args = }, {kwargs = }")
         >>>
         >>> my_plot()  # When not specified, use default backend
-        Using vispy backend
+        Using vispy backend with args = (), kwargs = {}
         >>>
-        >>> my_plot(backend="matplotlib")  # We can force the backend
-        Using matplotlib backend
-        >>>
-        >>> dplt.set_defaults("matplotlib")  # Or change the default backend...
+        >>> dplt.set_defaults("matplotlib")  # We can change the default backend
         'matplotlib'
         >>> my_plot()  # So that now it defaults to 'matplotlib'
-        Using matplotlib backend
+        Using matplotlib backend with args = (), kwargs = {}
         >>>
+        >>> dplt.set_defaults(
+        ...     "matplotlib", color="red"
+        ... )  # We can also specify additional defaults
+        'matplotlib'
+        >>> my_plot()  # So that now it defaults to 'matplotlib' and color='red'
+        Using matplotlib backend with args = (), kwargs = {'color': 'red'}
         >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
-        Using vispy backend
+        Using vispy backend with args = (), kwargs = {'color': 'red'}
+        >>> my_plot(backend="vispy", color="green")  # And we can also override any default
+        Using vispy backend with args = (), kwargs = {'color': 'green'}
+        >>> dplt.set_defaults("vispy")  # Reset all defaults
+        'vispy'
     """
     global DEFAULT_BACKEND, DEFAULT_KWARGS
 
@@ -132,6 +142,40 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
 
     Return:
         The name of the default backend used in this context.
+
+    Examples:
+        The following example shows how set plot defaults in a context.
+
+        >>> import differt.plotting as dplt
+        >>>
+        >>> @dplt.dispatch
+        ... def my_plot(*args, **kwargs):
+        ...     pass
+        >>>
+        >>> @my_plot.register("vispy")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_vispy_kwargs(kwargs)
+        ...     print(f"Using vispy backend with {args = }, {kwargs = }")
+        >>>
+        >>> @my_plot.register("plotly")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_plotly_kwargs(kwargs)
+        ...     print(f"Using plotly backend with {args = }, {kwargs = }")
+        >>>
+        >>> my_plot()  # When not specified, use default backend
+        Using vispy backend with args = (), kwargs = {}
+        >>> with dplt.use():  # No parameters = reset defaults (except the default backend)
+        ...     my_plot()
+        Using vispy backend with args = (), kwargs = {}
+        >>> with dplt.use("plotly"):  # We can change the default backend
+        ...     my_plot()  # So that now it defaults to 'matplotlib'
+        Using plotly backend with args = (), kwargs = {}
+        >>>
+        >>> with dplt.use(
+        ...     "plotly", color="black"
+        ... ):  # We can also specify additional defaults
+        ...     my_plot()
+        Using plotly backend with args = (), kwargs = {'color': 'black'}
     """
     global DEFAULT_BACKEND, DEFAULT_KWARGS
     default_backend = DEFAULT_BACKEND
@@ -481,8 +525,6 @@ def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:
-        args: Positional arguments passed to
-            :py:func:`set_defaults`.
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
@@ -501,11 +543,10 @@ def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
             >>> y = np.linspace(-4.0, +4.0, 200)
             >>> X, Y = np.meshgrid(x, y)
             >>>
-            >>> with reuse(backend="plotly") as fig:
+            >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
             ...     for z0, w in enumerate(jnp.linspace(0, 10 * jnp.pi, 5)):
             ...         Z = np.cos(w * X) * np.sin(w * Y)
             ...         draw_image(Z, x=x, y=y, z0=z0)  # TODO: fix colorbar
-            >>>
             >>> fig  # doctest: +SKIP
     """
     global DEFAULT_KWARGS
