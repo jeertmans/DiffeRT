@@ -168,11 +168,11 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             functions for each backend implementation.
 
     Return:
-        A callable that can register backend implementations with ``.register``.
+        A callable that can register backend implementations with ``register``.
 
     Notes:
-        Only the functions registered with :meth:`register` will be called.
-        The :data:`fun` argument wrapped inside :class:`dispatch` is
+        Only the functions registered with ``register``` will be called.
+        The :data:`fun` argument wrapped inside :fun:`dispatch` is
         only used for documentation, but never called.
 
     Examples:
