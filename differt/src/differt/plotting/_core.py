@@ -1,9 +1,7 @@
 """Core plotting implementations."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import Any, Optional, Union
 
 import numpy as np
 from jaxtyping import Float, Num, UInt
@@ -15,18 +13,34 @@ from ._utils import (
     process_vispy_kwargs,
 )
 
-if TYPE_CHECKING:
+# We cannot use from __future__ import annotations because
+#   otherwise array annotations do not render correctly.
+# We cannot rely on TYPE_CHECKING-guarded annotation
+#   because Sphinx will fail to import this NumPy or Jax typing
+# Hence, we prefer to silence pyright instead.
+
+try:
     from matplotlib.figure import Figure as MplFigure
+except ImportError:
+    MplFigure = Any
+
+try:
     from plotly.graph_objects import Figure
+except ImportError:
+    Figure = Any
+
+try:
     from vispy.scene.canvas import SceneCanvas as Canvas
+except ImportError:
+    Canvas = Any
 
 
-@dispatch  # type: ignore
+@dispatch
 def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore
+) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 3D mesh made of triangles.
 
@@ -72,7 +86,7 @@ def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Canvas:
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Mesh
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -88,7 +102,7 @@ def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> MplFigure:
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -102,7 +116,7 @@ def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: UInt[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Figure:
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     x, y, z = vertices.T
@@ -111,10 +125,10 @@ def _(
     return fig.add_mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)
 
 
-@dispatch  # type: ignore
+@dispatch
 def draw_paths(
-    paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any
-) -> Canvas | MplFigure | Figure:  # type: ignore
+    paths: Float[np.ndarray, r"\*batch path_length 3"], **kwargs: Any
+) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a batch of paths of the same length.
 
@@ -172,7 +186,7 @@ def draw_paths(
 
 
 @draw_paths.register("vispy")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas:
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import LinePlot
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -186,7 +200,7 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas
 
 
 @draw_paths.register("matplotlib")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFigure:
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -196,7 +210,7 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFig
 
 
 @draw_paths.register("plotly")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure:
+def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -206,13 +220,13 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure
     return fig
 
 
-@dispatch  # type: ignore
+@dispatch
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Sequence[str] | None = None,
-    text_kwargs: Mapping[str, Any] | None = None,
+    labels: Optional[Sequence[str]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore
+) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
     Plot markers and, optionally, their label.
 
@@ -259,10 +273,10 @@ def draw_markers(
 @draw_markers.register("vispy")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Sequence[str] | None = None,
-    text_kwargs: Mapping[str, Any] | None = None,
+    labels: Optional[Sequence[str]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
-) -> Canvas:
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Markers, Text
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -280,20 +294,20 @@ def _(
 @draw_markers.register("matplotlib")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Sequence[str] | None = None,
-    text_kwargs: Mapping[str, Any] | None = None,
+    labels: Optional[Sequence[str]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
-) -> MplFigure:
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     raise NotImplementedError  # TODO
 
 
 @draw_markers.register("plotly")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Sequence[str] | None = None,
-    text_kwargs: Mapping[str, Any] | None = None,
+    labels: Optional[Sequence[str]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
-) -> Figure:
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
@@ -309,14 +323,18 @@ def _(
     )
 
 
-@dispatch  # type: ignore
+@dispatch
 def draw_image(
-    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " rows"] | None = None,
-    y: Float[np.ndarray, " cols"] | None = None,
+    data: Union[
+        Num[np.ndarray, "rows cols"],
+        Num[np.ndarray, "rows cols 3"],
+        Num[np.ndarray, "rows cols 4"],
+    ],
+    x: Optional[Float[np.ndarray, " rows"]] = None,
+    y: Optional[Float[np.ndarray, " cols"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore
+) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
 
@@ -368,12 +386,16 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " rows"] | None = None,
-    y: Float[np.ndarray, " cols"] | None = None,
+    data: Union[
+        Num[np.ndarray, "rows cols"],
+        Num[np.ndarray, "rows cols 3"],
+        Num[np.ndarray, "rows cols 4"],
+    ],
+    x: Optional[Float[np.ndarray, " rows"]] = None,
+    y: Optional[Float[np.ndarray, " cols"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Canvas:
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Image
     from vispy.visuals.transforms import STTransform
 
@@ -416,12 +438,16 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " rows"] | None = None,
-    y: Float[np.ndarray, " cols"] | None = None,
+    data: Union[
+        Num[np.ndarray, "rows cols"],
+        Num[np.ndarray, "rows cols 3"],
+        Num[np.ndarray, "rows cols 4"],
+    ],
+    x: Optional[Float[np.ndarray, " rows"]] = None,
+    y: Optional[Float[np.ndarray, " cols"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> MplFigure:
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     ax.plot_surface(X=x, Y=y, Z=np.full_like(data, z0), color=data, **kwargs)
@@ -431,12 +457,16 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " rows"] | None = None,
-    y: Float[np.ndarray, " cols"] | None = None,
+    data: Union[
+        Num[np.ndarray, "rows cols"],
+        Num[np.ndarray, "rows cols 3"],
+        Num[np.ndarray, "rows cols 4"],
+    ],
+    x: Optional[Float[np.ndarray, " rows"]] = None,
+    y: Optional[Float[np.ndarray, " cols"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Figure:
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     return fig.add_surface(

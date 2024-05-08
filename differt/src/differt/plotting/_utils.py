@@ -1,14 +1,13 @@
 """Useful decorators for plotting."""
 
-from __future__ import annotations
-
 import importlib
+import sys
 import types
 from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
 
 # Immutables
 
@@ -25,28 +24,31 @@ DEFAULT_BACKEND = "vispy"
 DEFAULT_KWARGS: MutableMapping[str, Any] = {}
 """The default keyword arguments."""
 
-if TYPE_CHECKING:
-    import sys
 
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
+
+P = ParamSpec("P")
+
+if TYPE_CHECKING:
     from matplotlib.figure import Figure as MplFigure
     from mpl_toolkits.mplot3d import Axes3D
     from plotly.graph_objects import Figure
-    from vispy.scene.canvas import SceneCanvas
+    from vispy.scene.canvas import SceneCanvas as Canvas
     from vispy.scene.widgets.viewbox import ViewBox
-
-    if sys.version_info >= (3, 10):
-        from typing import ParamSpec
-    else:
-        from typing_extensions import ParamSpec
-
-    P = ParamSpec("P")
-    T = TypeVar("T", SceneCanvas, MplFigure, Figure)
 else:
-    P = TypeVar("P")
-    T = TypeVar("T")
+    MplFigure = Any
+    Axes3D = Any
+    Figure = Any
+    Canvas = Any
+    ViewBox = Any
+
+T = TypeVar("T", Canvas, MplFigure, Figure)
 
 
-def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
+def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
     """
     Set default keyword arguments for future plotting utilities.
 
@@ -215,7 +217,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         A callable that can register backend implementations with ``register``.
 
     Notes:
-        Only the functions registered with ``register``` will be called.
+        Only the functions registered with ``register`` will be called.
         The :data:`fun` argument wrapped inside :func:`dispatch` is
         only used for documentation, but never called.
 
@@ -349,7 +351,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
     return wrapper  # type: ignore
 
 
-def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
+def view_from_canvas(canvas: Canvas) -> ViewBox:
     """
     Return the view from the specified canvas.
 
@@ -387,7 +389,7 @@ def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
 
 def process_vispy_kwargs(
     kwargs: MutableMapping[str, Any],
-) -> tuple[SceneCanvas, ViewBox]:
+) -> tuple[Canvas, ViewBox]:
     """
     Process keyword arguments passed to some VisPy plotting utility.
 
@@ -399,7 +401,7 @@ def process_vispy_kwargs(
                 The keys specified below will be removed from the mapping.
 
     Keyword Args:
-        convas (:py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
+        canvas (:py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
             The canvas that draws contents of the scene. If not provided,
             will try to access canvas from ``view`` (if supplied).
         view (:py:class:`Viewbox<vispy.scene.widgets.viewbox.ViewBox>`):
@@ -476,7 +478,7 @@ def process_matplotlib_kwargs(
         or plt.figure()
     )
 
-    def current_ax3d() -> Axes3D | None:
+    def current_ax3d() -> Optional[Axes3D]:
         if len(figure.axes) > 0:
             ax = figure.gca()
             if isinstance(ax, Axes3D):
@@ -521,7 +523,7 @@ def process_plotly_kwargs(
 
 
 @contextmanager
-def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
+def reuse(**kwargs: Any) -> Iterator[Union[Canvas, MplFigure, Figure]]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:
@@ -550,7 +552,7 @@ def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
             >>> fig  # doctest: +SKIP
     """
     global DEFAULT_KWARGS
-    backend: str | None = kwargs.pop("backend", None)
+    backend: Optional[str] = kwargs.pop("backend", None)
 
     with use(backend=backend) as b:
         try:
