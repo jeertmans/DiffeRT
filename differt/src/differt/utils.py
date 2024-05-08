@@ -235,7 +235,7 @@ def minimize(
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"], size: Optional[int] = None, *, key: PRNGKeyArray
-) -> Float[Array, "?size 3"]:
+) -> Union[Float[Array, "size 3"], Float[Array, "3"]]:
     """
     Sample point(s) in a 3D bounding box.
 
