@@ -172,7 +172,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
 
     Notes:
         Only the functions registered with ``register``` will be called.
-        The :data:`fun` argument wrapped inside :fun:`dispatch` is
+        The :data:`fun` argument wrapped inside :func:`dispatch` is
         only used for documentation, but never called.
 
     Examples:
@@ -488,6 +488,25 @@ def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
 
     Return:
         The canvas or figure that is reused for this context.
+
+    Examples:
+        The following example show how the same figure is reused
+        for multiple plots.
+
+        .. plotly::
+
+            >>> from differt.plotting import draw_image, reuse
+            >>>
+            >>> x = np.linspace(-1.0, +1.0, 100)
+            >>> y = np.linspace(-4.0, +4.0, 200)
+            >>> X, Y = np.meshgrid(x, y)
+            >>>
+            >>> with reuse(backend="plotly") as fig:
+            ...     for z0, w in enumerate(jnp.linspace(0, 10 * jnp.pi, 5)):
+            ...         Z = np.cos(w * X) * np.sin(w * Y)
+            ...         draw_image(Z, x=x, y=y, z0=z0)  # TODO: fix colorbar
+            >>>
+            >>> fig  # doctest: +SKIP
     """
     global DEFAULT_KWARGS
     backend: str | None = kwargs.pop("backend", None)
