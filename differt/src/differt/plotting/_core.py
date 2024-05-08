@@ -311,9 +311,9 @@ def _(
 
 @dispatch  # type: ignore
 def draw_image(
-    data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
-    x: Float[np.ndarray, " *m"] | None = None,
-    y: Float[np.ndarray, " *n"] | None = None,
+    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " rows"] | None = None,
+    y: Float[np.ndarray, " cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore
@@ -368,9 +368,9 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
-    x: Float[np.ndarray, " ..."] | None = None,
-    y: Float[np.ndarray, " ..."] | None = None,
+    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " rows"] | None = None,
+    y: Float[np.ndarray, " cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:
@@ -416,9 +416,9 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
-    x: Float[np.ndarray, " ..."] | None = None,
-    y: Float[np.ndarray, " ..."] | None = None,
+    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " rows"] | None = None,
+    y: Float[np.ndarray, " cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:
@@ -431,9 +431,9 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Num[np.ndarray, "m n"] | Num[np.ndarray, "m n 3"] | Num[np.ndarray, "m n 4"],
-    x: Float[np.ndarray, " ..."] | None = None,
-    y: Float[np.ndarray, " ..."] | None = None,
+    data: Num[np.ndarray, "rows cols"] | Num[np.ndarray, "rows cols 3"] | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " rows"] | None = None,
+    y: Float[np.ndarray, " cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:

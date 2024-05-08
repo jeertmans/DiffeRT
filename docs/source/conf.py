@@ -10,6 +10,7 @@ import inspect
 import os
 from datetime import date
 from typing import Any
+from sphinx.application import Sphinx
 
 from differt import __version__
 
@@ -173,7 +174,7 @@ napolean_use_rtype = False
 #   reported here https://github.com/sphinx-doc/sphinx/issues/12360.
 
 
-def fix_sionna_folder(app, obj: Any, bound_method: bool) -> None:
+def fix_sionna_folder(app: Sphinx, obj: Any, bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """
