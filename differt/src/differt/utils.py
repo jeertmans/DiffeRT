@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, Key, Num, Shaped, jaxtyped
+from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
 
 if sys.version_info >= (3, 11):
     from typing import TypeVarTuple, Unpack
@@ -232,8 +232,9 @@ def minimize(
 
 
 @eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
-    bounding_box: Float[Array, "2 3"], size: Optional[int] = None, *, key: Key
+    bounding_box: Float[Array, "2 3"], size: Optional[int] = None, *, key: PRNGKeyArray
 ) -> Float[Array, "?size 3"]:
     """
     Sample point(s) in a 3D bounding box.

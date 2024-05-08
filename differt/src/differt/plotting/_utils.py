@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import importlib
+import types
 from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
-from functools import update_wrapper, wraps
+from functools import wraps
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
@@ -144,13 +145,30 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
             DEFAULT_KWARGS = default_kwargs
 
 
-class dispatch(Generic[P, T]):
+class _Dispatcher(Generic[P, T]):
+    registry: types.MappingProxyType[str, Callable[P, T]]
+
+    def __call__(
+        self,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T: ...
+    def register(
+        self,
+        backend: str,
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
+
+
+def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
     """
-    A class that transforms a function into a backend dispatcher for plot functions.
+    Transform a function into a backend dispatcher for plot functions.
 
     Args:
         fun: The callable that will register future dispatch
             functions for each backend implementation.
+
+    Return:
+        A callable that can register backend implementations with ``.register``.
 
     Notes:
         Only the functions registered with :meth:`register` will be called.
@@ -208,42 +226,9 @@ class dispatch(Generic[P, T]):
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    def __init__(self, fun: Callable[P, T]) -> None:
-        self.__registry: dict[str, Callable[P, T]] = {}
-        update_wrapper(self, fun)
-
-    def __call__(
-        self,
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> T:
-        """
-        Call the appropriate backend implementation based on the default backend and the provided arguments.
-
-        Args:
-            args: Positional arguments passed to the correct backend implementation.
-            kwargs: Keyword arguments passed to the correct backend implementation.
-
-        Return:
-            The result of the call.
-        """
-        # We cannot currently add keyword argument to the signature,
-        # at least Pyright will not allow that,
-        # see: https://github.com/microsoft/pyright/issues/5844.
-        #
-        # The motivation is detailed in P612:
-        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
-
-        try:
-            return self.__registry[backend](*args, **kwargs)
-        except KeyError:
-            raise NotImplementedError(
-                f"No backend implementation for '{backend}'"
-            ) from None
+    registry: dict[str, Callable[P, T]] = {}
 
     def register(
-        self,
         backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
@@ -276,11 +261,48 @@ class dispatch(Generic[P, T]):
                         "Did you correctly install it?"
                     ) from e
 
-            self.__registry[backend] = __wrapper__
+            registry[backend] = __wrapper__
 
             return __wrapper__
 
         return wrapper
+
+    @wraps(fun)
+    def wrapper(
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T:
+        """
+        Call the appropriate backend implementation based on the default backend and the provided arguments.
+
+        Args:
+            args: Positional arguments passed to the correct backend implementation.
+            kwargs: Keyword arguments passed to the correct backend implementation.
+
+        Return:
+            The result of the call.
+        """
+        # We cannot currently add keyword argument to the signature,
+        # at least Pyright will not allow that,
+        # see: https://github.com/microsoft/pyright/issues/5844.
+        #
+        # The motivation is detailed in P612:
+        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
+        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
+
+        try:
+            return registry[backend](*args, **kwargs)
+        except KeyError:
+            raise NotImplementedError(
+                f"No backend implementation for '{backend}'"
+            ) from None
+
+        return wrapper
+
+    wrapper.register = register  # type: ignore
+    wrapper.registry = types.MappingProxyType(registry)  # type: ignore
+
+    return wrapper  # type: ignore
 
 
 def view_from_canvas(canvas: SceneCanvas) -> ViewBox:

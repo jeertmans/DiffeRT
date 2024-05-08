@@ -139,11 +139,7 @@ def est_missing_default_backend_module(
 
 @pytest.mark.parametrize(
     "backend",
-    (
-        "vispy",
-        "matplotlib",
-        "plotly"
-    ),
+    ("vispy", "matplotlib", "plotly"),
 )
 def test_missing_backend_module(
     backend: str, missing_modules: MissingModulesContextGenerator
