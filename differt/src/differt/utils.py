@@ -18,6 +18,7 @@ else:
     from typing_extensions import TypeVarTuple, Unpack
 
 # Redefined here, because chex uses deprecated type hints
+# TODO: fixme
 OptState = Union[chex.Array, Iterable["OptState"], Mapping[Any, "OptState"]]
 Ts = TypeVarTuple("Ts")
 
