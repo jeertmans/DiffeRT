@@ -73,7 +73,7 @@ apidoc_module_dirs = [
     "../../differt-core/python/differt_core",
 ]
 apidoc_output_dirs = "reference"
-apidoc_exclude_patterns = ["conftest.py", "*/scene/scenes/*"]
+apidoc_exclude_patterns = ["conftest.py", "scene/scenes/**"]
 apidoc_separate = True
 apidoc_no_toc = True
 apidoc_max_depth = 1
