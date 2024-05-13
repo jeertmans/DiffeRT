@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping
 from functools import partial
 from typing import Any, Callable, Optional, Union
 
-import chex
+import chex  # TODO: fixme, chex is not a dependency
 import jax
 import jax.numpy as jnp
 import optax
