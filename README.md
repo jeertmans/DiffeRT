@@ -54,7 +54,7 @@ To run build this package locally, you need:
 - [Rust](https://www.rust-lang.org/) stable toolchain;
 - `make` (e.g., GNU Make or Make for Windows);
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [Rye](https://rye-up.com/) to manage this project.
+- and [Rye](https://rye.astral.sh/) to manage this project.
 
 
 ## Local development
