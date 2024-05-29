@@ -83,7 +83,7 @@ replacement = '(https://github.com/jeertmans/DiffeRT/blob/main/\1)'
 
 [tool.hatch.version]
 path = "../differt-core/Cargo.toml"
-pattern = 'version = "(?P<version>[^"]+)'
+pattern = '^version = "(?P<version>[^"]+)'
 
 [tool.rye]
 managed = true
