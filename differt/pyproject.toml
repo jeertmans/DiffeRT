@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "beartype>=0.17.2",
-  "differt-core==0.0.12",
+  "differt-core==0.0.13",
   "equinox>=0.11.2",
   "jax>=0.4.20",
   "jaxtyping>=0.2.24",
