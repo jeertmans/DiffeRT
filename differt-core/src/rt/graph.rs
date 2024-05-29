@@ -133,7 +133,7 @@ pub mod complete {
         }
 
         /// Return an iterator over all paths of length ``depth``
-        /// from node ``from`` to node ``to``.
+        /// from node ``from_`` to node ``to``.
         ///
         /// .. note::
         ///
@@ -174,7 +174,7 @@ pub mod complete {
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -194,13 +194,13 @@ pub mod complete {
         }
 
         /// Return an array of all paths of length ``depth``
-        /// from node ``from`` to node ``to``.
+        /// from node ``from_`` to node ``to``.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -224,14 +224,14 @@ pub mod complete {
         }
 
         /// Return an iterator over all paths of length ``depth``
-        /// from node ``from`` to node ``to``, grouped in chunks of
+        /// from node ``from_`` to node ``to``, grouped in chunks of
         /// size of max. ``chunk_size``.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -301,9 +301,6 @@ pub mod complete {
 
             let mut visited = Vec::with_capacity(depth);
             let mut counter = Vec::with_capacity(depth);
-            visited.push(from);
-            counter.push(graph.num_nodes); // num_nodes means we visited all
-            // first nodes, because first not is fixed
 
             let paths_count = 0;
             let paths_total_count = match depth.cmp(&2) {
@@ -360,6 +357,14 @@ pub mod complete {
                     }
                 },
             };
+
+            if paths_total_count > 0 {
+                // Avoid visiting any node if no path exists
+                visited.push(from);
+                counter.push(graph.num_nodes);
+                // `num_nodes` means we visited all
+                // first nodes, because the first node is fixed
+            }
 
             Self {
                 graph,
@@ -609,19 +614,20 @@ pub mod directed {
             graph.into()
         }
 
-        /// Insert two additional nodes in the graph:
+        /// Insert two additional nodes in the graph: ``from_`` and ``to``.
         ///
-        /// - a ``from`` node, that is connected to every other node in the
-        ///   graph;
-        /// - and a ``to`` node, where every other node is connected to this
-        ///   node.
+        /// The nodes satisfy the following conditions:
         ///
-        /// If ``direct_path`` is :py:data:`True`, then the ``from`` node is
-        /// connected to the ``to`` node.
+        /// - ``from_`` is connected to every other node in the graph;
+        /// - and ``to`` is an `endpoint`, where every other node is connected
+        ///   to this node.
+        ///
+        /// If ``direct_path`` is :py:data:`True`, then the ``from_`` node is
+        /// also connected to the ``to`` node.
         ///
         /// Args:
         ///     direct_path (bool): Whether to create a direction connection
-        ///         between ``from`` and ``to`` nodes.
+        ///         between ``from_`` and ``to`` nodes.
         ///
         /// Return:
         ///     tuple[int, int]:
@@ -654,13 +660,13 @@ pub mod directed {
         }
 
         /// Return an iterator over all paths of length ``depth``
-        /// from node ``from`` to node ``to``.
+        /// from node ``from_`` to node ``to``.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -680,13 +686,13 @@ pub mod directed {
         }
 
         /// Return an array of all paths of length ``depth``
-        /// from node ``from`` to node ``to``.
+        /// from node ``from_`` to node ``to``.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -710,14 +716,14 @@ pub mod directed {
         }
 
         /// Return an iterator over all paths of length ``depth``
-        /// from node ``from`` to node ``to``, grouped in chunks of
+        /// from node ``from_`` to node ``to``, grouped in chunks of
         /// size of max. ``chunk_size``.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
         ///     to (int): The node index to find the paths to.
         ///     depth (int): The number of nodes to include in each path.
-        ///     include_from_and_to (bool): Whether to include or not ``from``
+        ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
@@ -1025,6 +1031,28 @@ mod tests {
             CompleteGraph::new(num_nodes).all_paths_array_chunks(from, to, depth, false, 100);
         let got = iter_chunks.len();
         let expected = iter_chunks.count();
+
+        assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(0, 2, 0, 1, 1)] // One path of depth 2 [0, 1]
+    #[case(0, 2, 0, 0, 0)] // No path of depth 2 (because can't be [0, 0])
+    #[case(4, 2, 0, 1, 1)] // One path of depth 2 [0, 1]
+    #[case(1, 3, 1, 2, 1)] // One path of depth 3 [1, 0, 2]
+    #[case(0, 1, 0, 1, 0)] // No path of depth 1
+    #[case(0, 2, 0, 1, 1)] // One path of depth 2
+    #[case(0, 3, 0, 1, 0)] // No path of depth 3
+    #[case(0, 4, 0, 1, 0)] // No path of depth 4
+    fn test_complete_graph_edge_cases(
+        #[case] num_nodes: usize,
+        #[case] depth: usize,
+        #[case] from: usize,
+        #[case] to: usize,
+        #[case] expected: usize,
+    ) {
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let got = iter.count();
 
         assert_eq!(got, expected);
     }
