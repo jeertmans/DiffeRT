@@ -60,7 +60,8 @@ omit = ["**/*/conftest.py"]
 allow-direct-references = true
 
 [tool.pyright]
-include = ["differt/src/differt", "tests"]
+deprecateTypingAliases = true
+include = ["differt/src/differt", "differt/tests"]
 venv = ".venv"
 venvPath = "."
 
