@@ -56,13 +56,11 @@ exclude = [
   "conftest.py",
   "tests",
 ]
-packages = ["src/differt"]
 
 [tool.hatch.build.targets.wheel]
 exclude = [
   "conftest.py",
 ]
-packages = ["src/differt"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
