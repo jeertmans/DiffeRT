@@ -9,6 +9,7 @@
 [![Latest Release][pypi-version-badge]][pypi-version-url]
 [![Python version][pypi-python-version-badge]][pypi-version-url]
 [![Documentation][documentation-badge]][documentation-url]
+[![DOI][doi-badge]][doi-url]
 [![Codecov][codecov-badge]][codecov-url]
 
 </div>
@@ -54,7 +55,7 @@ To run build this package locally, you need:
 - [Rust](https://www.rust-lang.org/) stable toolchain;
 - `make` (e.g., GNU Make or Make for Windows);
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [Rye](https://rye-up.com/) to manage this project.
+- and [Rye](https://rye.astral.sh/) to manage this project.
 
 
 ## Local development
@@ -120,5 +121,7 @@ pytest --benchmark-only
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
+[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.11386432.svg
+[doi-url]: https://doi.org/10.5281/zenodo.11386432
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=v63alnTWzu
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT
