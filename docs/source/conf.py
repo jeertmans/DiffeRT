@@ -73,7 +73,7 @@ apidoc_module_dirs = [
     "../../differt-core/python/differt_core",
 ]
 apidoc_output_dirs = "reference"
-apidoc_exclude_patterns = ["conftest.py", "*scene/scenes/*"]
+apidoc_exclude_patterns = ["conftest.py", "scene/scenes/**"]
 apidoc_separate = True
 apidoc_no_toc = True
 apidoc_max_depth = 1
@@ -108,8 +108,6 @@ nb_merge_streams = True
 nb_mime_priority_overrides = [
     ("*", "text/html", 0),
 ]
-
-# TODO: fix JS warnings about html-manager (wrong version?)
 
 # -- Bibtex
 
@@ -174,21 +172,8 @@ napolean_use_rtype = False
 
 # Patches
 
-# TODO: fix Plotly's Figure not linking to docs with intersphinx.
-
-"""
-def fix_signature(app, what, name, obj, options, signature, return_annotation):
-    target = "~plotly.graph_objs._figure.Figure"
-    sub = ":py:class:`Figure<plotly.graph_objects.Figure>`"
-    sub = "~plotly.graph_objects.Figure"
-    if return_annotation and target in return_annotation:
-        return_annotation = return_annotation.replace(target, sub)
-        return signature, return_annotation.replace(target, sub)
-
-
-def setup(app):
-    app.connect("autodoc-process-signature", fix_signature, priority=999)
-"""
+# TODO: fix Plotly's Figure not linking to docs with intersphinx,
+#   reported here https://github.com/sphinx-doc/sphinx/issues/12360.
 
 
 def fix_sionna_folder(app: Sphinx, obj: Any, bound_method: bool) -> None:

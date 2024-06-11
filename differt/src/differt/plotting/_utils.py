@@ -1,13 +1,13 @@
 """Useful decorators for plotting."""
 
-from __future__ import annotations
-
 import importlib
+import sys
+import types
 from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
 
 # Immutables
 
@@ -24,28 +24,31 @@ DEFAULT_BACKEND = "vispy"
 DEFAULT_KWARGS: MutableMapping[str, Any] = {}
 """The default keyword arguments."""
 
-if TYPE_CHECKING:
-    import sys
 
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
+
+P = ParamSpec("P")
+
+if TYPE_CHECKING:
     from matplotlib.figure import Figure as MplFigure
     from mpl_toolkits.mplot3d import Axes3D
     from plotly.graph_objects import Figure
-    from vispy.scene.canvas import SceneCanvas
+    from vispy.scene.canvas import SceneCanvas as Canvas
     from vispy.scene.widgets.viewbox import ViewBox
-
-    if sys.version_info >= (3, 10):
-        from typing import ParamSpec
-    else:
-        from typing_extensions import ParamSpec
-
-    P = ParamSpec("P")
-    T = TypeVar("T", SceneCanvas, MplFigure, Figure)
 else:
-    P = TypeVar("P")
-    T = TypeVar("T")
+    MplFigure = Any
+    Axes3D = Any
+    Figure = Any
+    Canvas = Any
+    ViewBox = Any
+
+T = TypeVar("T", Canvas, MplFigure, Figure)
 
 
-def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
+def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
     """
     Set default keyword arguments for future plotting utilities.
 
@@ -64,35 +67,45 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
         ImportError: If the backend is not installed.
 
     Examples:
-        The following example shows how to set the default plotting backend.
+        The following example shows how to set the default plotting backend
+        and other plotting defaults.
 
         >>> import differt.plotting as dplt
         >>>
         >>> @dplt.dispatch
-        ... def my_plot():
+        ... def my_plot(*args, **kwargs):
         ...     pass
         >>>
         >>> @my_plot.register("vispy")
-        ... def _():
-        ...     print("Using vispy backend")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_vispy_kwargs(kwargs)
+        ...     print(f"Using vispy backend with {args = }, {kwargs = }")
         >>>
         >>> @my_plot.register("matplotlib")
-        ... def _():
-        ...     print("Using matplotlib backend")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_matplotlib_kwargs(kwargs)
+        ...     print(f"Using matplotlib backend with {args = }, {kwargs = }")
         >>>
         >>> my_plot()  # When not specified, use default backend
-        Using vispy backend
+        Using vispy backend with args = (), kwargs = {}
         >>>
-        >>> my_plot(backend="matplotlib")  # We can force the backend
-        Using matplotlib backend
-        >>>
-        >>> dplt.set_defaults("matplotlib")  # Or change the default backend...
+        >>> dplt.set_defaults("matplotlib")  # We can change the default backend
         'matplotlib'
         >>> my_plot()  # So that now it defaults to 'matplotlib'
-        Using matplotlib backend
+        Using matplotlib backend with args = (), kwargs = {}
         >>>
+        >>> dplt.set_defaults(
+        ...     "matplotlib", color="red"
+        ... )  # We can also specify additional defaults
+        'matplotlib'
+        >>> my_plot()  # So that now it defaults to 'matplotlib' and color='red'
+        Using matplotlib backend with args = (), kwargs = {'color': 'red'}
         >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
-        Using vispy backend
+        Using vispy backend with args = (), kwargs = {'color': 'red'}
+        >>> my_plot(backend="vispy", color="green")  # And we can also override any default
+        Using vispy backend with args = (), kwargs = {'color': 'green'}
+        >>> dplt.set_defaults("vispy")  # Reset all defaults
+        'vispy'
     """
     global DEFAULT_BACKEND, DEFAULT_KWARGS
 
@@ -104,16 +117,15 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> str:
             f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
         )
 
-    with BACKEND_LOCK:
-        try:
-            importlib.import_module(f"{backend}")
-            DEFAULT_BACKEND = backend
-            DEFAULT_KWARGS = kwargs
-            return backend
-        except ImportError:
-            raise ImportError(
-                f"Could not load backend '{backend}', did you install it?"
-            ) from None
+    try:
+        importlib.import_module(f"{backend}")
+        DEFAULT_BACKEND = backend
+        DEFAULT_KWARGS = kwargs
+        return backend
+    except ImportError:
+        raise ImportError(
+            f"Could not load backend '{backend}', did you install it?"
+        ) from None
 
 
 @contextmanager
@@ -132,34 +144,68 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
 
     Return:
         The name of the default backend used in this context.
+
+    Examples:
+        The following example shows how set plot defaults in a context.
+
+        >>> import differt.plotting as dplt
+        >>>
+        >>> @dplt.dispatch
+        ... def my_plot(*args, **kwargs):
+        ...     pass
+        >>>
+        >>> @my_plot.register("vispy")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_vispy_kwargs(kwargs)
+        ...     print(f"Using vispy backend with {args = }, {kwargs = }")
+        >>>
+        >>> @my_plot.register("plotly")
+        ... def _(*args, **kwargs):
+        ...     dplt.process_plotly_kwargs(kwargs)
+        ...     print(f"Using plotly backend with {args = }, {kwargs = }")
+        >>>
+        >>> my_plot()  # When not specified, use default backend
+        Using vispy backend with args = (), kwargs = {}
+        >>> with dplt.use():  # No parameters = reset defaults (except the default backend)
+        ...     my_plot()
+        Using vispy backend with args = (), kwargs = {}
+        >>> with dplt.use("plotly"):  # We can change the default backend
+        ...     my_plot()  # So that now it defaults to 'matplotlib'
+        Using plotly backend with args = (), kwargs = {}
+        >>>
+        >>> with dplt.use(
+        ...     "plotly", color="black"
+        ... ):  # We can also specify additional defaults
+        ...     my_plot()
+        Using plotly backend with args = (), kwargs = {'color': 'black'}
     """
     global DEFAULT_BACKEND, DEFAULT_KWARGS
     default_backend = DEFAULT_BACKEND
     default_kwargs = DEFAULT_KWARGS
 
-    try:
-        yield set_defaults(*args, **kwargs)
-    finally:
-        DEFAULT_BACKEND = default_backend
-        DEFAULT_KWARGS = default_kwargs
+    with BACKEND_LOCK:
+        try:
+            yield set_defaults(*args, **kwargs)
+        finally:
+            DEFAULT_BACKEND = default_backend
+            DEFAULT_KWARGS = default_kwargs
 
 
-class Dispatcher(Protocol, Generic[P, T]):  # pragma: no cover
+class _Dispatcher(Generic[P, T]):
+    registry: types.MappingProxyType[str, Callable[P, T]]
+
     def __call__(
         self,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T: ...
-
     def register(
         self,
         backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
-    def dispatch(self, backend: str) -> Callable[P, T]: ...
 
-
-def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
+def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
     """
     Transform a function into a backend dispatcher for plot functions.
 
@@ -168,8 +214,12 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
             functions for each backend implementation.
 
     Return:
-        The same callable, wrapped in a :py:class:`Dispatcher`
-        class instance.
+        A callable that can register backend implementations with ``register``.
+
+    Notes:
+        Only the functions registered with ``register`` will be called.
+        The :data:`fun` argument wrapped inside :func:`dispatch` is
+        only used for documentation, but never called.
 
     Examples:
         The following example shows how one can implement plotting
@@ -222,12 +272,21 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    registry = {}
+    registry: dict[str, Callable[P, T]] = {}
 
     def register(
         backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        """Register a new implementation."""
+        """
+        Return a wrapper that will call the decorated function for the specified backend.
+
+        Args:
+            backend: The name of backend for which the decorated
+                function will be called.
+
+        Return:
+            A wrapper to be put before the backend-specific implementation.
+        """
         if backend not in SUPPORTED_BACKENDS:
             raise ValueError(
                 f"Unsupported backend '{backend}', "
@@ -254,19 +313,21 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
 
         return wrapper
 
-    def dispatch(backend: str) -> Callable[P, T]:
-        try:
-            return registry[backend]
-        except KeyError:
-            raise NotImplementedError(
-                f"No backend implementation for '{backend}'"
-            ) from None
-
     @wraps(fun)
-    def main_wrapper(
+    def wrapper(
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T:
+        """
+        Call the appropriate backend implementation based on the default backend and the provided arguments.
+
+        Args:
+            args: Positional arguments passed to the correct backend implementation.
+            kwargs: Keyword arguments passed to the correct backend implementation.
+
+        Return:
+            The result of the call.
+        """
         # We cannot currently add keyword argument to the signature,
         # at least Pyright will not allow that,
         # see: https://github.com/microsoft/pyright/issues/5844.
@@ -274,16 +335,23 @@ def dispatch(fun: Callable[P, T]) -> Dispatcher[P, T]:
         # The motivation is detailed in P612:
         # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
         backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
-        return dispatch(backend)(*args, **kwargs)
 
-    main_wrapper.register = register  # type: ignore[attr-defined]
-    main_wrapper.dispatch = dispatch  # type: ignore[attr-defined]
-    main_wrapper.registry = registry  # type: ignore[attr-defined]
+        try:
+            return registry[backend](*args, **kwargs)
+        except KeyError:
+            raise NotImplementedError(
+                f"No backend implementation for '{backend}'"
+            ) from None
 
-    return main_wrapper  # type: ignore[return-value]
+        return wrapper
+
+    wrapper.register = register  # type: ignore
+    wrapper.registry = types.MappingProxyType(registry)  # type: ignore
+
+    return wrapper  # type: ignore
 
 
-def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
+def view_from_canvas(canvas: Canvas) -> ViewBox:
     """
     Return the view from the specified canvas.
 
@@ -321,7 +389,7 @@ def view_from_canvas(canvas: SceneCanvas) -> ViewBox:
 
 def process_vispy_kwargs(
     kwargs: MutableMapping[str, Any],
-) -> tuple[SceneCanvas, ViewBox]:
+) -> tuple[Canvas, ViewBox]:
     """
     Process keyword arguments passed to some VisPy plotting utility.
 
@@ -333,7 +401,7 @@ def process_vispy_kwargs(
                 The keys specified below will be removed from the mapping.
 
     Keyword Args:
-        convas (:py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
+        canvas (:py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
             The canvas that draws contents of the scene. If not provided,
             will try to access canvas from ``view`` (if supplied).
         view (:py:class:`Viewbox<vispy.scene.widgets.viewbox.ViewBox>`):
@@ -410,7 +478,7 @@ def process_matplotlib_kwargs(
         or plt.figure()
     )
 
-    def current_ax3d() -> Axes3D | None:
+    def current_ax3d() -> Optional[Axes3D]:
         if len(figure.axes) > 0:
             ax = figure.gca()
             if isinstance(ax, Axes3D):
@@ -455,20 +523,36 @@ def process_plotly_kwargs(
 
 
 @contextmanager
-def reuse(**kwargs: Any) -> Iterator[SceneCanvas | MplFigure | Figure]:
+def reuse(**kwargs: Any) -> Iterator[Union[Canvas, MplFigure, Figure]]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:
-        args: Positional arguments passed to
-            :py:func:`set_defaults`.
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
     Return:
         The canvas or figure that is reused for this context.
+
+    Examples:
+        The following example show how the same figure is reused
+        for multiple plots.
+
+        .. plotly::
+
+            >>> from differt.plotting import draw_image, reuse
+            >>>
+            >>> x = np.linspace(-1.0, +1.0, 100)
+            >>> y = np.linspace(-4.0, +4.0, 200)
+            >>> X, Y = np.meshgrid(x, y)
+            >>>
+            >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
+            ...     for z0, w in enumerate(jnp.linspace(0, 10 * jnp.pi, 5)):
+            ...         Z = np.cos(w * X) * np.sin(w * Y)
+            ...         draw_image(Z, x=x, y=y, z0=z0)  # TODO: fix colorbar
+            >>> fig  # doctest: +SKIP
     """
     global DEFAULT_KWARGS
-    backend: str | None = kwargs.pop("backend", None)
+    backend: Optional[str] = kwargs.pop("backend", None)
 
     with use(backend=backend) as b:
         try:

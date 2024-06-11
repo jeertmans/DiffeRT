@@ -71,18 +71,17 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901
 
         output_dir = path.join(app.srcdir, output_dir)
 
-        apidoc.main([*options, f"-o={output_dir}", module_dir, *exclude_patterns])
-        apidoc.main(
-            [
-                *options,
-                f"-o={output_dir}",
-                module_dir,
-                *[
-                    path.join(module_dir, exclude_pattern)
-                    for exclude_pattern in exclude_patterns
-                ],
-            ]
-        )
+        args = [
+            *options,
+            f"-o={output_dir}",
+            module_dir,
+            *[
+                path.join(module_dir, exclude_pattern)
+                for exclude_pattern in exclude_patterns
+            ],
+        ]
+
+        apidoc.main(args)
 
 
 def setup(app: Sphinx) -> None:

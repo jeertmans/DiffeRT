@@ -117,6 +117,9 @@ pub mod complete {
     /// A complete graph, i.e.,
     /// a simple undirected graph in which every pair of
     /// distinc nodes is connected by a unique edge.
+    ///
+    /// Args:
+    ///     num_nodes (int): The number of nodes.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct CompleteGraph {
@@ -548,6 +551,12 @@ pub mod directed {
 
     impl DiGraph {
         #[inline]
+        pub fn empty(num_nodes: usize) -> Self {
+            Self {
+                edges_list: vec![vec![]; num_nodes],
+            }
+        }
+        #[inline]
         pub fn get_adjacent_nodes(&self, node: NodeId) -> &[NodeId] {
             self.edges_list[node].as_ref()
         }
@@ -574,6 +583,23 @@ pub mod directed {
 
     #[pymethods]
     impl DiGraph {
+        /// Create an edgeless directed graph with ``num_nodes`` nodes.
+        ///
+        /// This is equivalent to creating a directed graph from
+        /// an adjacency matrix will all entries equal to :py:data:`False`.
+        ///
+        /// Args:
+        ///     num\_nodes (int): The number of nodes.
+        ///
+        /// Return:
+        ///     DiGraph: A directed graph.
+        #[classmethod]
+        #[pyo3(name = "empty")]
+        #[pyo3(text_signature = "(cls, num_nodes)")]
+        fn py_empty(_: Bound<'_, PyType>, num_nodes: usize) -> Self {
+            Self::empty(num_nodes)
+        }
+
         /// Create a directed graph from an adjacency matrix.
         ///
         /// Each row of the adjacency matrix ``M`` contains boolean
@@ -1109,6 +1135,16 @@ mod tests {
         let got = graph.all_paths(from, to, depth + 2, false).collect_array();
 
         assert_eq!(got, expected);
+    }
+
+    #[rstest]
+    #[case(9, 2)]
+    #[case(3, 3)]
+    fn test_empty_di_graph_returns_all_paths(#[case] num_nodes: usize, #[case] depth: usize) {
+        let mut graph = DiGraph::empty(num_nodes);
+        let (from, to) = graph.insert_from_and_to_nodes(false);
+
+        assert_eq!(graph.all_paths(from, to, depth + 2, true).count(), 0);
     }
 
     #[rstest]
