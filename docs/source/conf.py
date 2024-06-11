@@ -11,6 +11,8 @@ import os
 from datetime import date
 from typing import Any
 
+from sphinx.application import Sphinx
+
 from differt import __version__
 
 project = "DiffeRT"
@@ -153,14 +155,15 @@ html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,
-    "path_to_docs": "docs/source",
     "repository_url": "https://github.com/jeertmans/DiffeRT",
     "repository_branch": "main",
+    "path_to_docs": "docs/source",
     "use_edit_page_button": True,
     "use_source_button": True,
     "use_issues_button": True,
     "use_repository_button": True,
     "navigation_with_keys": False,
+    "launch_buttons": {"colab_url": "https://colab.research.google.com"},
 }
 
 html_logo = "_static/logo_250px.png"
@@ -188,7 +191,7 @@ def setup(app):
 """
 
 
-def fix_sionna_folder(app, obj: Any, bound_method: bool) -> None:
+def fix_sionna_folder(app: Sphinx, obj: Any, bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """
@@ -205,5 +208,5 @@ def fix_sionna_folder(app, obj: Any, bound_method: bool) -> None:
         obj.__signature__ = sig.replace(parameters=parameters)
 
 
-def setup(app):
+def setup(app: Sphinx) -> None:
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
