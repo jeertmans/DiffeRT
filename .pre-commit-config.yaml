@@ -41,6 +41,14 @@ repos:
     language: system
     types: [rust]
     args: []
+  - id: nbsetup
+    name: nbsetup
+    description: Add install preamble to Jupyter Notebooks
+    entry: python scripts/nbsetup.py
+    language: python
+    types: [jupyter]
+    additional_dependencies: [nbformat]
+    args: []
 - repo: https://github.com/flying-sheep/bibfmt
   rev: v4.3.0
   hooks:
