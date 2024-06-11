@@ -41,11 +41,13 @@ repos:
     language: system
     types: [rust]
     args: []
-- repo: https://github.com/FlamingTempura/bibtex-tidy
-  rev: v1.11.0  # DO NOT CHANGE, see https://github.com/FlamingTempura/bibtex-tidy/issues/419
+- repo: https://github.com/flying-sheep/bibfmt
+  rev: v4.3.0
   hooks:
-  - id: bibtex-tidy
-    args: [--no-backup, --sort, --sort-fields]
+  - id: bibfmt
+    args:
+    - --sort-by-bibkey
+    - --drop=abstract
 - repo: https://github.com/codespell-project/codespell
   rev: v2.3.0
   hooks:
