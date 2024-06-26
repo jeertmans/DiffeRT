@@ -685,6 +685,36 @@ pub mod directed {
             (from, to)
         }
 
+        /// Disconnect one or more nodes from the graph.
+        ///
+        /// This has two effects:
+        ///
+        /// - all paths from any of the specified nodes will be removed;
+        /// - and all paths to any of the specified nodes will be removed.
+        ///
+        /// Args:
+        ///     nodes (int): The nodes to be disconnected.
+        ///     fast\_mode (bool): Whether to skip removing the path to any
+        ///         of the specified nodes. In practice, removing paths
+        ///         from the nodes is sufficient, and faster to perform,
+        ///         but can lead to a slower graph traversal when
+        ///         generating all possible paths.
+        #[pyo3(signature = (*nodes, fast_mode=true))]
+        #[pyo3(text_signature = "(self, *nodes, fast_mode=True)")]
+        pub fn disconnect_nodes(&mut self, mut nodes: Vec<usize>, fast_mode: bool) {
+            for i in nodes.iter() {
+                self.edges_list[*i].clear();
+            }
+
+            if !fast_mode {
+                nodes.sort();
+
+                for edge in self.edges_list.iter_mut() {
+                    edge.retain(|node| nodes.binary_search(node).is_err());
+                }
+            }
+        }
+
         /// Return an iterator over all paths of length ``depth``
         /// from node ``from_`` to node ``to``.
         ///
