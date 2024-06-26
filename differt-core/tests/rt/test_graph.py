@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from differt_core.rt.graph import (
@@ -23,6 +24,39 @@ class TestDiGraph:
             TypeError, match="takes 0 positional arguments but 1 was given"
         ):
             _ = graph.insert_from_and_to_nodes(True)  # type: ignore
+
+    @pytest.mark.parametrize("fast_mode", (True, False))
+    def test_disconnect_nodes(self, fast_mode: bool) -> None:
+        graph = DiGraph.from_complete_graph(CompleteGraph(6))
+        from_, to = graph.insert_from_and_to_nodes()
+
+        nodes = (0, 1, 2, 5)
+        graph.disconnect_nodes(*nodes, fast_mode=fast_mode)
+
+        for depth in range(0, 3):
+            for path in graph.all_paths(
+                from_, to, depth + 2, include_from_and_to=False
+            ):
+                for node in nodes:
+                    assert node not in path
+
+    @pytest.mark.parametrize("fast_mode", (True, False))
+    def test_disconnect_nodes_equivalence(self, fast_mode: bool) -> None:
+        complete_graph = CompleteGraph(3)
+        di_graph = DiGraph.from_complete_graph(CompleteGraph(6))
+        from_, to = di_graph.insert_from_and_to_nodes()
+
+        nodes = (3, 4, 5)
+        di_graph.disconnect_nodes(*nodes, fast_mode=fast_mode)
+
+        for depth in range(0, 3):
+            complete_paths = complete_graph.all_paths_array(
+                from_, to, depth + 2, include_from_and_to=False
+            )
+            di_paths = di_graph.all_paths_array(
+                from_, to, depth + 2, include_from_and_to=False
+            )
+            np.testing.assert_equal(complete_paths, di_paths)
 
     def test_from_graph(self) -> None:
         graph = CompleteGraph(10)

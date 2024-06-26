@@ -1,4 +1,4 @@
-"""TODO."""
+"""Graph utilities to generate path candidates, as used by exhaustive Ray Tracing methods, e.g., the Image Method."""
 
 __all__ = (
     "CompleteGraph",
