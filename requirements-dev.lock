@@ -377,12 +377,12 @@ pygments==2.17.2
     # via sphinx
 pyparsing==3.1.2
     # via matplotlib
-pyqt5==5.15.10
+pyqt6==6.7.0
     # via differt
-pyqt5-qt5==5.15.2
-    # via pyqt5
-pyqt5-sip==12.13.0
-    # via pyqt5
+pyqt6-qt6==6.7.2
+    # via pyqt6
+pyqt6-sip==13.6.0
+    # via pyqt6
 pytest==8.2.0
     # via pytest-benchmark
     # via pytest-cov

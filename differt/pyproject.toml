@@ -41,9 +41,7 @@ jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl"]
 matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]
-vispy-backend = [
-  "PyQt5>=5.12.3",
-]
+vispy-backend = ["PyQt6>=6.6.1"]
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"
