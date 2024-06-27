@@ -69,8 +69,8 @@ venvPath = "."
 addopts = [
   "--numprocesses=logical",
   "--cov-report=xml",
-  "--cov=differt",
-  "--cov=differt-core",
+  "--cov=differt/src/differt",
+  "--cov=differt-core/python/differt_core",
   "--import-mode=importlib",
   "--doctest-modules",
   "--doctest-ignore-import-errors",
