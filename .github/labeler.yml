@@ -1,0 +1,44 @@
+benchmarks:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/benches/**/*.rs'
+    - '**/benchmarks/**/*.py'
+ci:
+- changed-files:
+  - any-glob-to-any-file:
+    - .github/**/*
+    - .pre-commit-config.yaml
+    - pyproject.toml
+
+documentation:
+- changed-files:
+  - any-glob-to-any-file:
+    - docs/**/*
+    - README.md
+
+dependencies:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/*.lock'
+    - '**/Cargo.toml'
+    - '**/pyproject.toml'
+
+python:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/*.py'
+
+rust:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/*.py'
+
+tests:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/tests/**/*.py'
+    - '**/tests/**/*.rs'
+
+visualization:
+- changed-files:
+  - any-glob-to-any-file: '**/plotting/**/*.py'
