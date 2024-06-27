@@ -57,7 +57,6 @@ To run build this package locally, you need:
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
 - and [Rye](https://rye.astral.sh/) to manage this project.
 
-
 ## Local development
 
 The following commands assume that you installed
@@ -90,7 +89,7 @@ Both Rust and Python codebases have their own tests and benchmarks.
 
 #### Testing Rust code
 
-You can very easily test you code using Cargo:
+You can test Rust code using Cargo:
 
 ```bash
 cargo test
@@ -104,7 +103,7 @@ cargo bench
 
 #### Testing Python code
 
-in the same way, you can very test you code with Pytest:
+Similarly, you can test Python code with Pytest:
 
 ```bash
 pytest

@@ -20,3 +20,6 @@ differt/src/differt/scene/scenes/
 .ipynb_checkpoints/
 
 # Tools
+
+.coverage
+coverage.xml
