@@ -11,7 +11,7 @@ import pytest
 if sys.platform.startswith("darwin"):
     # Seems like VisPy cannot be imported inside a doctest
     # module on macOS runners...
-    collect_ignore_glob = ["plotting/*"]
+    collect_ignore_glob = ["*", "**/*"]
 
 
 @pytest.fixture(autouse=True)
