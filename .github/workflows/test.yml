@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-13, ubuntu-latest, windows-latest]
         pyversion: ['3.9', '3.10', '3.11', '3.12']
     runs-on: ${{ matrix.os }}
     steps:
@@ -66,17 +66,11 @@ jobs:
       shell: bash
       run: rye sync
 
-    - name: Run Pytest
-      if: matrix.os != 'ubuntu-latest' || matrix.pyversion != '3.12'
+    - name: Run tests
       shell: bash
-      run: rye run pytest -n auto
-
-    - name: Run pytest and coverage for differt
-      if: matrix.os == 'ubuntu-latest' && matrix.pyversion == '3.12'
-      run: rye run pytest --cov-report xml --cov=differt differt
+      run: rye run pytest
 
     - name: Upload to codecov.io
-      if: matrix.os == 'ubuntu-latest' && matrix.pyversion == '3.12'
       uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
@@ -104,8 +98,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Run Cargo test
-      run: |
-        cargo test
+      run: cargo test
 
   python-benchmark:
     runs-on: ubuntu-latest

@@ -67,6 +67,10 @@ venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
+  "--numprocesses=logical",
+  "--cov-report=xml",
+  "--cov=differt/src/differt",
+  "--cov=differt-core/python/differt_core",
   "--import-mode=importlib",
   "--doctest-modules",
   "--doctest-ignore-import-errors",
