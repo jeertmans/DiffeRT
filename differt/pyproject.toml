@@ -22,7 +22,7 @@ dependencies = [
   "jaxtyping>=0.2.24",
   "numpy>=1.26.1",
   "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version < '3.11'",
+  "typing-extensions>=4.9.0;python_version<'3.11'",
   "requests>=2.31.0",
   "tqdm>=4.66.2",
 ]
@@ -41,7 +41,10 @@ jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl"]
 matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]
-vispy-backend = ["PyQt6>=6.6.1"]
+vispy-backend = [
+  "PyQt6>=6.5",
+  "PyQt6!=6.6.1;platform_system=='darwin'",
+]
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"
