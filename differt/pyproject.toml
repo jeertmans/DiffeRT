@@ -42,7 +42,7 @@ matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = ["vispy>=0.14.1"]
 vispy-backend = [
-  "PySide6>=6.5",
+  "PyQt5>=5.12.3",
 ]
 
 [project.urls]
