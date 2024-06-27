@@ -377,12 +377,13 @@ pygments==2.17.2
     # via sphinx
 pyparsing==3.1.2
     # via matplotlib
-pyqt6==6.7.0
+pyside6==6.7.2
     # via differt
-pyqt6-qt6==6.7.0
-    # via pyqt6
-pyqt6-sip==13.6.0
-    # via pyqt6
+pyside6-addons==6.7.2
+    # via pyside6
+pyside6-essentials==6.7.2
+    # via pyside6
+    # via pyside6-addons
 pytest==8.2.0
     # via pytest-benchmark
     # via pytest-cov
@@ -445,6 +446,10 @@ send2trash==1.8.3
     # via jupyter-server
 setuptools==69.5.1
     # via nodeenv
+shiboken6==6.7.2
+    # via pyside6
+    # via pyside6-addons
+    # via pyside6-essentials
 six==1.16.0
     # via asttokens
     # via bleach
