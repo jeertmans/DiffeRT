@@ -191,6 +191,9 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    kwargs.setdefault("width", 3.0)
+    kwargs.setdefault("marker_size", 0.0)
+
     for i in np.ndindex(paths.shape[:-2]):
         view.add(LinePlot(data=paths[i], **kwargs))
 
@@ -280,10 +283,13 @@ def _(
     from vispy.scene.visuals import Markers, Text
 
     canvas, view = process_vispy_kwargs(kwargs)
+    kwargs.setdefault("size", 1)
+    kwargs.setdefault("edge_width_rel", 0.05)
+    kwargs.setdefault("scaling", "scene")
     view.add(Markers(pos=markers, **kwargs))
 
     if labels:
-        text_kwargs = {"font_size": 1000, **(text_kwargs or {})}
+        text_kwargs = {"font_size": 400, **(text_kwargs or {})}
         view.add(Text(text=labels, pos=markers, **text_kwargs))
 
     view.camera.set_range()
