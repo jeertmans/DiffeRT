@@ -13,6 +13,8 @@ docs/build/
 docs/source/reference/*.rst
 
 # Sionna data
+
+differt/src/differt/scene/scenes.lock
 differt/src/differt/scene/scenes/
 
 # Notebooks

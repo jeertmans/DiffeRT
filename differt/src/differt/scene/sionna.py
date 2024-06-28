@@ -13,15 +13,13 @@ __all__ = (
 import tarfile
 import tempfile
 from pathlib import Path
-from threading import Lock
 from typing import Union
 
 import requests
+from filelock import FileLock
 from tqdm import tqdm
 
 SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
-
-_LOCK = Lock()
 
 
 def download_sionna_scenes(
@@ -54,7 +52,7 @@ def download_sionna_scenes(
     if isinstance(folder, str):
         folder = Path(folder)
 
-    with _LOCK:
+    with FileLock(folder.with_name("scenes.lock")):
         if folder.exists():
             if cached:
                 return

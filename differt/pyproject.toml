@@ -18,11 +18,12 @@ dependencies = [
   "beartype>=0.17.2",
   "differt-core==0.0.17",
   "equinox>=0.11.2",
+  "filelock>=3.15.4",
   "jax>=0.4.20",
   "jaxtyping>=0.2.24",
   "numpy>=1.26.1",
   "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version < '3.11'",
+  "typing-extensions>=4.9.0;python_version<'3.11'",
   "requests>=2.31.0",
   "tqdm>=4.66.2",
 ]
@@ -40,7 +41,14 @@ all = [
 jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl"]
 matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
-vispy = ["vispy>=0.14.1"]
+vispy = [
+  "vispy>=0.14.1",
+  # PyOpenGL seems to be needed, see:
+  # https://github.com/vispy/vispy/issues/2547
+  # https://github.com/vispy/vispy/pull/2549
+  # https://github.com/bitcraze/crazyflie-clients-python/pull/708
+  "PyOpenGL>=3.1.0;platform_system=='Darwin'",
+]
 vispy-backend = ["PyQt6>=6.6.1"]
 
 [project.urls]

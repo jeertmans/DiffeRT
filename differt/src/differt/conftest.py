@@ -1,3 +1,4 @@
+import sys
 from typing import Any
 
 import jax
@@ -6,6 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import pytest
+
+if sys.platform.startswith("darwin"):
+    # Seems like VisPy cannot be imported inside a doctest
+    # module on macOS runners...
+    collect_ignore_glob = ["*", "**/*"]
 
 
 @pytest.fixture(autouse=True)

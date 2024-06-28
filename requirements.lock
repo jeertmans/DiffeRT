@@ -71,6 +71,8 @@ executing==2.0.1
     # via stack-data
 fastjsonschema==2.19.1
     # via nbformat
+filelock==3.15.4
+    # via differt
 fonttools==4.51.0
     # via matplotlib
 fqdn==1.5.1
@@ -274,7 +276,7 @@ pyparsing==3.1.2
     # via matplotlib
 pyqt6==6.7.0
     # via differt
-pyqt6-qt6==6.7.0
+pyqt6-qt6==6.7.2
     # via pyqt6
 pyqt6-sip==13.6.0
     # via pyqt6

@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Optional, Union
 
 import numpy as np
-from jaxtyping import Float, Num, UInt
+from jaxtyping import Float, Int, Num
 
 from ._utils import (
     dispatch,
@@ -38,7 +38,7 @@ except ImportError:
 @dispatch
 def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: UInt[np.ndarray, "num_triangles 3"],
+    triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
@@ -84,7 +84,7 @@ def draw_mesh(
 @draw_mesh.register("vispy")
 def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: UInt[np.ndarray, "num_triangles 3"],
+    triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Mesh
@@ -100,7 +100,7 @@ def _(
 @draw_mesh.register("matplotlib")
 def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: UInt[np.ndarray, "num_triangles 3"],
+    triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
@@ -114,7 +114,7 @@ def _(
 @draw_mesh.register("plotly")
 def _(
     vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: UInt[np.ndarray, "num_triangles 3"],
+    triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
@@ -330,8 +330,8 @@ def draw_image(
         Num[np.ndarray, "rows cols 3"],
         Num[np.ndarray, "rows cols 4"],
     ],
-    x: Optional[Float[np.ndarray, " rows"]] = None,
-    y: Optional[Float[np.ndarray, " cols"]] = None,
+    x: Optional[Float[np.ndarray, " cols"]] = None,
+    y: Optional[Float[np.ndarray, " rows"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
@@ -352,7 +352,7 @@ def draw_image(
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
             :py:class:`Mesh<vispy.scene.visuals.Image>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface>`,
+            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
             or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
@@ -391,8 +391,8 @@ def _(
         Num[np.ndarray, "rows cols 3"],
         Num[np.ndarray, "rows cols 4"],
     ],
-    x: Optional[Float[np.ndarray, " rows"]] = None,
-    y: Optional[Float[np.ndarray, " cols"]] = None,
+    x: Optional[Float[np.ndarray, " cols"]] = None,
+    y: Optional[Float[np.ndarray, " rows"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
@@ -443,14 +443,22 @@ def _(
         Num[np.ndarray, "rows cols 3"],
         Num[np.ndarray, "rows cols 4"],
     ],
-    x: Optional[Float[np.ndarray, " rows"]] = None,
-    y: Optional[Float[np.ndarray, " cols"]] = None,
+    x: Optional[Float[np.ndarray, " cols"]] = None,
+    y: Optional[Float[np.ndarray, " rows"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    ax.plot_surface(X=x, Y=y, Z=np.full_like(data, z0), color=data, **kwargs)
+    m, n = data.shape[:2]
+
+    if x is None:
+        x = np.arange(n)
+
+    if y is None:
+        y = np.arange(m)
+
+    ax.contourf(x, y, data, offset=z0, **kwargs)
 
     return fig
 
@@ -462,8 +470,8 @@ def _(
         Num[np.ndarray, "rows cols 3"],
         Num[np.ndarray, "rows cols 4"],
     ],
-    x: Optional[Float[np.ndarray, " rows"]] = None,
-    y: Optional[Float[np.ndarray, " cols"]] = None,
+    x: Optional[Float[np.ndarray, " cols"]] = None,
+    y: Optional[Float[np.ndarray, " rows"]] = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
