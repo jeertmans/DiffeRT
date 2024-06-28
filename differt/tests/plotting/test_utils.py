@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import platform
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -19,11 +18,6 @@ from differt.plotting._utils import (
 )
 
 from ._types import MissingModulesContextGenerator
-
-if not platform.system() == "Darwin" and platform.processor() == "arm":
-    pytest.skip(
-        "skipping tests on macOS (m1) runners at the moment...", allow_module_level=True
-    )
 
 
 @dispatch  # type: ignore
