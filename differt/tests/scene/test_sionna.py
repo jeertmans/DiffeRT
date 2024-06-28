@@ -36,7 +36,7 @@ def test_download_sionna_scenes_existing_non_empty_folder(folder: Path) -> None:
         download_sionna_scenes(folder=folder, cached=False)
 
 
-def test_list_sionna_scenes(folder: Path):
+def test_list_sionna_scenes(folder: Path) -> None:
     list_sionna_scenes(folder=folder)
     list_sionna_scenes(folder=str(folder))
 
