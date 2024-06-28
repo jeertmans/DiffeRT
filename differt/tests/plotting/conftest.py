@@ -22,12 +22,12 @@ def missing_modules(monkeypatch: pytest.MonkeyPatch) -> MissingModulesContextGen
         real_import_module = importlib.import_module
 
         def monkey_import(name: str, *args: Any, **kwargs: Any) -> ModuleType:
-            if name in names:
+            if name.partition(".")[0] in names:
                 raise ImportError(f"Mocked import error for '{name}'")
             return real_import(name, *args, **kwargs)
 
         def monkey_import_module(name: str, *args: Any, **kwargs: Any) -> ModuleType:
-            if name in names:
+            if name.partition(".")[0] in names:
                 raise ImportError(f"Mocked import error for '{name}'")
             return real_import_module(name, *args, **kwargs)
 
