@@ -51,7 +51,7 @@ class TriangleScene:
         Load a triangle scene from a XML file.
 
         This method uses
-        :meth:`SionnaScene.load_xml<differt.scene.sionna.SionnaScene.load_xml>`
+        :meth:`SionnaScene.load_xml<differt_core.scene.sionna.SionnaScene.load_xml>`
         internally.
 
         Args:
@@ -78,11 +78,11 @@ class TriangleScene:
         Plot this scene on a 3D scene.
 
         Args:
-            tx_kwargs: A mutable mapping of keyword arguments passed to
+            tx_kwargs: A mapping of keyword arguments passed to
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
-            rx_kwargs: A mutable mapping of keyword arguments passed to
+            rx_kwargs: A mapping of keyword arguments passed to
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
-            mesh_kwargs: A mutable mapping of keyword arguments passed to
+            mesh_kwargs: A mapping of keyword arguments passed to
                 :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
             kwargs: Keyword arguments passed to both
                 :py:func:`draw_markers<differt.plotting.draw_markers>` and
@@ -91,14 +91,10 @@ class TriangleScene:
         Return:
             The resulting plot output.
         """
-        if tx_kwargs is None:
-            tx_kwargs = {"labels": "tx"}
-
-        if rx_kwargs is None:
-            rx_kwargs = {"labels": "rx"}
-
-        if mesh_kwargs is None:
-            mesh_kwargs = {}
+        tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}
+        rx_kwargs = {"labels": "rx", **(rx_kwargs or {}), **kwargs}
+        # TODO: add shapes color using BSDF
+        mesh_kwargs = {**(mesh_kwargs or {}), **kwargs}
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
