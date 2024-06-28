@@ -52,7 +52,7 @@ def download_sionna_scenes(
     if isinstance(folder, str):
         folder = Path(folder)
 
-    with FileLock(folder.with_stem(".lock")):
+    with FileLock(folder.with_name("scenes.lock")):
         if folder.exists():
             if cached:
                 return
