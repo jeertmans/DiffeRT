@@ -32,7 +32,7 @@ def test_download_sionna_scenes_existing_empty_folder(empty_folder: Path) -> Non
 
 
 def test_download_sionna_scenes_existing_non_empty_folder(folder: Path) -> None:
-    with pytest.raises(OSError, match="[Dd]irectory not empty"):
+    with pytest.raises(OSError, match="[Dd]irectory (is )?not empty"):
         download_sionna_scenes(folder=folder, cached=False)
 
 
