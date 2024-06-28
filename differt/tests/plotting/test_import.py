@@ -2,7 +2,7 @@ import importlib
 
 import pytest
 
-import differt.plotting._utils
+import differt.plotting._core
 
 from ._types import MissingModulesContextGenerator
 
@@ -17,4 +17,4 @@ def test_import_with_missing_backends(
     with (
         missing_modules(*backends),
     ):
-        importlib.reload(differt.plotting._utils)
+        importlib.reload(differt.plotting._core)
