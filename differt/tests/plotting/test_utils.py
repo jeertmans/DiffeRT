@@ -1,14 +1,7 @@
 from __future__ import annotations
 
-import builtins
-import importlib
 import platform
-import sys
-from contextlib import AbstractContextManager as ContextManager
-from contextlib import contextmanager
-from threading import Lock
-from types import ModuleType
-from typing import Any, Protocol
+from typing import Any
 
 import matplotlib.pyplot as plt
 import pytest
@@ -25,45 +18,12 @@ from differt.plotting._utils import (
     view_from_canvas,
 )
 
+from ._types import MissingModulesContextGenerator
+
 if not platform.system() == "Darwin" and platform.processor() == "arm":
     pytest.skip(
         "skipping tests on macOS (m1) runners at the moment...", allow_module_level=True
     )
-
-_LOCK = Lock()
-
-
-class MissingModulesContextGenerator(Protocol):
-    def __call__(self, *names: str) -> ContextManager[pytest.MonkeyPatch]: ...
-
-
-@pytest.fixture
-def missing_modules(monkeypatch: pytest.MonkeyPatch) -> MissingModulesContextGenerator:
-    @contextmanager  # type: ignore[arg-type]
-    def ctx(*names: str) -> ContextManager[pytest.MonkeyPatch]:  # type: ignore[misc]
-        real_import = builtins.__import__
-        real_import_module = importlib.import_module
-
-        def monkey_import(name: str, *args: Any, **kwargs: Any) -> ModuleType:
-            if name in names:
-                raise ImportError(f"Mocked import error for '{name}'")
-            return real_import(name, *args, **kwargs)
-
-        def monkey_import_module(name: str, *args: Any, **kwargs: Any) -> ModuleType:
-            if name in names:
-                raise ImportError(f"Mocked import error for '{name}'")
-            return real_import_module(name, *args, **kwargs)
-
-        with monkeypatch.context() as m, _LOCK:
-            for name in names:
-                m.delitem(sys.modules, name, raising=False)
-
-            m.setattr(builtins, "__import__", monkey_import)
-            m.setattr(importlib, "import_module", monkey_import_module)
-
-            yield m  # type: ignore
-
-    return ctx
 
 
 @dispatch  # type: ignore
