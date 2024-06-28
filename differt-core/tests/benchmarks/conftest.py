@@ -1,6 +1,6 @@
 import pytest_benchmark.plugin as bench_plugin
 import pytest_benchmark.stats as bench_stats
-from _pytest.config import Config
+from pytest import Config
 
 
 def pytest_benchmark_generate_json(
