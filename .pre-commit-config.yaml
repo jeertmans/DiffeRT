@@ -8,7 +8,7 @@ repos:
     exclude: .*\.svg$
   - id: trailing-whitespace
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-  rev: v2.13.0
+  rev: v2.14.0
   hooks:
   - id: pretty-format-yaml
     args: [--autofix]
@@ -16,7 +16,7 @@ repos:
     args: [--autofix, --trailing-commas]
     exclude: Cargo.lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.4.10
+  rev: v0.5.4
   hooks:
   - id: ruff
     args: [--fix]
@@ -24,7 +24,7 @@ repos:
   - id: ruff-format
     types_or: [python, pyi, jupyter]
 - repo: https://github.com/RobertCraigie/pyright-python
-  rev: v1.1.369
+  rev: v1.1.372
   hooks:
   - id: pyright
 - repo: https://github.com/doublify/pre-commit-rust
