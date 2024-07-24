@@ -80,11 +80,10 @@ where
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct Material {
+    /// # type: str
     /// The material ID.
     ///
     /// This can be, e.g., an ITU identifier.
-    ///
-    /// # type: str
     #[serde(rename(deserialize = "@id"))]
     pub(crate) id: String,
     /// The material color, used when plotted.
@@ -197,10 +196,10 @@ impl SionnaScene {
     /// Load a Sionna scene from a XML file.
     ///
     /// Args:
-    ///     file: The path to the XML file.
+    ///     file (str): The path to the XML file.
     ///
     /// Return:
-    ///     The corresponding scene.
+    ///     SionnaScene: The corresponding scene.
     #[classmethod]
     pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);
