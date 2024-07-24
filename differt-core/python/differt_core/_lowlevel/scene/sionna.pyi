@@ -5,5 +5,12 @@ class SionnaScene:
     @classmethod
     def load_xml(cls, file: str) -> SionnaScene: ...
 
-class Material: ...
-class Shape: ...
+class Material:
+    id: str
+    rgb: tuple[float, float, float]
+
+class Shape:
+    type: str
+    id: str
+    file: str
+    material_id: str

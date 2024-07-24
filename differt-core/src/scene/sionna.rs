@@ -1,4 +1,3 @@
-// TODO: fix attribute type hint in docs.
 use std::{collections::HashMap, fs::File, io::BufReader};
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
@@ -14,27 +13,24 @@ use serde::{de, Deserialize};
 /// :class:`TriangleScene<differt.scene.triangle_scene.TriangleScene>`.
 ///
 /// Warning:
-///     Currently, the ``'etoile'`` scene from Sionna cannot be loaded
-///     properly, as the material properties are encoded differently.
-///
-///     We are still thinking of a better way to parse those XML files,
+///     We are still open to better ways to parse those XML files,
 ///     please reach out us if you would like to help!
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct SionnaScene {
-    /// A mapping between material IDs and actual
+    /// dict[str, Material]: A mapping between material IDs and actual
     /// materials.
     ///
     /// Currently, only BSDF materials are used.
     #[serde(rename = "bsdf", deserialize_with = "deserialize_materials")]
     pub(crate) materials: HashMap<String, Material>,
-    /// A mapping between shape IDs and actual
-    /// materials.
+    /// dict[str, Shape]: A mapping between shape IDs and actual
+    /// shapes.
     ///
     /// Currently, only shapes from files are supported.
     ///
-    /// Also, face normals attribute is ignored, as normals are always
-    /// recomputed.
+    /// Also, any face normals attribute is ignored, as normals are
+    /// recomputed using JAX arrays in the :mod:`differt` module.
     #[serde(rename = "shape", deserialize_with = "deserialize_shapes")]
     pub(crate) shapes: HashMap<String, Shape>,
 }
@@ -78,52 +74,73 @@ where
 
 /// A basic material, that can be linked to EM properties.
 #[pyclass(get_all)]
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Material {
     /// str: The material ID.
     ///
     /// This can be, e.g., an ITU identifier.
-    #[serde(rename(deserialize = "@id"))]
     pub(crate) id: String,
-    /// The material color, used when plotted.
-    #[serde(rename(deserialize = "bsdf"), deserialize_with = "deserialize_rgb")]
+    /// tuple[float, float, float]: The material color, used when plotted.
     pub(crate) rgb: (f32, f32, f32),
 }
 
-fn deserialize_rgb<'de, D>(deserializer: D) -> Result<(f32, f32, f32), D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    #[derive(Deserialize)]
-    struct Bsdf {
-        rgb: Rgb,
-    }
-
-    #[derive(Deserialize)]
-    struct Rgb {
-        #[serde(rename(deserialize = "@value"))]
-        value: String,
-    }
-
-    let Bsdf { rgb } = Bsdf::deserialize(deserializer)?;
-
-    match rgb
-        .value
-        .split_ascii_whitespace()
-        .collect::<Vec<_>>()
-        .as_slice()
+impl<'de> Deserialize<'de> for Material {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
     {
-        [r_str, g_str, b_str] => {
-            let r = r_str.parse().map_err(de::Error::custom)?;
-            let g = g_str.parse().map_err(de::Error::custom)?;
-            let b = b_str.parse().map_err(de::Error::custom)?;
-            Ok((r, g, b))
-        },
-        _ => {
-            Err(de::Error::custom(
-                "value of <rgb> element must contain three floats",
-            ))
-        },
+        #[derive(Deserialize)]
+        struct RawMaterial {
+            #[serde(rename(deserialize = "@id"))]
+            id: String,
+            #[serde(rename = "$value")]
+            rgb: PossiblyNestedRgb,
+        }
+
+        #[derive(Deserialize)]
+        struct Rgb {
+            #[serde(rename(deserialize = "@value"))]
+            value: String,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(rename_all = "snake_case")]
+        enum PossiblyNestedRgb {
+            Rgb {
+                #[serde(rename(deserialize = "@value"))]
+                value: String,
+            },
+            Bsdf {
+                rgb: Rgb,
+            },
+        }
+
+        let raw_mat = RawMaterial::deserialize(deserializer)?;
+
+        let (id, rgb) = match raw_mat {
+            RawMaterial {
+                id,
+                rgb: PossiblyNestedRgb::Rgb { value },
+            } => (id, value),
+            RawMaterial {
+                id,
+                rgb: PossiblyNestedRgb::Bsdf { rgb: Rgb { value } },
+            } => (id, value),
+        };
+
+        match rgb.split_ascii_whitespace().collect::<Vec<_>>().as_slice() {
+            [r_str, g_str, b_str] => {
+                let r = r_str.parse().map_err(de::Error::custom)?;
+                let g = g_str.parse().map_err(de::Error::custom)?;
+                let b = b_str.parse().map_err(de::Error::custom)?;
+                Ok(Material { id, rgb: (r, g, b) })
+            },
+            _ => {
+                Err(de::Error::custom(
+                    "value of <rgb> element must contain three floats",
+                ))
+            },
+        }
     }
 }
 
@@ -131,22 +148,22 @@ where
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct Shape {
-    /// The type of the shape file.
+    /// str: The type of the shape file.
     ///
     /// E.g., `ply` for Stanford PLY format.
     #[serde(rename(deserialize = "@type"))]
     pub(crate) r#type: String,
-    /// The shape ID.
+    /// str: The shape ID.
     ///
     /// It should be unique (in a given scene).
     #[serde(rename(deserialize = "@id"))]
     pub(crate) id: String,
-    /// The path to the shape file.
+    /// str: The path to the shape file.
     ///
     /// This path is relative to the scene config file.
     #[serde(rename(deserialize = "string"), deserialize_with = "deserialize_file")]
     pub(crate) file: String,
-    /// The material ID attached to this object.
+    /// str: The material ID attached to this object.
     #[serde(
         rename(deserialize = "ref"),
         deserialize_with = "deserialize_material_id"
@@ -201,6 +218,7 @@ impl SionnaScene {
     ///     SionnaScene: The corresponding scene.
     #[classmethod]
     pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
+        println!("Inside load_xml");
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading XML file: {}", err))

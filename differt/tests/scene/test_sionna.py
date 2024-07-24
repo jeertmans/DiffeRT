@@ -56,8 +56,6 @@ def test_get_existing_sionna_scene(scene_name: str, folder: Path) -> None:
 class TestSionnaScene:
     def test_load_xml(self, folder: Path) -> None:
         for scene_name in list_sionna_scenes(folder=folder):
-            if scene_name == "etoile":
-                pytest.xfail("'etoile' scene currently fails to be loaded from XML")
             file = get_sionna_scene(scene_name, folder=folder)
             scene = SionnaScene.load_xml(file)
 

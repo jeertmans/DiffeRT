@@ -1,37 +1,29 @@
-use std::{collections::HashMap, ops::Range, path::PathBuf};
+use std::path::PathBuf;
 
-use pyo3::{
-    exceptions::PyValueError,
-    prelude::*,
-    types::{PySlice, PyType},
-};
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
-use super::sionna::SionnaScene;
+use super::sionna::{Material, SionnaScene};
 use crate::geometry::triangle_mesh::TriangleMesh;
 
-/// TODO.
+/// A scene that contains triangle meshes and corresponding materials.
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(get_all)]
 struct TriangleScene {
-    #[pyo3(get)]
-    mesh: TriangleMesh,
-    mesh_ids: HashMap<String, Range<usize>>,
+    /// list[differt_core.geometry.triangle_mesh.TriangleMesh]: The meshes.
+    meshes: Vec<TriangleMesh>,
+    /// list[differt_core.scene.sionna_scene.Material]: The mesh materials.
+    materials: Vec<Material>,
 }
 
 #[pymethods]
 impl TriangleScene {
-    #[getter]
-    fn mesh_ids<'py>(&self, py: Python<'py>) -> HashMap<String, Bound<'py, PySlice>> {
-        self.mesh_ids
-            .iter()
-            .map(|(id, range)| {
-                (
-                    id.clone(),
-                    PySlice::new_bound(py, range.start as _, range.end as _, 1),
-                )
-            })
-            .collect()
-    }
+    /// Load a scene from a Sionna-compatible XML file.
+    ///
+    /// Args:
+    ///     file (str): The path to the XML file.
+    ///
+    /// Return:
+    ///     TriangleScene: The corresponding scene.
     #[classmethod]
     fn load_xml(cls: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         // TODO: create a Rust variant without PyType?
@@ -46,21 +38,19 @@ impl TriangleScene {
             ))
         })?;
 
-        let mut mesh = TriangleMesh::default();
-        let mut mesh_ids = HashMap::with_capacity(sionna.shapes.len());
+        let mut meshes = Vec::with_capacity(sionna.shapes.len());
+        let mut materials = Vec::with_capacity(sionna.shapes.len());
 
         let triangle_mesh_py_type = PyType::new_bound::<TriangleMesh>(cls.py());
 
-        let mut start = 0;
-
-        for (id, shape) in sionna.shapes.into_iter() {
+        for (_, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);
             let mesh_file = mesh_file_path.to_str().ok_or_else(|| {
                 PyValueError::new_err(format!(
                     "Could not convert path {mesh_file_path:?} to valid unicode string"
                 ))
             })?;
-            let mut other_mesh = match shape.r#type.as_str() {
+            let mesh = match shape.r#type.as_str() {
                 "obj" => TriangleMesh::load_obj(&triangle_mesh_py_type, mesh_file)?,
                 "ply" => TriangleMesh::load_ply(&triangle_mesh_py_type, mesh_file)?,
                 ty => {
@@ -68,12 +58,15 @@ impl TriangleScene {
                     continue;
                 },
             };
-            mesh.append(&mut other_mesh);
-            let end = mesh.triangles.len();
-            mesh_ids.insert(id, start..end);
-            start = end;
+            let material = sionna
+                .materials
+                .get(&shape.material_id)
+                .cloned()
+                .unwrap_or_default();
+            meshes.push(mesh);
+            materials.push(material);
         }
-        Ok(Self { mesh, mesh_ids })
+        Ok(Self { meshes, materials })
     }
 }
 
