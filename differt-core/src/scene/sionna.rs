@@ -218,7 +218,6 @@ impl SionnaScene {
     ///     SionnaScene: The corresponding scene.
     #[classmethod]
     pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
-        println!("Inside load_xml");
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading XML file: {}", err))
