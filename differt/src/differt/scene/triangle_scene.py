@@ -54,7 +54,7 @@ class TriangleScene(eqx.Module):
             The mesh that contains all meshes of this scene.
         """
         vertices = jnp.empty((0, 3))
-        triangles = jnp.empty((0, 3), dtype=jnp.int32)
+        triangles = jnp.empty((0, 3), dtype=jnp.uint32)
 
         for mesh in self.meshes:
             offset = vertices.shape[0]
@@ -78,7 +78,7 @@ class TriangleScene(eqx.Module):
 
         for mesh, material in zip(self.meshes, self.materials):
             num_triangles = mesh.triangles.shape[0]
-            color = material.rgb
+            color = jnp.asarray(material.rgb)
             colors = jnp.concatenate((colors, jnp.tile(color, (num_triangles, 1))))
 
         return colors
@@ -138,7 +138,7 @@ class TriangleScene(eqx.Module):
         """
         tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}
         rx_kwargs = {"labels": "rx", **(rx_kwargs or {}), **kwargs}
-        mesh_kwargs = {**(mesh_kwargs or {}), "face_color": self.face_colors, **kwargs}
+        mesh_kwargs = {**(mesh_kwargs or {}), "face_colors": self.face_colors, **kwargs}
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
