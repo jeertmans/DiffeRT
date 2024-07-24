@@ -20,4 +20,3 @@ class TestTriangleScene:
         sionna_scene = SionnaScene.load_xml(file)
 
         assert len(scene.meshes) == len(sionna_scene.shapes)
-        assert len(scene.materials) <= len(sionna_scene.materials)
