@@ -80,8 +80,7 @@ where
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct Material {
-    /// # type: str
-    /// The material ID.
+    /// str: The material ID.
     ///
     /// This can be, e.g., an ITU identifier.
     #[serde(rename(deserialize = "@id"))]
