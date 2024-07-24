@@ -102,7 +102,7 @@ class TriangleScene(eqx.Module):
 
         meshes = map(
             lambda mesh: TriangleMesh(
-                vertices=mesh.vertices, triangles=scene.mesh.triangles
+                vertices=mesh.vertices, triangles=mesh.triangles
             ),
             scene.meshes,
         )
