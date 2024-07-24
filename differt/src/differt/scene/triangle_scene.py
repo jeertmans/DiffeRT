@@ -45,7 +45,7 @@ class TriangleScene(eqx.Module):
     @cached_property
     def one_mesh(self) -> TriangleMesh:
         """
-        Return a mesh that it the result of concatenating all meshes.
+        Return a mesh that is the result of concatenating all meshes.
 
         This is especially useful for plotting, as plotting one large
         mesh is much faster than plotting many small ones.
