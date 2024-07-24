@@ -11,7 +11,7 @@ use crate::geometry::triangle_mesh::TriangleMesh;
 struct TriangleScene {
     /// list[differt_core.geometry.triangle_mesh.TriangleMesh]: The meshes.
     meshes: Vec<TriangleMesh>,
-    /// list[differt_core.scene.sionna_scene.Material]: The mesh materials.
+    /// list[differt_core.scene.sionna.Material]: The mesh materials.
     materials: Vec<Material>,
 }
 
