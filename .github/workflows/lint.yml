@@ -37,6 +37,9 @@ jobs:
         branch: update/pre-commit-hooks
         title: 'chore(deps): update pre-commit hooks'
         commit-message: 'chore(deps): update pre-commit hooks'
+        labels: |
+          ci
+          dependencies
   pre-commit:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }}
