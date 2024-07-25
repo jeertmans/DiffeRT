@@ -53,9 +53,15 @@ To run build this package locally, you need:
 
 - [Python 3.9](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
-- `make` (e.g., GNU Make or Make for Windows);
+- [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
 - and [Rye](https://rye.astral.sh/) to manage this project.
+
+This project contains `justfile`s with recipes[^1] for most common
+use cases, so feel free to use them instead of the commands listed below/
+
+[^1]: `just` is as alternative tool to Make, that provides more modern
+  user experience. Enter `just` to list all available recipes.
 
 ## Local development
 
@@ -77,11 +83,12 @@ and that you activated the corresponding Python virtual environment:
 To generate the documentation, please run the following:
 
 ```bash
-cd docs
-make html
+just docs/build
 ```
 
-Finally, you can open `build/html/index.html` to see the generated docs.
+Finally, you can open `docs/build/html/index.html` to see the generated docs.
+
+Other recipes are available and you can list them with `just docs/`.
 
 ### Testing
 

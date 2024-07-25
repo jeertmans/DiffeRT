@@ -10,6 +10,7 @@ target/
 # Docs
 
 docs/build/
+docs/jupyter_execute/
 docs/source/reference/*.rst
 
 # Sionna data

@@ -291,7 +291,8 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements-dev.lock
 
+    - name: Install Just
+      uses: taiki-e/install-action@just
+
     - name: Check links in documentation
-      run: |
-        cd docs
-        NB_OFF=1 make linkcheck
+      run: just docs/linkcheck

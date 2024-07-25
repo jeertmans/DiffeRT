@@ -1,0 +1,24 @@
+# Run Python commands inside environment
+env-run := "rye run"
+
+# Default command (list all commands)
+default:
+  @just --list
+
+# Clean build artifacts
+clean:
+  rm -rf build
+  rm -f source/reference/*.rst
+
+# Build docs
+build builder="html" *OPTIONS="-W --keep-going":
+  {{env-run}} sphinx-build {{OPTIONS}} -b={{builder}} source build
+
+# Build docs in "draft" mode
+draft *ARGS:
+    NB_OFF="1" just build {{ARGS}}
+
+# Check links
+linkcheck *ARGS: (draft "linkcheck" ARGS)
+
+alias check := linkcheck
