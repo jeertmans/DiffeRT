@@ -278,6 +278,8 @@ jobs:
 
   linkcheck-docs:
     runs-on: ubuntu-latest
+    env:
+      NO_RYE: 1
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
