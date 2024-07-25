@@ -1,3 +1,5 @@
+import equinox as eqx
+import jax.numpy as jnp
 import pytest
 
 from differt.scene.sionna import (
@@ -20,3 +22,15 @@ class TestTriangleScene:
         sionna_scene = SionnaScene.load_xml(file)
 
         assert len(scene.meshes) == len(sionna_scene.shapes)
+
+    def test_plot(self) -> None:
+        file = get_sionna_scene("simple_street_canyon")
+        scene = TriangleScene.load_xml(file)
+
+        tx = jnp.array([[0.0, 0.0, 0.0]])
+        rx = jnp.array([[1.0, 1.0, 1.0]])
+
+        scene = eqx.tree_at(lambda s: s.transmitters, scene, tx)
+        scene = eqx.tree_at(lambda s: s.receivers, scene, rx)
+
+        scene.plot()

@@ -101,9 +101,7 @@ class TriangleScene(eqx.Module):
         scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
 
         meshes = map(
-            lambda mesh: TriangleMesh(
-                vertices=mesh.vertices, triangles=mesh.triangles
-            ),
+            lambda mesh: TriangleMesh(vertices=mesh.vertices, triangles=mesh.triangles),
             scene.meshes,
         )
 
