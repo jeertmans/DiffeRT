@@ -65,3 +65,23 @@ def test_fresnel(z: Array) -> None:
     expected_c = jnp.asarray(expected[1])
     chex.assert_trees_all_close(got_s, expected_s)
     chex.assert_trees_all_close(got_c, expected_c)
+
+
+def test_fresnel_special_cases() -> None:
+    # TODO: fixme
+    S, C = fresnel(0.0)
+    chex.assert_trees_all_close(S, 0.0, atol=1e-6)
+    chex.assert_trees_all_close(C, 0.0, atol=1e-6)
+
+    S, C = fresnel(1.0)
+    chex.assert_trees_all_close(S, 0.4382591473903547, atol=1e-6)
+    chex.assert_trees_all_close(C, 0.779893400376823, atol=1e-6)
+
+    S, C = fresnel(10.0)
+    chex.assert_trees_all_close(S, 0.46816997858488224, atol=1e-2)
+    chex.assert_trees_all_close(C, 0.49989869420551575, atol=1e-2)
+
+    S_neg, C_neg = fresnel(-1.0)
+    S_pos, C_pos = fresnel(+1.0)
+    chex.assert_trees_all_close(S_neg, -S_pos, atol=1e-6)
+    chex.assert_trees_all_close(C_neg, C_pos, atol=1e-6)
