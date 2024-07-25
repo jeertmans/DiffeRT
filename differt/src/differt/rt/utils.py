@@ -32,7 +32,7 @@ from typing import Callable, Generic, TypeVar, Union
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, Int, jaxtyped
 
 from differt_core.rt.graph import CompleteGraph
 
@@ -79,7 +79,7 @@ class _SizedIterator(Generic[T]):
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates(
     num_primitives: int, order: int
-) -> UInt[Array, "num_candidates order"]:
+) -> Int[Array, "num_candidates order"]:
     """
     Generate an array of all path candidates for fixed path order and a number of primitives.
 
@@ -107,14 +107,15 @@ def generate_all_path_candidates(
             to=num_primitives + 1,
             depth=order + 2,
             include_from_and_to=False,
-        )
+        ),
+        dtype=int,
     )
 
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
     num_primitives: int, order: int
-) -> _SizedIterator[UInt[Array, " order"]]:
+) -> _SizedIterator[Int[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
 
@@ -131,14 +132,14 @@ def generate_all_path_candidates_iter(
         depth=order + 2,
         include_from_and_to=False,
     )
-    m = map(jnp.asarray, it)
+    m = map(lambda arr: jnp.asarray(arr, dtype=int), it)
     return _SizedIterator(m, size=it.__len__)
 
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int, order: int, chunk_size: int = 1000
-) -> _SizedIterator[UInt[Array, "chunk_size order"]]:
+) -> _SizedIterator[Int[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -156,7 +157,7 @@ def generate_all_path_candidates_chunks_iter(
         depth=order + 2,
         include_from_and_to=False,
     )
-    m = map(jnp.asarray, it)
+    m = map(lambda arr: jnp.asarray(arr, dtype=int), it)
     return _SizedIterator(m, size=it.__len__)
 
 

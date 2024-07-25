@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, PRNGKeyArray, UInt, jaxtyped
+from jaxtyping import Array, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 
@@ -118,7 +118,7 @@ class TriangleMesh(eqx.Module):
 
     vertices: Float[Array, "num_vertices 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle vertices."""
-    triangles: UInt[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
+    triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle indices."""
 
     @cached_property
@@ -131,7 +131,7 @@ class TriangleMesh(eqx.Module):
         return normalize(normals)[0]
 
     @cached_property
-    def diffraction_edges(self) -> UInt[Array, "num_edges 3"]:
+    def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
@@ -150,9 +150,7 @@ class TriangleMesh(eqx.Module):
         Return:
             A new empty scene.
         """
-        return cls(
-            vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=jnp.uint32)
-        )
+        return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
     @property
     def is_empty(self) -> bool:
@@ -176,7 +174,7 @@ class TriangleMesh(eqx.Module):
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
         return cls(
             vertices=mesh.vertices,
-            triangles=mesh.triangles,
+            triangles=mesh.triangles.astype(int),
         )
 
     @classmethod
@@ -196,7 +194,7 @@ class TriangleMesh(eqx.Module):
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
         return cls(
             vertices=mesh.vertices,
-            triangles=mesh.triangles,
+            triangles=mesh.triangles.astype(int),
         )
 
     def plot(self, **kwargs: Any) -> Any:

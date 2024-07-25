@@ -49,7 +49,7 @@ def sphere() -> Iterator[TriangleMesh]:
     mesh = create_sphere()
 
     vertices = jnp.asarray(mesh.get_vertices())
-    triangles = jnp.asarray(mesh.get_faces())
+    triangles = jnp.asarray(mesh.get_faces(), dtype=int)
     yield TriangleMesh(vertices=vertices, triangles=triangles)
 
 
@@ -143,7 +143,7 @@ class TestTriangleMesh:
         ).compute_triangle_normals()
 
         got_triangles = two_buildings_mesh.triangles
-        expected_triangles = jnp.asarray(mesh.triangles, dtype=jnp.uint32)
+        expected_triangles = jnp.asarray(mesh.triangles, dtype=int)
 
         got_vertices = two_buildings_mesh.vertices
         expected_vertices = jnp.asarray(mesh.vertices)
