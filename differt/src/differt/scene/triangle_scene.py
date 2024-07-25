@@ -1,7 +1,7 @@
-"""Mesh geometry made of triangles and utilities."""
+"""Scene made of triangles and utilities."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from functools import cached_property
 from typing import Any, Optional
 
 import equinox as eqx
@@ -11,25 +11,22 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 import differt_core.scene.triangle_scene
+from differt_core.scene.sionna import Material
 
 from ..geometry.triangle_mesh import TriangleMesh
 from ..plotting import draw_markers, reuse
 
 
 @jaxtyped(typechecker=typechecker)
-@dataclass  # TODO: see if we can still use eqx.Module (mutability issue)
-class TriangleScene:
+class TriangleScene(eqx.Module):
     """
-    A simple scene made of one triangle mesh, some transmitters and some receivers.
-
-    The triangle mesh can be the result of multiple triangle meshes being concatenated.
+    A simple scene made of one or more triangle meshes, some transmitters and some receivers.
 
     Args:
         transmitters: The array of transmitter vertices.
         receivers: The array of receiver vertices.
-        mesh: The triangle mesh.
-        mesh_ids: A mapping between mesh IDs and the corresponding slice
-            in :py:data:`mesh.triangles`.
+        meshes: The triangle mesh.
+        materials: The mesh materials.
     """
 
     transmitters: Float[Array, "num_transmitters 3"] = eqx.field(
@@ -40,10 +37,51 @@ class TriangleScene:
         converter=jnp.asarray, default_factory=lambda: jnp.empty((0, 3))
     )
     """The array of receiver vertices."""
-    mesh: TriangleMesh = eqx.field(default_factory=TriangleMesh.empty)
-    """The triangle mesh."""
-    mesh_ids: dict[str, slice] = eqx.field(default_factory=dict)
-    """A mapping between mesh IDs and the corresponding slice in :py:data:`mesh.triangles`."""
+    meshes: tuple[TriangleMesh, ...] = eqx.field(converter=tuple, default_factory=tuple)
+    """The triangle meshes."""
+    materials: tuple[Material, ...] = eqx.field(converter=tuple, default_factory=tuple)
+    """The mesh materials"""
+
+    @cached_property
+    def one_mesh(self) -> TriangleMesh:
+        """
+        Return a mesh that is the result of concatenating all meshes.
+
+        This is especially useful for plotting, as plotting one large
+        mesh is much faster than plotting many small ones.
+
+        Return:
+            The mesh that contains all meshes of this scene.
+        """
+        vertices = jnp.empty((0, 3))
+        triangles = jnp.empty((0, 3), dtype=jnp.uint32)
+
+        for mesh in self.meshes:
+            offset = vertices.shape[0]
+            vertices = jnp.concatenate((vertices, mesh.vertices))
+            triangles = jnp.concatenate((triangles, mesh.triangles + offset))
+
+        return TriangleMesh(vertices=vertices, triangles=triangles)
+
+    @cached_property
+    def face_colors(self) -> Float[Array, "num_triangles 3"]:
+        """
+        Return a (flattened) array of face colors, one for each triangle in each mesh.
+
+        This is especially useful for plotting, and it to be used
+        with :meth:`one_mesh`.
+
+        Return:
+            The mesh that contains all meshes of this scene.
+        """
+        colors = jnp.empty((0, 3))
+
+        for mesh, material in zip(self.meshes, self.materials):
+            num_triangles = mesh.triangles.shape[0]
+            color = jnp.asarray(material.rgb)
+            colors = jnp.concatenate((colors, jnp.tile(color, (num_triangles, 1))))
+
+        return colors
 
     @classmethod
     def load_xml(cls, file: str) -> "TriangleScene":
@@ -51,7 +89,7 @@ class TriangleScene:
         Load a triangle scene from a XML file.
 
         This method uses
-        :meth:`SionnaScene.load_xml<differt.scene.sionna.SionnaScene.load_xml>`
+        :meth:`SionnaScene.load_xml<differt_core.scene.sionna.SionnaScene.load_xml>`
         internally.
 
         Args:
@@ -62,10 +100,15 @@ class TriangleScene:
         """
         scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
 
-        mesh = TriangleMesh(
-            vertices=scene.mesh.vertices, triangles=scene.mesh.triangles
+        meshes = map(
+            lambda mesh: TriangleMesh(vertices=mesh.vertices, triangles=mesh.triangles),
+            scene.meshes,
         )
-        return cls(mesh=mesh, mesh_ids=scene.mesh_ids)
+
+        return cls(
+            meshes=meshes,  # type: ignore[reportArgumentType]
+            materials=scene.materials,
+        )
 
     def plot(
         self,
@@ -78,11 +121,11 @@ class TriangleScene:
         Plot this scene on a 3D scene.
 
         Args:
-            tx_kwargs: A mutable mapping of keyword arguments passed to
+            tx_kwargs: A mapping of keyword arguments passed to
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
-            rx_kwargs: A mutable mapping of keyword arguments passed to
+            rx_kwargs: A mapping of keyword arguments passed to
                 :py:func:`draw_markers<differt.plotting.draw_markers>`.
-            mesh_kwargs: A mutable mapping of keyword arguments passed to
+            mesh_kwargs: A mapping of keyword arguments passed to
                 :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
             kwargs: Keyword arguments passed to both
                 :py:func:`draw_markers<differt.plotting.draw_markers>` and
@@ -91,14 +134,9 @@ class TriangleScene:
         Return:
             The resulting plot output.
         """
-        if tx_kwargs is None:
-            tx_kwargs = {"labels": "tx"}
-
-        if rx_kwargs is None:
-            rx_kwargs = {"labels": "rx"}
-
-        if mesh_kwargs is None:
-            mesh_kwargs = {}
+        tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}
+        rx_kwargs = {"labels": "rx", **(rx_kwargs or {}), **kwargs}
+        mesh_kwargs = {**(mesh_kwargs or {}), "face_colors": self.face_colors, **kwargs}
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
@@ -107,6 +145,6 @@ class TriangleScene:
             if self.receivers.size > 0:
                 draw_markers(np.asarray(self.receivers), **rx_kwargs)
 
-            self.mesh.plot(**mesh_kwargs)
+            self.one_mesh.plot(**mesh_kwargs)
 
         return result

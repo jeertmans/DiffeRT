@@ -1,8 +1,9 @@
 from ..geometry.triangle_mesh import TriangleMesh
+from .sionna import Material
 
 class TriangleScene:
-    mesh: TriangleMesh
-    mesh_ids: dict[str, slice]
+    meshes: list[TriangleMesh]
+    materials: list[Material]
 
     @classmethod
-    def load_xml(cls, file: str) -> TriangleMesh: ...
+    def load_xml(cls, file: str) -> TriangleScene: ...
