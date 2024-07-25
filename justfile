@@ -1,5 +1,5 @@
 # Run Python commands inside environment
-env-run := if env_var("NO_RYE") == "1" { "" } else { "rye run" }
+env-run := if env("NO_RYE", "") == "1" { "" } else { "rye run" }
 
 # Default command (list all commands)
 default:
@@ -42,11 +42,6 @@ check:
 clean:
   cargo clean
   rm -rf dist
-
-# Build documentation
-[group('dev')]
-doc:
-  cd docs
 
 # Build and install Python packages
 [group('dev')]
