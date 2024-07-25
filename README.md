@@ -88,7 +88,7 @@ just docs/build
 
 Finally, you can open `docs/build/html/index.html` to see the generated docs.
 
-Other recipes are available and you can list them with `just docs/`.
+Other recipes are available, and you can list them with `just docs/`.
 
 ### Testing
 
