@@ -1,6 +1,5 @@
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from typing import Any
 
 import chex
 import jax.numpy as jnp
@@ -18,22 +17,18 @@ from differt.utils import sorted_array2
 from ..utils import random_inputs
 
 
-def uint_array(array_like: Any) -> Array:
-    return jnp.array(array_like, dtype=jnp.uint32)
-
-
 @pytest.mark.parametrize(
     "num_primitives,order,expected",
     [
-        (0, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
-        (8, 0, jnp.empty((1, 0), dtype=jnp.uint32)),
-        (0, 5, jnp.empty((0, 5), dtype=jnp.uint32)),
-        (3, 1, uint_array([[0], [1], [2]])),
-        (3, 2, uint_array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]])),
+        (0, 0, jnp.empty((1, 0), dtype=int)),
+        (8, 0, jnp.empty((1, 0), dtype=int)),
+        (0, 5, jnp.empty((0, 5), dtype=int)),
+        (3, 1, jnp.array([[0], [1], [2]])),
+        (3, 2, jnp.array([[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]])),
         (
             3,
             3,
-            uint_array(
+            jnp.array(
                 [
                     [0, 1, 0],
                     [0, 1, 2],

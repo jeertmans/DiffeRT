@@ -54,7 +54,7 @@ class TriangleScene(eqx.Module):
             The mesh that contains all meshes of this scene.
         """
         vertices = jnp.empty((0, 3))
-        triangles = jnp.empty((0, 3), dtype=jnp.uint32)
+        triangles = jnp.empty((0, 3), dtype=int)
 
         for mesh in self.meshes:
             offset = vertices.shape[0]
@@ -101,7 +101,9 @@ class TriangleScene(eqx.Module):
         scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
 
         meshes = map(
-            lambda mesh: TriangleMesh(vertices=mesh.vertices, triangles=mesh.triangles),
+            lambda mesh: TriangleMesh(
+                vertices=mesh.vertices, triangles=mesh.triangles.astype(int)
+            ),
             scene.meshes,
         )
 
