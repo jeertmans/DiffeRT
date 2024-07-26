@@ -26,7 +26,7 @@ def reflection_coefficients(
     .. math::
         \boldsymbol{E}^r(P) = \boldsymbol{E}^r(Q_r) \sqrt{\frac{\pho_1^r\pho_2^r}{\left(\pho_1^r+s^r\right)\left(\pho_2^r+s^r\right)}} e^{-jks^r},
 
-    where :math:`P` is the observation point and :math:`Q_r` is the reflection point on the surface. Hence, :math:`\boldsymbol{E}^r(Q_r)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i
+    where :math:`P` is the observation point and :math:`Q_r` is the reflection point on the surface. Hence, :math:`\boldsymbol{E}^r(Q_r)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`.:
 
     As detailed in :cite:`utd-mcnamara{p. 164}`, the integral can be expressed in
     terms of Fresnel integrals (:math:`C(z)` and :math:`S(z)`), so that:
