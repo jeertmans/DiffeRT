@@ -40,13 +40,14 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
     :py:data:`scipy.special.fresnel`, we rely on two custom implementations:
 
     * if the input is real-valued, we compute the Fresnel integrals
-      with :func:`differt.em.special.fresnel`, translated from the SciPy C\+\+ version;
+      with :func:`differt.em.special.fresnel`, translated from the SciPy C++ version;
     * or we use our complex-valued :func:`differt.em.special.erfc`.
 
     Indeed, the following identity:
 
     .. math::
         C(z) - j S(z) = \sqrt{\frac{\pi}{2}}\frac{1-j}{2}\text{erf}\left(\frac{1+j}{\sqrt{2}}z\right).
+
     let us rewrite the transition as a function of the (complementary) error function.
 
     As a result, we can further simplify :math:`F(z)` to:
