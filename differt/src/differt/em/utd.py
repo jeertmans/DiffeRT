@@ -38,9 +38,10 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
 
     Because JAX does not provide a XLA implementation of
     :py:data:`scipy.special.fresnel`, we rely on two custom implementations:
-    - if the input is real-valued, we compute the Fresnel integrals
+
+    * if the input is real-valued, we compute the Fresnel integrals
       with :func:`differt.em.special.fresnel`, translated from the SciPy C++ version;
-    - or we use our complex-valued :func:`differt.em.special.erfc`.
+    * or we use our complex-valued :func:`differt.em.special.erfc`.
 
     Indeed, the following identity:
 
