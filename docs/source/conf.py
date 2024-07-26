@@ -53,6 +53,13 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 add_module_names = False
 add_function_parentheses = False
 
+# -- MathJax settings
+
+mathjax3_config = {
+    "loader": {"load": ["[tex]/boldsymbol"]},
+    "tex": {"packages": {"[+]": ["boldsymbol"]}},
+}
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
