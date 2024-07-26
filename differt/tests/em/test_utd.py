@@ -37,7 +37,7 @@ def test_diffraction_coefficients():
         incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
     )
     assert result.shape == (3, 3)
-    assert jnp.issubdtype(result.dtype, jnp.complex64)
+    assert jnp.iscomplexobj(result)
 
     # Test case 2: Grazing incidence
     incident_ray = jnp.array([0.0, 1.0, 0.0])
@@ -63,4 +63,4 @@ def test_diffraction_coefficients():
             incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
         )
         assert result.shape == (3, 3)
-        assert jnp.issubdtype(result.dtype, jnp.complex64)
+        assert jnp.iscomplexobj(result)

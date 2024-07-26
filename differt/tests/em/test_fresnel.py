@@ -26,5 +26,5 @@ def test_reflection_coefficients(key: PRNGKeyArray) -> None:
         reflected_ray = incident_ray * jnp.array([1, 1, -1])  # Reflect about xy-plane
         result = reflection_coefficients(incident_ray, reflected_ray)
         assert result.shape == (3, 3)
-        assert jnp.issubdtype(result.dtype, complex)
+        assert jnp.iscomplexobj(result)
         assert jnp.all(jnp.abs(result) <= 1)  # Coefficients should be <= 1 in magnitude
