@@ -259,3 +259,31 @@ def sample_points_in_bounding_box(
 
     r = jax.random.uniform(key, shape=(size, 3))
     return r * scale[None, :] + amin[None, :]
+
+
+@partial(jax.jit, inline=True)
+@jaxtyped(typechecker=typechecker)
+def safe_divide(
+    num: Num[Array, " *batch"], den: Num[Array, " *batch"]
+) -> Num[Array, " *batch"]:
+    """
+    Compute the elementwise division, but returns 0 when ``den`` is zero.
+
+    Args:
+        num: The numerator.
+        den: The denomitator.
+
+    Return:
+        The result of :python:`num / dev`, except that division by zero returns 0.
+
+    Examples:
+        The following examples shows how division by zero is handled.
+
+        >>> from differt.utils import safe_divide
+        >>>
+        >>> x = jnp.array([1, 2, 3, 4, 5])
+        >>> y = jnp.array([0, 1, 2, 0, 2])
+        >>> safe_divide(x, y)
+        Array([0. , 2. , 1.5, 0. , 2.5], dtype=float32)
+    """
+    return jnp.where(den == 0, 0, num / den)

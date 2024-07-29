@@ -1,30 +1,42 @@
-import jax
+import chex
 import jax.numpy as jnp
-from jaxtyping import PRNGKeyArray
 
 from differt.em.fresnel import reflection_coefficients
 
 
-def test_reflection_coefficients(key: PRNGKeyArray) -> None:
-    # Test case 1: Normal incidence
-    incident_ray = jnp.array([0.0, 0.0, 1.0])
-    reflected_ray = jnp.array([0.0, 0.0, -1.0])
-    result = reflection_coefficients(incident_ray, reflected_ray)
-    expected = jnp.array([[-0.2, 0, 0], [0, -0.2, 0], [0, 0, 0]], dtype=complex)
-    assert jnp.allclose(result, expected, atol=1e-6)
+def test_reflection_coefficients() -> None:
+    n_t = jnp.array(1.5)  # Glass
+    epsilon_r = (n_t**2).astype(complex)
 
-    # Test case 2: 45-degree incidence
-    incident_ray = jnp.array([1.0, 0.0, 1.0]) / jnp.sqrt(2)
-    reflected_ray = jnp.array([1.0, 0.0, -1.0]) / jnp.sqrt(2)
-    result = reflection_coefficients(incident_ray, reflected_ray)
-    expected = jnp.array([[-0.1716, 0, 0], [0, -0.2284, 0], [0, 0, 0]], dtype=complex)
-    assert jnp.allclose(result, expected, atol=1e-4)
+    # 1. Normal incidence
+    cos_theta_i = jnp.array(1.0)
 
-    # Test case 3: Random incidence
-    for key_incident in jax.random.split(key, 10):
-        incident_ray = jax.random.normal(key_incident, (3,))
-        reflected_ray = incident_ray * jnp.array([1, 1, -1])  # Reflect about xy-plane
-        result = reflection_coefficients(incident_ray, reflected_ray)
-        assert result.shape == (3, 3)
-        assert jnp.iscomplexobj(result)
-        assert jnp.all(jnp.abs(result) <= 1)  # Coefficients should be <= 1 in magnitude
+    got_r_s, got_r_p = reflection_coefficients(epsilon_r, cos_theta_i)
+
+    chex.assert_trees_all_equal(got_r_s, -got_r_p)
+
+    # 2. 45-degree incidence
+    cos_theta_i = jnp.cos(jnp.pi / 2)
+
+    got_r_s, got_r_p = reflection_coefficients(epsilon_r, cos_theta_i)
+    chex.assert_trees_all_close(got_r_s**2, -got_r_p)
+
+    # 3. Brewster's angle
+    theta_b = jnp.arctan(n_t)
+    cos_theta_i = jnp.cos(theta_b)
+
+    _, got_r_p = reflection_coefficients(epsilon_r, cos_theta_i)
+
+    chex.assert_trees_all_equal(got_r_p, 0 + 0j)
+
+    # 4. Total reflection
+    n_t = 1 / jnp.array(1.5)
+    epsilon_r = (n_t**2).astype(complex)
+    theta_i = jnp.arcsin(n_t / 1.0)
+
+    cos_theta_i = jnp.cos(theta_i)
+
+    got_r_s, got_r_p = reflection_coefficients(epsilon_r, cos_theta_i)
+
+    chex.assert_trees_all_equal(got_r_s, 1 + 0j)
+    chex.assert_trees_all_equal(got_r_p, 1 + 0j)

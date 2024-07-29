@@ -1,78 +1,98 @@
+r"""
+Fresnel coefficients for reflection, as described by the Geometrical Optics (GO).
+
+Note:
+    Refraction coefficients are not yet implemented.
+
+As detailed in :cite:`utd-mcnamara{eq. 3.199}`, the GO reflected field
+from a smooth conducting surface can be expressed as:
+
+.. math::
+    \boldsymbol{E}^r(P) = \boldsymbol{E}^r(Q_r) \sqrt{\frac{\rho_1^r\rho_2^r}{\left(\rho_1^r+s^r\right)\left(\rho_2^r+s^r\right)}} e^{-jks^r},
+
+where :math:`P` is the observation point and :math:`Q_r` is the reflection point on the surface, :math:`\rho_1^r` and :math:`\rho_2^r` are the principal radii of curvature at :math:`Q_r` of the reflected wavefront, :math:`k` is the wavenumber, and :math:`s_r` is the distance between :math:`Q_r` and :math:`P`. Moreover, :math:`\boldsymbol{E}^r(Q_r)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`:
+
+.. math::
+    \boldsymbol{E}^r(Q_r) = \boldsymbol{E}^r(Q_r) \cdot R
+
+where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficients.
 """
-Fresnel coefficients for reflection and refraction.
-"""
+
+from typing import Optional
 
 import equinox as eqx
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Complex, Float, jaxtyped
 
-from ..geometry.utils import normalize
+from ..utils import safe_divide
 
 
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def reflection_coefficients(
-    incident_rays: Float[Array, "*batch 3"],
-    reflected_rays: Float[Array, "*batch 3"],
-    normals: Float[Array, "*batch 3"],
-) -> Complex[Array, " *batch 2 2"]:
+    epsilon_r: Complex[Array, " *batch"],
+    cos_theta_i: Float[Array, " *batch"],
+    mu_r: Optional[Complex[Array, " *batch"]] = None,
+) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
     r"""
-    Compute the Fresnel reflection coefficients.
+    Compute the Fresnel reflection coefficients for air-to-dielectric interface.
 
-    As detailed in :cite:`utd-mcnamara{eq. 3.199}`, the reflected field
-    from a smooth surface can be expressed as:
+    The Snell's law describes the relationship between the angles of incidence
+    and refraction:
 
     .. math::
-        \boldsymbol{E}^r(P) = \boldsymbol{E}^r(Q_r) \sqrt{\frac{\pho_1^r\pho_2^r}{\left(\pho_1^r+s^r\right)\left(\pho_2^r+s^r\right)}} e^{-jks^r},
+        n_i\sin\theta_i = n_t\sin\theta_t,
 
-    where :math:`P` is the observation point and :math:`Q_r` is the reflection point on the surface. Hence, :math:`\boldsymbol{E}^r(Q_r)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`.:
+    where :math:`n` is the refraction index, :math:`theta` is the angle of between the ray path
+    and the normal to the interface, and :math:`i` and :math:`t` indicate,
+    respectively, the first (i.e., incidence) and the second (i.e., transmission)
+    media.
 
-    As detailed in :cite:`utd-mcnamara{p. 164}`, the integral can be expressed in
-    terms of Fresnel integrals (:math:`C(z)` and :math:`S(z)`), so that:
+    The s and p reflection coefficients are:
+
+    .. math::
+        \frac{r_s} = \frac{n_i\cos\theta_i - n_t\cos\theta_t}{n_i\cos\theta_i + n_t\cos\theta_t},
+
+    and
+
+    .. math::
+        \frac{r_p} = \frac{n_t\cos\theta_i - n_i\cos\theta_t}{n_t\cos\theta_i + n_i\cos\theta_t}.
+
+    Because we assume the first medium is always air, we have that
+    :math:`n_i = 1`, which simplifies the Snell's formula to:
+
+    .. math::
+        \sin\theta_i = n_t \sin\theta_t,
+
+    where :math:`n_t = \sqrt{\epsilon_r\mu_r}`, provided as argument of this function.
+
+    Hence, we can rewrite :math:`n_t\cos_t` as:
+
+    .. math::
+        n_t\cos\theta_t = \sqrt{\epsilon_r\mu_r + \cos^2\theta_i - 1}.
+
+    Args:
+        epsilon_r: The relative permittivities.
+        cos_theta: The (cosine of the) angles of reflection.
+        mu_r: The relative permeabilities. If not provided,
+            a value of 1 is used.
+
+    Return:
+        The reflection coefficients for s and p polarizations.
     """
-    # Normalize input rays
-    incident_rays, _ = normalize(incident_rays)
-    reflected_rays, _ = normalize(reflected_rays)
+    if mu_r is None:
+        sqrt_n_t = epsilon_r
+    else:
+        sqrt_n_t = epsilon_r * mu_r
 
-    # Compute the angle of incidence
-    cos_theta_i = jnp.dot(incident_rays, normals)
-    sin_theta_i = jnp.sqrt(1 - cos_theta_i**2)
+    n_t_cos_theta_t = jnp.sqrt(sqrt_n_t + cos_theta_i**2 - 1)
+    n_t_squared_cos_theta_i = sqrt_n_t * cos_theta_i
 
-    # Assume we're dealing with air-to-dielectric interface
-    # You may need to adjust these values based on your specific scenario
-    n1 = 1.0  # Refractive index of air
-    n2 = 1.5  # Refractive index of the dielectric material
-
-    # Compute the angle of transmission using Snell's law
-    sin_theta_t = n1 * sin_theta_i / n2
-    cos_theta_t = jnp.sqrt(1 - sin_theta_t**2)
-
-    # Compute Fresnel coefficients for perpendicular polarization
-    r_perp = (n1 * cos_theta_i - n2 * cos_theta_t) / (
-        n1 * cos_theta_i + n2 * cos_theta_t
-    )
-    t_perp = (2 * n1 * cos_theta_i) / (n1 * cos_theta_i + n2 * cos_theta_t)
-
-    # Compute Fresnel coefficients for parallel polarization
-    r_para = (n2 * cos_theta_i - n1 * cos_theta_t) / (
-        n2 * cos_theta_i + n1 * cos_theta_t
-    )
-    t_para = (2 * n1 * cos_theta_i) / (n2 * cos_theta_i + n1 * cos_theta_t)
-
-    # Construct the Fresnel coefficient dyadic matrix
-    r_matrix = jnp.array(
-        [
-            [r_perp, 0],
-            [0, r_para],
-        ],
+    r_s = safe_divide(cos_theta_i - n_t_cos_theta_t, cos_theta_i + n_t_cos_theta_t)
+    r_p = safe_divide(
+        n_t_squared_cos_theta_i - n_t_cos_theta_t,
+        n_t_squared_cos_theta_i + n_t_cos_theta_t,
     )
 
-    t_matrix = jnp.array(
-        [
-            [t_perp, 0],
-            [0, t_para],
-        ],
-    )
-
-    return r_matrix, t_matrix
+    return r_s, r_p
