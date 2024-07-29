@@ -274,7 +274,7 @@ def safe_divide(
         den: The denomitator.
 
     Return:
-        The result of :python:`num / dev`, except that division by zero returns 0.
+        The result of ``num / dev``, except that division by zero returns 0.
 
     Examples:
         The following examples shows how division by zero is handled.
@@ -286,4 +286,5 @@ def safe_divide(
         >>> safe_divide(x, y)
         Array([0. , 2. , 1.5, 0. , 2.5], dtype=float32)
     """
+    # TODO: add :python: rst role for x / y in docs
     return jnp.where(den == 0, 0, num / den)
