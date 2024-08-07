@@ -271,7 +271,7 @@ def safe_divide(
 
     Args:
         num: The numerator.
-        den: The denomitator.
+        den: The denominator.
 
     Return:
         The result of ``num / dev``, except that division by zero returns 0.

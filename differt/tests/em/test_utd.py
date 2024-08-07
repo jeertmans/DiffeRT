@@ -16,11 +16,27 @@ def scipy_F(x: np.ndarray) -> np.ndarray:  # noqa: N802
 
 
 def test_F() -> None:  # noqa: N802
-    x = jnp.logspace(-3, 1, 100)
+    # Test case 1: 0.001 to 10.0
+    x = jnp.logspace(-3, 1, 1000)
     got = F(x)
     expected = jnp.asarray(scipy_F(np.asarray(x)))
 
     chex.assert_trees_all_close(got, expected, rtol=1e-5)
+
+    # Test case 2: F(x), x -> 0
+    info = jnp.finfo(float)
+    got = F(info.eps)
+    mag = jnp.abs(got)
+    ang = jnp.angle(got, deg=True)
+
+    chex.assert_trees_all_close(mag, 0.0, atol=1e-7)
+    chex.assert_trees_all_close(ang, 45)
+
+    # Test case 3: F(x), x -> +oo
+    got = F(1e6)
+    mag = jnp.abs(got)
+
+    chex.assert_trees_all_close(mag, 1.0, atol=1e-4)
 
 
 def test_diffraction_coefficients():
