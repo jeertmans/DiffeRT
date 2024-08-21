@@ -34,7 +34,9 @@ def test_pairwise_cross() -> None:
 )
 @random_inputs("u", "v")
 def test_pairwise_cross_random_inputs(
-    u: Array, v: Array, expectation: AbstractContextManager[Exception]
+    u: Array,
+    v: Array,
+    expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
         got = pairwise_cross(u, v)
@@ -55,7 +57,8 @@ def test_pairwise_cross_random_inputs(
 )
 @random_inputs("u")
 def test_normalize_random_inputs(
-    u: Array, expectation: AbstractContextManager[Exception]
+    u: Array,
+    expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
         nu, lu = normalize(u)
@@ -102,7 +105,8 @@ def test_orthogonal_basis(u: Array) -> None:
 )
 @random_inputs("paths")
 def test_path_lengths_random_inputs(
-    paths: Array, expectation: AbstractContextManager[Exception]
+    paths: Array,
+    expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
         got = path_lengths(paths)

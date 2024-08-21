@@ -78,7 +78,8 @@ class _SizedIterator(Generic[T]):
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates(
-    num_primitives: int, order: int
+    num_primitives: int,
+    order: int,
 ) -> Int[Array, "num_candidates order"]:
     """
     Generate an array of all path candidates for fixed path order and a number of primitives.
@@ -96,7 +97,7 @@ def generate_all_path_candidates(
         num_primitives: The (positive) number of primitives.
         order: The path order. An order less than one returns an empty array.
 
-    Return:
+    Returns:
         An unsigned array with primitive indices on each columns. Its number of
         columns is actually equal to
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
@@ -114,7 +115,8 @@ def generate_all_path_candidates(
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
-    num_primitives: int, order: int
+    num_primitives: int,
+    order: int,
 ) -> _SizedIterator[Int[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
@@ -123,7 +125,7 @@ def generate_all_path_candidates_iter(
         num_primitives: The (positive) number of primitives.
         order: The path order.
 
-    Return:
+    Returns:
         An iterator of unsigned arrays with primitive indices.
     """
     it = CompleteGraph(num_primitives).all_paths(
@@ -138,7 +140,9 @@ def generate_all_path_candidates_iter(
 
 @jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
-    num_primitives: int, order: int, chunk_size: int = 1000
+    num_primitives: int,
+    order: int,
+    chunk_size: int = 1000,
 ) -> _SizedIterator[Int[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
@@ -148,7 +152,7 @@ def generate_all_path_candidates_chunks_iter(
         order: The path order.
         chunk_size: The size of each chunk.
 
-    Return:
+    Returns:
         An iterator of unsigned arrays with primitive indices.
     """
     it = CompleteGraph(num_primitives).all_paths_array_chunks(
@@ -188,7 +192,7 @@ def rays_intersect_triangles(
             triangle edges, a very common case if geometries are planes
             split into multiple triangles.
 
-    Return:
+    Returns:
         For each ray, return the scale factor of ``ray_directions`` for the
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.
@@ -260,14 +264,17 @@ def rays_intersect_any_triangle(
             In theory, this threshold value should be equal to ``1.0``, but in a
             small tolerance must be used.
 
-    Return:
+    Returns:
         For each ray, whether it intersects with any of the triangles.
     """
 
     def scan_fun(carry, x):
         triangle_vertex = jnp.broadcast_to(x, (*ray_origins.shape, 3))
         t, hit = rays_intersect_triangles(
-            ray_origins, ray_directions, triangle_vertex, epsilon=epsilon
+            ray_origins,
+            ray_directions,
+            triangle_vertex,
+            epsilon=epsilon,
         )
         intersect = carry | ((t < hit_threshold) & hit)
         return intersect, None
@@ -275,5 +282,7 @@ def rays_intersect_any_triangle(
     *batch, _ = ray_origins.shape
 
     return jax.lax.scan(
-        scan_fun, init=jnp.zeros(batch, dtype=jnp.bool_), xs=triangle_vertices
+        scan_fun,
+        init=jnp.zeros(batch, dtype=jnp.bool_),
+        xs=triangle_vertices,
     )[0]

@@ -19,7 +19,7 @@ from ..utils import random_inputs
 
 @pytest.fixture(scope="module")
 def two_buildings_obj_file() -> Iterator[str]:
-    yield (
+    return (
         Path(__file__)
         .parent.joinpath("two_buildings.obj")
         .resolve(strict=True)
@@ -29,7 +29,7 @@ def two_buildings_obj_file() -> Iterator[str]:
 
 @pytest.fixture(scope="module")
 def two_buildings_ply_file() -> Iterator[str]:
-    yield (
+    return (
         Path(__file__)
         .parent.joinpath("two_buildings.ply")
         .resolve(strict=True)
@@ -39,7 +39,7 @@ def two_buildings_ply_file() -> Iterator[str]:
 
 @pytest.fixture(scope="module")
 def two_buildings_mesh(two_buildings_obj_file: str) -> Iterator[TriangleMesh]:
-    yield TriangleMesh.load_obj(two_buildings_obj_file)
+    return TriangleMesh.load_obj(two_buildings_obj_file)
 
 
 @pytest.fixture(scope="module")
@@ -50,7 +50,7 @@ def sphere() -> Iterator[TriangleMesh]:
 
     vertices = jnp.asarray(mesh.get_vertices())
     triangles = jnp.asarray(mesh.get_faces(), dtype=int)
-    yield TriangleMesh(vertices=vertices, triangles=triangles)
+    return TriangleMesh(vertices=vertices, triangles=triangles)
 
 
 @pytest.mark.parametrize(
@@ -79,7 +79,8 @@ def test_triangles_contain_vertices_assuming_inside_same_planes_random_inputs(
 ) -> None:
     with expectation:
         _ = triangles_contain_vertices_assuming_inside_same_plane(
-            triangle_vertices, vertices
+            triangle_vertices,
+            vertices,
         )
 
 
@@ -99,15 +100,16 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
             [0.5, 0.0, 0.0],  # Inside but on edge
             [0.0, 0.5, 0.0],  # Inside but on edge
             [0.5, 0.5, 0.0],  # Inside but on edge
-        ]
+        ],
     )
     expected = jnp.array(
-        [True, True, True, True, False, False, True, True, True, True, True, True]
+        [True, True, True, True, False, False, True, True, True, True, True, True],
     )
     n = vertices.shape[0]
     triangle_vertices = jnp.tile(triangle_vertices, (n, 1, 1))
     got = triangles_contain_vertices_assuming_inside_same_plane(
-        triangle_vertices, vertices
+        triangle_vertices,
+        vertices,
     )
     chex.assert_trees_all_equal(got, expected)
 
@@ -135,11 +137,13 @@ class TestTriangleMesh:
         assert mesh.triangles.shape == (24, 3)
 
     def test_compare_with_open3d(
-        self, two_buildings_obj_file: str, two_buildings_mesh: TriangleMesh
+        self,
+        two_buildings_obj_file: str,
+        two_buildings_mesh: TriangleMesh,
     ) -> None:
         o3d = pytest.importorskip("open3d")
         mesh = o3d.io.read_triangle_mesh(
-            two_buildings_obj_file
+            two_buildings_obj_file,
         ).compute_triangle_normals()
 
         got_triangles = two_buildings_mesh.triangles
@@ -164,7 +168,7 @@ class TestTriangleMesh:
 
     def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
         chex.assert_equal_shape(
-            (two_buildings_mesh.normals, two_buildings_mesh.triangles)
+            (two_buildings_mesh.normals, two_buildings_mesh.triangles),
         )
         got = jnp.linalg.norm(two_buildings_mesh.normals, axis=-1)
         expected = jnp.ones_like(got)

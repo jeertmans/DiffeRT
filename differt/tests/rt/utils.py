@@ -20,26 +20,28 @@ class PlanarMirrorsSetup:
         from_vertex = jnp.array([0.0, 0.0, 0.0])
         to_vertex = jnp.array([1.0, 0.0, 0.0])
         mirror_vertices = jnp.array(
-            [[0.0, +1.0, 0.0], [0.0, -1.0, 0.0], [0.0, +1.0, 0.0]]
+            [[0.0, +1.0, 0.0], [0.0, -1.0, 0.0], [0.0, +1.0, 0.0]],
         )
         mirror_normals = jnp.array(
-            [[0.0, -1.0, 0.0], [0.0, +1.0, 0.0], [0.0, -1.0, 0.0]]
+            [[0.0, -1.0, 0.0], [0.0, +1.0, 0.0], [0.0, -1.0, 0.0]],
         )
         path = jnp.array(
-            [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]]
+            [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]],
         )
         # Tile on batch dimensions
-        axis = tuple(range(0, len(batch)))
+        axis = tuple(range(len(batch)))
         self.from_vertices = jnp.tile(from_vertex, (*batch, 1))
         assert self.from_vertices.shape == (*batch, 3)
         self.to_vertices = jnp.tile(to_vertex, (*batch, 1))
         assert self.to_vertices.shape == (*batch, 3)
         self.mirror_vertices = jnp.tile(
-            jnp.expand_dims(mirror_vertices, axis), (*batch, 1, 1)
+            jnp.expand_dims(mirror_vertices, axis),
+            (*batch, 1, 1),
         )
         assert self.mirror_vertices.shape == (*batch, 3, 3)
         self.mirror_normals = jnp.tile(
-            jnp.expand_dims(mirror_normals, axis), (*batch, 1, 1)
+            jnp.expand_dims(mirror_normals, axis),
+            (*batch, 1, 1),
         )
         assert self.mirror_normals.shape == (*batch, 3, 3)
         self.paths = jnp.tile(jnp.expand_dims(path, axis), (*batch, 1, 1))

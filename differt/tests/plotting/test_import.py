@@ -12,7 +12,8 @@ from ._types import MissingModulesContextGenerator
     (("vispy",), ("matplotlib",), ("plotly",), ("vispy", "matplotlib", "plotly")),
 )
 def test_import_with_missing_backends(
-    backends: tuple[str], missing_modules: MissingModulesContextGenerator
+    backends: tuple[str],
+    missing_modules: MissingModulesContextGenerator,
 ) -> None:
     with missing_modules(*backends):
         importlib.reload(differt.plotting._core)

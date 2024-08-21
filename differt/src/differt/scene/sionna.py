@@ -102,7 +102,7 @@ def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> li
     Args:
         folder: Where scene files are stored.
 
-    Return:
+    Returns:
         The list of scene names.
     """
     if isinstance(folder, str):
@@ -112,7 +112,9 @@ def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> li
 
 
 def get_sionna_scene(
-    scene_name: str, *, folder: Union[str, Path] = SIONNA_SCENES_FOLDER
+    scene_name: str,
+    *,
+    folder: Union[str, Path] = SIONNA_SCENES_FOLDER,
 ) -> str:
     """
     Return the path to the given Sionna scene.
@@ -121,9 +123,12 @@ def get_sionna_scene(
         scene_name: The name of the scene.
         folder: Where scene files are stored.
 
-    Return:
+    Returns:
         The path, relative to the current working directory,
         to the given ``scene.xml`` file.
+
+    Raises:
+        ValueError: If scene does not exist.
     """
     if isinstance(folder, str):
         folder = Path(folder)
@@ -133,7 +138,7 @@ def get_sionna_scene(
     if not p.exists():
         scenes = ", ".join(list_sionna_scenes(folder=folder))
         raise ValueError(
-            f"Cannot find {scene_name = }! Available scenes are: {scenes}."
+            f"Cannot find {scene_name = }! Available scenes are: {scenes}.",
         )
 
     return str(p)

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import jax
+import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 
@@ -15,6 +16,11 @@ def seed() -> int:
 @pytest.fixture
 def key(seed: int) -> PRNGKeyArray:
     return jax.random.PRNGKey(seed)
+
+
+@pytest.fixture
+def rng(seed: int) -> np.random.Generator:
+    return np.random.Generator(seed)
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

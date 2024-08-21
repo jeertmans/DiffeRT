@@ -25,7 +25,7 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901
     if len(module_dirs) != len(output_dirs):
         raise ValueError(
             "If you provide a list of output directories, "
-            "it must have the same length as the module directories."
+            "it must have the same length as the module directories.",
         )
 
     options = []
@@ -42,7 +42,7 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901
     if app.config.apidoc_dry_run:
         options.append("--dry-run")
 
-    options.append(f"-s={app.config.apidoc_suffix}")
+    options.append(f"-s={app.config.apidoc_suffix}")  # noqa: FURB113
     options.append(f"-d={app.config.apidoc_max_depth}")
 
     if app.config.apidoc_no_toc:

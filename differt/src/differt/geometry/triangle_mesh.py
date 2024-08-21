@@ -19,7 +19,8 @@ from .utils import normalize
 
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
+    triangle_vertices: Float[Array, "*batch 3 3"],
+    vertices: Float[Array, "*batch 3"],
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
@@ -33,7 +34,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
         triangle_vertices: an array of triangle vertices.
         vertices: an array of vertices that will be checked.
 
-    Return:
+    Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     # [*batch 3]
@@ -91,7 +92,7 @@ def paths_intersect_triangles(
             a small portion of the path, to avoid indicating intersection
             when a path *bounces off* a triangle.
 
-    Return:
+    Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     ray_origins = paths[..., :-1, :]
@@ -139,7 +140,7 @@ class TriangleMesh(eqx.Module):
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
         return jnp.vstack(
-            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0))
+            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0)),
         )
 
     @classmethod
@@ -147,7 +148,7 @@ class TriangleMesh(eqx.Module):
         """
         Create an empty scene.
 
-        Return:
+        Returns:
             A new empty scene.
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
@@ -168,7 +169,7 @@ class TriangleMesh(eqx.Module):
         Args:
             file: The path to the Wavefront .obj file.
 
-        Return:
+        Returns:
             The corresponding mesh containing only triangles.
         """
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
@@ -188,7 +189,7 @@ class TriangleMesh(eqx.Module):
         Args:
             file: The path to the Stanford PLY .ply file.
 
-        Return:
+        Returns:
             The corresponding mesh containing only triangles.
         """
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
@@ -205,7 +206,7 @@ class TriangleMesh(eqx.Module):
             kwargs: Keyword arguments passed to
                 :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
 
-        Return:
+        Returns:
             The resulting plot output.
         """
         return draw_mesh(
@@ -216,7 +217,11 @@ class TriangleMesh(eqx.Module):
 
     @eqx.filter_jit
     def sample(
-        self, size: int, replace: bool = False, *, key: PRNGKeyArray
+        self,
+        size: int,
+        replace: bool = False,
+        *,
+        key: PRNGKeyArray,
     ) -> "TriangleMesh":
         """
         Generate a new mesh by randomly sampling triangles from this geometry.
@@ -226,12 +231,15 @@ class TriangleMesh(eqx.Module):
             replace: Whether to sample with or without replacement.
             key: The :func:`jax.random.PRNGKey` to be used.
 
-        Return:
+        Returns:
             A new random mesh.
         """
         triangles = self.triangles[
             jax.random.choice(
-                key, self.triangles.shape[0], shape=(size,), replace=replace
+                key,
+                self.triangles.shape[0],
+                shape=(size,),
+                replace=replace,
             ),
             :,
         ]

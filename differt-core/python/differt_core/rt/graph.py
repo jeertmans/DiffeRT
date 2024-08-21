@@ -1,12 +1,12 @@
 """Graph utilities to generate path candidates, as used by exhaustive Ray Tracing methods, e.g., the Image Method."""
 
 __all__ = (
+    "AllPathsFromCompleteGraphChunksIter",
+    "AllPathsFromCompleteGraphIter",
+    "AllPathsFromDiGraphChunksIter",
+    "AllPathsFromDiGraphIter",
     "CompleteGraph",
     "DiGraph",
-    "AllPathsFromCompleteGraphIter",
-    "AllPathsFromCompleteGraphChunksIter",
-    "AllPathsFromDiGraphIter",
-    "AllPathsFromDiGraphChunksIter",
 )
 
 from .. import _lowlevel

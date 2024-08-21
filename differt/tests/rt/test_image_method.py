@@ -27,7 +27,9 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
     mirror_vertices = jnp.tile(mirror_vertex, (n, 1))
     mirror_normals = jnp.tile(mirror_normal, (n, 1))
     got = image_of_vertices_with_respect_to_mirrors(
-        vertices, mirror_vertices, mirror_normals
+        vertices,
+        mirror_vertices,
+        mirror_normals,
     )
     chex.assert_trees_all_close(got, expected)
 
@@ -61,7 +63,9 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
 ) -> None:
     with expectation:
         got = image_of_vertices_with_respect_to_mirrors(
-            vertices, mirror_vertices, mirror_normals
+            vertices,
+            mirror_vertices,
+            mirror_normals,
         )
         for i in np.ndindex(vertices.shape[:-1]):
             index = (*i, slice(0, None))  # [i, :]
@@ -75,7 +79,7 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
 
 def test_intersection_of_line_segments_with_planes() -> None:
     segment_starts = jnp.array(
-        [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]]
+        [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
     )
     expected = jnp.array([[+0.5, +0.0, +0.0], [+0.0, +0.0, +0.0], [-0.5, +0.0, +0.0]])
     segment_end = jnp.array([2.0, -1.0, 0.0])
@@ -87,7 +91,10 @@ def test_intersection_of_line_segments_with_planes() -> None:
     plane_vertices = jnp.tile(plane_vertex, (n, 1))
     plane_normals = jnp.tile(plane_normal, (n, 1))
     got = intersection_of_line_segments_with_planes(
-        segment_starts, segment_ends, plane_vertices, plane_normals
+        segment_starts,
+        segment_ends,
+        plane_vertices,
+        plane_normals,
     )
     chex.assert_trees_all_close(got, expected)
 
@@ -144,6 +151,8 @@ def test_consecutive_vertices_are_on_same_side_of_mirrors(
 ) -> None:
     with expectation:
         got = consecutive_vertices_are_on_same_side_of_mirrors(
-            vertices, mirror_vertices, mirror_normals
+            vertices,
+            mirror_vertices,
+            mirror_normals,
         )
         chex.assert_trees_all_equal_shapes(got, mirror_vertices[..., 0])

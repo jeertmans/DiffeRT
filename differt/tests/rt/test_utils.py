@@ -42,13 +42,15 @@ from ..utils import random_inputs
                     [2, 0, 2],
                     [2, 1, 0],
                     [2, 1, 2],
-                ]
+                ],
             ),
         ),
     ],
 )
 def test_generate_all_path_candidates(
-    num_primitives: int, order: int, expected: Array
+    num_primitives: int,
+    order: int,
+    expected: Array,
 ) -> None:
     got = generate_all_path_candidates(num_primitives, order)
     got = sorted_array2(got)  # order may not be the same so we sort
@@ -87,7 +89,9 @@ def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> N
     ],
 )
 def test_rays_intersect_triangles(
-    ray_orig: Array, ray_dest: Array, expected: Array
+    ray_orig: Array,
+    ray_dest: Array,
+    expected: Array,
 ) -> None:
     triangle_vertices = jnp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     t, hit = rays_intersect_triangles(
@@ -151,7 +155,10 @@ def test_rays_intersect_any_triangle(
         )
         triangle_vertices = jnp.broadcast_to(triangle_vertices, (*shape, 3))
         expected_t, expected_hit = rays_intersect_triangles(
-            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            epsilon=epsilon,
         )
         expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
 

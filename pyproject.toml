@@ -96,16 +96,40 @@ extend-include = ["*.ipynb"]
 
 [tool.ruff.format]
 docstring-code-format = true
+preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
+  "COM812",  # missing-trailing-comma, conflicts with formatter
+  "COM819",  # prohibited-trailing-comma, conflicts with formatter
+  "CPY001",  # missing-copyright-notice
   "D203",  # no-blank-line-before-class
+  "D206",  # indent-with-spaces, conflicts with formatter
   "D212",  # multi-line-summary-second-line
-  "D407",  # Missing dashed underline after section
-  "F722",  # Syntax error in forward annotation
+  "D300",  # triple-single-quotes, conflicts with formatter
+  "D407",  # dashed-underline-after-section
+  "E111",  # indentation-with-invalid-multiple, conflicts with formatter
+  "E114",  # indentation-with-invalid-multiple-comments, conflicts with formatter
+  "E117",  # over-indented, conflicts with formatter
+  "E501",  # line-too-long, conflicts with formatter
+  "F722",  # forward-annotation-syntax-error
+  "FA100",  # future-rewritable-type-annotation
+  "FIX002",  # line-contains-todo, comment this to find where TODOs are
+  "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
+  "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "PLR0913",  # too-many-arguments
+  "PLR6104",  # non-augmented-assignment
+  "Q000",  # bad-quotes-inline-string, conflicts with formatter
+  "Q001",  # bad-quotes-multiline-string, conflicts with formatter
+  "Q002",  # bad-quotes-docstring, conflicts with formatter
+  "Q003",  # avoidable-escaped-quote, conflicts with formatter
+  "TD002",  # missing-todo-author, I am currently the only author
+  "TD003",  # missing-todo-link
+  "W191",  # tab-indentation, conflicts with formatter
 ]
-extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
 isort = {known-first-party = ["differt", "differt_core", "tests"]}
+preview = true
+select = ["ALL"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field"]
@@ -114,9 +138,15 @@ extend-immutable-calls = ["equinox.field"]
 extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
-"**.ipynb" = ["B018"]
-"**/{docs,differt_dev,tests}/*" = ["D"]
-"differt/src/differt/conftest.py" = ["D"]
+"**.ipynb" = [
+  "B018",
+  "ERA001",  # TODO: remove commented code in notebook
+]
+"**/{docs,differt_dev,tests}/*" = ["D", "DOC"]
+"**/{docs,tests}/*" = ["S101"]
+"differt/src/differt/conftest.py" = ["D", "DOC"]
+"scripts/*" = ["INP001"]
+"src/differt_dev/sphinxext/apidoc.py" = ["FBT003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

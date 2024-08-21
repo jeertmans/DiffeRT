@@ -25,9 +25,10 @@ def test_draw_mesh(
     ("vispy", "matplotlib", "plotly"),
 )
 def test_draw_paths(
+    rng: np.random.Generator,
     backend: str,
 ) -> None:
-    paths = np.random.rand(10, 4, 3)
+    paths = rng.random(size=(10, 4, 3))
     with use(backend):
         _ = draw_paths(paths)
 
@@ -42,9 +43,12 @@ def test_draw_paths(
 )
 @pytest.mark.parametrize("with_labels", (True, False))
 def test_draw_markers(
-    backend: str, expectation: AbstractContextManager[Exception], with_labels: bool
+    rng: np.random.Generator,
+    backend: str,
+    expectation: AbstractContextManager[Exception],
+    with_labels: bool,
 ) -> None:
-    markers = np.random.rand(4, 3)
+    markers = rng.random(size=(4, 3))
 
     if with_labels:
         labels = ["A", "B", "C", "D"]

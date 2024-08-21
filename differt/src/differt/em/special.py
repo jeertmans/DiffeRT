@@ -41,7 +41,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         The values of the error function at the given point.
 
     Notes:
@@ -173,7 +173,7 @@ def erfc(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         The values of the complementary error function at the given point.
 
     Examples:
@@ -210,7 +210,7 @@ def fresnel(
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         A tuple of two arrays, one for each of the Fresnel integrals.
 
     Examples:

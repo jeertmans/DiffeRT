@@ -21,7 +21,8 @@ class TestDiGraph:
         assert to == 10
 
         with pytest.raises(
-            TypeError, match="takes 0 positional arguments but 1 was given"
+            TypeError,
+            match="takes 0 positional arguments but 1 was given",
         ):
             _ = graph.insert_from_and_to_nodes(True)  # type: ignore
 
@@ -33,9 +34,12 @@ class TestDiGraph:
         nodes = (0, 1, 2, 5)
         graph.disconnect_nodes(*nodes, fast_mode=fast_mode)
 
-        for depth in range(0, 3):
+        for depth in range(3):
             for path in graph.all_paths(
-                from_, to, depth + 2, include_from_and_to=False
+                from_,
+                to,
+                depth + 2,
+                include_from_and_to=False,
             ):
                 for node in nodes:
                     assert node not in path
@@ -49,12 +53,18 @@ class TestDiGraph:
         nodes = (3, 4, 5)
         di_graph.disconnect_nodes(*nodes, fast_mode=fast_mode)
 
-        for depth in range(0, 3):
+        for depth in range(3):
             complete_paths = complete_graph.all_paths_array(
-                from_, to, depth + 2, include_from_and_to=False
+                from_,
+                to,
+                depth + 2,
+                include_from_and_to=False,
             )
             di_paths = di_graph.all_paths_array(
-                from_, to, depth + 2, include_from_and_to=False
+                from_,
+                to,
+                depth + 2,
+                include_from_and_to=False,
             )
             np.testing.assert_equal(complete_paths, di_paths)
 
@@ -68,7 +78,8 @@ class TestDiGraph:
         graph = DiGraph.from_complete_graph(CompleteGraph(5))
 
         with pytest.raises(
-            TypeError, match="takes 3 positional arguments but 4 were given"
+            TypeError,
+            match="takes 3 positional arguments but 4 were given",
         ):
             _ = graph.all_paths(0, 1, 0, True)  # type: ignore
 
@@ -81,7 +92,9 @@ class TestDiGraph:
         ],
     )
     def test_all_paths_count_from_complete_graph(
-        self, num_nodes: int, depth: int
+        self,
+        num_nodes: int,
+        depth: int,
     ) -> None:
         graph = DiGraph.from_complete_graph(CompleteGraph(num_nodes))
         from_, to = graph.insert_from_and_to_nodes()

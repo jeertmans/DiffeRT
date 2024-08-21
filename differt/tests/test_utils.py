@@ -25,7 +25,7 @@ from differt.utils import minimize, sample_points_in_bounding_box, sorted_array2
                     [1, 2, 3],
                     [1, 0, 0],
                     [1, 0, 1],
-                ]
+                ],
             ),
             jnp.array(
                 [
@@ -37,7 +37,7 @@ from differt.utils import minimize, sample_points_in_bounding_box, sorted_array2
                     [1, 2, 3],
                     [4, 5, 6],
                     [7, 8, 9],
-                ]
+                ],
             ),
         ),
     ],

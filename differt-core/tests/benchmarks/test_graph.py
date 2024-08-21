@@ -24,7 +24,7 @@ def test_complete_graph_all_paths(benchmark: BenchmarkFixture) -> None:
     from_ = NUM_NODES
     to = from_ + 1
     it = cycle(
-        graph.all_paths(from_, to, DEPTH, include_from_and_to=INCLUDE_FROM_AND_TO)
+        graph.all_paths(from_, to, DEPTH, include_from_and_to=INCLUDE_FROM_AND_TO),
     )
 
     _ = benchmark(lambda: next(it))
@@ -33,7 +33,8 @@ def test_complete_graph_all_paths(benchmark: BenchmarkFixture) -> None:
 @pytest.mark.parametrize("chunk_size", [1, 10, 100, 1000])
 @pytest.mark.benchmark(group="complete_graph_all_paths_array_chunks")
 def test_complete_graph_all_paths_array_chunks(
-    chunk_size: int, benchmark: BenchmarkFixture
+    chunk_size: int,
+    benchmark: BenchmarkFixture,
 ) -> None:
     graph = CompleteGraph(NUM_NODES)
     from_ = NUM_NODES
@@ -45,7 +46,7 @@ def test_complete_graph_all_paths_array_chunks(
             DEPTH,
             include_from_and_to=INCLUDE_FROM_AND_TO,
             chunk_size=chunk_size,
-        )
+        ),
     )
 
     benchmark.extra_info["scale"] = chunk_size
@@ -57,7 +58,7 @@ def test_di_graph_from_complete_graph_all_paths(benchmark: BenchmarkFixture) -> 
     graph = DiGraph.from_complete_graph(CompleteGraph(NUM_NODES))
     from_, to = graph.insert_from_and_to_nodes(direct_path=DIRECT_PATH)
     it = cycle(
-        graph.all_paths(from_, to, DEPTH, include_from_and_to=INCLUDE_FROM_AND_TO)
+        graph.all_paths(from_, to, DEPTH, include_from_and_to=INCLUDE_FROM_AND_TO),
     )
 
     _ = benchmark(lambda: next(it))
@@ -66,7 +67,8 @@ def test_di_graph_from_complete_graph_all_paths(benchmark: BenchmarkFixture) -> 
 @pytest.mark.parametrize("chunk_size", [1, 10, 100, 1000])
 @pytest.mark.benchmark(group="di_graph_complete_graph_all_paths_array_chunks")
 def test_di_graph_from_complete_graph_all_paths_array_chunks(
-    chunk_size: int, benchmark: BenchmarkFixture
+    chunk_size: int,
+    benchmark: BenchmarkFixture,
 ) -> None:
     graph = DiGraph.from_complete_graph(CompleteGraph(NUM_NODES))
     from_, to = graph.insert_from_and_to_nodes(direct_path=DIRECT_PATH)
@@ -77,7 +79,7 @@ def test_di_graph_from_complete_graph_all_paths_array_chunks(
             DEPTH,
             include_from_and_to=INCLUDE_FROM_AND_TO,
             chunk_size=chunk_size,
-        )
+        ),
     )
 
     benchmark.extra_info["scale"] = chunk_size

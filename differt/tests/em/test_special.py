@@ -34,7 +34,9 @@ def test_erf(double_precision: bool) -> None:
         got = erf(z)
         expected = jnp.asarray(sp.erf(np.asarray(z)))
         chex.assert_trees_all_close(
-            got, expected, rtol=1e-12 if double_precision else 1e-4
+            got,
+            expected,
+            rtol=1e-12 if double_precision else 1e-4,
         )
 
 

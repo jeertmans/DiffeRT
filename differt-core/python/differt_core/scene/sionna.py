@@ -11,7 +11,7 @@ it is preferred to directly use ``load_xml`` from another scene
 class, like :meth:`TriangleScene<differt_core.scene.triangle_scene.TriangleScene>`.
 """
 
-__all__ = ("SionnaScene", "Material", "Shape")
+__all__ = ("Material", "Shape", "SionnaScene")
 
 from .. import _lowlevel
 

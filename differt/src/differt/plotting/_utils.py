@@ -59,7 +59,7 @@ def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
             corresponding ``process_*_kwargs`` function, and
             plot utilities.
 
-    Return:
+    Returns:
         The name of the (new) default backend.
 
     Raises:
@@ -114,7 +114,7 @@ def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
     if backend not in SUPPORTED_BACKENDS:
         raise ValueError(
             f"The backend '{backend}' is not supported. "
-            f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
+            f"We currently support: {', '.join(SUPPORTED_BACKENDS)}.",
         )
 
     try:
@@ -124,7 +124,7 @@ def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
         return backend
     except ImportError:
         raise ImportError(
-            f"Could not load backend '{backend}', did you install it?"
+            f"Could not load backend '{backend}', did you install it?",
         ) from None
 
 
@@ -142,7 +142,7 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
-    Return:
+    Yields:
         The name of the default backend used in this context.
 
     Examples:
@@ -213,7 +213,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         fun: The callable that will register future dispatch
             functions for each backend implementation.
 
-    Return:
+    Returns:
         A callable that can register backend implementations with ``register``.
 
     Notes:
@@ -284,13 +284,16 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             backend: The name of backend for which the decorated
                 function will be called.
 
-        Return:
+        Returns:
             A wrapper to be put before the backend-specific implementation.
+
+        Raises:
+            ValueError: If the backend is not supported.
         """
         if backend not in SUPPORTED_BACKENDS:
             raise ValueError(
                 f"Unsupported backend '{backend}', "
-                f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}."
+                f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}.",
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
@@ -304,12 +307,12 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
                     raise ImportError(
                         "An import error occurred when dispatching "
                         f"plot utility to backend '{backend}'. "
-                        "Did you correctly install it?"
+                        "Did you correctly install it?",
                     ) from e
 
             registry[backend] = __wrapper__
 
-            return __wrapper__
+            return __wrapper__  # noqa: DOC201
 
         return wrapper
 
@@ -325,7 +328,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             args: Positional arguments passed to the correct backend implementation.
             kwargs: Keyword arguments passed to the correct backend implementation.
 
-        Return:
+        Returns:
             The result of the call.
         """
         # We cannot currently add keyword argument to the signature,
@@ -340,7 +343,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             return registry[backend](*args, **kwargs)
         except KeyError:
             raise NotImplementedError(
-                f"No backend implementation for '{backend}'"
+                f"No backend implementation for '{backend}'",
             ) from None
 
         return wrapper
@@ -363,7 +366,7 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     Args:
         canvas: The canvas that draws the contents of the scene.
 
-    Return:
+    Returns:
         The view on which contents are displayed.
     """
     from vispy.scene.widgets.viewbox import ViewBox
@@ -414,7 +417,7 @@ def process_vispy_kwargs(
         must ensure that ``view in canvas.central_widget.children``
         evaluates to :py:data:`True`.
 
-    Return:
+    Returns:
         The canvas and view used to display contents.
     """
     from vispy import scene
@@ -462,7 +465,7 @@ def process_matplotlib_kwargs(
         must ensure that ``ax in figure.axes``
         evaluates to :py:data:`True`.
 
-    Return:
+    Returns:
         The figure and axes used to display contents.
     """
     import matplotlib.pyplot as plt
@@ -511,7 +514,7 @@ def process_plotly_kwargs(
         figure (:py:class:`Figure<plotly.graph_objects.Figure>`):
             The figure that draws contents of the scene.
 
-    Return:
+    Returns:
         The figure used to display contents.
     """
     import plotly.graph_objects as go
@@ -530,7 +533,7 @@ def reuse(**kwargs: Any) -> Iterator[Union[Canvas, MplFigure, Figure]]:
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
-    Return:
+    Yields:
         The canvas or figure that is reused for this context.
 
     Examples:

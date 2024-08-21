@@ -57,7 +57,7 @@ def image_of_vertices_with_respect_to_mirrors(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         An array of image vertices.
 
     Examples:
@@ -133,7 +133,7 @@ def intersection_of_line_segments_with_planes(
         plane_normals: an array of plane normals, where each normal has a unit
             length and if perpendicular to the corresponding plane.
 
-    Return:
+    Returns:
         An array of intersection vertices.
     """
     u = segment_ends - segment_starts
@@ -168,7 +168,7 @@ def image_method(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         An array of ray paths obtained with the image method.
 
     .. note::
@@ -206,15 +206,19 @@ def image_method(
         vertices = carry
         mirror_vertices, mirror_normals = x
         images = image_of_vertices_with_respect_to_mirrors(
-            vertices, mirror_vertices, mirror_normals
+            vertices,
+            mirror_vertices,
+            mirror_normals,
         )
-        return images, images
+        return images, images  # noqa: DOC201
 
     @jaxtyped(typechecker=typechecker)
     def backward(
         carry: Float[Array, "*batch 3"],
         x: tuple[
-            Float[Array, "*batch 3"], Float[Array, "*batch 3"], Float[Array, "*batch 3"]
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform backward pass on images by computing the intersection with mirrors."""
@@ -222,12 +226,17 @@ def image_method(
         mirror_vertices, mirror_normals, images = x
 
         intersections = intersection_of_line_segments_with_planes(
-            vertices, images, mirror_vertices, mirror_normals
+            vertices,
+            images,
+            mirror_vertices,
+            mirror_normals,
         )
-        return intersections, intersections
+        return intersections, intersections  # noqa: DOC201
 
     _, images = jax.lax.scan(
-        forward, init=from_vertices, xs=(mirror_vertices, mirror_normals)
+        forward,
+        init=from_vertices,
+        xs=(mirror_vertices, mirror_normals),
     )
     _, paths = jax.lax.scan(
         backward,
@@ -261,7 +270,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         A boolean array indicating whether pairs of consecutive vertices
         are on the same side of the corresponding mirror.
     """

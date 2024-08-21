@@ -32,13 +32,13 @@ def my_plot(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:  # ty
 
 @my_plot.register("vispy")
 def _(**kwargs):  # type: ignore[no-untyped-def]
-    canvas, view = process_vispy_kwargs(kwargs)
+    canvas, _view = process_vispy_kwargs(kwargs)
     return canvas
 
 
 @my_plot.register("matplotlib")
 def _(**kwargs):  # type: ignore[no-untyped-def]
-    fig, ax = process_matplotlib_kwargs(kwargs)
+    fig, _ax = process_matplotlib_kwargs(kwargs)
     return fig
 
 
@@ -59,7 +59,8 @@ def test_unimplemented(backend: str | None) -> None:
 
 def test_use_unsupported() -> None:
     with pytest.raises(
-        ValueError, match="The backend 'bokeh' is not supported. We currently support:"
+        ValueError,
+        match="The backend 'bokeh' is not supported. We currently support:",
     ):
         with use(backend="bokeh"):
             pass
@@ -67,7 +68,8 @@ def test_use_unsupported() -> None:
 
 def test_register_unsupported() -> None:
     with pytest.raises(
-        ValueError, match="Unsupported backend 'bokeh', allowed values are:"
+        ValueError,
+        match="Unsupported backend 'bokeh', allowed values are:",
     ):
 
         @my_plot.register("bokeh")
@@ -77,7 +79,8 @@ def test_register_unsupported() -> None:
 
 @pytest.mark.parametrize("backend", ("vispy", "matplotlib", "plotly"))
 def test_missing_default_backend_module(
-    backend: str, missing_modules: MissingModulesContextGenerator
+    backend: str,
+    missing_modules: MissingModulesContextGenerator,
 ) -> None:
     with use(backend=backend):  # Change the default backend
         with (
@@ -102,7 +105,8 @@ def test_missing_default_backend_module(
     ("vispy", "matplotlib", "plotly"),
 )
 def test_missing_backend_module(
-    backend: str, missing_modules: MissingModulesContextGenerator
+    backend: str,
+    missing_modules: MissingModulesContextGenerator,
 ) -> None:
     with (
         missing_modules(backend),
@@ -167,7 +171,7 @@ def test_process_matplotlib_kwargs() -> None:
 
     kwargs["ax"] = ax
 
-    got_figure, got_ax = process_matplotlib_kwargs(kwargs)
+    got_fig, got_ax = process_matplotlib_kwargs(kwargs)
     assert fig == got_fig
     assert ax == got_ax
     assert "ax" not in kwargs

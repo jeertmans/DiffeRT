@@ -54,7 +54,7 @@ def fermat_path_on_planar_mirrors(
         kwargs: Keyword arguments passed to
             :py:func:`minimize<differt.utils.minimize>`.
 
-    Return:
+    Returns:
         An array of ray paths obtained using Fermat's principle.
 
     .. note::
@@ -113,7 +113,7 @@ def fermat_path_on_planar_mirrors(
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, losses = minimize(
+    st, _losses = minimize(
         loss,
         st0,
         args=(

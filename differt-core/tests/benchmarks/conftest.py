@@ -16,5 +16,9 @@ def pytest_benchmark_generate_json(
             bench.stats.data = [time / scale for time in bench.stats.data]
 
     return bench_plugin.pytest_benchmark_generate_json(
-        config, benchmarks, include_data, machine_info, commit_info
+        config,
+        benchmarks,
+        include_data,
+        machine_info,
+        commit_info,
     )
