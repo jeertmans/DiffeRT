@@ -4,6 +4,11 @@ name = "differt-dev"
 requires-python = ">=3.9"
 version = "1.0.0"
 
+[project.optional-dependencies]
+cuda = [
+    "jax[cuda12]>=0.4.30",
+]
+
 [tool.bumpversion]
 allow_dirty = false
 commit = true
