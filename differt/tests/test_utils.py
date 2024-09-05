@@ -7,7 +7,7 @@ from differt.utils import minimize, sample_points_in_bounding_box, sorted_array2
 
 
 @pytest.mark.parametrize(
-    "array,expected",
+    ("array", "expected"),
     [
         (jnp.empty((0, 0)), jnp.empty((0, 0))),
         (jnp.empty((1, 0)), jnp.empty((1, 0))),

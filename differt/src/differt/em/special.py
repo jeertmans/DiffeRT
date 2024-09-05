@@ -155,8 +155,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     h = exp_r_squared * h_sum / (2 * jnp.pi)
 
     res = erfx(r) + e + f - exp_2j_r_i * (g + h)
-    res = jnp.where(z.imag < 0, jnp.conj(res), res)
-    return res
+    return jnp.where(z.imag < 0, jnp.conj(res), res)
 
 
 @jax.jit

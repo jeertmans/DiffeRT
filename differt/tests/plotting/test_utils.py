@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import pytest
@@ -17,7 +17,8 @@ from differt.plotting._utils import (
     view_from_canvas,
 )
 
-from ._types import MissingModulesContextGenerator
+if TYPE_CHECKING:
+    from pytest_missing_modules.plugin import MissingModulesContextGenerator
 
 
 @dispatch  # type: ignore
@@ -44,11 +45,10 @@ def _(**kwargs):  # type: ignore[no-untyped-def]
 
 @my_plot.register("plotly")
 def _(**kwargs):  # type: ignore[no-untyped-def]
-    fig = process_plotly_kwargs(kwargs)
-    return fig
+    return process_plotly_kwargs(kwargs)
 
 
-@pytest.mark.parametrize("backend", (None, "vispy", "matplotlib", "plotly"))
+@pytest.mark.parametrize("backend", [None, "vispy", "matplotlib", "plotly"])
 def test_unimplemented(backend: str | None) -> None:
     with pytest.raises(NotImplementedError, match="No backend implementation for"):
         if backend:
@@ -58,12 +58,14 @@ def test_unimplemented(backend: str | None) -> None:
 
 
 def test_use_unsupported() -> None:
-    with pytest.raises(
-        ValueError,
-        match="The backend 'bokeh' is not supported. We currently support:",
+    with (
+        pytest.raises(
+            ValueError,
+            match="The backend 'bokeh' is not supported. We currently support:",
+        ),
+        use(backend="bokeh"),
     ):
-        with use(backend="bokeh"):
-            pass
+        pass
 
 
 def test_register_unsupported() -> None:
@@ -73,11 +75,11 @@ def test_register_unsupported() -> None:
     ):
 
         @my_plot.register("bokeh")
-        def _(**kwargs):  # type: ignore[no-untyped-def]
+        def _(**_kwargs) -> None:  # type: ignore[no-untyped-def]
             pass
 
 
-@pytest.mark.parametrize("backend", ("vispy", "matplotlib", "plotly"))
+@pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
 def test_missing_default_backend_module(
     backend: str,
     missing_modules: MissingModulesContextGenerator,
@@ -102,7 +104,7 @@ def test_missing_default_backend_module(
 
 @pytest.mark.parametrize(
     "backend",
-    ("vispy", "matplotlib", "plotly"),
+    ["vispy", "matplotlib", "plotly"],
 )
 def test_missing_backend_module(
     backend: str,
@@ -119,8 +121,8 @@ def test_missing_backend_module(
 
 
 @pytest.mark.parametrize(
-    "backend,rtype",
-    (("vispy", SceneCanvas), ("matplotlib", MplFigure), ("plotly", Figure)),
+    ("backend", "rtype"),
+    [("vispy", SceneCanvas), ("matplotlib", MplFigure), ("plotly", Figure)],
 )
 def test_return_type(backend: str, rtype: type) -> None:
     ret = my_plot(backend=backend)  # type: ignore

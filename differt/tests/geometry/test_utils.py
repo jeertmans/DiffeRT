@@ -12,8 +12,7 @@ from differt.geometry.utils import (
     pairwise_cross,
     path_lengths,
 )
-
-from ..utils import random_inputs
+from tests.utils import random_inputs
 
 
 def test_pairwise_cross() -> None:
@@ -25,7 +24,7 @@ def test_pairwise_cross() -> None:
 
 
 @pytest.mark.parametrize(
-    "u,v,expectation",
+    ("u", "v", "expectation"),
     [
         ((10, 3), (10, 3), does_not_raise()),
         ((10, 3), (20, 3), does_not_raise()),
@@ -48,7 +47,7 @@ def test_pairwise_cross_random_inputs(
 
 
 @pytest.mark.parametrize(
-    "u,expectation",
+    ("u", "expectation"),
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
@@ -68,13 +67,13 @@ def test_normalize_random_inputs(
 
 @pytest.mark.parametrize(
     "u",
-    (
+    [
         jnp.array([1.0, 0.0, 0.0]),
         jnp.array([0.0, 1.0, 0.0]),
         jnp.array([0.0, 0.0, 1.0]),
         jnp.array([1.0, 1.0, 1.0]),
         jnp.arange(30.0).reshape(2, 5, 3),
-    ),
+    ],
 )
 def test_orthogonal_basis(u: Array) -> None:
     u, _ = normalize(u)
@@ -94,7 +93,7 @@ def test_orthogonal_basis(u: Array) -> None:
 
 
 @pytest.mark.parametrize(
-    "paths,expectation",
+    ("paths", "expectation"),
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),

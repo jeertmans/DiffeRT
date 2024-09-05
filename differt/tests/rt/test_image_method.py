@@ -13,8 +13,8 @@ from differt.rt.image_method import (
     image_of_vertices_with_respect_to_mirrors,
     intersection_of_line_segments_with_planes,
 )
+from tests.utils import random_inputs
 
-from ..utils import random_inputs
 from .utils import PlanarMirrorsSetup
 
 
@@ -35,7 +35,7 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
 
 
 @pytest.mark.parametrize(
-    ("vertices,mirror_vertices,mirror_normals,expectation"),
+    ("vertices", "mirror_vertices", "mirror_normals", "expectation"),
     [
         ((20, 10, 3), (20, 10, 3), (20, 10, 3), does_not_raise()),
         ((10, 3), (10, 3), (10, 3), does_not_raise()),
@@ -123,7 +123,7 @@ def test_image_method(batch: tuple[int, ...]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("vertices,mirror_vertices,mirror_normals,expectation"),
+    ("vertices", "mirror_vertices", "mirror_normals", "expectation"),
     [
         ((12, 3), (10, 3), (10, 3), does_not_raise()),
         ((4, 12, 3), (4, 10, 3), (4, 10, 3), does_not_raise()),

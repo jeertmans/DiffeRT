@@ -90,7 +90,7 @@ def _(
     triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Mesh
+    from vispy.scene.visuals import Mesh  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -186,8 +186,11 @@ def draw_paths(
 
 
 @draw_paths.register("vispy")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import LinePlot
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    from vispy.scene.visuals import LinePlot  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -203,7 +206,10 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas
 
 
 @draw_paths.register("matplotlib")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -213,7 +219,10 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFig
 
 
 @draw_paths.register("plotly")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure:  # type: ignore[reportInvalidTypeForm]
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -278,7 +287,7 @@ def _(
     text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Markers, Text
+    from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
     kwargs.setdefault("size", 1)
@@ -302,7 +311,7 @@ def _(
     text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
-    raise NotImplementedError  # TODO
+    raise NotImplementedError  # TODO: implement this
 
 
 @draw_markers.register("plotly")
@@ -316,6 +325,8 @@ def _(
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}
+        if text_kwargs:
+            kwargs.update(text_kwargs)
 
     x, y, z = markers.T
     return fig.add_scatter3d(
@@ -400,8 +411,8 @@ def _(
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Image
-    from vispy.visuals.transforms import STTransform
+    from vispy.scene.visuals import Image  # noqa: PLC0415
+    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 

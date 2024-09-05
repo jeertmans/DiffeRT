@@ -2,7 +2,7 @@
 An improved version of ``sphinxcontrib.apidoc``.
 """
 
-from os import path
+from pathlib import Path
 
 from sphinx.application import Sphinx
 from sphinx.ext import apidoc
@@ -11,7 +11,7 @@ from sphinx.util import logging
 logger = logging.getLogger(__name__)
 
 
-def builder_inited(app: Sphinx) -> None:  # noqa: C901
+def builder_inited(app: Sphinx) -> None:  # noqa: C901, PLR0912
     module_dirs = app.config.apidoc_module_dirs
     output_dirs = app.config.apidoc_output_dirs
     exclude_patterns = app.config.apidoc_exclude_patterns
@@ -23,9 +23,12 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901
         output_dirs: list[str] = [output_dirs for _ in module_dirs]
 
     if len(module_dirs) != len(output_dirs):
-        raise ValueError(
+        msg = (
             "If you provide a list of output directories, "
-            "it must have the same length as the module directories.",
+            "it must have the same length as the module directories."
+        )
+        raise ValueError(
+            msg,
         )
 
     options = []
@@ -65,20 +68,18 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901
 
     options.append(f"--templatedir={app.config.apidoc_templatedir}")
 
-    for module_dir, output_dir in zip(module_dirs, output_dirs):
-        if not path.isabs(module_dir):
-            module_dir = path.join(app.srcdir, module_dir)
+    for module_dir_rel, output_dir_rel in zip(module_dirs, output_dirs):
+        module_dir = Path(module_dir_rel)
+        if not module_dir.is_absolute():
+            module_dir = Path(app.srcdir) / module_dir_rel
 
-        output_dir = path.join(app.srcdir, output_dir)
+        output_dir = Path(app.srcdir) / output_dir_rel
 
         args = [
             *options,
             f"-o={output_dir}",
             module_dir,
-            *[
-                path.join(module_dir, exclude_pattern)
-                for exclude_pattern in exclude_patterns
-            ],
+            *[module_dir / exclude_pattern for exclude_pattern in exclude_patterns],
         ]
 
         apidoc.main(args)

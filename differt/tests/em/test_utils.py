@@ -8,12 +8,11 @@ from jaxtyping import Array
 
 from differt.em.constants import c
 from differt.em.utils import lengths_to_delays, path_delays
-
-from ..utils import random_inputs
+from tests.utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    "lengths,speed,expectation",
+    ("lengths", "speed", "expectation"),
     [
         ((10,), (1,), does_not_raise()),
         ((10,), (2,), pytest.raises(TypeError)),
@@ -37,7 +36,7 @@ def test_lengths_to__delays_random_inputs(
 
 
 @pytest.mark.parametrize(
-    "paths,expectation",
+    ("paths", "expectation"),
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),

@@ -6,7 +6,8 @@ import jax
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
-from ..geometry.utils import path_lengths
+from differt.geometry.utils import path_lengths
+
 from .constants import c
 
 

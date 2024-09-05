@@ -9,7 +9,7 @@ __all__ = (
     "DiGraph",
 )
 
-from .. import _lowlevel
+from differt_core import _lowlevel
 
 AllPathsFromCompleteGraphChunksIter = (
     _lowlevel.rt.graph.AllPathsFromCompleteGraphChunksIter

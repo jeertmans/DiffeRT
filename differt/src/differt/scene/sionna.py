@@ -137,8 +137,9 @@ def get_sionna_scene(
 
     if not p.exists():
         scenes = ", ".join(list_sionna_scenes(folder=folder))
+        msg = f"Cannot find {scene_name = }! Available scenes are: {scenes}."
         raise ValueError(
-            f"Cannot find {scene_name = }! Available scenes are: {scenes}.",
+            msg,
         )
 
     return str(p)

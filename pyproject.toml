@@ -1,3 +1,7 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 name = "differt-dev"
@@ -6,7 +10,7 @@ version = "1.0.0"
 
 [project.optional-dependencies]
 cuda = [
-    "jax[cuda12]>=0.4.30",
+  "jax[cuda]>=0.4.30",
 ]
 
 [tool.bumpversion]
@@ -61,6 +65,9 @@ precision = 2
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/differt_dev"]  # See https://github.com/astral-sh/rye/issues/515
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
@@ -105,6 +112,7 @@ preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
+  "ANN401",  # any-type
   "COM812",  # missing-trailing-comma, conflicts with formatter
   "COM819",  # prohibited-trailing-comma, conflicts with formatter
   "CPY001",  # missing-copyright-notice
@@ -136,6 +144,9 @@ isort = {known-first-party = ["differt", "differt_core", "tests"]}
 preview = true
 select = ["ALL"]
 
+[tool.ruff.lint.flake8-boolean-trap]
+extend-allowed-calls = ["jax.numpy.array"]
+
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field"]
 
@@ -149,6 +160,7 @@ extend-ignore-names = ["T"]
 ]
 "**/{docs,differt_dev,tests}/*" = ["D", "DOC"]
 "**/{docs,tests}/*" = ["S101"]
+"**/tests/*" = ["SIM117"]
 "differt/src/differt/conftest.py" = ["D", "DOC"]
 "scripts/*" = ["INP001"]
 "src/differt_dev/sphinxext/apidoc.py" = ["FBT003"]
@@ -181,6 +193,7 @@ dev-dependencies = [
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
+  "pytest-missing-modules>=0.2.0",
   "pytest-xdist>=3.3.1",
   "scipy>=1.12.0",
 ]

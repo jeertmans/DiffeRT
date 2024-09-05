@@ -17,8 +17,8 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
-from ..geometry.utils import orthogonal_basis
-from ..utils import minimize
+from differt.geometry.utils import orthogonal_basis
+from differt.utils import minimize
 
 
 @partial(jax.jit, static_argnames=("steps", "optimizer"))

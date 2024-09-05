@@ -20,7 +20,7 @@ def key(seed: int) -> PRNGKeyArray:
 
 @pytest.fixture
 def rng(seed: int) -> np.random.Generator:
-    return np.random.Generator(seed)
+    return np.random.default_rng(seed=seed)
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

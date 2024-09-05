@@ -11,10 +11,9 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 import differt_core.scene.triangle_scene
+from differt.geometry.triangle_mesh import TriangleMesh
+from differt.plotting import draw_markers, reuse
 from differt_core.scene.sionna import Material
-
-from ..geometry.triangle_mesh import TriangleMesh
-from ..plotting import draw_markers, reuse
 
 
 @jaxtyped(typechecker=typechecker)
@@ -102,12 +101,12 @@ class TriangleScene(eqx.Module):
         """
         scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
 
-        meshes = map(
-            lambda mesh: TriangleMesh(
+        meshes = (
+            TriangleMesh(
                 vertices=mesh.vertices,
                 triangles=mesh.triangles.astype(int),
-            ),
-            scene.meshes,
+            )
+            for mesh in scene.meshes
         )
 
         return cls(

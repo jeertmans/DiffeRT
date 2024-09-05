@@ -13,12 +13,11 @@ from differt.rt.utils import (
     rays_intersect_triangles,
 )
 from differt.utils import sorted_array2
-
-from ..utils import random_inputs
+from tests.utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    "num_primitives,order,expected",
+    ("num_primitives", "order", "expected"),
     [
         (0, 0, jnp.empty((1, 0), dtype=int)),
         (8, 0, jnp.empty((1, 0), dtype=int)),
@@ -59,7 +58,7 @@ def test_generate_all_path_candidates(
 
 
 @pytest.mark.parametrize(
-    "num_primitives,order",
+    ("num_primitives", "order"),
     [
         (3, 1),
         (3, 2),
@@ -79,7 +78,7 @@ def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> N
 
 
 @pytest.mark.parametrize(
-    "ray_orig,ray_dest,expected",
+    ("ray_orig", "ray_dest", "expected"),
     [
         (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, -1.0]), jnp.array(True)),
         (jnp.array([0.0, 0.0, 1.0]), jnp.array([1.0, 1.0, -1.0]), jnp.array(True)),
@@ -104,7 +103,7 @@ def test_rays_intersect_triangles(
 
 
 @pytest.mark.parametrize(
-    ("ray_origins,ray_directions,triangle_vertices,expectation"),
+    ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
     [
         ((20, 10, 3), (20, 10, 3), (15, 3, 3), does_not_raise()),
         ((10, 3), (10, 3), (15, 3, 3), does_not_raise()),
@@ -123,8 +122,8 @@ def test_rays_intersect_triangles(
         ),
     ],
 )
-@pytest.mark.parametrize("epsilon", (1e-6, 1e-2))
-@pytest.mark.parametrize("hit_threshold", (1.0, 0.999, 1.5, 0.5))
+@pytest.mark.parametrize("epsilon", [1e-6, 1e-2])
+@pytest.mark.parametrize("hit_threshold", [1.0, 0.999, 1.5, 0.5])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_rays_intersect_any_triangle(
     ray_origins: Array,

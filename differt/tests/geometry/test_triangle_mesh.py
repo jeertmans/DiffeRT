@@ -13,8 +13,7 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
-
-from ..utils import random_inputs
+from tests.utils import random_inputs
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +53,7 @@ def sphere() -> Iterator[TriangleMesh]:
 
 
 @pytest.mark.parametrize(
-    ("triangle_vertices,vertices,expectation"),
+    ("triangle_vertices", "vertices", "expectation"),
     [
         ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
         ((10, 3, 3), (10, 3), does_not_raise()),

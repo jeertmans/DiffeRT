@@ -13,7 +13,7 @@ class, like :meth:`TriangleScene<differt_core.scene.triangle_scene.TriangleScene
 
 __all__ = ("Material", "Shape", "SionnaScene")
 
-from .. import _lowlevel
+from differt_core import _lowlevel
 
 Material = _lowlevel.scene.sionna.Material
 Shape = _lowlevel.scene.sionna.Shape

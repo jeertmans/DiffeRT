@@ -26,7 +26,7 @@ class TestDiGraph:
         ):
             _ = graph.insert_from_and_to_nodes(True)  # type: ignore
 
-    @pytest.mark.parametrize("fast_mode", (True, False))
+    @pytest.mark.parametrize("fast_mode", [True, False])
     def test_disconnect_nodes(self, fast_mode: bool) -> None:
         graph = DiGraph.from_complete_graph(CompleteGraph(6))
         from_, to = graph.insert_from_and_to_nodes()
@@ -44,7 +44,7 @@ class TestDiGraph:
                 for node in nodes:
                     assert node not in path
 
-    @pytest.mark.parametrize("fast_mode", (True, False))
+    @pytest.mark.parametrize("fast_mode", [True, False])
     def test_disconnect_nodes_equivalence(self, fast_mode: bool) -> None:
         complete_graph = CompleteGraph(3)
         di_graph = DiGraph.from_complete_graph(CompleteGraph(6))
@@ -84,7 +84,7 @@ class TestDiGraph:
             _ = graph.all_paths(0, 1, 0, True)  # type: ignore
 
     @pytest.mark.parametrize(
-        "num_nodes,depth",
+        ("num_nodes", "depth"),
         [
             (10, 1),
             (50, 2),

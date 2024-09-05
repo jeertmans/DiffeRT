@@ -11,9 +11,9 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
+from differt.plotting import draw_mesh
+from differt.rt.utils import rays_intersect_triangles
 
-from ..plotting import draw_mesh
-from ..rt.utils import rays_intersect_triangles
 from .utils import normalize
 
 

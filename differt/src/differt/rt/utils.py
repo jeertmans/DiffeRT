@@ -134,7 +134,7 @@ def generate_all_path_candidates_iter(
         depth=order + 2,
         include_from_and_to=False,
     )
-    m = map(lambda arr: jnp.asarray(arr, dtype=int), it)
+    m = (jnp.asarray(arr, dtype=int) for arr in it)
     return _SizedIterator(m, size=it.__len__)
 
 
@@ -161,7 +161,7 @@ def generate_all_path_candidates_chunks_iter(
         depth=order + 2,
         include_from_and_to=False,
     )
-    m = map(lambda arr: jnp.asarray(arr, dtype=int), it)
+    m = (jnp.asarray(arr, dtype=int) for arr in it)
     return _SizedIterator(m, size=it.__len__)
 
 
