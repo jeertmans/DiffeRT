@@ -117,7 +117,7 @@ def minimize(
 
             .. note::
 
-                Those argument are also expected have
+                Those arguments are also expected have
                 batch dimensions similar to ``x0``.
 
                 If your function has static arguments,
