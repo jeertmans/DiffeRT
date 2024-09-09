@@ -244,7 +244,7 @@ def sample_points_in_bounding_box(
         bounding_box: The bounding box (min. and max. coordinates).
         size: The sample size or :py:data:`None`. If :py:data:`None`,
             the returned array is 1D. Otherwise, it is 2D.
-        key: The :class:`jax.random.PRNGKey` to be used.
+        key: The :func:`jax.random.PRNGKey` to be used.
 
     Return:
         An array of points randomly sampled.
