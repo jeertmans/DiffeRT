@@ -12,7 +12,7 @@ clean:
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":
-  {{env-run}} sphinx-build {{OPTIONS}} -b={{builder}} source build
+  {{env-run}} sphinx-build -M {{builder}} source build {{OPTIONS}}
 
 # Build docs in "draft" mode
 draft *ARGS:

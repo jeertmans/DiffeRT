@@ -162,6 +162,7 @@ class TriangleMesh(eqx.Module):
         *other_vertices: Float[Array, "3"],
         normal: Optional[Float[Array, "3"]] = None,
         side_length: float = 1.0,
+        rotate: Optional[float] = None,
     ) -> "TriangleMesh":
         """
         Create an plane mesh, made of two triangles.
@@ -175,6 +176,9 @@ class TriangleMesh(eqx.Module):
 
                 Must be of unit length.
             side_length: The side length of the plane.
+            rotate: An optional rotation angle, in radians,
+                to be applied around the normal of the plane
+                and its center.
 
         Return:
             A new plane mesh.
@@ -199,6 +203,27 @@ class TriangleMesh(eqx.Module):
         s = 0.5 * side_length
 
         vertices = s * jnp.array([u + v, v - u, -u - v, u - v])
+
+        if rotate:
+            # TODO: create a separate function to handle this
+            # TODO: test this
+            cos = jnp.cos(rotate)
+            sin = jnp.sin(rotate)
+            dtype = vertices.dtype
+            i = jnp.identity(3, dtype=dtype)
+            n: Array = normal
+            # Cross product matrix
+            x = jnp.array(
+                [[+0.0, -n[2], +n[1]], [+n[2], +0.0, -n[0]], [-n[1], +n[0], 0.0]],
+                dtype=dtype,
+            )
+            # Outer product matrix
+            o = jnp.outer(n, n)
+            rotation_matrix = cos * i + sin * x + (1 - cos) * o
+            vertices = (rotation_matrix @ vertices.T).T
+
+        vertices += vertex
+
         triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
         return cls(vertices=vertices, triangles=triangles)
 
