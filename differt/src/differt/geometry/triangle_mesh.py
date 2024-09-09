@@ -14,7 +14,7 @@ import differt_core.geometry.triangle_mesh
 
 from ..plotting import draw_mesh
 from ..rt.utils import rays_intersect_triangles
-from .utils import normalize, orthorgonal_basis
+from .utils import normalize, orthogonal_basis
 
 
 @jaxtyped(typechecker=typechecker)
@@ -194,7 +194,7 @@ class TriangleMesh(eqx.Module):
             w = jnp.cross(u, v)
             (normal,) = normalize(w)
 
-        u, v = orthorgonal_basis(normal, normalize=True)
+        u, v = orthogonal_basis(normal, normalize=True)
 
         s = 0.5 * side_length
 

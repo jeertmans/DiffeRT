@@ -59,7 +59,7 @@ Examples:
             ...    to_vertices,
             ...    mirror_vertices,
             ...    mirror_normals,
-            ...)
+            ... )
             >>> with reuse(backend="plotly") as fig:
             ...     for mirror_vertex, mirror_normal in zip(mirror_verices, mirror_normals):
             ...         plane = TriangleMesh.plane(mirror_vertex, normal=mirror_normal)
