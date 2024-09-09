@@ -7,7 +7,7 @@ import chex
 import jax.numpy as jnp
 import jaxtyping
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
 from differt.geometry.triangle_mesh import (
     TriangleMesh,
@@ -119,6 +119,35 @@ class TestTriangleMesh:
 
         with pytest.raises(jaxtyping.TypeCheckError):
             _ = TriangleMesh(vertices=vertices, triangles=triangles)
+
+    def test_plane(self, key: PRNGKeyArray) -> None:
+        center = jnp.ones(3, dtype=float)
+        normal = jnp.array([0.0, 0.0, 1.0])
+        mesh = TriangleMesh.plane(center, side_length=2)
+
+        got = mesh.bounding_box()
+        expected = jnp.array([[-1.0, -1.0, 1.0], [3.0, 3.0, 1.0]])
+
+        chex.assert_trees_all_equal(got, expected)
+
+        vertices = jnp.random.uniform(key, (3, 3))
+        _ = TriangleMesh.plane(*vertices)
+
+        with pytest.raises(
+            ValueError,
+            match="You must specify one of `other_vertices` or `normal`, not both.",
+        ):
+            _ = TriangleMesh.plane(*vertices, normal=normal)
+
+        with pytest.raises(ValueError, match="You must provide exactly 3 vertices"):
+            vertices = jnp.random.uniform(key, (4, 3))
+            _ = TriangleMesh.plane(*vertices)
+
+        with pytest.raises(
+            ValueError,
+            match="You must specify one of `other_vertices` or `normal`, not both.",
+        ):
+            _ = TriangleMesh.plane(center)
 
     def test_empty(self) -> None:
         assert TriangleMesh.empty().is_empty

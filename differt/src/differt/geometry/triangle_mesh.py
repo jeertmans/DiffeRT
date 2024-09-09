@@ -1,7 +1,7 @@
 """Mesh geometry made of triangles and utilities."""
 
 from functools import cached_property
-from typing import Any
+from typing import Any, Optional
 
 import equinox as eqx
 import jax
@@ -14,7 +14,7 @@ import differt_core.geometry.triangle_mesh
 
 from ..plotting import draw_mesh
 from ..rt.utils import rays_intersect_triangles
-from .utils import normalize
+from .utils import normalize, orthorgonal_basis
 
 
 @jaxtyped(typechecker=typechecker)
@@ -143,14 +143,64 @@ class TriangleMesh(eqx.Module):
         )
 
     @classmethod
+    @eqx.filter_jit
     def empty(cls) -> "TriangleMesh":
         """
-        Create an empty scene.
+        Create an empty mesh.
 
         Return:
-            A new empty scene.
+            A new empty mesh.
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
+
+    @classmethod
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def plane(
+        cls,
+        vertex: Float[Array, "3"],
+        *other_vertices: Float[Array, "3"],
+        normal: Optional[Float[Array, "3"]] = None,
+        side_length: float = 1.0,
+    ) -> "TriangleMesh":
+        """
+        Create an plane mesh, made of two triangles.
+
+        Args:
+            vertex: The center of the plane.
+            other_vertices: Two other vertices that define the plane.
+
+                This or ``normal`` is required.
+            normal: The plane normal.
+
+                Must be of unit length.
+            side_length: The side length of the plane.
+
+        Return:
+            A new plane mesh.
+        """
+        if (other_vertices == ()) == (normal is None):
+            raise ValueError(
+                "You must specify one of `other_vertices` or `normal`, not both."
+            )
+        if other_vertices:
+            if len(other_vertices) != 2:
+                raise ValueError(
+                    "You must provide exactly 3 vertices to create a new plane, "
+                    f"but you provided {len(other_vertices) + 1}."
+                )
+            u = other_vertices[0] - vertex
+            v = other_vertices[1] - vertex
+            w = jnp.cross(u, v)
+            (normal,) = normalize(w)
+
+        u, v = orthorgonal_basis(normal, normalize=True)
+
+        s = 0.5 * side_length
+
+        vertices = s * jnp.array([u + v, v - u, -u - v, u - v])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+        return cls(vertices=vertices, triangles=triangles)
 
     @property
     def is_empty(self) -> bool:
@@ -215,6 +265,7 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def sample(
         self, size: int, replace: bool = False, *, key: PRNGKeyArray
     ) -> "TriangleMesh":

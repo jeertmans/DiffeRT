@@ -30,6 +30,49 @@ Examples:
         first, by joining the UE, then the intersections points, with the images of the
         BS. Finally, the valid path can be obtained by joining BS, the intermediary
         intersection points, and the UE :cite:`mpt-eucap2023{fig. 5}`.
+
+    Next, we show how to reproduce the above results using :func:`image_method`.
+
+    .. plotly::
+
+            >>> from differt.geometry.utils import normalize
+            >>> from differt.geometry.triangle_mesh import TriangleMesh
+            >>> from differt.plotting import draw_markers, draw_path, reuse
+            >>>
+            >>> from_vertices = jnp.array([[+2.0, +4.0, +0.0]])
+            >>> to_vertices = jnp.array([[+2.0, -1.0, +0.0]])
+            >>> mirror_vertices = jnp.array(
+            ...     [
+            ...         [0.0, 0.0, 0.0],
+            ...         [4.0, 0.0, 0.0],
+            ...     ]
+            ... )
+            >>> mirror_normals = jnp.array(
+            ...     [
+            ...         [+1.0, +1.0, +0.0],
+            ...         [-1.0, +0.0, +0.0],
+            ...     ]
+            ... )
+            >>> mirror_normals, _ = normalize(mirror_normals)
+            >>> paths = image_method(
+            ...    from_vertices,
+            ...    to_vertices,
+            ...    mirror_vertices,
+            ...    mirror_normals,
+            ...)
+            >>> with reuse(backend="plotly") as fig:
+            ...     for mirror_vertex, mirror_normal in zip(mirror_verices, mirror_normals):
+            ...         plane = TriangleMesh.plane(mirror_vertex, normal=mirror_normal)
+            ...         plane.plot()
+            ...
+            ...     full_paths = jnp.concatenate(
+            ...         (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+            ...         axis=-2,
+            ...     )
+            ...     draw_path(full_paths)
+            ...     markers = jnp.stack(from_vertices, to_vertices)
+            ...     draw_markers(markers, label=["BS", "UE"])
+            >>> fig  # doctest: +SKIP
 """
 
 import chex
