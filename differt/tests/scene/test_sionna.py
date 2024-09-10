@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from pytest import TempPathFactory
 
 from differt.scene.sionna import (
     SIONNA_SCENES_FOLDER,
@@ -18,7 +17,7 @@ def folder() -> Path:
 
 
 @pytest.fixture
-def empty_folder(tmp_path_factory: TempPathFactory) -> Path:
+def empty_folder(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp("scenes")
 
 

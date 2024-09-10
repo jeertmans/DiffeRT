@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
@@ -18,7 +17,7 @@ from tests.utils import random_inputs
 
 
 @pytest.fixture(scope="module")
-def two_buildings_obj_file() -> Iterator[str]:
+def two_buildings_obj_file() -> str:
     return (
         Path(__file__)
         .parent.joinpath("two_buildings.obj")
@@ -28,7 +27,7 @@ def two_buildings_obj_file() -> Iterator[str]:
 
 
 @pytest.fixture(scope="module")
-def two_buildings_ply_file() -> Iterator[str]:
+def two_buildings_ply_file() -> str:
     return (
         Path(__file__)
         .parent.joinpath("two_buildings.ply")
@@ -38,12 +37,12 @@ def two_buildings_ply_file() -> Iterator[str]:
 
 
 @pytest.fixture(scope="module")
-def two_buildings_mesh(two_buildings_obj_file: str) -> Iterator[TriangleMesh]:
+def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
     return TriangleMesh.load_obj(two_buildings_obj_file)
 
 
 @pytest.fixture(scope="module")
-def sphere() -> Iterator[TriangleMesh]:
+def sphere() -> TriangleMesh:
     from vispy.geometry import create_sphere
 
     mesh = create_sphere()

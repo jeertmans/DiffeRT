@@ -22,7 +22,7 @@ impl TriangleScene {
     /// Args:
     ///     file (str): The path to the XML file.
     ///
-    /// Returns
+    /// Returns:
     ///     TriangleScene: The corresponding scene.
     #[classmethod]
     fn load_xml(cls: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {

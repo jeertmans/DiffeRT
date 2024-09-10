@@ -207,7 +207,7 @@ def rays_intersect_triangles(
     h = jnp.cross(ray_directions, edge_2, axis=-1)
     a = jnp.sum(edge_1 * h, axis=-1)
 
-    cond_a = (a > -epsilon) & (a < epsilon)
+    cond_a = (a > -epsilon) & (a < epsilon)  # type: ignore[reportOperatorIssue]
 
     f = 1.0 / a
     s = ray_origins - vertex_0

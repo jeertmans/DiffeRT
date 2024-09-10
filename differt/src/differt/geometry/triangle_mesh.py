@@ -185,7 +185,7 @@ class TriangleMesh(eqx.Module):
                 to be applied around the normal of the plane
                 and its center.
 
-        Returns
+        Returns:
             A new plane mesh.
         """
         if (other_vertices == ()) == (normal is None):

@@ -161,7 +161,7 @@ def rotation_matrix_along_x_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Returns
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -179,13 +179,11 @@ def rotation_matrix_along_x_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, +co, -si],
-            [0.0, +si, +co],
-        ]
-    )
+    return jnp.array([
+        [1.0, 0.0, 0.0],
+        [0.0, +co, -si],
+        [0.0, +si, +co],
+    ])
 
 
 @jax.jit
@@ -199,7 +197,7 @@ def rotation_matrix_along_y_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Returns
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -217,13 +215,11 @@ def rotation_matrix_along_y_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [+co, 0.0, +si],
-            [0.0, 1.0, 0.0],
-            [-si, 0.0, +co],
-        ]
-    )
+    return jnp.array([
+        [+co, 0.0, +si],
+        [0.0, 1.0, 0.0],
+        [-si, 0.0, +co],
+    ])
 
 
 @jax.jit
@@ -237,7 +233,7 @@ def rotation_matrix_along_z_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Returns
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -255,13 +251,11 @@ def rotation_matrix_along_z_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [+co, -si, 0.0],
-            [+si, +co, 0.0],
-            [0.0, 0.0, 1.0],
-        ]
-    )
+    return jnp.array([
+        [+co, -si, 0.0],
+        [+si, +co, 0.0],
+        [0.0, 0.0, 1.0],
+    ])
 
 
 @jax.jit
@@ -277,7 +271,7 @@ def rotation_matrix_along_axis(
         angle: The rotation angle, in radians.
         axis: A unit vector pointing in the axis' direction.
 
-    Returns
+    Returns:
         The rotation matrix.
 
     Examples:

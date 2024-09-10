@@ -42,18 +42,14 @@ Examples:
             >>>
             >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
             >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])
-            >>> mirror_vertices = jnp.array(
-            ...     [
-            ...         [3.0, 3.0, 0.0],
-            ...         [4.0, 3.4, 0.0],
-            ...     ]
-            ... )
-            >>> mirror_normals = jnp.array(
-            ...     [
-            ...         [+1.0, -1.0, +0.0],
-            ...         [-1.0, +0.0, +0.0],
-            ...     ]
-            ... )
+            >>> mirror_vertices = jnp.array([
+            ...     [3.0, 3.0, 0.0],
+            ...     [4.0, 3.4, 0.0],
+            ... ])
+            >>> mirror_normals = jnp.array([
+            ...     [+1.0, -1.0, +0.0],
+            ...     [-1.0, +0.0, +0.0],
+            ... ])
             >>> mirror_normals, _ = normalize(mirror_normals)
             >>> path = image_method(
             ...     from_vertex,
