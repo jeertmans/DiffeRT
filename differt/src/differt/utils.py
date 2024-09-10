@@ -90,7 +90,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     if array.size == 0:
         return array
 
-    return array[jnp.lexsort(array.T[::-1])]  # type: ignore
+    return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
 
 
 # Beartype does not support TypeVarTuple at the moment

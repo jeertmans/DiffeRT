@@ -18,7 +18,8 @@ from differt.geometry.utils import (
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
 )
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 def test_pairwise_cross() -> None:

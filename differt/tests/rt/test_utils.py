@@ -13,7 +13,8 @@ from differt.rt.utils import (
     rays_intersect_triangles,
 )
 from differt.utils import sorted_array2
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(

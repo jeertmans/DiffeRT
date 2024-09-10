@@ -8,7 +8,8 @@ from jaxtyping import Array
 
 from differt.em.constants import c
 from differt.em.utils import lengths_to_delays, path_delays
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(

@@ -13,7 +13,8 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
-from tests.utils import random_inputs
+
+from ..utils import random_inputs
 
 
 @pytest.fixture(scope="module")

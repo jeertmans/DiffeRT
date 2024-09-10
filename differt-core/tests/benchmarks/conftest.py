@@ -1,15 +1,17 @@
+from typing import Any
+
+import pytest
 import pytest_benchmark.plugin as bench_plugin
 import pytest_benchmark.stats as bench_stats
-from pytest import Config
 
 
 def pytest_benchmark_generate_json(
-    config: Config,
+    config: pytest.Config,
     benchmarks: list[bench_stats.Metadata],
     include_data: bool,
     machine_info: dict[str, str],
     commit_info: dict[str, str],
-):
+) -> dict[str, Any]:
     for bench in benchmarks:
         scale = bench.extra_info.get("scale")
         if bench.stats and scale:

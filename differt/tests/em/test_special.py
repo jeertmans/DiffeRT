@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 import chex
@@ -12,7 +13,7 @@ from differt.em.special import erf, erfc, fresnel
 
 
 @contextmanager
-def enable_double_precision(enable: bool):
+def enable_double_precision(enable: bool) -> Iterator[None]:
     enabled = jax.config.jax_enable_x64  # type: ignore[attr-defined]
     try:
         jax.config.update("jax_enable_x64", enable)

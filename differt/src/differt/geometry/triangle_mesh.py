@@ -14,8 +14,6 @@ import differt_core.geometry.triangle_mesh
 from differt.plotting import draw_mesh
 from differt.rt.utils import rays_intersect_triangles
 
-from ..plotting import draw_mesh
-from ..rt.utils import rays_intersect_triangles
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 
@@ -187,17 +185,21 @@ class TriangleMesh(eqx.Module):
 
         Returns:
             A new plane mesh.
+
+        Raises:
+            ValueError: If one of two ``other_vertices`` or ``normal``
+                were not provided.
         """
         if (other_vertices == ()) == (normal is None):
-            raise ValueError(
-                "You must specify one of `other_vertices` or `normal`, not both."
-            )
+            msg = "You must specify one of `other_vertices` or `normal`, not both."
+            raise ValueError(msg)
         if other_vertices:
-            if len(other_vertices) != 2:
-                raise ValueError(
+            if len(other_vertices) != 2:  # noqa: PLR2004
+                msg = (
                     "You must provide exactly 3 vertices to create a new plane, "
                     f"but you provided {len(other_vertices) + 1}."
                 )
+                raise ValueError(msg)
             u = other_vertices[0] - vertex
             v = other_vertices[1] - vertex
             w = jnp.cross(u, v)

@@ -23,7 +23,7 @@ def rng(seed: int) -> np.random.Generator:
     return np.random.default_rng(seed=seed)
 
 
-def pytest_sessionstart(session: pytest.Session) -> None:
+def pytest_sessionstart(_session: pytest.Session) -> None:
     download_sionna_scenes()
 
 

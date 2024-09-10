@@ -177,7 +177,7 @@ napolean_use_rtype = False
 #   reported here https://github.com/sphinx-doc/sphinx/issues/12360.
 
 
-def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:  # noqa: FBT001
+def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """

@@ -8,7 +8,7 @@ from matplotlib.figure import Figure as MplFigure
 from plotly.graph_objs import Figure
 from vispy.scene.canvas import SceneCanvas
 
-from differt.plotting._utils import (
+from differt.plotting import (
     dispatch,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
@@ -21,30 +21,30 @@ if TYPE_CHECKING:
     from pytest_missing_modules.plugin import MissingModulesContextGenerator
 
 
-@dispatch  # type: ignore
-def my_plot_unimplemented(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:  # type: ignore
+@dispatch  # type: ignore[reportArgumentType]
+def my_plot_unimplemented(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
     """A plot function with no backend implementation."""
 
 
-@dispatch  # type: ignore
-def my_plot(**kwargs: dict[str, Any]) -> SceneCanvas | MplFigure | Figure:  # type: ignore
+@dispatch  # type: ignore[reportArgumentType]
+def my_plot(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
     """A plot function with dummy backend implementations."""
 
 
 @my_plot.register("vispy")
-def _(**kwargs):  # type: ignore[no-untyped-def]
+def _(**kwargs: Any) -> SceneCanvas:
     canvas, _view = process_vispy_kwargs(kwargs)
     return canvas
 
 
 @my_plot.register("matplotlib")
-def _(**kwargs):  # type: ignore[no-untyped-def]
+def _(**kwargs: Any) -> MplFigure:
     fig, _ax = process_matplotlib_kwargs(kwargs)
     return fig
 
 
 @my_plot.register("plotly")
-def _(**kwargs):  # type: ignore[no-untyped-def]
+def _(**kwargs: Any) -> Figure:
     return process_plotly_kwargs(kwargs)
 
 
@@ -52,7 +52,7 @@ def _(**kwargs):  # type: ignore[no-untyped-def]
 def test_unimplemented(backend: str | None) -> None:
     with pytest.raises(NotImplementedError, match="No backend implementation for"):
         if backend:
-            _ = my_plot_unimplemented(backend=backend)  # type: ignore
+            _ = my_plot_unimplemented(backend=backend)
         else:
             _ = my_plot_unimplemented()
 
@@ -75,7 +75,7 @@ def test_register_unsupported() -> None:
     ):
 
         @my_plot.register("bokeh")
-        def _(**_kwargs) -> None:  # type: ignore[no-untyped-def]
+        def _(**_kwargs: Any) -> None:
             pass
 
 
@@ -117,7 +117,7 @@ def test_missing_backend_module(
             match=f"An import error occurred when dispatching plot utility to backend '{backend}'.",
         ),
     ):
-        _ = my_plot(backend=backend)  # type: ignore
+        _ = my_plot(backend=backend)
 
 
 @pytest.mark.parametrize(
@@ -125,7 +125,7 @@ def test_missing_backend_module(
     [("vispy", SceneCanvas), ("matplotlib", MplFigure), ("plotly", Figure)],
 )
 def test_return_type(backend: str, rtype: type) -> None:
-    ret = my_plot(backend=backend)  # type: ignore
+    ret = my_plot(backend=backend)
     assert isinstance(ret, rtype), f"{ret!r} is not of type {rtype}"
 
 
