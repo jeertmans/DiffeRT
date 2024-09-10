@@ -182,7 +182,7 @@ pub mod complete {
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
-        /// Return:
+        /// Returns
         ///     AllPathsFromCompleteGraphIter: An iterator over all paths.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
@@ -208,7 +208,7 @@ pub mod complete {
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
-        /// Return:
+        /// Returns
         ///     ``UInt[ndarray, "num_paths path_depth"]``:
         ///         An array of all paths.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
@@ -240,7 +240,7 @@ pub mod complete {
         ///         ``depth - 2`` nodes.
         ///     chunk_size (int): The size of each chunk.
         ///
-        /// Return:
+        /// Returns
         ///     AllPathsFromCompleteGraphChunksIter:
         ///         An iterator over all paths, as array chunks.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true, chunk_size = 1000))]
@@ -591,7 +591,7 @@ pub mod directed {
         /// Args:
         ///     num\_nodes (int): The number of nodes.
         ///
-        /// Return:
+        /// Returns
         ///     DiGraph: A directed graph.
         #[classmethod]
         #[pyo3(name = "empty")]
@@ -610,7 +610,7 @@ pub mod directed {
         ///     adjacency_matrix (``Bool[ndarray, "num_nodes num_nodes"]``):
         ///         The adjacency matrix.
         ///
-        /// Return:
+        /// Returns
         ///     DiGraph: A directed graph.
         #[classmethod]
         #[pyo3(name = "from_adjacency_matrix")]
@@ -631,7 +631,7 @@ pub mod directed {
         /// Args:
         ///     graph (CompleteGraph): The complete graph.
         ///
-        /// Return:
+        /// Returns
         ///     DiGraph: A directed graph.
         #[classmethod]
         #[pyo3(name = "from_complete_graph")]
@@ -655,7 +655,7 @@ pub mod directed {
         ///     direct_path (bool): Whether to create a direction connection
         ///         between ``from_`` and ``to`` nodes.
         ///
-        /// Return:
+        /// Returns
         ///     tuple[int, int]:
         ///         The indices of the two added nodes in the graph.
         #[pyo3(signature = (*, direct_path=true))]
@@ -727,7 +727,7 @@ pub mod directed {
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
-        /// Return:
+        /// Returns
         ///     AllPathsFromDiGraphIter: An iterator over all paths.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
         #[pyo3(text_signature = "(self, from_, to, depth, *, include_from_and_to = True)")]
@@ -753,7 +753,7 @@ pub mod directed {
         ///         :py:data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
-        /// Return:
+        /// Returns
         ///     ``UInt[ndarray, "num_paths path_depth"]``:
         ///         An array of all paths.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true))]
@@ -785,7 +785,7 @@ pub mod directed {
         ///         ``depth - 2`` nodes.
         ///     chunk_size (int): The size of each chunk.
         ///
-        /// Return:
+        /// Returns
         ///     AllPathsFromDiGraphChunksIter:
         ///         An iterator over all paths, as array chunks.
         #[pyo3(signature = (from_, to, depth, *, include_from_and_to = true, chunk_size = 1000))]

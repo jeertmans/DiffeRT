@@ -214,7 +214,7 @@ impl SionnaScene {
     /// Args:
     ///     file (str): The path to the XML file.
     ///
-    /// Return:
+    /// Returns
     ///     SionnaScene: The corresponding scene.
     #[classmethod]
     pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {

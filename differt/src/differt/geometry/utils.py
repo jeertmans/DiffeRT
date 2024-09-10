@@ -161,7 +161,7 @@ def rotation_matrix_along_x_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns
         The rotation matrix.
 
     Examples:
@@ -199,7 +199,7 @@ def rotation_matrix_along_y_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns
         The rotation matrix.
 
     Examples:
@@ -237,7 +237,7 @@ def rotation_matrix_along_z_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns
         The rotation matrix.
 
     Examples:
@@ -277,7 +277,7 @@ def rotation_matrix_along_axis(
         angle: The rotation angle, in radians.
         axis: A unit vector pointing in the axis' direction.
 
-    Return:
+    Returns
         The rotation matrix.
 
     Examples:
