@@ -14,7 +14,7 @@ import differt_core.geometry.triangle_mesh
 
 from ..plotting import draw_mesh
 from ..rt.utils import rays_intersect_triangles
-from .utils import normalize, orthogonal_basis
+from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 
 @jaxtyped(typechecker=typechecker)
@@ -196,7 +196,7 @@ class TriangleMesh(eqx.Module):
             u = other_vertices[0] - vertex
             v = other_vertices[1] - vertex
             w = jnp.cross(u, v)
-            (normal,) = normalize(w)
+            (normal, _) = normalize(w)
 
         u, v = orthogonal_basis(normal, normalize=True)
 
@@ -205,21 +205,7 @@ class TriangleMesh(eqx.Module):
         vertices = s * jnp.array([u + v, v - u, -u - v, u - v])
 
         if rotate:
-            # TODO: create a separate function to handle this
-            # TODO: test this
-            cos = jnp.cos(rotate)
-            sin = jnp.sin(rotate)
-            dtype = vertices.dtype
-            i = jnp.identity(3, dtype=dtype)
-            n: Array = normal
-            # Cross product matrix
-            x = jnp.array(
-                [[+0.0, -n[2], +n[1]], [+n[2], +0.0, -n[0]], [-n[1], +n[0], 0.0]],
-                dtype=dtype,
-            )
-            # Outer product matrix
-            o = jnp.outer(n, n)
-            rotation_matrix = cos * i + sin * x + (1 - cos) * o
+            rotation_matrix = rotation_matrix_along_axis(normal)
             vertices = (rotation_matrix @ vertices.T).T
 
         vertices += vertex
