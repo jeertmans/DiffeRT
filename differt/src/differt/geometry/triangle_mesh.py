@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, Int, PRNGKeyArray, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 
@@ -17,6 +17,7 @@ from ..rt.utils import rays_intersect_triangles
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
     triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
@@ -75,11 +76,12 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def paths_intersect_triangles(
     paths: Float[Array, "*batch path_length 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: float = 1e-6,
+    epsilon: Float[ArrayLike, " "] = 1e-6,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each path intersect with any of the triangles.
@@ -161,8 +163,8 @@ class TriangleMesh(eqx.Module):
         vertex: Float[Array, "3"],
         *other_vertices: Float[Array, "3"],
         normal: Optional[Float[Array, "3"]] = None,
-        side_length: float = 1.0,
-        rotate: Optional[float] = None,
+        side_length: Float[ArrayLike, " "] = 1.0,
+        rotate: Optional[Float[ArrayLike, " "]] = None,
     ) -> "TriangleMesh":
         """
         Create an plane mesh, made of two triangles.
@@ -205,7 +207,7 @@ class TriangleMesh(eqx.Module):
         vertices = s * jnp.array([u + v, v - u, -u - v, u - v])
 
         if rotate:
-            rotation_matrix = rotation_matrix_along_axis(normal)
+            rotation_matrix = rotation_matrix_along_axis(rotate, normal)
             vertices = (rotation_matrix @ vertices.T).T
 
         vertices += vertex

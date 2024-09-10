@@ -14,8 +14,8 @@ from differt.plotting import draw_image, draw_markers, draw_mesh, draw_paths, us
 def test_draw_mesh(
     backend: str,
 ) -> None:
-    vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32)
-    triangles = np.array([[0, 1, 2], [0, 2, 3]], dtype=np.int32)
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
+    triangles = np.array([[0, 1, 2], [0, 2, 3]], dtype=int)
     with use(backend):
         _ = draw_mesh(vertices, triangles)
 
