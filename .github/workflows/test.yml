@@ -189,7 +189,7 @@ jobs:
     - name: Compare benchmarks
       run: |
         echo 'results<<EOF' >> $GITHUB_OUTPUT
-        pytest-benchmark compare --group-by=group --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
+        pytest-benchmark compare --group-by=name --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       id: compare
 

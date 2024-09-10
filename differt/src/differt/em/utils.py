@@ -1,10 +1,10 @@
 """Utilities for working with EM fields."""
 
-from typing import Any, Union
+from typing import Any
 
 import jax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
 from differt.geometry.utils import path_lengths
 
@@ -15,7 +15,7 @@ from .constants import c
 @jaxtyped(typechecker=typechecker)
 def lengths_to_delays(
     lengths: Float[Array, " *#batch"],
-    speed: Union[float, Float[Array, " *#batch"]] = c,
+    speed: Float[ArrayLike, " *#batch"] = c,
 ) -> Float[Array, " *#batch"]:
     """
     Compute the delay, in seconds, corresponding to each length.

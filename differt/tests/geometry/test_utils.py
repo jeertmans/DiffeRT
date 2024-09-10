@@ -1,16 +1,22 @@
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
+from typing import Callable
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, ArrayLike, Float, PRNGKeyArray
 
 from differt.geometry.utils import (
     normalize,
     orthogonal_basis,
     pairwise_cross,
     path_lengths,
+    rotation_matrix_along_axis,
+    rotation_matrix_along_x_axis,
+    rotation_matrix_along_y_axis,
+    rotation_matrix_along_z_axis,
 )
 from tests.utils import random_inputs
 
@@ -112,3 +118,33 @@ def test_path_lengths_random_inputs(
         expected = jnp.sum(jnp.linalg.norm(jnp.diff(paths, axis=-2), axis=-1), axis=-1)
 
         chex.assert_trees_all_close(got, expected)
+
+
+@pytest.mark.parametrize("sign", [+1.0, -1.0])
+@pytest.mark.parametrize("flip_axis", [False, True])
+@pytest.mark.parametrize(
+    ("axis", "func"),
+    [
+        ((1.0, 0.0, 0.0), rotation_matrix_along_x_axis),
+        ((0.0, 1.0, 0.0), rotation_matrix_along_y_axis),
+        ((0.0, 0.0, 1.0), rotation_matrix_along_z_axis),
+    ],
+)
+def test_rotation_matrices(
+    sign: float,
+    flip_axis: bool,
+    axis: tuple[float, float, float],
+    func: Callable[[Float[ArrayLike, " "]], Float[Array, "3 3"]],
+    key: PRNGKeyArray,
+) -> None:
+    angle = jax.random.uniform(key, minval=0.0, maxval=2.0 * jnp.pi)
+    angle = jnp.copysign(angle, sign)
+
+    if flip_axis:
+        expected = func(-angle)
+        got = rotation_matrix_along_axis(angle, -jnp.array(axis))
+    else:
+        expected = func(+angle)
+        got = rotation_matrix_along_axis(angle, +jnp.array(axis))
+
+    chex.assert_trees_all_close(got, expected)
