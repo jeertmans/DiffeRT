@@ -4,7 +4,7 @@
 # last locked with the following flags:
 #   pre: false
 #   features: []
-#   all-features: true
+#   all-features: false
 #   with-sources: false
 #   generate-hashes: false
 #   universal: false
@@ -153,13 +153,8 @@ isoduration==20.11.0
 jax==0.4.30
     # via chex
     # via differt
-    # via differt-dev
     # via equinox
     # via optax
-jax-cuda12-pjrt==0.4.30
-    # via jax-cuda12-plugin
-jax-cuda12-plugin==0.4.30
-    # via jax
 jaxlib==0.4.30
     # via chex
     # via jax
@@ -292,32 +287,6 @@ numpy==1.26.4
     # via pandas
     # via scipy
     # via vispy
-nvidia-cublas-cu12==12.6.1.4
-    # via jax-cuda12-plugin
-    # via nvidia-cudnn-cu12
-    # via nvidia-cusolver-cu12
-nvidia-cuda-cupti-cu12==12.6.68
-    # via jax-cuda12-plugin
-nvidia-cuda-nvcc-cu12==12.6.68
-    # via jax-cuda12-plugin
-nvidia-cuda-runtime-cu12==12.6.68
-    # via jax-cuda12-plugin
-nvidia-cudnn-cu12==9.3.0.75
-    # via jax-cuda12-plugin
-nvidia-cufft-cu12==11.2.6.59
-    # via jax-cuda12-plugin
-nvidia-cusolver-cu12==11.6.4.69
-    # via jax-cuda12-plugin
-nvidia-cusparse-cu12==12.5.3.3
-    # via jax-cuda12-plugin
-    # via nvidia-cusolver-cu12
-nvidia-nccl-cu12==2.22.3
-    # via jax-cuda12-plugin
-nvidia-nvjitlink-cu12==12.6.68
-    # via jax-cuda12-plugin
-    # via nvidia-cufft-cu12
-    # via nvidia-cusolver-cu12
-    # via nvidia-cusparse-cu12
 opt-einsum==3.3.0
     # via jax
 optax==0.2.2
