@@ -160,6 +160,7 @@ def generate_all_path_candidates_chunks_iter(
         to=num_primitives + 1,
         depth=order + 2,
         include_from_and_to=False,
+        chunck_size=chunk_size,
     )
     m = (jnp.asarray(arr, dtype=int) for arr in it)
     return _SizedIterator(m, size=it.__len__)
@@ -267,19 +268,21 @@ def rays_intersect_any_triangle(
     Returns:
         For each ray, whether it intersects with any of the triangles.
     """
+    *batch, _ = ray_origins.shape
 
-    def scan_fun(carry, x):
-        triangle_vertex = jnp.broadcast_to(x, (*ray_origins.shape, 3))
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        intersect: Bool[Array, " *batch"], triangle_vertex: Float[Array, "3 3"]
+    ) -> tuple[Bool[Array, " *batch"], None]:
+        triangle_vertex = jnp.broadcast_to(triangle_vertex, (*batch, 3, 3))
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
             triangle_vertex,
             epsilon=epsilon,
         )
-        intersect = carry | ((t < hit_threshold) & hit)
+        intersect = intersect | ((t < hit_threshold) & hit)
         return intersect, None
-
-    *batch, _ = ray_origins.shape
 
     return jax.lax.scan(
         scan_fun,

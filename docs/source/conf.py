@@ -64,6 +64,7 @@ intersphinx_mapping = {
     "optax": ("https://optax.readthedocs.io/en/latest", None),
     "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
+    "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "vispy": ("https://vispy.org", None),
 }

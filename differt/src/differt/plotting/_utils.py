@@ -1,32 +1,37 @@
 """Useful decorators for plotting."""
 
+from __future__ import annotations
+
 import importlib.util
+import sys
 import types
-from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
-    import sys
-    from typing import Literal, TypeVar
+    from collections.abc import Iterator, MutableMapping
+    from typing import Literal
 
-    from matplotlib.figure import Figure as MplFigure  # noqa: TCH004
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: TCH004
-    from plotly.graph_objects import Figure  # noqa: TCH004
-    from vispy.scene.canvas import SceneCanvas as Canvas  # noqa: TCH004
-    from vispy.scene.widgets.viewbox import ViewBox  # noqa: TCH004
-
-    if sys.version_info >= (3, 10):
-        from typing import ParamSpec
-    else:
-        from typing_extensions import ParamSpec
+    from matplotlib.figure import Figure as MplFigure
+    from mpl_toolkits.mplot3d import Axes3D
+    from plotly.graph_objects import Figure
+    from vispy.scene.canvas import SceneCanvas as Canvas
+    from vispy.scene.widgets.viewbox import ViewBox
 
     BackendName = Literal["vispy", "matplotlib", "plotly"]
-    P = ParamSpec("P")
     T = TypeVar("T", Canvas, MplFigure, Figure)
+else:
+    T = TypeVar("T")
+
+P = ParamSpec("P")
 
 
 @dataclass(frozen=True)
@@ -66,7 +71,7 @@ config = _Config()
 """Mutable config object with mutability of default values guarded by a lock."""
 
 
-def get_backend(backend: Optional[str] = None) -> BackendName:
+def get_backend(backend: str | None = None) -> BackendName:
     """
     Return the name of the backend to use.
 
@@ -106,7 +111,7 @@ def get_backend(backend: Optional[str] = None) -> BackendName:
     return backend
 
 
-def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> BackendName:
+def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     """
     Set default backend and keyword arguments for future plotting utilities.
 
@@ -168,7 +173,7 @@ def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> BackendName:
 
 
 @contextmanager
-def use(backend: Optional[str] = None, **kwargs: Any) -> Iterator[BackendName]:
+def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
     """
     Create a context manager that sets plotting defaults and returns the current default backend.
 
@@ -379,7 +384,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         #
         # The motivation is detailed in P612:
         # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend_opt: Optional[str] = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
+        backend_opt: str | None = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
         backend = get_backend(backend_opt)
 
         try:
@@ -525,7 +530,7 @@ def process_matplotlib_kwargs(
         or plt.figure()
     )
 
-    def current_ax3d() -> Optional[Axes3D]:
+    def current_ax3d() -> Axes3D | None:
         if len(figure.axes) > 0:
             ax = figure.gca()
             if isinstance(ax, Axes3D):
@@ -571,8 +576,8 @@ def process_plotly_kwargs(
 
 @contextmanager
 def reuse(
-    backend: Optional[str] = None, **kwargs: Any
-) -> Iterator[Union[Canvas, MplFigure, Figure]]:
+    backend: str | None = None, **kwargs: Any
+) -> Iterator[Canvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:

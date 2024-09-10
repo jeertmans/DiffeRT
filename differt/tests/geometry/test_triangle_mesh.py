@@ -44,7 +44,7 @@ def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
 
 @pytest.fixture(scope="module")
 def sphere() -> TriangleMesh:
-    from vispy.geometry import create_sphere
+    from vispy.geometry import create_sphere  # noqa: PLC0415
 
     mesh = create_sphere()
 
@@ -151,8 +151,9 @@ class TestTriangleMesh:
         ):
             _ = TriangleMesh.plane(*vertices, normal=normal)
 
+        vertices = jax.random.uniform(key, (4, 3))
+
         with pytest.raises(ValueError, match="You must provide exactly 3 vertices"):
-            vertices = jax.random.uniform(key, (4, 3))
             _ = TriangleMesh.plane(*vertices)
 
         with pytest.raises(

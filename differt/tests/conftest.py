@@ -24,7 +24,7 @@ def rng(seed: int) -> np.random.Generator:
 
 
 def pytest_sessionstart(_session: pytest.Session) -> None:
-    download_sionna_scenes()
+    download_sionna_scenes(timeout=600)
 
 
 @pytest.fixture(scope="session")

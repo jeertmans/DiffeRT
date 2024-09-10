@@ -3,7 +3,7 @@ import importlib
 import pytest
 from pytest_missing_modules.plugin import MissingModulesContextGenerator
 
-import differt.plotting._core
+import differt.plotting
 
 
 @pytest.mark.parametrize(
@@ -15,4 +15,4 @@ def test_import_with_missing_backends(
     missing_modules: MissingModulesContextGenerator,
 ) -> None:
     with missing_modules(*backends):
-        importlib.reload(differt.plotting._core)
+        importlib.reload(differt.plotting)

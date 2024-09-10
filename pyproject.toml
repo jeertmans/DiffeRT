@@ -128,6 +128,7 @@ extend-ignore = [
   "F722",  # forward-annotation-syntax-error
   "FA100",  # future-rewritable-type-annotation
   "FBT001",  # boolean-type-hint-positional-argument
+  "FBT002",  # boolean-default-value-positional-argument
   "FIX002",  # line-contains-todo, comment this to find where TODOs are
   "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
   "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter

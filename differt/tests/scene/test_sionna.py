@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,9 @@ from differt.scene.sionna import (
     list_sionna_scenes,
 )
 from differt_core.scene.sionna import SionnaScene
+
+# Let's put a timeout on downloading the scenes.
+download_sionna_scenes = partial(download_sionna_scenes, timeout=600)
 
 
 @pytest.fixture

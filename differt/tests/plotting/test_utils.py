@@ -50,10 +50,13 @@ def _(**kwargs: Any) -> Figure:
 
 @pytest.mark.parametrize("backend", [None, "vispy", "matplotlib", "plotly"])
 def test_unimplemented(backend: str | None) -> None:
-    with pytest.raises(NotImplementedError, match="No backend implementation for"):
-        if backend:
+    if backend:
+        with pytest.raises(
+            NotImplementedError, match=f"No backend implementation for '{backend}'"
+        ):
             _ = my_plot_unimplemented(backend=backend)
-        else:
+    else:
+        with pytest.raises(NotImplementedError, match="No backend implementation for"):
             _ = my_plot_unimplemented()
 
 

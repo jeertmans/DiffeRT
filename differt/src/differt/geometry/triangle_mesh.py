@@ -1,4 +1,5 @@
 """Mesh geometry made of triangles and utilities."""
+# ruff: noqa: ERA001
 
 from functools import cached_property
 from typing import Any, Optional
