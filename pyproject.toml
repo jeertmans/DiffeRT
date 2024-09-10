@@ -1,3 +1,7 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 name = "differt-dev"
@@ -55,6 +59,9 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/differt_dev"]  # See https://github.com/astral-sh/rye/issues/515
 
 [tool.hatch.metadata]
 allow-direct-references = true
