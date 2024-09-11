@@ -1,6 +1,3 @@
-# Run Python commands inside environment
-env-run := if env("NO_RYE", "") == "1" { "" } else { "rye run" }
-
 # Default command (list all commands)
 default:
   @just --list
@@ -12,11 +9,11 @@ clean:
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":
-  {{env-run}} sphinx-build -M {{builder}} source build {{OPTIONS}}
+  rye run sphinx-build -M {{builder}} source build {{OPTIONS}}
 
 # Build docs in "draft" mode
 draft *ARGS:
-    NB_OFF="1" just build {{ARGS}}
+  NB_OFF="1" just build {{ARGS}}
 
 # Check links
 linkcheck *ARGS: (draft "linkcheck" ARGS)
