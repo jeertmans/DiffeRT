@@ -10,9 +10,11 @@ from vispy.scene.canvas import SceneCanvas
 
 from differt.plotting import (
     dispatch,
+    get_backend,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,
+    reuse,
     use,
     view_from_canvas,
 )
@@ -204,3 +206,13 @@ def test_process_plotly_kwargs() -> None:
     got_fig = process_plotly_kwargs(kwargs)
     assert fig == got_fig
     assert "figure" not in kwargs
+
+
+@pytest.mark.parametrize("backend", [None, "vispy", "matplotlib", "plotly"])
+def test_reuse(backend: str) -> None:
+    expected = {"vispy": SceneCanvas, "matplotlib": MplFigure, "plotly": Figure}[
+        get_backend(backend)
+    ]
+
+    with reuse(backend) as got:
+        assert isinstance(got, expected)

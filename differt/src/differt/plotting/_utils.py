@@ -395,8 +395,6 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
                 msg,
             ) from None
 
-        return wrapper
-
     wrapper.register = register  # type: ignore[reportAttributeAccessIssue]
     wrapper.registry = types.MappingProxyType(registry)  # type: ignore[reportAttributeAccessIssue]
 

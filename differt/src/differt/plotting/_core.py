@@ -249,7 +249,7 @@ def draw_markers(
             passed to :py:class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
-            By default, ``font_sise=1000`` is used.
+            By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
             :py:class:`Markers<vispy.scene.visuals.Markers>`,
             or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
@@ -318,15 +318,13 @@ def _(
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
     labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,  # noqa: ARG001
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}
-        if text_kwargs:
-            kwargs.update(text_kwargs)
 
     x, y, z = markers.T
     return fig.add_scatter3d(

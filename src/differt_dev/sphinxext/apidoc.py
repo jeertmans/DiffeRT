@@ -79,7 +79,10 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901, PLR0912
             *options,
             f"-o={output_dir}",
             str(module_dir),
-            *[str(module_dir / exclude_pattern) for exclude_pattern in exclude_patterns],
+            *[
+                str(module_dir / exclude_pattern)
+                for exclude_pattern in exclude_patterns
+            ],
         ]
 
         apidoc.main(args)

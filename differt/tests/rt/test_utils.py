@@ -8,6 +8,7 @@ from jaxtyping import Array
 
 from differt.rt.utils import (
     generate_all_path_candidates,
+    generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
@@ -76,6 +77,40 @@ def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> N
 
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)
+
+
+@pytest.mark.parametrize(
+    ("num_primitives", "order"),
+    [
+        (11, 1),
+        (12, 3),
+        (15, 4),
+    ],
+)
+@pytest.mark.parametrize("chunk_size", [1, 10, 23])
+def test_generate_all_path_candidates_chunks_iter(
+    num_primitives: int, order: int, chunk_size: int
+) -> None:
+    it = generate_all_path_candidates_chunks_iter(num_primitives, order, chunk_size)
+
+    previous_chunk = None
+
+    try:
+        while True:
+            chunk = next(it)
+
+            if previous_chunk is not None:
+                chex.assert_shape(previous_chunk, (chunk_size, order))
+
+            previous_chunk = chunk
+
+    except StopIteration:
+        pass
+
+    if previous_chunk is not None:
+        last_chunk_size, last_chunk_order = previous_chunk.shape
+        assert last_chunk_size <= chunk_size
+        assert last_chunk_order == order
 
 
 @pytest.mark.parametrize(

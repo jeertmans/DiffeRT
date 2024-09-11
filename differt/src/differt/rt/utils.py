@@ -160,7 +160,7 @@ def generate_all_path_candidates_chunks_iter(
         to=num_primitives + 1,
         depth=order + 2,
         include_from_and_to=False,
-        chunck_size=chunk_size,
+        chunk_size=chunk_size,
     )
     m = (jnp.asarray(arr, dtype=int) for arr in it)
     return _SizedIterator(m, size=it.__len__)

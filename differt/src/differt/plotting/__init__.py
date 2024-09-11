@@ -93,6 +93,7 @@ __all__ = (
     "draw_markers",
     "draw_mesh",
     "draw_paths",
+    "get_backend",
     "process_matplotlib_kwargs",
     "process_plotly_kwargs",
     "process_vispy_kwargs",
@@ -105,6 +106,7 @@ __all__ = (
 from ._core import draw_image, draw_markers, draw_mesh, draw_paths
 from ._utils import (
     dispatch,
+    get_backend,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,

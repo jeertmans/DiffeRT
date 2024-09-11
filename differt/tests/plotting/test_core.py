@@ -53,7 +53,7 @@ def test_draw_markers(
     labels = ["A", "B", "C", "D"] if with_labels else None
 
     with use(backend), expectation:
-        _ = draw_markers(markers, labels=labels)
+        _ = draw_markers(markers, labels=labels, text_kwargs={"rotation": 30})
 
 
 @pytest.mark.parametrize(
