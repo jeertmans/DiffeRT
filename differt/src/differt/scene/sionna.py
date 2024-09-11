@@ -34,7 +34,7 @@ def download_sionna_scenes(
     timeout: Optional[Union[float, tuple[float, float]]] = None,
 ) -> None:
     """
-    Download the scenes from Sionna, and stores them in the given folder.
+    Download the scenes from Sionna, and store them in the given folder.
 
     If cached is :py:data:`False` and folder exists, then it will
     raise an error if not empty: please clear it first!
