@@ -30,6 +30,56 @@ Examples:
         first, by joining the UE, then the intersections points, with the images of the
         BS. Finally, the valid path can be obtained by joining BS, the intermediary
         intersection points, and the UE :cite:`mpt-eucap2023{fig. 5}`.
+
+    Next, we show how to reproduce the above results using :func:`image_method`.
+
+    .. plotly::
+
+            >>> from differt.geometry.utils import normalize
+            >>> from differt.geometry.triangle_mesh import TriangleMesh
+            >>> from differt.plotting import draw_markers, draw_paths, reuse
+            >>> from differt.rt.image_method import image_method
+            >>>
+            >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
+            >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])
+            >>> mirror_vertices = jnp.array([
+            ...     [3.0, 3.0, 0.0],
+            ...     [4.0, 3.4, 0.0],
+            ... ])
+            >>> mirror_normals = jnp.array([
+            ...     [+1.0, -1.0, +0.0],
+            ...     [-1.0, +0.0, +0.0],
+            ... ])
+            >>> mirror_normals, _ = normalize(mirror_normals)
+            >>> path = image_method(
+            ...     from_vertex,
+            ...     to_vertex,
+            ...     mirror_vertices,
+            ...     mirror_normals,
+            ... )
+            >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
+            ...     TriangleMesh.plane(
+            ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
+            ...     ).plot(color="red")
+            ...     TriangleMesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
+            ...         color="red"
+            ...     )
+            ...
+            ...     full_path = jnp.concatenate(
+            ...         (
+            ...             from_vertex[None, :],
+            ...             path,
+            ...             to_vertex[None, :],
+            ...         ),
+            ...         axis=0,
+            ...     )
+            ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
+            ...     markers = jnp.vstack((from_vertex, to_vertex))
+            ...     draw_markers(
+            ...         markers, labels=["BS", "UE"], marker={"color": "black"}, name="BS/UE"
+            ...     )
+            ...     fig.update_layout(scene_aspectmode="data")
+            >>> fig  # doctest: +SKIP
 """
 
 import chex
@@ -57,7 +107,7 @@ def image_of_vertices_with_respect_to_mirrors(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         An array of image vertices.
 
     Examples:
@@ -133,7 +183,7 @@ def intersection_of_line_segments_with_planes(
         plane_normals: an array of plane normals, where each normal has a unit
             length and if perpendicular to the corresponding plane.
 
-    Return:
+    Returns:
         An array of intersection vertices.
     """
     u = segment_ends - segment_starts
@@ -168,7 +218,7 @@ def image_method(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and if perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         An array of ray paths obtained with the image method.
 
     .. note::
@@ -206,15 +256,19 @@ def image_method(
         vertices = carry
         mirror_vertices, mirror_normals = x
         images = image_of_vertices_with_respect_to_mirrors(
-            vertices, mirror_vertices, mirror_normals
+            vertices,
+            mirror_vertices,
+            mirror_normals,
         )
-        return images, images
+        return images, images  # noqa: DOC201
 
     @jaxtyped(typechecker=typechecker)
     def backward(
         carry: Float[Array, "*batch 3"],
         x: tuple[
-            Float[Array, "*batch 3"], Float[Array, "*batch 3"], Float[Array, "*batch 3"]
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform backward pass on images by computing the intersection with mirrors."""
@@ -222,12 +276,17 @@ def image_method(
         mirror_vertices, mirror_normals, images = x
 
         intersections = intersection_of_line_segments_with_planes(
-            vertices, images, mirror_vertices, mirror_normals
+            vertices,
+            images,
+            mirror_vertices,
+            mirror_normals,
         )
-        return intersections, intersections
+        return intersections, intersections  # noqa: DOC201
 
     _, images = jax.lax.scan(
-        forward, init=from_vertices, xs=(mirror_vertices, mirror_normals)
+        forward,
+        init=from_vertices,
+        xs=(mirror_vertices, mirror_normals),
     )
     _, paths = jax.lax.scan(
         backward,
@@ -251,7 +310,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
 
     This check is needed after using :func:`image_method` because it can return
     vertices that are behind a mirror, which causes the path to go through this
-    mirror, and is someone we want to avoid.
+    mirror, and is something we want to avoid.
 
     Args:
         vertices: An array of vertices, usually describing ray paths.
@@ -261,7 +320,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
 
-    Return:
+    Returns:
         A boolean array indicating whether pairs of consecutive vertices
         are on the same side of the corresponding mirror.
     """

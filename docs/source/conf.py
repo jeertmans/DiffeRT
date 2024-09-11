@@ -1,3 +1,4 @@
+# noqa: INP001
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -16,7 +17,7 @@ from sphinx.application import Sphinx
 from differt import __version__
 
 project = "DiffeRT"
-copyright = f"2023-{date.today().year}, Jérome Eertmans"
+copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
 author = "Jérome Eertmans"
 version = __version__
 
@@ -70,6 +71,7 @@ intersphinx_mapping = {
     "optax": ("https://optax.readthedocs.io/en/latest", None),
     "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
+    "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "vispy": ("https://vispy.org", None),
 }
@@ -123,7 +125,7 @@ bibtex_bibfiles = ["references.bib"]
 # Patch for Plotly from https://github.com/spatialaudio/nbsphinx/issues/128#issuecomment-1158712159
 
 html_js_files = [
-    "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+    "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js",
 ]
 
 # -- Matplotlib directive
@@ -183,17 +185,17 @@ napolean_use_rtype = False
 #   reported here https://github.com/sphinx-doc/sphinx/issues/12360.
 
 
-def fix_sionna_folder(app: Sphinx, obj: Any, bound_method: bool) -> None:
+def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """
-    if obj.__name__.endswith("_sionna_scenes"):
+    if obj.__name__.endswith("_sionna_scene"):
         sig = inspect.signature(obj)
         parameters = []
 
         for param_name, parameter in sig.parameters.items():
             if param_name == "folder":
-                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")
+                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # noqa: PLW2901
 
             parameters.append(parameter)
 

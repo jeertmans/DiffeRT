@@ -1,13 +1,13 @@
-from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 
 import chex
+import jax
 import jax.numpy as jnp
 import jaxtyping
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
 from differt.geometry.triangle_mesh import (
     TriangleMesh,
@@ -18,8 +18,8 @@ from ..utils import random_inputs
 
 
 @pytest.fixture(scope="module")
-def two_buildings_obj_file() -> Iterator[str]:
-    yield (
+def two_buildings_obj_file() -> str:
+    return (
         Path(__file__)
         .parent.joinpath("two_buildings.obj")
         .resolve(strict=True)
@@ -28,8 +28,8 @@ def two_buildings_obj_file() -> Iterator[str]:
 
 
 @pytest.fixture(scope="module")
-def two_buildings_ply_file() -> Iterator[str]:
-    yield (
+def two_buildings_ply_file() -> str:
+    return (
         Path(__file__)
         .parent.joinpath("two_buildings.ply")
         .resolve(strict=True)
@@ -38,23 +38,23 @@ def two_buildings_ply_file() -> Iterator[str]:
 
 
 @pytest.fixture(scope="module")
-def two_buildings_mesh(two_buildings_obj_file: str) -> Iterator[TriangleMesh]:
-    yield TriangleMesh.load_obj(two_buildings_obj_file)
+def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
+    return TriangleMesh.load_obj(two_buildings_obj_file)
 
 
 @pytest.fixture(scope="module")
-def sphere() -> Iterator[TriangleMesh]:
-    from vispy.geometry import create_sphere
+def sphere() -> TriangleMesh:
+    from vispy.geometry import create_sphere  # noqa: PLC0415
 
     mesh = create_sphere()
 
     vertices = jnp.asarray(mesh.get_vertices())
     triangles = jnp.asarray(mesh.get_faces(), dtype=int)
-    yield TriangleMesh(vertices=vertices, triangles=triangles)
+    return TriangleMesh(vertices=vertices, triangles=triangles)
 
 
 @pytest.mark.parametrize(
-    ("triangle_vertices,vertices,expectation"),
+    ("triangle_vertices", "vertices", "expectation"),
     [
         ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
         ((10, 3, 3), (10, 3), does_not_raise()),
@@ -79,7 +79,8 @@ def test_triangles_contain_vertices_assuming_inside_same_planes_random_inputs(
 ) -> None:
     with expectation:
         _ = triangles_contain_vertices_assuming_inside_same_plane(
-            triangle_vertices, vertices
+            triangle_vertices,
+            vertices,
         )
 
 
@@ -99,15 +100,16 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
             [0.5, 0.0, 0.0],  # Inside but on edge
             [0.0, 0.5, 0.0],  # Inside but on edge
             [0.5, 0.5, 0.0],  # Inside but on edge
-        ]
+        ],
     )
     expected = jnp.array(
-        [True, True, True, True, False, False, True, True, True, True, True, True]
+        [True, True, True, True, False, False, True, True, True, True, True, True],
     )
     n = vertices.shape[0]
     triangle_vertices = jnp.tile(triangle_vertices, (n, 1, 1))
     got = triangles_contain_vertices_assuming_inside_same_plane(
-        triangle_vertices, vertices
+        triangle_vertices,
+        vertices,
     )
     chex.assert_trees_all_equal(got, expected)
 
@@ -119,6 +121,46 @@ class TestTriangleMesh:
 
         with pytest.raises(jaxtyping.TypeCheckError):
             _ = TriangleMesh(vertices=vertices, triangles=triangles)
+
+    def test_plane(self, key: PRNGKeyArray) -> None:
+        center = jnp.ones(3, dtype=float)
+        normal = jnp.array([0.0, 0.0, 1.0])
+        mesh = TriangleMesh.plane(center, normal=normal, side_length=2.0)
+
+        got = mesh.bounding_box
+        expected = jnp.array([[0.0, 0.0, 1.0], [2.0, 2.0, 1.0]])
+
+        chex.assert_trees_all_equal(got, expected)
+
+        rotated_mesh = TriangleMesh.plane(
+            center, normal=normal, side_length=2.0, rotate=jnp.pi / 4
+        )
+
+        got = rotated_mesh.bounding_box
+        inc = jnp.sqrt(2) - 1
+        expected = jnp.array([[0.0 - inc, 0.0 - inc, 1.0], [2.0 + inc, 2.0 + inc, 1.0]])
+
+        chex.assert_trees_all_equal(got, expected)
+
+        vertices = jax.random.uniform(key, (3, 3))
+        _ = TriangleMesh.plane(*vertices)
+
+        with pytest.raises(
+            ValueError,
+            match="You must specify one of `other_vertices` or `normal`, not both.",
+        ):
+            _ = TriangleMesh.plane(*vertices, normal=normal)
+
+        vertices = jax.random.uniform(key, (4, 3))
+
+        with pytest.raises(ValueError, match="You must provide exactly 3 vertices"):
+            _ = TriangleMesh.plane(*vertices)
+
+        with pytest.raises(
+            ValueError,
+            match="You must specify one of `other_vertices` or `normal`, not both.",
+        ):
+            _ = TriangleMesh.plane(center)
 
     def test_empty(self) -> None:
         assert TriangleMesh.empty().is_empty
@@ -135,11 +177,13 @@ class TestTriangleMesh:
         assert mesh.triangles.shape == (24, 3)
 
     def test_compare_with_open3d(
-        self, two_buildings_obj_file: str, two_buildings_mesh: TriangleMesh
+        self,
+        two_buildings_obj_file: str,
+        two_buildings_mesh: TriangleMesh,
     ) -> None:
         o3d = pytest.importorskip("open3d")
         mesh = o3d.io.read_triangle_mesh(
-            two_buildings_obj_file
+            two_buildings_obj_file,
         ).compute_triangle_normals()
 
         got_triangles = two_buildings_mesh.triangles
@@ -164,7 +208,7 @@ class TestTriangleMesh:
 
     def test_normals(self, two_buildings_mesh: TriangleMesh) -> None:
         chex.assert_equal_shape(
-            (two_buildings_mesh.normals, two_buildings_mesh.triangles)
+            (two_buildings_mesh.normals, two_buildings_mesh.triangles),
         )
         got = jnp.linalg.norm(two_buildings_mesh.normals, axis=-1)
         expected = jnp.ones_like(got)

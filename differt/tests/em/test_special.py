@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 import chex
@@ -12,7 +13,7 @@ from differt.em.special import erf, erfc, fresnel
 
 
 @contextmanager
-def enable_double_precision(enable: bool):
+def enable_double_precision(enable: bool) -> Iterator[None]:
     enabled = jax.config.jax_enable_x64  # type: ignore[attr-defined]
     try:
         jax.config.update("jax_enable_x64", enable)
@@ -23,7 +24,7 @@ def enable_double_precision(enable: bool):
 
 @pytest.mark.parametrize(
     "double_precision",
-    (False, True),
+    [False, True],
 )
 def test_erf(double_precision: bool) -> None:
     with enable_double_precision(double_precision):
@@ -34,16 +35,18 @@ def test_erf(double_precision: bool) -> None:
         got = erf(z)
         expected = jnp.asarray(sp.erf(np.asarray(z)))
         chex.assert_trees_all_close(
-            got, expected, rtol=1e-12 if double_precision else 1e-4
+            got,
+            expected,
+            rtol=1e-12 if double_precision else 1e-4,
         )
 
 
 @pytest.mark.parametrize(
     "z",
-    (
+    [
         jnp.linspace(-5.0, 5.0, 101),
         1j * jnp.linspace(-5.0, 5.0, 101),
-    ),
+    ],
 )
 def test_erfc(z: Array) -> None:
     got = erfc(z)
@@ -53,10 +56,10 @@ def test_erfc(z: Array) -> None:
 
 @pytest.mark.parametrize(
     "z",
-    (
+    [
         jnp.linspace(-5.0, 5.0, 101),
         1j * jnp.linspace(-5.0, 5.0, 101),
-    ),
+    ],
 )
 def test_fresnel(z: Array) -> None:
     got_s, got_c = fresnel(z)

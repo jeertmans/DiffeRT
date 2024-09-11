@@ -1,25 +1,28 @@
 """Mesh geometry made of triangles and utilities."""
+# ruff: noqa: ERA001
 
 from functools import cached_property
-from typing import Any
+from typing import Any, Optional
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, Int, PRNGKeyArray, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
+from differt.plotting import draw_mesh
+from differt.rt.utils import rays_intersect_triangles
 
-from ..plotting import draw_mesh
-from ..rt.utils import rays_intersect_triangles
-from .utils import normalize
+from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*batch 3 3"], vertices: Float[Array, "*batch 3"]
+    triangle_vertices: Float[Array, "*batch 3 3"],
+    vertices: Float[Array, "*batch 3"],
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
@@ -33,7 +36,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
         triangle_vertices: an array of triangle vertices.
         vertices: an array of vertices that will be checked.
 
-    Return:
+    Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     # [*batch 3]
@@ -75,11 +78,12 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def paths_intersect_triangles(
     paths: Float[Array, "*batch path_length 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: float = 1e-6,
+    epsilon: Float[ArrayLike, " "] = 1e-6,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether each path intersect with any of the triangles.
@@ -91,7 +95,7 @@ def paths_intersect_triangles(
             a small portion of the path, to avoid indicating intersection
             when a path *bounces off* a triangle.
 
-    Return:
+    Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
     ray_origins = paths[..., :-1, :]
@@ -139,18 +143,83 @@ class TriangleMesh(eqx.Module):
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
         return jnp.vstack(
-            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0))
+            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0)),
         )
 
     @classmethod
+    @eqx.filter_jit
     def empty(cls) -> "TriangleMesh":
         """
-        Create an empty scene.
+        Create an empty mesh.
 
-        Return:
+        Returns:
             A new empty scene.
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
+
+    @classmethod
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def plane(
+        cls,
+        vertex: Float[Array, "3"],
+        *other_vertices: Float[Array, "3"],
+        normal: Optional[Float[Array, "3"]] = None,
+        side_length: Float[ArrayLike, " "] = 1.0,
+        rotate: Optional[Float[ArrayLike, " "]] = None,
+    ) -> "TriangleMesh":
+        """
+        Create an plane mesh, made of two triangles.
+
+        Args:
+            vertex: The center of the plane.
+            other_vertices: Two other vertices that define the plane.
+
+                This or ``normal`` is required.
+            normal: The plane normal.
+
+                Must be of unit length.
+            side_length: The side length of the plane.
+            rotate: An optional rotation angle, in radians,
+                to be applied around the normal of the plane
+                and its center.
+
+        Returns:
+            A new plane mesh.
+
+        Raises:
+            ValueError: If one of two ``other_vertices`` or ``normal``
+                were not provided.
+        """
+        if (other_vertices == ()) == (normal is None):
+            msg = "You must specify one of `other_vertices` or `normal`, not both."
+            raise ValueError(msg)
+        if other_vertices:
+            if len(other_vertices) != 2:  # noqa: PLR2004
+                msg = (
+                    "You must provide exactly 3 vertices to create a new plane, "
+                    f"but you provided {len(other_vertices) + 1}."
+                )
+                raise ValueError(msg)
+            u = other_vertices[0] - vertex
+            v = other_vertices[1] - vertex
+            w = jnp.cross(u, v)
+            (normal, _) = normalize(w)
+
+        u, v = orthogonal_basis(normal, normalize=True)
+
+        s = 0.5 * side_length
+
+        vertices = s * jnp.array([u + v, v - u, -u - v, u - v])
+
+        if rotate:
+            rotation_matrix = rotation_matrix_along_axis(rotate, normal)
+            vertices = (rotation_matrix @ vertices.T).T
+
+        vertices += vertex
+
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+        return cls(vertices=vertices, triangles=triangles)
 
     @property
     def is_empty(self) -> bool:
@@ -168,7 +237,7 @@ class TriangleMesh(eqx.Module):
         Args:
             file: The path to the Wavefront .obj file.
 
-        Return:
+        Returns:
             The corresponding mesh containing only triangles.
         """
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
@@ -188,7 +257,7 @@ class TriangleMesh(eqx.Module):
         Args:
             file: The path to the Stanford PLY .ply file.
 
-        Return:
+        Returns:
             The corresponding mesh containing only triangles.
         """
         mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
@@ -205,7 +274,7 @@ class TriangleMesh(eqx.Module):
             kwargs: Keyword arguments passed to
                 :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
 
-        Return:
+        Returns:
             The resulting plot output.
         """
         return draw_mesh(
@@ -215,8 +284,13 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def sample(
-        self, size: int, replace: bool = False, *, key: PRNGKeyArray
+        self,
+        size: int,
+        replace: bool = False,
+        *,
+        key: PRNGKeyArray,
     ) -> "TriangleMesh":
         """
         Generate a new mesh by randomly sampling triangles from this geometry.
@@ -226,12 +300,15 @@ class TriangleMesh(eqx.Module):
             replace: Whether to sample with or without replacement.
             key: The :func:`jax.random.PRNGKey` to be used.
 
-        Return:
+        Returns:
             A new random mesh.
         """
         triangles = self.triangles[
             jax.random.choice(
-                key, self.triangles.shape[0], shape=(size,), replace=replace
+                key,
+                self.triangles.shape[0],
+                shape=(size,),
+                replace=replace,
             ),
             :,
         ]

@@ -4,9 +4,10 @@
 # last locked with the following flags:
 #   pre: false
 #   features: []
-#   all-features: true
+#   all-features: false
 #   with-sources: false
 #   generate-hashes: false
+#   universal: false
 
 -e file:.
 -e file:differt
@@ -15,379 +16,65 @@
 absl-py==2.1.0
     # via chex
     # via optax
-anyio==4.3.0
-    # via httpx
-    # via jupyter-server
-argon2-cffi==23.1.0
-    # via jupyter-server
-argon2-cffi-bindings==21.2.0
-    # via argon2-cffi
-arrow==1.3.0
-    # via isoduration
-asttokens==2.4.1
-    # via stack-data
-async-lru==2.0.4
-    # via jupyterlab
-attrs==23.2.0
-    # via jsonschema
-    # via referencing
-babel==2.14.0
-    # via jupyterlab-server
 beartype==0.18.5
     # via differt
-beautifulsoup4==4.12.3
-    # via nbconvert
-bleach==6.1.0
-    # via nbconvert
-certifi==2024.2.2
-    # via httpcore
-    # via httpx
+certifi==2024.8.30
     # via requests
-cffi==1.16.0
-    # via argon2-cffi-bindings
 charset-normalizer==3.3.2
     # via requests
 chex==0.1.86
     # via optax
-comm==0.2.2
-    # via ipykernel
-    # via ipywidgets
-contourpy==1.2.1
-    # via matplotlib
-cycler==0.12.1
-    # via matplotlib
-debugpy==1.8.1
-    # via ipykernel
-decorator==5.1.1
-    # via ipython
-defusedxml==0.7.1
-    # via nbconvert
-equinox==0.11.4
+equinox==0.11.5
     # via differt
-exceptiongroup==1.2.1
-    # via anyio
-    # via ipython
-executing==2.0.1
-    # via stack-data
-fastjsonschema==2.19.1
-    # via nbformat
-filelock==3.15.4
+etils==1.9.4
+    # via optax
+filelock==3.16.0
     # via differt
-fonttools==4.51.0
-    # via matplotlib
-fqdn==1.5.1
-    # via jsonschema
-freetype-py==2.4.0
-    # via vispy
-h11==0.14.0
-    # via httpcore
-hsluv==5.0.4
-    # via vispy
-httpcore==1.0.5
-    # via httpx
-httpx==0.27.0
-    # via jupyterlab
-idna==3.7
-    # via anyio
-    # via httpx
-    # via jsonschema
+idna==3.8
     # via requests
-importlib-metadata==7.1.0
+jax==0.4.31
+    # via chex
+    # via differt
+    # via equinox
+    # via optax
+jaxlib==0.4.31
+    # via chex
     # via jax
-    # via jupyter-client
-    # via jupyter-lsp
-    # via jupyterlab
-    # via jupyterlab-server
-    # via nbconvert
-importlib-resources==6.4.0
-    # via matplotlib
-ipykernel==6.29.4
-    # via jupyterlab
-ipympl==0.9.4
-    # via differt
-ipython==8.18.1
-    # via ipykernel
-    # via ipympl
-    # via ipywidgets
-ipython-genutils==0.2.0
-    # via ipympl
-ipywidgets==8.1.2
-    # via ipympl
-    # via jupyter-rfb
-isoduration==20.11.0
-    # via jsonschema
-jax==0.4.26
-    # via chex
+    # via optax
+jaxtyping==0.2.34
     # via differt
     # via equinox
-    # via optax
-jaxlib==0.4.26
-    # via chex
-    # via optax
-jaxtyping==0.2.28
-    # via differt
-    # via equinox
-jedi==0.19.1
-    # via ipython
-jinja2==3.1.3
-    # via jupyter-server
-    # via jupyterlab
-    # via jupyterlab-server
-    # via nbconvert
-json5==0.9.25
-    # via jupyterlab-server
-jsonpointer==2.4
-    # via jsonschema
-jsonschema==4.21.1
-    # via jupyter-events
-    # via jupyterlab-server
-    # via nbformat
-jsonschema-specifications==2023.12.1
-    # via jsonschema
-jupyter-client==8.6.1
-    # via ipykernel
-    # via jupyter-server
-    # via nbclient
-jupyter-core==5.7.2
-    # via ipykernel
-    # via jupyter-client
-    # via jupyter-server
-    # via jupyterlab
-    # via nbclient
-    # via nbconvert
-    # via nbformat
-jupyter-events==0.10.0
-    # via jupyter-server
-jupyter-lsp==2.2.5
-    # via jupyterlab
-jupyter-rfb==0.4.2
-    # via differt
-jupyter-server==2.14.0
-    # via jupyter-lsp
-    # via jupyterlab
-    # via jupyterlab-server
-    # via notebook
-    # via notebook-shim
-jupyter-server-terminals==0.5.3
-    # via jupyter-server
-jupyterlab==4.1.8
-    # via notebook
-jupyterlab-pygments==0.3.0
-    # via nbconvert
-jupyterlab-server==2.27.1
-    # via jupyterlab
-    # via notebook
-jupyterlab-widgets==3.0.10
-    # via ipywidgets
-    # via jupyter-rfb
-kiwisolver==1.4.5
-    # via matplotlib
-    # via vispy
-markupsafe==2.1.5
-    # via jinja2
-    # via nbconvert
-matplotlib==3.8.4
-    # via differt
-    # via ipympl
-matplotlib-inline==0.1.7
-    # via ipykernel
-    # via ipython
-mistune==3.0.2
-    # via nbconvert
 ml-dtypes==0.4.0
     # via jax
     # via jaxlib
-nbclient==0.10.0
-    # via nbconvert
-nbconvert==7.16.4
-    # via jupyter-server
-nbformat==5.10.4
-    # via jupyter-server
-    # via nbclient
-    # via nbconvert
-nest-asyncio==1.6.0
-    # via ipykernel
-notebook==7.1.3
-    # via differt
-notebook-shim==0.2.4
-    # via jupyterlab
-    # via notebook
-numpy==1.26.4
+numpy==2.1.1
     # via chex
-    # via contourpy
     # via differt
     # via differt-core
-    # via ipympl
     # via jax
     # via jaxlib
-    # via jaxtyping
-    # via jupyter-rfb
-    # via matplotlib
     # via ml-dtypes
     # via opt-einsum
     # via optax
     # via scipy
-    # via vispy
 opt-einsum==3.3.0
     # via jax
-optax==0.2.2
+optax==0.2.3
     # via differt
-overrides==7.7.0
-    # via jupyter-server
-packaging==24.0
-    # via ipykernel
-    # via jupyter-server
-    # via jupyterlab
-    # via jupyterlab-server
-    # via matplotlib
-    # via nbconvert
-    # via plotly
-    # via vispy
-pandocfilters==1.5.1
-    # via nbconvert
-parso==0.8.4
-    # via jedi
-pexpect==4.9.0
-    # via ipython
-pillow==10.3.0
-    # via ipympl
-    # via matplotlib
-platformdirs==4.2.1
-    # via jupyter-core
-plotly==5.21.0
+requests==2.32.3
     # via differt
-prometheus-client==0.20.0
-    # via jupyter-server
-prompt-toolkit==3.0.43
-    # via ipython
-psutil==5.9.8
-    # via ipykernel
-ptyprocess==0.7.0
-    # via pexpect
-    # via terminado
-pure-eval==0.2.2
-    # via stack-data
-pycparser==2.22
-    # via cffi
-pygments==2.17.2
-    # via ipython
-    # via nbconvert
-pyparsing==3.1.2
-    # via matplotlib
-pyqt6==6.7.0
-    # via differt
-pyqt6-qt6==6.7.2
-    # via pyqt6
-pyqt6-sip==13.6.0
-    # via pyqt6
-python-dateutil==2.9.0.post0
-    # via arrow
-    # via jupyter-client
-    # via matplotlib
-python-json-logger==2.0.7
-    # via jupyter-events
-pyyaml==6.0.1
-    # via jupyter-events
-pyzmq==26.0.2
-    # via ipykernel
-    # via jupyter-client
-    # via jupyter-server
-referencing==0.35.0
-    # via jsonschema
-    # via jsonschema-specifications
-    # via jupyter-events
-requests==2.31.0
-    # via differt
-    # via jupyterlab-server
-rfc3339-validator==0.1.4
-    # via jsonschema
-    # via jupyter-events
-rfc3986-validator==0.1.1
-    # via jsonschema
-    # via jupyter-events
-rpds-py==0.18.0
-    # via jsonschema
-    # via referencing
-scipy==1.13.0
+scipy==1.14.1
     # via jax
     # via jaxlib
-send2trash==1.8.3
-    # via jupyter-server
-six==1.16.0
-    # via asttokens
-    # via bleach
-    # via python-dateutil
-    # via rfc3339-validator
-sniffio==1.3.1
-    # via anyio
-    # via httpx
-soupsieve==2.5
-    # via beautifulsoup4
-stack-data==0.6.3
-    # via ipython
-tenacity==8.2.3
-    # via plotly
-terminado==0.18.1
-    # via jupyter-server
-    # via jupyter-server-terminals
-tinycss2==1.3.0
-    # via nbconvert
-tomli==2.0.1
-    # via jupyterlab
 toolz==0.12.1
     # via chex
-tornado==6.4
-    # via ipykernel
-    # via jupyter-client
-    # via jupyter-server
-    # via jupyterlab
-    # via notebook
-    # via terminado
-tqdm==4.66.2
+tqdm==4.66.5
     # via differt
-traitlets==5.14.3
-    # via comm
-    # via ipykernel
-    # via ipympl
-    # via ipython
-    # via ipywidgets
-    # via jupyter-client
-    # via jupyter-core
-    # via jupyter-events
-    # via jupyter-server
-    # via jupyterlab
-    # via matplotlib-inline
-    # via nbclient
-    # via nbconvert
-    # via nbformat
 typeguard==2.13.3
     # via jaxtyping
-types-python-dateutil==2.9.0.20240316
-    # via arrow
-typing-extensions==4.11.0
-    # via anyio
-    # via async-lru
+typing-extensions==4.12.2
     # via chex
-    # via differt
     # via equinox
-    # via ipython
-uri-template==1.3.0
-    # via jsonschema
-urllib3==2.2.1
+    # via etils
+urllib3==2.2.2
     # via requests
-vispy==0.14.2
-    # via differt
-wcwidth==0.2.13
-    # via prompt-toolkit
-webcolors==1.13
-    # via jsonschema
-webencodings==0.5.1
-    # via bleach
-    # via tinycss2
-websocket-client==1.8.0
-    # via jupyter-server
-widgetsnbextension==4.0.10
-    # via ipywidgets
-zipp==3.18.1
-    # via importlib-metadata
-    # via importlib-resources

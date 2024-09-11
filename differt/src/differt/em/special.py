@@ -41,7 +41,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         The values of the error function at the given point.
 
     Notes:
@@ -155,8 +155,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     h = exp_r_squared * h_sum / (2 * jnp.pi)
 
     res = erfx(r) + e + f - exp_2j_r_i * (g + h)
-    res = jnp.where(z.imag < 0, jnp.conj(res), res)
-    return res
+    return jnp.where(z.imag < 0, jnp.conj(res), res)
 
 
 @jax.jit
@@ -173,7 +172,7 @@ def erfc(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         The values of the complementary error function at the given point.
 
     Examples:
@@ -215,7 +214,7 @@ def fresnel(
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         A tuple of two arrays, one for each of the Fresnel integrals.
 
     Examples:

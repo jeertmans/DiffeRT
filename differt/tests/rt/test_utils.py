@@ -8,6 +8,7 @@ from jaxtyping import Array
 
 from differt.rt.utils import (
     generate_all_path_candidates,
+    generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
@@ -18,7 +19,7 @@ from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    "num_primitives,order,expected",
+    ("num_primitives", "order", "expected"),
     [
         (0, 0, jnp.empty((1, 0), dtype=int)),
         (8, 0, jnp.empty((1, 0), dtype=int)),
@@ -42,13 +43,15 @@ from ..utils import random_inputs
                     [2, 0, 2],
                     [2, 1, 0],
                     [2, 1, 2],
-                ]
+                ],
             ),
         ),
     ],
 )
 def test_generate_all_path_candidates(
-    num_primitives: int, order: int, expected: Array
+    num_primitives: int,
+    order: int,
+    expected: Array,
 ) -> None:
     got = generate_all_path_candidates(num_primitives, order)
     got = sorted_array2(got)  # order may not be the same so we sort
@@ -57,7 +60,7 @@ def test_generate_all_path_candidates(
 
 
 @pytest.mark.parametrize(
-    "num_primitives,order",
+    ("num_primitives", "order"),
     [
         (3, 1),
         (3, 2),
@@ -77,7 +80,41 @@ def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> N
 
 
 @pytest.mark.parametrize(
-    "ray_orig,ray_dest,expected",
+    ("num_primitives", "order"),
+    [
+        (11, 1),
+        (12, 3),
+        (15, 4),
+    ],
+)
+@pytest.mark.parametrize("chunk_size", [1, 10, 23])
+def test_generate_all_path_candidates_chunks_iter(
+    num_primitives: int, order: int, chunk_size: int
+) -> None:
+    it = generate_all_path_candidates_chunks_iter(num_primitives, order, chunk_size)
+
+    previous_chunk = None
+
+    try:
+        while True:
+            chunk = next(it)
+
+            if previous_chunk is not None:
+                chex.assert_shape(previous_chunk, (chunk_size, order))
+
+            previous_chunk = chunk
+
+    except StopIteration:
+        pass
+
+    if previous_chunk is not None:
+        last_chunk_size, last_chunk_order = previous_chunk.shape
+        assert last_chunk_size <= chunk_size
+        assert last_chunk_order == order
+
+
+@pytest.mark.parametrize(
+    ("ray_orig", "ray_dest", "expected"),
     [
         (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, -1.0]), jnp.array(True)),
         (jnp.array([0.0, 0.0, 1.0]), jnp.array([1.0, 1.0, -1.0]), jnp.array(True)),
@@ -87,7 +124,9 @@ def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> N
     ],
 )
 def test_rays_intersect_triangles(
-    ray_orig: Array, ray_dest: Array, expected: Array
+    ray_orig: Array,
+    ray_dest: Array,
+    expected: Array,
 ) -> None:
     triangle_vertices = jnp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     t, hit = rays_intersect_triangles(
@@ -100,7 +139,7 @@ def test_rays_intersect_triangles(
 
 
 @pytest.mark.parametrize(
-    ("ray_origins,ray_directions,triangle_vertices,expectation"),
+    ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
     [
         ((20, 10, 3), (20, 10, 3), (15, 3, 3), does_not_raise()),
         ((10, 3), (10, 3), (15, 3, 3), does_not_raise()),
@@ -119,8 +158,8 @@ def test_rays_intersect_triangles(
         ),
     ],
 )
-@pytest.mark.parametrize("epsilon", (1e-6, 1e-2))
-@pytest.mark.parametrize("hit_threshold", (1.0, 0.999, 1.5, 0.5))
+@pytest.mark.parametrize("epsilon", [1e-6, 1e-2])
+@pytest.mark.parametrize("hit_threshold", [1.0, 0.999, 1.5, 0.5])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_rays_intersect_any_triangle(
     ray_origins: Array,
@@ -151,7 +190,10 @@ def test_rays_intersect_any_triangle(
         )
         triangle_vertices = jnp.broadcast_to(triangle_vertices, (*shape, 3))
         expected_t, expected_hit = rays_intersect_triangles(
-            ray_origins, ray_directions, triangle_vertices, epsilon=epsilon
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            epsilon=epsilon,
         )
         expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
 

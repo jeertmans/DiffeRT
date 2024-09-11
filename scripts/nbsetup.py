@@ -7,23 +7,21 @@ import nbformat as nbf
 TAG = "differt-install-preamble"
 
 CELL = nbf.NotebookNode(
-    **{
-        "cell_type": "code",
-        "execution_count": None,
-        "id": "e90f3c19",
-        "metadata": {"tags": [TAG, "remove-cell", "skip-execution"]},
-        "outputs": [],
-        "source": [
-            "# Run this cell to install DiffeRT and its dependencies, e.g., on Google Colab\n",
-            "\n",
-            "try:\n",
-            "    import differt  # noqa: F401\n",
-            "except ImportError:\n",
-            "    import sys  # noqa: F401\n",
-            "\n",
-            "    !{sys.executable} -m pip install differt[all]",
-        ],
-    }
+    cell_type="code",
+    execution_count=None,
+    id="e90f3c19",
+    metadata={"tags": [TAG, "remove-cell", "skip-execution"]},
+    outputs=[],
+    source=[
+        "# Run this cell to install DiffeRT and its dependencies, e.g., on Google Colab\n",
+        "\n",
+        "try:\n",
+        "    import differt  # noqa: F401\n",
+        "except ImportError:\n",
+        "    import sys  # noqa: F401\n",
+        "\n",
+        "    !{sys.executable} -m pip install differt[all]",
+    ],
 )
 
 if __name__ == "__main__":

@@ -1,6 +1,3 @@
-# Run Python commands inside environment
-env-run := if env("NO_RYE", "") == "1" { "" } else { "rye run" }
-
 # Default command (list all commands)
 default:
   @just --list
@@ -13,7 +10,7 @@ bench: bench-python bench-rust
 [group('python')]
 [group('test')]
 bench-python *ARGS:
-  pytest --benchmark-only {{ARGS}}
+  rye run pytest --benchmark-only {{ARGS}}
 
 # Benchmark Rust code
 [group('rust')]
@@ -29,7 +26,7 @@ build *ARGS:
 # Bump packages version
 [group('dev')]
 bump +ARGS="patch":
-  {{env-run}} bump-my-version {{ARGS}}
+  rye run bump-my-version {{ARGS}}
 
 # Check the code can compile
 [group('rust')]
@@ -51,7 +48,7 @@ install:
 # Run code linters and formatters
 [group('dev')]
 lint:
-  {{env-run}} pre-commit run --all-files
+  rye pre-commit run --all-files
 
 alias fmt := lint
 
@@ -63,7 +60,7 @@ test: test-python test-rust
 [group('python')]
 [group('test')]
 test-python *ARGS:
-  {{env-run}} pytest {{ARGS}}
+  rye pytest {{ARGS}}
 
 # Test Rust code
 [group('rust')]

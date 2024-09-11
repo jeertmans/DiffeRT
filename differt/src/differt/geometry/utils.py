@@ -5,13 +5,14 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def pairwise_cross(
-    u: Float[Array, "m 3"], v: Float[Array, "n 3"]
+    u: Float[Array, "m 3"],
+    v: Float[Array, "n 3"],
 ) -> Float[Array, "m n 3"]:
     """
     Compute the pairwise cross product between two arrays of vectors.
@@ -20,7 +21,7 @@ def pairwise_cross(
         u: First array of vectors.
         v: Second array of vectors.
 
-    Return:
+    Returns:
         A 3D tensor with all cross products.
     """
     return jnp.cross(u[:, None, :], v[None, :, :])
@@ -40,7 +41,7 @@ def normalize(
     Args:
         vector: An array of vectors.
 
-    Return:
+    Returns:
         The normalized vector and their length.
 
     Examples:
@@ -68,7 +69,8 @@ def normalize(
 @partial(jax.jit, static_argnames=("normalize",))
 @jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
-    u: Float[Array, "*batch 3"], normalize: bool = True
+    u: Float[Array, "*batch 3"],
+    normalize: bool = True,
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
     """
     Generate ``v`` and ``w``, two other arrays of unit vectors that form with input ``u`` an orthogonal basis.
@@ -83,7 +85,7 @@ def orthogonal_basis(
             that the vector lengths may diverge from the unit
             length by 10% or even more!
 
-    Return:
+    Returns:
         A pair of unit vectors, ``v`` and ``w``.
 
     Examples:
@@ -126,7 +128,7 @@ def path_lengths(
     Args:
         paths: The array of path vertices.
 
-    Return:
+    Returns:
         The array of path lengths.
 
     Examples:
@@ -146,3 +148,173 @@ def path_lengths(
     lengths = jnp.linalg.norm(vectors, axis=-1)
 
     return jnp.sum(lengths, axis=-1)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def rotation_matrix_along_x_axis(
+    angle: Float[ArrayLike, " "],
+) -> Float[Array, "3 3"]:
+    """
+    Return a rotation matrix to rotate coordinates along x axis.
+
+    Args:
+        angle: The rotation angle, in radians.
+
+    Returns:
+        The rotation matrix.
+
+    Examples:
+        The following example shows how to rotate xyz coordinates
+        along the x axis.
+
+        >>> from differt.geometry.utils import (
+        ...     rotation_matrix_along_x_axis,
+        ... )
+        >>>
+        >>> xyz = jnp.array([1.0, 1.0, 0.0])
+        >>> rotation_matrix_along_x_axis(jnp.pi / 2) @ xyz
+        Array([ 1., -0.,  1.], dtype=float32)
+    """
+    co = jnp.cos(angle)
+    si = jnp.sin(angle)
+
+    return jnp.array([
+        [1.0, 0.0, 0.0],
+        [0.0, +co, -si],
+        [0.0, +si, +co],
+    ])
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def rotation_matrix_along_y_axis(
+    angle: Float[ArrayLike, " "],
+) -> Float[Array, "3 3"]:
+    """
+    Return a rotation matrix to rotate coordinates along y axis.
+
+    Args:
+        angle: The rotation angle, in radians.
+
+    Returns:
+        The rotation matrix.
+
+    Examples:
+        The following example shows how to rotate xyz coordinates
+        along the y axis.
+
+        >>> from differt.geometry.utils import (
+        ...     rotation_matrix_along_y_axis,
+        ... )
+        >>>
+        >>> xyz = jnp.array([1.0, 1.0, 0.0])
+        >>> rotation_matrix_along_y_axis(jnp.pi / 2) @ xyz
+        Array([-0.,  1., -1.], dtype=float32)
+    """
+    co = jnp.cos(angle)
+    si = jnp.sin(angle)
+
+    return jnp.array([
+        [+co, 0.0, +si],
+        [0.0, 1.0, 0.0],
+        [-si, 0.0, +co],
+    ])
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def rotation_matrix_along_z_axis(
+    angle: Float[ArrayLike, " "],
+) -> Float[Array, "3 3"]:
+    """
+    Return a rotation matrix to rotate coordinates along z axis.
+
+    Args:
+        angle: The rotation angle, in radians.
+
+    Returns:
+        The rotation matrix.
+
+    Examples:
+        The following example shows how to rotate xyz coordinates
+        along the z axis.
+
+        >>> from differt.geometry.utils import (
+        ...     rotation_matrix_along_z_axis,
+        ... )
+        >>>
+        >>> xyz = jnp.array([1.0, 0.0, 1.0])
+        >>> rotation_matrix_along_z_axis(jnp.pi / 2) @ xyz
+        Array([-0.,  1.,  1.], dtype=float32)
+    """
+    co = jnp.cos(angle)
+    si = jnp.sin(angle)
+
+    return jnp.array([
+        [+co, -si, 0.0],
+        [+si, +co, 0.0],
+        [0.0, 0.0, 1.0],
+    ])
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def rotation_matrix_along_axis(
+    angle: Float[ArrayLike, " "],
+    axis: Float[Array, "3"],
+) -> Float[Array, "3 3"]:
+    """
+    Return a rotation matrix to rotate coordinates along a given axis.
+
+    Args:
+        angle: The rotation angle, in radians.
+        axis: A unit vector pointing in the axis' direction.
+
+    Returns:
+        The rotation matrix.
+
+    Examples:
+        The following example shows how to rotate xyz coordinates
+        along a given axis.
+
+        >>> from differt.geometry.utils import (
+        ...     normalize,
+        ...     rotation_matrix_along_axis,
+        ... )
+        >>>
+        >>> xyz = jnp.array([1.0, 1.0, 1.0])
+        >>> axis, _ = normalize(jnp.array([1.0, 1.0, 0.0]))
+        >>> rotation_matrix_along_axis(jnp.pi / 2, axis) @ xyz
+        Array([ 1.7071066,  0.2928931, -0.       ], dtype=float32)
+
+        In the following example, we show the importance of using a unit
+        vector.
+
+        >>> from differt.geometry.utils import (
+        ...     rotation_matrix_along_axis,
+        ... )
+        >>>
+        >>> xyz = jnp.array([1.0, 0.0, 1.0])
+        >>> axis = jnp.array([1.0, 0.0, 0.0])
+        >>> rotation_matrix_along_axis(jnp.pi, axis) @ xyz
+        Array([ 1.       ,  0.0000001, -1.       ], dtype=float32)
+        >>> axis = jnp.array([2.0, 0.0, 0.0])
+        >>> rotation_matrix_along_axis(jnp.pi, axis) @ xyz
+        Array([ 7.       ,  0.0000002, -1.       ], dtype=float32)
+    """
+    co = jnp.cos(angle)
+    si = jnp.sin(angle)
+    i = jnp.identity(3, dtype=axis.dtype)
+    # Cross product matrix
+    x = jnp.array(
+        [
+            [+0.0, -axis[2], +axis[1]],
+            [+axis[2], +0.0, -axis[0]],
+            [-axis[1], +axis[0], 0.0],
+        ],
+    )
+    # Outer product matrix
+    o = jnp.outer(axis, axis)
+
+    return co * i + si * x + (1 - co) * o

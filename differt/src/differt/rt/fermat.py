@@ -9,19 +9,18 @@ this means that the path of least time is also the path of last distance.
 As a result, this module offers minimization methods for finding ray paths.
 """
 
-from functools import partial
 from typing import Any
 
-import jax
+import equinox as eqx
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
-from ..geometry.utils import orthogonal_basis
-from ..utils import minimize
+from differt.geometry.utils import orthogonal_basis
+from differt.utils import minimize
 
 
-@partial(jax.jit, static_argnames=("steps", "optimizer"))
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*batch 3"],
@@ -54,7 +53,7 @@ def fermat_path_on_planar_mirrors(
         kwargs: Keyword arguments passed to
             :py:func:`minimize<differt.utils.minimize>`.
 
-    Return:
+    Returns:
         An array of ray paths obtained using Fermat's principle.
 
     .. note::
@@ -95,7 +94,7 @@ def fermat_path_on_planar_mirrors(
         return o + d1 * s + d2 * t
 
     @jaxtyped(typechecker=typechecker)
-    def loss(
+    def loss(  # noqa: PLR0917
         st: Float[Array, "*batch num_unknowns"],
         o: Float[Array, "*batch num_mirrors 3"],
         d1: Float[Array, "*batch num_mirrors 3"],
@@ -113,7 +112,7 @@ def fermat_path_on_planar_mirrors(
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, losses = minimize(
+    st, _losses = minimize(
         loss,
         st0,
         args=(

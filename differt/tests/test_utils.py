@@ -13,7 +13,7 @@ from differt.utils import (
 
 
 @pytest.mark.parametrize(
-    "array,expected",
+    ("array", "expected"),
     [
         (jnp.empty((0, 0)), jnp.empty((0, 0))),
         (jnp.empty((1, 0)), jnp.empty((1, 0))),
@@ -31,7 +31,7 @@ from differt.utils import (
                     [1, 2, 3],
                     [1, 0, 0],
                     [1, 0, 1],
-                ]
+                ],
             ),
             jnp.array(
                 [
@@ -43,7 +43,7 @@ from differt.utils import (
                     [1, 2, 3],
                     [4, 5, 6],
                     [7, 8, 9],
-                ]
+                ],
             ),
         ),
     ],

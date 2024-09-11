@@ -63,7 +63,7 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
     Args:
         z: The array of real or complex points to evaluate.
 
-    Return:
+    Returns:
         The values of the transition function at the given point.
 
     Examples:
