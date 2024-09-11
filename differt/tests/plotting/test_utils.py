@@ -92,14 +92,18 @@ def test_missing_default_backend_module(
             missing_modules(backend),
             pytest.raises(
                 ImportError,
-                match=f"An import error occurred when dispatching plot utility to backend '{backend}'.",
+                match="An import error occurred when dispatching plot utility "
+                f"to backend '{backend}'. Did you correctly install it?",
             ),
         ):
             _ = my_plot()
 
     with (
         missing_modules(backend),
-        pytest.raises(ImportError, match=f"Could not load backend '{backend}'"),
+        pytest.raises(
+            ImportError,
+            match=f"Could not find backend '{backend}', " "did you install it?",
+        ),
     ):
         with use(backend=backend):
             pass
@@ -117,7 +121,7 @@ def test_missing_backend_module(
         missing_modules(backend),
         pytest.raises(
             ImportError,
-            match=f"An import error occurred when dispatching plot utility to backend '{backend}'.",
+            match=f"Could not find backend '{backend}', did you install it?",
         ),
     ):
         _ = my_plot(backend=backend)
