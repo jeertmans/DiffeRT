@@ -9,7 +9,7 @@ from differt.plotting import draw_image, draw_markers, draw_mesh, draw_paths, us
 
 @pytest.mark.parametrize(
     "backend",
-    ("vispy", "matplotlib", "plotly"),
+    ["vispy", "matplotlib", "plotly"],
 )
 def test_draw_mesh(
     backend: str,
@@ -22,46 +22,47 @@ def test_draw_mesh(
 
 @pytest.mark.parametrize(
     "backend",
-    ("vispy", "matplotlib", "plotly"),
+    ["vispy", "matplotlib", "plotly"],
 )
 def test_draw_paths(
+    rng: np.random.Generator,
     backend: str,
 ) -> None:
-    paths = np.random.rand(10, 4, 3)
+    paths = rng.random(size=(10, 4, 3))
     with use(backend):
         _ = draw_paths(paths)
 
 
 @pytest.mark.parametrize(
-    "backend,expectation",
-    (
+    ("backend", "expectation"),
+    [
         ("vispy", does_not_raise()),
         ("matplotlib", pytest.raises(NotImplementedError)),
         ("plotly", does_not_raise()),
-    ),
+    ],
 )
-@pytest.mark.parametrize("with_labels", (True, False))
+@pytest.mark.parametrize("with_labels", [True, False])
 def test_draw_markers(
-    backend: str, expectation: AbstractContextManager[Exception], with_labels: bool
+    rng: np.random.Generator,
+    backend: str,
+    expectation: AbstractContextManager[Exception],
+    with_labels: bool,
 ) -> None:
-    markers = np.random.rand(4, 3)
+    markers = rng.random(size=(4, 3))
 
-    if with_labels:
-        labels = ["A", "B", "C", "D"]
-    else:
-        labels = None
+    labels = ["A", "B", "C", "D"] if with_labels else None
 
     with use(backend), expectation:
-        _ = draw_markers(markers, labels=labels)
+        _ = draw_markers(markers, labels=labels, text_kwargs={"rotation": 30})
 
 
 @pytest.mark.parametrize(
     "backend",
-    ("vispy", "matplotlib", "plotly"),
+    ["vispy", "matplotlib", "plotly"],
 )
 @pytest.mark.parametrize(
     "pass_xy",
-    (True, False),
+    [True, False],
 )
 def test_draw_image(
     backend: str,

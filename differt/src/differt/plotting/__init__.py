@@ -89,22 +89,24 @@ the Matplotlib backend.
 
 __all__ = (
     "dispatch",
-    "set_defaults",
-    "use",
-    "reuse",
     "draw_image",
     "draw_markers",
     "draw_mesh",
     "draw_paths",
-    "process_vispy_kwargs",
+    "get_backend",
     "process_matplotlib_kwargs",
     "process_plotly_kwargs",
+    "process_vispy_kwargs",
+    "reuse",
+    "set_defaults",
+    "use",
     "view_from_canvas",
 )
 
 from ._core import draw_image, draw_markers, draw_mesh, draw_paths
 from ._utils import (
     dispatch,
+    get_backend,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,

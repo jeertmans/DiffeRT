@@ -6,7 +6,8 @@ import jax
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
-from ..geometry.utils import path_lengths
+from differt.geometry.utils import path_lengths
+
 from .constants import c
 
 
@@ -26,7 +27,7 @@ def lengths_to_delays(
             an array of speeds. Default is the speed
             of light in vacuum.
 
-    Return:
+    Returns:
         The array of path delays.
 
     Examples:
@@ -49,7 +50,8 @@ def lengths_to_delays(
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def path_delays(
-    paths: Float[Array, "*batch path_length 3"], **kwargs: Any
+    paths: Float[Array, "*batch path_length 3"],
+    **kwargs: Any,
 ) -> Float[Array, " *batch"]:
     """
     Compute the path delay, in seconds, of each path.
@@ -61,7 +63,7 @@ def path_delays(
         kwargs: Keyword arguments passed to
             :func:`lengths_to_delays`.
 
-    Return:
+    Returns:
         The array of path delays.
 
     Examples:

@@ -1,70 +1,129 @@
 """Useful decorators for plotting."""
 
-import importlib
+from __future__ import annotations
+
+import importlib.util
 import sys
 import types
-from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
+from dataclasses import dataclass, field, replace
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
-
-# Immutables
-
-SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
-"""The list of supported backends."""
-
-BACKEND_LOCK = Lock()
-"""A Lock to avoid modifying backend (and defaults) in multiple threads at the same time (e.g., with Pytest."""
-
-# Mutables
-
-DEFAULT_BACKEND = "vispy"
-"""The default backend."""
-DEFAULT_KWARGS: MutableMapping[str, Any] = {}
-"""The default keyword arguments."""
-
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
 else:
     from typing_extensions import ParamSpec
 
-P = ParamSpec("P")
-
 if TYPE_CHECKING:
+    from collections.abc import Iterator, MutableMapping
+    from typing import Literal
+
     from matplotlib.figure import Figure as MplFigure
     from mpl_toolkits.mplot3d import Axes3D
     from plotly.graph_objects import Figure
     from vispy.scene.canvas import SceneCanvas as Canvas
     from vispy.scene.widgets.viewbox import ViewBox
+
+    BackendName = Literal["vispy", "matplotlib", "plotly"]
+    T = TypeVar("T", Canvas, MplFigure, Figure)
 else:
-    MplFigure = Any
-    Axes3D = Any
-    Figure = Any
-    Canvas = Any
-    ViewBox = Any
+    T = TypeVar("T")
 
-T = TypeVar("T", Canvas, MplFigure, Figure)
+P = ParamSpec("P")
 
 
-def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
+@dataclass(frozen=True)
+class _Defaults:
+    backend: BackendName = field(default="vispy")
+    kwargs: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class _Config:
+    lock: Lock = field(default_factory=Lock)
+    defaults: _Defaults = field(default_factory=_Defaults)
+
+    def set_defaults(self, /, **defaults: Any) -> None:
+        with self.lock:
+            self.defaults = replace(self.defaults, **defaults)
+
+    @contextmanager
+    def with_defaults(self, /, **defaults: Any) -> Iterator[None]:
+        old_defaults = self.defaults
+        with self.lock:
+            try:
+                self.defaults = replace(self.defaults, **defaults)
+                yield
+            finally:
+                self.defaults = old_defaults
+
+
+# Immutables
+
+SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+"""The list of supported backends."""
+
+# Mutables
+
+config = _Config()
+"""Mutable config object with mutability of default values guarded by a lock."""
+
+
+def get_backend(backend: str | None = None) -> BackendName:
     """
-    Set default keyword arguments for future plotting utilities.
+    Return the name of the backend to use.
+
+    If data:`None` is provided, then the default
+    backend is returned. Otherwise, the backend corresponding to
+    value of :data:`backend`.
 
     Args:
         backend: The name of the backend to use, or
             :py:data:`None` to use the current default.
-        kwargs: Keyword arguments that will be passed to the
-            corresponding ``process_*_kwargs`` function, and
-            plot utilities.
 
-    Return:
-        The name of the (new) default backend.
+            The name is case insensitive.
+
+    Returns:
+        The name of the backend to use.
 
     Raises:
         ValueError: If the backend is not supported.
         ImportError: If the backend is not installed.
+    """
+    if backend is None:
+        return config.defaults.backend
+
+    backend = backend.lower()
+
+    if backend not in SUPPORTED_BACKENDS:
+        msg = (
+            f"The backend '{backend}' is not supported. "
+            f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
+        )
+        raise ValueError(
+            msg,
+        )
+    if importlib.util.find_spec(backend) is None:
+        msg = f"Could not find backend '{backend}', did you install it?"
+        raise ImportError(msg)
+    return backend
+
+
+def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
+    """
+    Set default backend and keyword arguments for future plotting utilities.
+
+    Args:
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
+        kwargs: Keyword arguments that will be passed to the
+            corresponding ``process_*_kwargs`` function, and
+            plot utilities.
+
+    Returns:
+        The name of the (new) default backend.
 
     Examples:
         The following example shows how to set the default plotting backend
@@ -107,29 +166,14 @@ def set_defaults(backend: Optional[str] = None, **kwargs: Any) -> str:
         >>> dplt.set_defaults("vispy")  # Reset all defaults
         'vispy'
     """
-    global DEFAULT_BACKEND, DEFAULT_KWARGS
+    backend = get_backend(backend)
 
-    if backend is None:
-        backend = DEFAULT_BACKEND
-    if backend not in SUPPORTED_BACKENDS:
-        raise ValueError(
-            f"The backend '{backend}' is not supported. "
-            f"We currently support: {', '.join(SUPPORTED_BACKENDS)}."
-        )
-
-    try:
-        importlib.import_module(f"{backend}")
-        DEFAULT_BACKEND = backend
-        DEFAULT_KWARGS = kwargs
-        return backend
-    except ImportError:
-        raise ImportError(
-            f"Could not load backend '{backend}', did you install it?"
-        ) from None
+    config.set_defaults(backend=backend, kwargs=kwargs)
+    return backend
 
 
 @contextmanager
-def use(*args: Any, **kwargs: Any) -> Iterator[str]:
+def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
     """
     Create a context manager that sets plotting defaults and returns the current default backend.
 
@@ -137,12 +181,12 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
     and default keyword arguments are set back.
 
     Args:
-        args: Positional arguments passed to
-            :py:func:`set_defaults`.
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
-    Return:
+    Yields:
         The name of the default backend used in this context.
 
     Examples:
@@ -179,16 +223,13 @@ def use(*args: Any, **kwargs: Any) -> Iterator[str]:
         ...     my_plot()
         Using plotly backend with args = (), kwargs = {'color': 'black'}
     """
-    global DEFAULT_BACKEND, DEFAULT_KWARGS
-    default_backend = DEFAULT_BACKEND
-    default_kwargs = DEFAULT_KWARGS
+    backend = get_backend(backend)
 
-    with BACKEND_LOCK:
+    with config.with_defaults(backend=backend, kwargs=kwargs):
         try:
-            yield set_defaults(*args, **kwargs)
+            yield backend
         finally:
-            DEFAULT_BACKEND = default_backend
-            DEFAULT_KWARGS = default_kwargs
+            pass
 
 
 class _Dispatcher(Generic[P, T]):
@@ -213,7 +254,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         fun: The callable that will register future dispatch
             functions for each backend implementation.
 
-    Return:
+    Returns:
         A callable that can register backend implementations with ``register``.
 
     Notes:
@@ -284,13 +325,19 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             backend: The name of backend for which the decorated
                 function will be called.
 
-        Return:
+        Returns:
             A wrapper to be put before the backend-specific implementation.
+
+        Raises:
+            ValueError: If the backend is not supported.
         """
         if backend not in SUPPORTED_BACKENDS:
-            raise ValueError(
+            msg = (
                 f"Unsupported backend '{backend}', "
                 f"allowed values are: {', '.join(SUPPORTED_BACKENDS)}."
+            )
+            raise ValueError(
+                msg,
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
@@ -301,15 +348,18 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
                 try:
                     return impl(*args, **kwargs)
                 except ImportError as e:
-                    raise ImportError(
+                    msg = (
                         "An import error occurred when dispatching "
                         f"plot utility to backend '{backend}'. "
                         "Did you correctly install it?"
+                    )
+                    raise ImportError(
+                        msg,
                     ) from e
 
             registry[backend] = __wrapper__
 
-            return __wrapper__
+            return __wrapper__  # noqa: DOC201
 
         return wrapper
 
@@ -325,7 +375,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             args: Positional arguments passed to the correct backend implementation.
             kwargs: Keyword arguments passed to the correct backend implementation.
 
-        Return:
+        Returns:
             The result of the call.
         """
         # We cannot currently add keyword argument to the signature,
@@ -334,21 +384,21 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         #
         # The motivation is detailed in P612:
         # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend: str = kwargs.pop("backend", DEFAULT_BACKEND)  # type: ignore
+        backend_opt: str | None = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
+        backend = get_backend(backend_opt)
 
         try:
             return registry[backend](*args, **kwargs)
         except KeyError:
+            msg = f"No backend implementation for '{backend}'"
             raise NotImplementedError(
-                f"No backend implementation for '{backend}'"
+                msg,
             ) from None
 
-        return wrapper
+    wrapper.register = register  # type: ignore[reportAttributeAccessIssue]
+    wrapper.registry = types.MappingProxyType(registry)  # type: ignore[reportAttributeAccessIssue]
 
-    wrapper.register = register  # type: ignore
-    wrapper.registry = types.MappingProxyType(registry)  # type: ignore
-
-    return wrapper  # type: ignore
+    return wrapper  # type: ignore[reportReportType]
 
 
 def view_from_canvas(canvas: Canvas) -> ViewBox:
@@ -363,25 +413,25 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     Args:
         canvas: The canvas that draws the contents of the scene.
 
-    Return:
+    Returns:
         The view on which contents are displayed.
     """
-    from vispy.scene.widgets.viewbox import ViewBox
+    from vispy.scene.widgets.viewbox import ViewBox  # noqa: PLC0415
 
     def default_view() -> ViewBox:
         view = canvas.central_widget.add_view()
         view.camera = "turntable"
-        view.camera.depth_value = 1e3  # type: ignore
+        view.camera.depth_value = 1e3
         return view
 
     return (
         next(
             (
                 child
-                for child in canvas.central_widget.children  # type: ignore
+                for child in canvas.central_widget.children  # type: ignore[reportAttributeAccessIssue]
                 if isinstance(child, ViewBox)
             ),
-            None,  # type: ignore
+            None,
         )
         or default_view()
     )
@@ -414,12 +464,12 @@ def process_vispy_kwargs(
         must ensure that ``view in canvas.central_widget.children``
         evaluates to :py:data:`True`.
 
-    Return:
+    Returns:
         The canvas and view used to display contents.
     """
-    from vispy import scene
+    from vispy import scene  # noqa: PLC0415
 
-    for key, value in DEFAULT_KWARGS.items():
+    for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
 
     maybe_view = kwargs.pop("view", None)
@@ -462,13 +512,13 @@ def process_matplotlib_kwargs(
         must ensure that ``ax in figure.axes``
         evaluates to :py:data:`True`.
 
-    Return:
+    Returns:
         The figure and axes used to display contents.
     """
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: PLC0415
 
-    for key, value in DEFAULT_KWARGS.items():
+    for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
 
     maybe_ax = kwargs.pop("ax", None)
@@ -478,7 +528,7 @@ def process_matplotlib_kwargs(
         or plt.figure()
     )
 
-    def current_ax3d() -> Optional[Axes3D]:
+    def current_ax3d() -> Axes3D | None:
         if len(figure.axes) > 0:
             ax = figure.gca()
             if isinstance(ax, Axes3D):
@@ -486,7 +536,7 @@ def process_matplotlib_kwargs(
         return None
 
     def new_ax3d() -> Axes3D:
-        return figure.add_subplot(projection="3d")  # type: ignore
+        return figure.add_subplot(projection="3d")  # type: ignore[reportReturnType]
 
     ax = maybe_ax or current_ax3d() or new_ax3d()
 
@@ -511,26 +561,30 @@ def process_plotly_kwargs(
         figure (:py:class:`Figure<plotly.graph_objects.Figure>`):
             The figure that draws contents of the scene.
 
-    Return:
+    Returns:
         The figure used to display contents.
     """
-    import plotly.graph_objects as go
+    import plotly.graph_objects as go  # noqa: PLC0415
 
-    for key, value in DEFAULT_KWARGS.items():
+    for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
 
     return kwargs.pop("figure", None) or go.Figure()
 
 
 @contextmanager
-def reuse(**kwargs: Any) -> Iterator[Union[Canvas, MplFigure, Figure]]:
+def reuse(
+    backend: str | None = None, **kwargs: Any
+) -> Iterator[Canvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
         kwargs: Keywords arguments passed to
             :py:func:`set_defaults`.
 
-    Return:
+    Yields:
         The canvas or figure that is reused for this context.
 
     Examples:
@@ -551,22 +605,23 @@ def reuse(**kwargs: Any) -> Iterator[Union[Canvas, MplFigure, Figure]]:
             ...         draw_image(Z, x=x, y=y, z0=z0)  # TODO: fix colorbar
             >>> fig  # doctest: +SKIP
     """
-    global DEFAULT_KWARGS
-    backend: Optional[str] = kwargs.pop("backend", None)
+    backend = get_backend(backend)
 
-    with use(backend=backend) as b:
+    if backend == "vispy":
+        canvas, view = process_vispy_kwargs(kwargs)
+        kwargs = {"canvas": canvas, "view": view, **kwargs}
+        canvas_or_fig = canvas
+    elif backend == "matplotlib":
+        figure, ax = process_matplotlib_kwargs(kwargs)
+        kwargs = {"figure": figure, "ax": ax, **kwargs}
+        canvas_or_fig = figure
+    else:
+        figure = process_plotly_kwargs(kwargs)
+        kwargs = {"figure": figure, **kwargs}
+        canvas_or_fig = figure
+
+    with config.with_defaults(backend=backend, kwargs=kwargs):
         try:
-            if b == "vispy":
-                canvas, view = process_vispy_kwargs(kwargs)
-                DEFAULT_KWARGS = {"canvas": canvas, "view": view, **kwargs}
-                yield canvas
-            elif b == "matplotlib":
-                figure, ax = process_matplotlib_kwargs(kwargs)
-                DEFAULT_KWARGS = {"figure": figure, "ax": ax, **kwargs}
-                yield figure
-            else:
-                figure = process_plotly_kwargs(kwargs)
-                DEFAULT_KWARGS = {"figure": figure, **kwargs}
-                yield figure
+            yield canvas_or_fig
         finally:
-            pass  # No need to reset anything, use(...) will do this
+            pass

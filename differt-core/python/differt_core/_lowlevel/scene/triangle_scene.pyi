@@ -1,4 +1,5 @@
-from ..geometry.triangle_mesh import TriangleMesh
+from differt_core.geometry.triangle_mesh import TriangleMesh
+
 from .sionna import Material
 
 class TriangleScene:

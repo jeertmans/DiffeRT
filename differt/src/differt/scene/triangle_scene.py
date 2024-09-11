@@ -11,10 +11,9 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 import differt_core.scene.triangle_scene
+from differt.geometry.triangle_mesh import TriangleMesh
+from differt.plotting import draw_markers, reuse
 from differt_core.scene.sionna import Material
-
-from ..geometry.triangle_mesh import TriangleMesh
-from ..plotting import draw_markers, reuse
 
 
 @jaxtyped(typechecker=typechecker)
@@ -30,11 +29,13 @@ class TriangleScene(eqx.Module):
     """
 
     transmitters: Float[Array, "num_transmitters 3"] = eqx.field(
-        converter=jnp.asarray, default_factory=lambda: jnp.empty((0, 3))
+        converter=jnp.asarray,
+        default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of transmitter vertices."""
     receivers: Float[Array, "num_receivers 3"] = eqx.field(
-        converter=jnp.asarray, default_factory=lambda: jnp.empty((0, 3))
+        converter=jnp.asarray,
+        default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of receiver vertices."""
     meshes: tuple[TriangleMesh, ...] = eqx.field(converter=tuple, default_factory=tuple)
@@ -50,7 +51,7 @@ class TriangleScene(eqx.Module):
         This is especially useful for plotting, as plotting one large
         mesh is much faster than plotting many small ones.
 
-        Return:
+        Returns:
             The mesh that contains all meshes of this scene.
         """
         vertices = jnp.empty((0, 3))
@@ -71,7 +72,7 @@ class TriangleScene(eqx.Module):
         This is especially useful for plotting, and it to be used
         with :meth:`one_mesh`.
 
-        Return:
+        Returns:
             The mesh that contains all meshes of this scene.
         """
         colors = jnp.empty((0, 3))
@@ -95,16 +96,17 @@ class TriangleScene(eqx.Module):
         Args:
             file: The path to the XML file.
 
-        Return:
+        Returns:
             The corresponding scene containing only triangle meshes.
         """
         scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
 
-        meshes = map(
-            lambda mesh: TriangleMesh(
-                vertices=mesh.vertices, triangles=mesh.triangles.astype(int)
-            ),
-            scene.meshes,
+        meshes = (
+            TriangleMesh(
+                vertices=mesh.vertices,
+                triangles=mesh.triangles.astype(int),
+            )
+            for mesh in scene.meshes
         )
 
         return cls(
@@ -133,7 +135,7 @@ class TriangleScene(eqx.Module):
                 :py:func:`draw_markers<differt.plotting.draw_markers>` and
                 :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
 
-        Return:
+        Returns:
             The resulting plot output.
         """
         tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}

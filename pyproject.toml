@@ -8,6 +8,11 @@ name = "differt-dev"
 requires-python = ">=3.9"
 version = "1.0.0"
 
+[project.optional-dependencies]
+cuda = [
+  "jax[cuda]>=0.4.30",
+]
+
 [tool.bumpversion]
 allow_dirty = false
 commit = true
@@ -68,7 +73,7 @@ allow-direct-references = true
 
 [tool.pyright]
 deprecateTypingAliases = true
-include = ["differt/src/differt", "differt/tests"]
+include = ["differt/src/differt", "differt/tests", "differt-core/src/differt_core"]
 venv = ".venv"
 venvPath = "."
 
@@ -103,16 +108,47 @@ extend-include = ["*.ipynb"]
 
 [tool.ruff.format]
 docstring-code-format = true
+preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
+  "ANN401",  # any-type
+  "COM812",  # missing-trailing-comma, conflicts with formatter
+  "COM819",  # prohibited-trailing-comma, conflicts with formatter
+  "CPY001",  # missing-copyright-notice
   "D203",  # no-blank-line-before-class
+  "D206",  # indent-with-spaces, conflicts with formatter
   "D212",  # multi-line-summary-second-line
-  "D407",  # Missing dashed underline after section
-  "F722",  # Syntax error in forward annotation
+  "D300",  # triple-single-quotes, conflicts with formatter
+  "D407",  # dashed-underline-after-section
+  "E111",  # indentation-with-invalid-multiple, conflicts with formatter
+  "E114",  # indentation-with-invalid-multiple-comments, conflicts with formatter
+  "E117",  # over-indented, conflicts with formatter
+  "E501",  # line-too-long, conflicts with formatter
+  "F722",  # forward-annotation-syntax-error
+  "FA100",  # future-rewritable-type-annotation
+  "FBT001",  # boolean-type-hint-positional-argument
+  "FBT002",  # boolean-default-value-positional-argument
+  "FIX002",  # line-contains-todo, comment this to find where TODOs are
+  "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
+  "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "PLR0913",  # too-many-arguments
+  "PLR0914",  # too-many-local-variables
+  "PLR6104",  # non-augmented-assignment
+  "Q000",  # bad-quotes-inline-string, conflicts with formatter
+  "Q001",  # bad-quotes-multiline-string, conflicts with formatter
+  "Q002",  # bad-quotes-docstring, conflicts with formatter
+  "Q003",  # avoidable-escaped-quote, conflicts with formatter
+  "TD002",  # missing-todo-author, I am currently the only author
+  "TD003",  # missing-todo-link
+  "W191",  # tab-indentation, conflicts with formatter
 ]
-extend-select = ["B", "C90", "D", "I", "N", "RUF", "UP", "T"]
 isort = {known-first-party = ["differt", "differt_core", "tests"]}
+preview = true
+select = ["ALL"]
+
+[tool.ruff.lint.flake8-boolean-trap]
+extend-allowed-calls = ["jax.numpy.array"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field"]
@@ -121,9 +157,18 @@ extend-immutable-calls = ["equinox.field"]
 extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
-"**.ipynb" = ["B018"]
-"**/{docs,differt_dev,tests}/*" = ["D"]
-"differt/src/differt/conftest.py" = ["D"]
+"**.ipynb" = [
+  "B018",
+  "ERA001",  # TODO: remove commented code in notebook
+  "PLR2004",  # TODO: remove this
+  "PLW2901",  # TODO: remove this
+]
+"**/tests/*" = ["PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
+"**/{docs,differt_dev,tests}/*" = ["D", "DOC"]
+"**/{docs,tests}/*" = ["S101"]
+"differt/src/differt/conftest.py" = ["D", "DOC"]
+"scripts/*" = ["INP001"]
+"src/differt_dev/sphinxext/apidoc.py" = ["FBT003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -149,10 +194,12 @@ dev-dependencies = [
   "sphinx-plotly-directive>=0.1.3",
   # tests
   "chex>=0.1.84",
+  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
+  "pytest-missing-modules>=0.2.0",
   "pytest-xdist>=3.3.1",
   "scipy>=1.12.0",
 ]

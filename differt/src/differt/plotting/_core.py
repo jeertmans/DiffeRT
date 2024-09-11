@@ -53,7 +53,7 @@ def draw_mesh(
             or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
 
-    Return:
+    Returns:
         The resulting plot output.
 
     Examples:
@@ -63,18 +63,21 @@ def draw_mesh(
 
             >>> from differt.plotting import draw_mesh
             >>>
-            >>> vertices = np.array(
-            ...     [
-            ...         [0.0, 0.0, 0.0],
-            ...         [1.0, 0.0, 0.0],
-            ...         [1.0, 1.0, 0.0],
-            ...         [0.0, 1.0, 0.0],
-            ...         [0.5, 0.5, 1.0],
-            ...     ]
-            ... )
-            >>> triangles = np.array(
-            ...     [[0, 1, 2], [0, 2, 3], [0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]]
-            ... )
+            >>> vertices = np.array([
+            ...     [0.0, 0.0, 0.0],
+            ...     [1.0, 0.0, 0.0],
+            ...     [1.0, 1.0, 0.0],
+            ...     [0.0, 1.0, 0.0],
+            ...     [0.5, 0.5, 1.0],
+            ... ])
+            >>> triangles = np.array([
+            ...     [0, 1, 2],
+            ...     [0, 2, 3],
+            ...     [0, 1, 4],
+            ...     [1, 2, 4],
+            ...     [2, 3, 4],
+            ...     [3, 0, 4],
+            ... ])
             >>> fig = draw_mesh(vertices, triangles, backend="plotly", opacity=0.5)
             >>> fig  # doctest: +SKIP
 
@@ -87,7 +90,7 @@ def _(
     triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Mesh
+    from vispy.scene.visuals import Mesh  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -127,7 +130,8 @@ def _(
 
 @dispatch
 def draw_paths(
-    paths: Float[np.ndarray, r"\*batch path_length 3"], **kwargs: Any
+    paths: Float[np.ndarray, r"\*batch path_length 3"],
+    **kwargs: Any,
 ) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a batch of paths of the same length.
@@ -140,7 +144,7 @@ def draw_paths(
             or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
-    Return:
+    Returns:
         The resulting plot output.
 
     Examples:
@@ -153,13 +157,11 @@ def draw_paths(
             >>> def rotation(angle: float) -> np.ndarray:
             ...     co = np.cos(angle)
             ...     si = np.sin(angle)
-            ...     return np.array(
-            ...         [
-            ...             [+co, -si, 0.0],
-            ...             [+si, +co, 0.0],
-            ...             [0.0, 0.0, 1.0],
-            ...         ]
-            ...     )
+            ...     return np.array([
+            ...         [+co, -si, 0.0],
+            ...         [+si, +co, 0.0],
+            ...         [0.0, 0.0, 1.0],
+            ...     ])
             >>>
             >>> path = np.array(
             ...     [
@@ -169,12 +171,10 @@ def draw_paths(
             ...         [0.1, 0.1, 0.0],
             ...     ],
             ... )
-            >>> paths = np.stack(
-            ...     [
-            ...         path @ rotation(angle) + np.array([0.0, 0.0, 0.1 * dz])
-            ...         for dz, angle in enumerate(np.linspace(0, 2 * np.pi, 10))
-            ...     ]
-            ... )
+            >>> paths = np.stack([
+            ...     path @ rotation(angle) + np.array([0.0, 0.0, 0.1 * dz])
+            ...     for dz, angle in enumerate(np.linspace(0, 2 * np.pi, 10))
+            ... ])
             >>> fig = draw_paths(
             ...     paths,
             ...     backend="plotly",
@@ -186,8 +186,11 @@ def draw_paths(
 
 
 @draw_paths.register("vispy")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import LinePlot
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    from vispy.scene.visuals import LinePlot  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -203,7 +206,10 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Canvas
 
 
 @draw_paths.register("matplotlib")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -213,7 +219,10 @@ def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> MplFig
 
 
 @draw_paths.register("plotly")
-def _(paths: Float[np.ndarray, "*batch path_length 3"], **kwargs: Any) -> Figure:  # type: ignore[reportInvalidTypeForm]
+def _(
+    paths: Float[np.ndarray, "*batch path_length 3"],
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     for i in np.ndindex(paths.shape[:-2]):
@@ -240,13 +249,13 @@ def draw_markers(
             passed to :py:class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
-            By default, ``font_sise=1000`` is used.
+            By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
             :py:class:`Markers<vispy.scene.visuals.Markers>`,
             or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
-    Return:
+    Returns:
         The resulting plot output.
 
     Warning:
@@ -259,14 +268,12 @@ def draw_markers(
 
             >>> from differt.plotting import draw_markers
             >>>
-            >>> markers = np.array(
-            ...     [
-            ...         [0.0, 0.0, 0.0],
-            ...         [1.0, 0.0, 0.0],
-            ...         [1.0, 1.0, 0.0],
-            ...         [0.0, 1.0, 0.0],
-            ...     ]
-            ... )
+            >>> markers = np.array([
+            ...     [0.0, 0.0, 0.0],
+            ...     [1.0, 0.0, 0.0],
+            ...     [1.0, 1.0, 0.0],
+            ...     [0.0, 1.0, 0.0],
+            ... ])
             >>> labels = ["A", "B", "C", "D"]
             >>> fig = draw_markers(markers, labels, backend="plotly")
             >>> fig  # doctest: +SKIP
@@ -280,7 +287,7 @@ def _(
     text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Markers, Text
+    from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
     kwargs.setdefault("size", 1)
@@ -304,14 +311,14 @@ def _(
     text_kwargs: Optional[Mapping[str, Any]] = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
-    raise NotImplementedError  # TODO
+    raise NotImplementedError  # TODO: implement this
 
 
 @draw_markers.register("plotly")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
     labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    text_kwargs: Optional[Mapping[str, Any]] = None,  # noqa: ARG001
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
@@ -362,7 +369,7 @@ def draw_image(
             or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
-    Return:
+    Returns:
         The resulting plot output.
 
     Warning:
@@ -402,8 +409,8 @@ def _(
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
-    from vispy.scene.visuals import Image
-    from vispy.visuals.transforms import STTransform
+    from vispy.scene.visuals import Image  # noqa: PLC0415
+    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -484,5 +491,9 @@ def _(
     fig = process_plotly_kwargs(kwargs)
 
     return fig.add_surface(
-        x=x, y=y, z=np.full_like(data, z0), surfacecolor=data, **kwargs
+        x=x,
+        y=y,
+        z=np.full_like(data, z0),
+        surfacecolor=data,
+        **kwargs,
     )

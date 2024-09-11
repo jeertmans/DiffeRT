@@ -11,7 +11,8 @@ from jaxtyping import Array, ArrayLike, Float, jaxtyped
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def pairwise_cross(
-    u: Float[Array, "m 3"], v: Float[Array, "n 3"]
+    u: Float[Array, "m 3"],
+    v: Float[Array, "n 3"],
 ) -> Float[Array, "m n 3"]:
     """
     Compute the pairwise cross product between two arrays of vectors.
@@ -20,7 +21,7 @@ def pairwise_cross(
         u: First array of vectors.
         v: Second array of vectors.
 
-    Return:
+    Returns:
         A 3D tensor with all cross products.
     """
     return jnp.cross(u[:, None, :], v[None, :, :])
@@ -40,7 +41,7 @@ def normalize(
     Args:
         vector: An array of vectors.
 
-    Return:
+    Returns:
         The normalized vector and their length.
 
     Examples:
@@ -68,7 +69,8 @@ def normalize(
 @partial(jax.jit, static_argnames=("normalize",))
 @jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
-    u: Float[Array, "*batch 3"], normalize: bool = True
+    u: Float[Array, "*batch 3"],
+    normalize: bool = True,
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
     """
     Generate ``v`` and ``w``, two other arrays of unit vectors that form with input ``u`` an orthogonal basis.
@@ -83,7 +85,7 @@ def orthogonal_basis(
             that the vector lengths may diverge from the unit
             length by 10% or even more!
 
-    Return:
+    Returns:
         A pair of unit vectors, ``v`` and ``w``.
 
     Examples:
@@ -126,7 +128,7 @@ def path_lengths(
     Args:
         paths: The array of path vertices.
 
-    Return:
+    Returns:
         The array of path lengths.
 
     Examples:
@@ -159,7 +161,7 @@ def rotation_matrix_along_x_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -177,13 +179,11 @@ def rotation_matrix_along_x_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, +co, -si],
-            [0.0, +si, +co],
-        ]
-    )
+    return jnp.array([
+        [1.0, 0.0, 0.0],
+        [0.0, +co, -si],
+        [0.0, +si, +co],
+    ])
 
 
 @jax.jit
@@ -197,7 +197,7 @@ def rotation_matrix_along_y_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -215,13 +215,11 @@ def rotation_matrix_along_y_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [+co, 0.0, +si],
-            [0.0, 1.0, 0.0],
-            [-si, 0.0, +co],
-        ]
-    )
+    return jnp.array([
+        [+co, 0.0, +si],
+        [0.0, 1.0, 0.0],
+        [-si, 0.0, +co],
+    ])
 
 
 @jax.jit
@@ -235,7 +233,7 @@ def rotation_matrix_along_z_axis(
     Args:
         angle: The rotation angle, in radians.
 
-    Return:
+    Returns:
         The rotation matrix.
 
     Examples:
@@ -253,13 +251,11 @@ def rotation_matrix_along_z_axis(
     co = jnp.cos(angle)
     si = jnp.sin(angle)
 
-    return jnp.array(
-        [
-            [+co, -si, 0.0],
-            [+si, +co, 0.0],
-            [0.0, 0.0, 1.0],
-        ]
-    )
+    return jnp.array([
+        [+co, -si, 0.0],
+        [+si, +co, 0.0],
+        [0.0, 0.0, 1.0],
+    ])
 
 
 @jax.jit
@@ -275,7 +271,7 @@ def rotation_matrix_along_axis(
         angle: The rotation angle, in radians.
         axis: A unit vector pointing in the axis' direction.
 
-    Return:
+    Returns:
         The rotation matrix.
 
     Examples:

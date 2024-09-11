@@ -1,6 +1,6 @@
 """Physical constants used for EM fields computation."""
 
-__all__ = ("c", "mu_0", "epsilon_0")
+__all__ = ("c", "epsilon_0", "mu_0")
 
 c = 299792458.0
 """The speed of light in vacuum."""

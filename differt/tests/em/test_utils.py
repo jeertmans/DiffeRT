@@ -13,7 +13,7 @@ from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    "lengths,speed,expectation",
+    ("lengths", "speed", "expectation"),
     [
         ((10,), (1,), does_not_raise()),
         ((10,), (2,), pytest.raises(TypeError)),
@@ -25,7 +25,9 @@ from ..utils import random_inputs
 )
 @random_inputs("lengths", "speed")
 def test_lengths_to__delays_random_inputs(
-    lengths: Array, speed: Array, expectation: AbstractContextManager[Exception]
+    lengths: Array,
+    speed: Array,
+    expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
         got = lengths_to_delays(lengths, speed=speed)
@@ -35,7 +37,7 @@ def test_lengths_to__delays_random_inputs(
 
 
 @pytest.mark.parametrize(
-    "paths,expectation",
+    ("paths", "expectation"),
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
@@ -46,7 +48,8 @@ def test_lengths_to__delays_random_inputs(
 )
 @random_inputs("paths")
 def test_path_delays_random_inputs(
-    paths: Array, expectation: AbstractContextManager[Exception]
+    paths: Array,
+    expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
         got = path_delays(paths)

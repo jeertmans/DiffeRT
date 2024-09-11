@@ -33,7 +33,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     Args:
         array: The input array.
 
-    Return:
+    Returns:
         A sorted copy of the input array.
 
     Examples:
@@ -90,7 +90,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     if array.size == 0:
         return array
 
-    return array[jnp.lexsort(array.T[::-1])]  # type: ignore
+    return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
 
 
 # Beartype does not support TypeVarTuple at the moment
@@ -139,7 +139,7 @@ def minimize(
         optimizer: The optimizer to use. If not provided,
             uses :func:`optax.adam` with a learning rate of ``0.1``.
 
-    Return:
+    Returns:
         The solution array and the corresponding loss.
 
     Examples:
@@ -207,7 +207,7 @@ def minimize(
         >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
-    optimizer = optimizer if optimizer else optax.adam(learning_rate=0.1)
+    optimizer = optimizer or optax.adam(learning_rate=0.1)
 
     f_and_df = jax.value_and_grad(fun)
 
@@ -218,7 +218,8 @@ def minimize(
 
     @jaxtyped(typechecker=typechecker)
     def f(
-        carry: tuple[Num[Array, "*batch n"], OptState], _: None
+        carry: tuple[Num[Array, "*batch n"], OptState],
+        _: None,
     ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
@@ -235,7 +236,10 @@ def minimize(
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
-    bounding_box: Float[Array, "2 3"], size: Optional[int] = None, *, key: PRNGKeyArray
+    bounding_box: Float[Array, "2 3"],
+    size: Optional[int] = None,
+    *,
+    key: PRNGKeyArray,
 ) -> Union[Float[Array, "size 3"], Float[Array, "3"]]:
     """
     Sample point(s) in a 3D bounding box.
@@ -246,7 +250,7 @@ def sample_points_in_bounding_box(
             the returned array is 1D. Otherwise, it is 2D.
         key: The :func:`jax.random.PRNGKey` to be used.
 
-    Return:
+    Returns:
         An array of points randomly sampled.
     """
     amin = bounding_box[0, :]
