@@ -182,7 +182,7 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """
-    if obj.__name__.endswith("_sionna_scenes"):
+    if obj.__name__.endswith("_sionna_scene"):
         sig = inspect.signature(obj)
         parameters = []
 
