@@ -278,20 +278,17 @@ jobs:
 
   linkcheck-docs:
     runs-on: ubuntu-latest
-    env:
-      NO_RYE: 1
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Setup Rye
+      uses: eifinger/setup-rye@v4
       with:
-        python-version: '3.11'
-        cache: pip
-        cache-dependency-path: requirements-dev.lock
+        enable-cache: true
 
     - name: Install dependencies
-      run: pip install -r requirements-dev.lock
+      run: rye sync
 
     - name: Install Just
       uses: taiki-e/install-action@just
