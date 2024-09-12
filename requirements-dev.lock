@@ -173,12 +173,12 @@ isoduration==20.11.0
     # via jsonschema
 itsdangerous==2.2.0
     # via flask
-jax==0.4.31
+jax==0.4.32
     # via chex
     # via differt
     # via equinox
     # via optax
-jaxlib==0.4.31
+jaxlib==0.4.32
     # via chex
     # via jax
     # via optax

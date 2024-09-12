@@ -10,7 +10,7 @@ version = "1.0.0"
 
 [project.optional-dependencies]
 cuda = [
-  "jax[cuda]>=0.4.30",
+  "jax[cuda]>=0.4.32",
 ]
 
 [tool.bumpversion]

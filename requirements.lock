@@ -32,12 +32,12 @@ filelock==3.16.0
     # via differt
 idna==3.8
     # via requests
-jax==0.4.31
+jax==0.4.32
     # via chex
     # via differt
     # via equinox
     # via optax
-jaxlib==0.4.31
+jaxlib==0.4.32
     # via chex
     # via jax
     # via optax
