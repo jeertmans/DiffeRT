@@ -57,7 +57,7 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         architecture: ${{ matrix.target }}
 
     - name: Build wheels
@@ -83,11 +83,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
-    - name: Install Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
@@ -158,18 +153,16 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      env:
-        RYE_INSTALL_OPTION: --yes
-      run: |
-        curl -sSf https://rye.astral.sh/get | bash
-        echo "$HOME/.rye/shims" >> $GITHUB_PATH
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
+      with:
+        enable-cache: true
 
-    - name: Configure Rye
-      run: rye config --set-bool behavior.use-uv=true
+    - name: Install dependencies
+      run: uv sync
 
     - name: Build package
-      run: rye build -p differt
+      run: uv build --package differt
 
     - name: Upload sdist
       uses: actions/upload-artifact@v4

@@ -23,29 +23,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      if: matrix.os != 'windows-latest'
-      env:
-        RYE_TOOLCHAIN_VERSION: ${{ matrix.pyversion}}
-        RYE_INSTALL_OPTION: --yes
-      run: |
-        curl -sSf https://rye.astral.sh/get | bash
-        echo "$HOME/.rye/shims" >> $GITHUB_PATH
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
+      with:
+        enable-cache: true
 
-    # Stolen from https://github.com/bluss/pyproject-local-kernel/blob/2b641290694adc998fb6bceea58d3737523a68b7/.github/workflows/ci.yaml
-    - name: Install Rye (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        C:/msys64/usr/bin/wget.exe -q 'https://github.com/astral-sh/rye/releases/latest/download/rye-x86_64-windows.exe' -O rye-x86_64-windows.exe
-        ./rye-x86_64-windows.exe self install --toolchain-version ${{ matrix.pyversion }} --modify-path -y
-        echo "$HOME\\.rye\\shims" >> $GITHUB_PATH
-
-    - name: Configure Rye
-      shell: bash
-      run: |
-        rye config --set-bool behavior.use-uv=true
-        rye pin ${{ matrix.pyversion }}
+    - name: Setup Python ${{ matrix.pyversion }}
+      run: uv python install ${{ matrix.pyversion }}
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -63,12 +47,10 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      shell: bash
-      run: rye sync
+      run: uv sync --no-dev --extra tests
 
     - name: Run tests
-      shell: bash
-      run: rye run pytest
+      run: uv run pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
@@ -112,7 +94,7 @@ jobs:
       with:
         python-version: '3.11'
         cache: pip
-        cache-dependency-path: requirements-dev.lock
+        cache-dependency-path: uv.lock
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -120,7 +102,7 @@ jobs:
         components: llvm-tools
 
     - name: Install dependencies
-      run: pip install -r requirements-dev.lock
+      run: pip install ".[tests]"
 
     - name: Run Benchmarks on changes
       run: pytest --benchmark-only --benchmark-save=changes differt-core/tests/benchmarks
@@ -282,13 +264,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      uses: eifinger/setup-rye@v4
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
       with:
         enable-cache: true
 
     - name: Install dependencies
-      run: rye sync
+      run: uv sync --no-dev --extra docs
 
     - name: Install Just
       uses: taiki-e/install-action@just

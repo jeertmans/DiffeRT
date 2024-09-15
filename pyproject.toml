@@ -4,6 +4,9 @@ requires = ["hatchling"]
 
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+dependencies = [
+  "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
+]
 name = "differt-dev"
 requires-python = ">=3.9"
 version = "1.0.0"
@@ -11,6 +14,32 @@ version = "1.0.0"
 [project.optional-dependencies]
 cuda = [
   "jax[cuda]>=0.4.30",
+]
+docs = [
+  "differt[all]",
+  "myst-nb>=0.17.2",
+  "pillow>=10.1.0",
+  "sphinx-autodoc-typehints>=1.23",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton>=0.5.2",
+  "sphinx-design>=0.5.0",
+  "sphinx-remove-toctrees>=0.0.3",
+  "sphinxext-opengraph>=0.9.0",
+  "sphinxcontrib-apidoc>=0.4.0",
+  "sphinxcontrib-bibtex>=2.6.0",
+  "sphinx-plotly-directive>=0.1.3",
+]
+tests = [
+  "differt[all]",
+  "chex>=0.1.84",
+  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
+  "pytest>=7.4.3",
+  "pytest-benchmark>=4.0.0",
+  "pytest-cov>=4.1.0",
+  "pytest-env>=1.1.3",
+  "pytest-missing-modules>=0.2.0",
+  "pytest-xdist>=3.3.1",
+  "scipy>=1.12.0",
 ]
 
 [tool.bumpversion]
@@ -51,7 +80,7 @@ version = "{current_version}"'''
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,ue"
-skip = "docs/source/conf.py,pyproject.toml"
+skip = "docs/source/conf.py,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -64,9 +93,6 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/differt_dev"]  # See https://github.com/astral-sh/rye/issues/515
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -173,37 +199,15 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.rye]
+[tool.uv]
 dev-dependencies = [
-  "differt[all]",
-  # dev
+  "differt_dev[docs,tests]",
   "bump-my-version>=0.20.3",
   "pre-commit>=3.5.0",
-  # docs
-  "myst-nb>=0.17.2",
-  "pillow>=10.1.0",
-  "sphinx>=6",
-  "sphinx-autodoc-typehints>=1.23",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx-copybutton>=0.5.2",
-  "sphinx-design>=0.5.0",
-  "sphinx-remove-toctrees>=0.0.3",
-  "sphinxext-opengraph>=0.9.0",
-  "sphinxcontrib-apidoc>=0.4.0",
-  "sphinxcontrib-bibtex>=2.6.0",
-  "sphinx-plotly-directive>=0.1.3",
-  # tests
-  "chex>=0.1.84",
-  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
-  "pytest>=7.4.3",
-  "pytest-benchmark>=4.0.0",
-  "pytest-cov>=4.1.0",
-  "pytest-env>=1.1.3",
-  "pytest-missing-modules>=0.2.0",
-  "pytest-xdist>=3.3.1",
-  "scipy>=1.12.0",
 ]
-managed = true
 
-[tool.rye.workspace]
+[tool.uv.sources]
+differt = {workspace = true}
+
+[tool.uv.workspace]
 members = ["differt", "differt-core"]

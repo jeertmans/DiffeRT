@@ -31,6 +31,3 @@ bindings = "pyo3"
 features = ["pyo3/extension-module"]
 module-name = "differt_core._lowlevel"
 python-source = "python"
-
-[tool.rye]
-managed = true

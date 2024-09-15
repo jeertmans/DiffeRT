@@ -10,7 +10,7 @@ bench: bench-python bench-rust
 [group('python')]
 [group('test')]
 bench-python *ARGS:
-  rye run pytest --benchmark-only {{ARGS}}
+  uv run pytest --benchmark-only {{ARGS}}
 
 # Benchmark Rust code
 [group('rust')]
@@ -21,12 +21,12 @@ bench-rust *ARGS:
 # Build Python package(s)
 [group('dev')]
 build *ARGS:
-  rye build {{ARGS}}
+  uv build {{ARGS}}
 
 # Bump packages version
 [group('dev')]
 bump +ARGS="patch":
-  rye run bump-my-version {{ARGS}}
+  uv run bump-my-version {{ARGS}}
 
 # Check the code can compile
 [group('rust')]
@@ -43,12 +43,12 @@ clean:
 # Build and install Python packages
 [group('dev')]
 install:
-  rye sync
+  uv sync
 
 # Run code linters and formatters
 [group('dev')]
 lint:
-  rye pre-commit run --all-files
+  uv pre-commit run --all-files
 
 alias fmt := lint
 
@@ -60,7 +60,7 @@ test: test-python test-rust
 [group('python')]
 [group('test')]
 test-python *ARGS:
-  rye pytest {{ARGS}}
+  uv pytest {{ARGS}}
 
 # Test Rust code
 [group('rust')]
