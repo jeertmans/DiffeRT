@@ -5,7 +5,7 @@ requires = ["hatchling"]
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 dependencies = [
-  "sphinx>=6",
+  "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
 ]
 name = "differt-dev"
 requires-python = ">=3.9"
