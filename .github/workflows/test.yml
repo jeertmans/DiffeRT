@@ -23,12 +23,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
       with:
-        python-version: ${{ matrix.pyversion }}
-        cache: pip
-        cache-dependency-path: requirements-dev.lock
+        enable-cache: true
+
+    - name: Setup Python ${{ matrix.pyversion }}
+      run: uv python install ${{ matrix.pyversion }}
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -263,13 +264,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      uses: eifinger/setup-rye@v4
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
       with:
         enable-cache: true
 
     - name: Install dependencies
-      run: rye sync
+      run: uv sync
 
     - name: Install Just
       uses: taiki-e/install-action@just

@@ -48,8 +48,8 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      uses: eifinger/setup-rye@v4
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
       with:
         enable-cache: true
 
@@ -59,10 +59,10 @@ jobs:
         components: clippy,rustfmt
 
     - name: Install dependencies
-      run: rye sync
+      run: uv sync
 
     - name: Run pre-commit hooks
-      run: rye run pre-commit run --all-files
+      run: uv run pre-commit run --all-files
 
     - name: Apply fixes when present
       uses: pre-commit-ci/lite-action@v1.0.2
