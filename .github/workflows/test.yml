@@ -47,10 +47,10 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      run: pip install -r requirements-dev.lock
+      run: uv sync --no-dev --extra tests
 
     - name: Run tests
-      run: pytest
+      run: uv run pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
@@ -94,7 +94,7 @@ jobs:
       with:
         python-version: '3.11'
         cache: pip
-        cache-dependency-path: requirements-dev.lock
+        cache-dependency-path: uv.lock
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -102,7 +102,7 @@ jobs:
         components: llvm-tools
 
     - name: Install dependencies
-      run: pip install -r requirements-dev.lock
+      run: pip install ".[tests]"
 
     - name: Run Benchmarks on changes
       run: pytest --benchmark-only --benchmark-save=changes differt-core/tests/benchmarks
@@ -270,7 +270,7 @@ jobs:
         enable-cache: true
 
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --no-dev --extras docs
 
     - name: Install Just
       uses: taiki-e/install-action@just
