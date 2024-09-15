@@ -23,10 +23,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      uses: eifinger/setup-rye@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
-        enable-cache: true
+        python-version: ${{ matrix.pyversion }}
+        cache: pip
+        cache-dependency-path: requirements-dev.lock
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -44,12 +46,10 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      run: |
-        rye pin ${{ matrix.pyversion }}
-        rye sync
+      run: pip install -r requirements-dev.lock
 
     - name: Run tests
-      run: rye run pytest
+      run: pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
