@@ -24,28 +24,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Rye
-      if: matrix.os != 'windows-latest'
-      env:
-        RYE_TOOLCHAIN_VERSION: ${{ matrix.pyversion}}
-        RYE_INSTALL_OPTION: --yes
-      run: |
-        curl -sSf https://rye.astral.sh/get | bash
-        echo "$HOME/.rye/shims" >> $GITHUB_PATH
-
-    # Stolen from https://github.com/bluss/pyproject-local-kernel/blob/2b641290694adc998fb6bceea58d3737523a68b7/.github/workflows/ci.yaml
-    - name: Install Rye (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        C:/msys64/usr/bin/wget.exe -q 'https://github.com/astral-sh/rye/releases/latest/download/rye-x86_64-windows.exe' -O rye-x86_64-windows.exe
-        ./rye-x86_64-windows.exe self install --toolchain-version ${{ matrix.pyversion }} --modify-path -y
-        echo "$HOME\\.rye\\shims" >> $GITHUB_PATH
-
-    - name: Configure Rye
-      shell: bash
-      run: |
-        rye config --set-bool behavior.use-uv=true
-        rye pin ${{ matrix.pyversion }}
+      uses: eifinger/setup-rye@v4
+      with:
+        enable-cache: true
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -63,11 +44,11 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      shell: bash
-      run: rye sync
+      run: |
+        rye pin ${{ matrix.pyversion }}
+        rye sync
 
     - name: Run tests
-      shell: bash
       run: rye run pytest
 
     - name: Upload to codecov.io

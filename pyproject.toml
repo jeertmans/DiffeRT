@@ -204,6 +204,7 @@ dev-dependencies = [
   "scipy>=1.12.0",
 ]
 managed = true
+universal = true
 
 [tool.rye.workspace]
 members = ["differt", "differt-core"]
