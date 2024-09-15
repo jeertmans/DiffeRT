@@ -54,6 +54,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        architecture: ${{ matrix.target }}
+
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
