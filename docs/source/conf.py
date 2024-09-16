@@ -101,6 +101,9 @@ myst_enable_extensions = [
 ]
 
 nb_execution_mode = "off" if os.environ.get("NB_OFF") else "auto"
+nb_execution_timeout = (
+    600  # So cells can take a long time, especially when downloading sionna scenes
+)
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot

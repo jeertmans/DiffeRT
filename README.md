@@ -53,6 +53,7 @@ To run build this package locally, you need:
 
 - [Python 3.9](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
+- any modern C compiler;
 - [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
 - and [uv](https://docs.astral.sh/uv/) to manage this project.
