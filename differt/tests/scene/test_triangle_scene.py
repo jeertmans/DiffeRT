@@ -2,7 +2,6 @@ from pathlib import Path
 
 import equinox as eqx
 import jax.numpy as jnp
-import pytest
 
 from differt.scene.sionna import (
     get_sionna_scene,
@@ -13,14 +12,14 @@ from differt_core.scene.sionna import SionnaScene
 
 
 class TestTriangleScene:
-    @pytest.mark.parametrize("scene_name", list_sionna_scenes())
-    def test_load_xml(self, scene_name: str, sionna_folder: Path) -> None:
+    def test_load_xml(self, sionna_folder: Path) -> None:
         # Sionne scenes are all triangle scenes.
-        file = get_sionna_scene(scene_name, folder=sionna_folder)
-        scene = TriangleScene.load_xml(file)
-        sionna_scene = SionnaScene.load_xml(file)
+        for scene_name in list_sionna_scenes(folder=sionna_folder):
+            file = get_sionna_scene(scene_name, folder=sionna_folder)
+            scene = TriangleScene.load_xml(file)
+            sionna_scene = SionnaScene.load_xml(file)
 
-        assert len(scene.meshes) == len(sionna_scene.shapes)
+            assert len(scene.meshes) == len(sionna_scene.shapes)
 
     def test_plot(
         self,
