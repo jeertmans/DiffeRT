@@ -56,10 +56,11 @@ def draw_mesh(
             .. important::
 
                 If you pass some ``face_colors`` keyword argument,
-                it will be passed to :mod:`plotly` as ``facecolor``
-                and to :mod:`maplotlib` as ``color``, unless
+                it will be passed to Plotly as ``facecolor`` unless
                 they were manually passed, in which case
                 the ``face_colors`` argument is ignored.
+                Matplotlib does not currently support individual
+                face colors, so this argument is ignored.
 
     Returns:
         The resulting plot output.
@@ -116,8 +117,7 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    if (face_colors := kwargs.pop("face_colors", None)) is not None and "color" not in kwargs:
-        kwargs["color"] = face_colors
+    kwargs.pop("face_colors", None)
 
     x, y, z = vertices.T
     ax.plot_trisurf(x, y, z, triangles=triangles, **kwargs)
@@ -133,7 +133,9 @@ def _(
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
-    if (face_colors := kwargs.pop("face_colors", None)) is not None and "facecolor" not in kwargs:
+    if (
+        face_colors := kwargs.pop("face_colors", None)
+    ) is not None and "facecolor" not in kwargs:
         kwargs["facecolor"] = face_colors
 
     x, y, z = vertices.T
