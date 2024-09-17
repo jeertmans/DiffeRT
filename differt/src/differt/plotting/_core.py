@@ -53,6 +53,15 @@ def draw_mesh(
             or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
 
+            .. important::
+
+                If you pass some ``face_colors`` keyword argument,
+                it will be passed to Plotly as ``facecolor`` unless
+                they were manually passed, in which case
+                the ``face_colors`` argument is ignored.
+                Matplotlib does not currently support individual
+                face colors, so this argument is ignored.
+
     Returns:
         The resulting plot output.
 
@@ -108,6 +117,8 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
+    kwargs.pop("face_colors", None)
+
     x, y, z = vertices.T
     ax.plot_trisurf(x, y, z, triangles=triangles, **kwargs)
 
@@ -121,6 +132,11 @@ def _(
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
+
+    if (
+        face_colors := kwargs.pop("face_colors", None)
+    ) is not None and "facecolor" not in kwargs:
+        kwargs["facecolor"] = face_colors
 
     x, y, z = vertices.T
     i, j, k = triangles.T

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import equinox as eqx
 import jax.numpy as jnp
+import pytest
 
 from differt.scene.sionna import (
     get_sionna_scene,
@@ -19,10 +20,13 @@ class TestTriangleScene:
             scene = TriangleScene.load_xml(file)
             sionna_scene = SionnaScene.load_xml(file)
 
-            assert len(scene.meshes) == len(sionna_scene.shapes)
+            assert scene.mesh.object_bounds is not None
+            assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
 
+    @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
     def test_plot(
         self,
+        backend: str,
         sionna_folder: Path,
     ) -> None:
         file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
@@ -34,4 +38,8 @@ class TestTriangleScene:
         scene = eqx.tree_at(lambda s: s.transmitters, scene, tx)
         scene = eqx.tree_at(lambda s: s.receivers, scene, rx)
 
-        scene.plot()
+        if backend == "matplotlib":
+            # TODO: remove me when draw_markers is implemented
+            scene.mesh.plot(backend=backend)
+        else:
+            scene.plot(backend=backend)

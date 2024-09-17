@@ -1,36 +1,21 @@
 use std::{fs::File, io::BufReader};
 
-use numpy::{prelude::*, Element, PyArray2};
+use numpy::{ndarray::arr2, PyArray1, PyArray2};
 use obj::raw::object::{parse_obj, RawObj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 #[pyclass]
 pub(crate) struct TriangleMesh {
-    /// Array of size [num_vertices 3].
-    pub(crate) vertices: Vec<(f32, f32, f32)>,
-    /// Array of size [num_triangles 3].
-    pub(crate) triangles: Vec<(usize, usize, usize)>,
-}
-
-#[inline]
-fn pyarray2_from_vec_tuple<'py, T: Copy + Element>(
-    py: Python<'py>,
-    v: &[(T, T, T)],
-) -> Bound<'py, PyArray2<T>> {
-    let n = v.len();
-    unsafe {
-        let arr = PyArray2::<T>::new_bound(py, [n, 3], false);
-
-        for i in 0..n {
-            let tup = v.get_unchecked(i);
-            arr.uget_raw([i, 0]).write(tup.0);
-            arr.uget_raw([i, 1]).write(tup.1);
-            arr.uget_raw([i, 2]).write(tup.2);
-        }
-        arr
-    }
+    vertices: Vec<[f32; 3]>,
+    triangles: Vec<[usize; 3]>,
+    face_colors: Option<Vec<[f32; 3]>>,
+    face_materials: Option<Vec<isize>>,
+    #[pyo3(get)]
+    /// List of material names.
+    material_names: Vec<String>,
+    object_bounds: Option<Vec<[usize; 2]>>,
 }
 
 struct PlyVertex {
@@ -87,29 +72,177 @@ impl ply::PropertyAccess for PlyFace {
     }
 }
 
+impl TriangleMesh {
+    pub fn get_material_index(&mut self, material_name: Option<String>) -> isize {
+        if let Some(material_name) = material_name {
+            return self
+                .material_names
+                .iter()
+                .position(|name| name == &material_name)
+                .unwrap_or_else(|| {
+                    let index = self.material_names.len();
+                    self.material_names.push(material_name);
+                    index
+                }) as isize;
+        }
+        -1
+    }
+
+    pub(crate) fn set_face_color(&mut self, color: Option<&[f32; 3]>) {
+        let num_triangles = self.triangles.len();
+        let face_colors = self
+            .face_colors
+            .get_or_insert_with(|| Vec::with_capacity(num_triangles));
+        face_colors.clear();
+
+        let color = color.unwrap_or(&[-1.0, -1.0, -1.0]);
+
+        for _ in 0..num_triangles {
+            face_colors.push(*color);
+        }
+    }
+
+    pub(crate) fn set_face_material(&mut self, material_name: Option<String>) {
+        let material_index = self.get_material_index(material_name);
+        let num_triangles = self.triangles.len();
+        let face_materials = self
+            .face_materials
+            .get_or_insert_with(|| Vec::with_capacity(num_triangles));
+        face_materials.clear();
+
+        for _ in 0..num_triangles {
+            face_materials.push(material_index);
+        }
+    }
+}
+
 #[pymethods]
 impl TriangleMesh {
+    /// TODO.
+    #[getter]
+    fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
+        let array = arr2(&self.vertices);
+        PyArray2::from_owned_array_bound(py, array)
+    }
+
+    /// TODO.
+    #[getter]
+    fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
+        let array = arr2(&self.triangles);
+        PyArray2::from_owned_array_bound(py, array)
+    }
+
+    /// TODO.
+    #[getter]
+    fn face_colors<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<f32>>> {
+        if let Some(face_colors) = &self.face_colors {
+            let array = arr2(face_colors);
+            return Some(PyArray2::from_owned_array_bound(py, array));
+        }
+        None
+    }
+
+    /// TODO.
+    #[getter]
+    fn face_materials<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<isize>>> {
+        if let Some(face_materials) = &self.face_materials {
+            return Some(PyArray1::from_slice_bound(py, face_materials.as_slice()));
+        }
+        None
+    }
+
+    /// TODO.
+    #[getter]
+    fn object_bounds<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<usize>>> {
+        if let Some(object_bounds) = &self.object_bounds {
+            let array = arr2(object_bounds);
+            return Some(PyArray2::from_owned_array_bound(py, array));
+        }
+        None
+    }
+
+    /// Move all the elements of ``other`` into ``self`` and update
+    /// :attr`object_bounds`.
+    ///
+    /// After calling this method, ``other`` will be empty.
+    ///
+    /// Args:
+    ///     other(TriangleMesh): The mesh to be appended to ``self``.
     pub(crate) fn append(&mut self, other: &mut Self) {
+        match (&self.face_colors, &other.face_colors) {
+            (None, None) => {},
+            (Some(_), None) => {
+                other.set_face_color(None);
+            },
+            (None, Some(_)) => {
+                self.set_face_color(None);
+            },
+            _ => {},
+        }
+
+        if let (Some(x), Some(y)) = (self.face_colors.as_mut(), other.face_colors.as_mut()) {
+            x.append(y);
+        }
+
+        match (&self.face_materials, &other.face_materials) {
+            (None, None) => {},
+            (Some(_), None) => {
+                other.set_face_material(None);
+            },
+            (None, Some(_)) => {
+                self.set_face_material(None);
+            },
+            (Some(_), Some(_)) => {
+                // We need to possibly renumber material indices.
+                let mut remap: Vec<isize> = vec![0; other.material_names.len()];
+
+                for (i, material_name) in other.material_names.drain(..).enumerate() {
+                    remap[i] = match self
+                        .material_names
+                        .iter()
+                        .position(|name| name == &material_name)
+                    {
+                        Some(material_index) => material_index,
+                        None => {
+                            let material_index = self.material_names.len();
+                            self.material_names.push(material_name);
+                            material_index
+                        },
+                    } as isize;
+                }
+
+                for material_index in other.face_materials.as_mut().unwrap() {
+                    if *material_index >= 0 {
+                        *material_index = remap[*material_index as usize];
+                    }
+                }
+            },
+        }
+
+        if let (Some(x), Some(y)) = (self.face_materials.as_mut(), other.face_materials.as_mut()) {
+            x.append(y);
+        }
+
         let offset = self.vertices.len();
         self.vertices.append(&mut other.vertices);
 
         self.triangles.reserve(other.triangles.len());
 
-        for (v0, v1, v2) in &other.triangles {
-            self.triangles.push((v0 + offset, v1 + offset, v2 + offset));
+        for [v0, v1, v2] in &other.triangles {
+            self.triangles.push([v0 + offset, v1 + offset, v2 + offset]);
         }
 
         other.triangles.clear();
-    }
 
-    #[getter]
-    fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
-        pyarray2_from_vec_tuple(py, &self.vertices)
-    }
-
-    #[getter]
-    fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
-        pyarray2_from_vec_tuple(py, &self.triangles)
+        self.object_bounds
+            .get_or_insert_with(|| {
+                if offset > 0 {
+                    vec![[0, offset]]
+                } else {
+                    vec![]
+                }
+            })
+            .push([offset, self.vertices.len()]);
     }
 
     #[classmethod]
@@ -152,7 +285,7 @@ impl TriangleMesh {
                                 ))
                             })?
                             .into_iter()
-                            .map(|vertex| (vertex.x, vertex.y, vertex.z)),
+                            .map(|vertex| [vertex.x, vertex.y, vertex.z]),
                     );
                 },
                 "face" => {
@@ -170,7 +303,7 @@ impl TriangleMesh {
                             .filter_map(|face| {
                                 if face.vertex_indices.len() == 3 {
                                     let indices = face.vertex_indices;
-                                    Some((indices[0], indices[1], indices[2]))
+                                    Some([indices[0], indices[1], indices[2]])
                                 } else {
                                     log::info!("Face: skipping because it is not a triangle.");
                                     None
@@ -185,6 +318,7 @@ impl TriangleMesh {
         Ok(Self {
             vertices,
             triangles,
+            ..Default::default()
         })
     }
 }
@@ -196,7 +330,7 @@ impl From<RawObj> for TriangleMesh {
         let vertices = raw_obj
             .positions
             .into_iter()
-            .map(|(x, y, z, _)| (x, y, z))
+            .map(|(x, y, z, _)| [x, y, z])
             .collect();
 
         let mut triangles = Vec::with_capacity(raw_obj.polygons.len());
@@ -204,16 +338,16 @@ impl From<RawObj> for TriangleMesh {
         for polygon in raw_obj.polygons {
             match polygon {
                 P(v) if v.len() == 3 => {
-                    triangles.push((v[0], v[1], v[2]));
+                    triangles.push([v[0], v[1], v[2]]);
                 },
                 PT(v) if v.len() == 3 => {
-                    triangles.push((v[0].0, v[1].0, v[2].0));
+                    triangles.push([v[0].0, v[1].0, v[2].0]);
                 },
                 PN(v) if v.len() == 3 => {
-                    triangles.push((v[0].0, v[1].0, v[2].0));
+                    triangles.push([v[0].0, v[1].0, v[2].0]);
                 },
                 PTN(v) if v.len() == 3 => {
-                    triangles.push((v[0].0, v[1].0, v[2].0));
+                    triangles.push([v[0].0, v[1].0, v[2].0]);
                 },
                 _ => {
                     log::info!("Skipping a polygon because it is not a triangle.")
@@ -231,6 +365,7 @@ impl From<RawObj> for TriangleMesh {
         Self {
             vertices,
             triangles,
+            ..Default::default()
         }
     }
 }

@@ -81,7 +81,7 @@ pub(crate) struct Material {
     /// This can be, e.g., an ITU identifier.
     pub(crate) id: String,
     /// tuple[float, float, float]: The material color, used when plotted.
-    pub(crate) rgb: (f32, f32, f32),
+    pub(crate) rgb: [f32; 3],
 }
 
 impl<'de> Deserialize<'de> for Material {
@@ -133,7 +133,7 @@ impl<'de> Deserialize<'de> for Material {
                 let r = r_str.parse().map_err(de::Error::custom)?;
                 let g = g_str.parse().map_err(de::Error::custom)?;
                 let b = b_str.parse().map_err(de::Error::custom)?;
-                Ok(Material { id, rgb: (r, g, b) })
+                Ok(Material { id, rgb: [r, g, b] })
             },
             _ => {
                 Err(de::Error::custom(

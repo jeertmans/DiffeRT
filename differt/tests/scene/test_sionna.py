@@ -28,6 +28,7 @@ def test_download_sionna_scenes_cached(sionna_folder: Path) -> None:
     )
 
 
+@pytest.mark.slow
 def test_download_sionna_scenes_existing_empty_folder(empty_folder: Path) -> None:
     download_sionna_scenes(folder=empty_folder, cached=False)
 
