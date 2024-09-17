@@ -1,7 +1,6 @@
 """Scene made of triangles and utilities."""
 
 from collections.abc import Mapping
-from functools import cached_property
 from typing import Any, Optional
 
 import equinox as eqx
@@ -13,7 +12,6 @@ from jaxtyping import Array, Float, jaxtyped
 import differt_core.scene.triangle_scene
 from differt.geometry.triangle_mesh import TriangleMesh
 from differt.plotting import draw_markers, reuse
-from differt_core.scene.sionna import Material
 
 
 @jaxtyped(typechecker=typechecker)
@@ -38,51 +36,25 @@ class TriangleScene(eqx.Module):
         default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of receiver vertices."""
-    meshes: tuple[TriangleMesh, ...] = eqx.field(converter=tuple, default_factory=tuple)
-    """The triangle meshes."""
-    materials: tuple[Material, ...] = eqx.field(converter=tuple, default_factory=tuple)
-    """The mesh materials"""
+    mesh: TriangleMesh = eqx.field(default_factory=TriangleMesh.empty)
+    """The triangle mesh."""
 
-    @cached_property
-    def one_mesh(self) -> TriangleMesh:
+    @classmethod
+    def from_core(
+        cls, core_scene: differt_core.scene.triangle_scene.TriangleScene
+    ) -> "TriangleScene":
         """
-        Return a mesh that is the result of concatenating all meshes.
+        Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
-        This is especially useful for plotting, as plotting one large
-        mesh is much faster than plotting many small ones.
+        Args:
+            core_scene: The scene from the core module.
 
         Returns:
-            The mesh that contains all meshes of this scene.
+            The corresponding scene.
         """
-        vertices = jnp.empty((0, 3))
-        triangles = jnp.empty((0, 3), dtype=int)
-
-        for mesh in self.meshes:
-            offset = vertices.shape[0]
-            vertices = jnp.concatenate((vertices, mesh.vertices))
-            triangles = jnp.concatenate((triangles, mesh.triangles + offset))
-
-        return TriangleMesh(vertices=vertices, triangles=triangles)
-
-    @cached_property
-    def face_colors(self) -> Float[Array, "num_triangles 3"]:
-        """
-        Return a (flattened) array of face colors, one for each triangle in each mesh.
-
-        This is especially useful for plotting, and it to be used
-        with :meth:`one_mesh`.
-
-        Returns:
-            The mesh that contains all meshes of this scene.
-        """
-        colors = jnp.empty((0, 3))
-
-        for mesh, material in zip(self.meshes, self.materials):
-            num_triangles = mesh.triangles.shape[0]
-            color = jnp.asarray(material.rgb)
-            colors = jnp.concatenate((colors, jnp.tile(color, (num_triangles, 1))))
-
-        return colors
+        return cls(
+            mesh=TriangleMesh.from_core(core_scene.mesh),
+        )
 
     @classmethod
     def load_xml(cls, file: str) -> "TriangleScene":
@@ -99,20 +71,8 @@ class TriangleScene(eqx.Module):
         Returns:
             The corresponding scene containing only triangle meshes.
         """
-        scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
-
-        meshes = (
-            TriangleMesh(
-                vertices=mesh.vertices,
-                triangles=mesh.triangles.astype(int),
-            )
-            for mesh in scene.meshes
-        )
-
-        return cls(
-            meshes=meshes,  # type: ignore[reportArgumentType]
-            materials=scene.materials,
-        )
+        core_scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
+        return cls.from_core(core_scene)
 
     def plot(
         self,
@@ -140,7 +100,7 @@ class TriangleScene(eqx.Module):
         """
         tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}
         rx_kwargs = {"labels": "rx", **(rx_kwargs or {}), **kwargs}
-        mesh_kwargs = {**(mesh_kwargs or {}), "face_colors": self.face_colors, **kwargs}
+        mesh_kwargs = {**(mesh_kwargs or {}), **kwargs}
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
@@ -149,6 +109,6 @@ class TriangleScene(eqx.Module):
             if self.receivers.size > 0:
                 draw_markers(np.asarray(self.receivers), **rx_kwargs)
 
-            self.one_mesh.plot(**mesh_kwargs)
+            self.mesh.plot(**mesh_kwargs)
 
         return result

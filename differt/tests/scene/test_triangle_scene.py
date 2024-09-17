@@ -19,7 +19,8 @@ class TestTriangleScene:
             scene = TriangleScene.load_xml(file)
             sionna_scene = SionnaScene.load_xml(file)
 
-            assert len(scene.meshes) == len(sionna_scene.shapes)
+            assert scene.mesh.object_bounds is not None
+            assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
 
     def test_plot(
         self,

@@ -7,14 +7,12 @@ If you feel something is missing, please create
 
 ## Library
 
-- Add (basic) scene classes
 - Create higher-level path tracing utilities
 - Support Min-Path-Tracing
 - Implement diffraction on Fermat-Path-Tracing
 - Implement diffraction *and* reflection on the same path
 - Implement a function that delegates reflection-only paths
   to `image_method`, and the rest to `fermat`.
-- Compute triangle normals inside Rust code
 - Silently skip non-triangles inside `.obj` file with `TriangleMesh`?
   Or log error messages instead
 - Fix performances issues on RX-grid examples
@@ -26,6 +24,7 @@ If you feel something is missing, please create
 - Extend mesh support to quad meshes?
 - Support point clouds?
 - Investigate zoom-issue on Vispy plots with large scenes (camera issue?)
+- Support custom dtypes (and remove hard-coded dtypes)
 
 ## Documentation
 
@@ -36,15 +35,11 @@ If you feel something is missing, please create
 - Add optimization tutorial
 - Show how to *smooth* edges by applying a soft threshold
   on the intersection test.
-- Document `NB_OFF=1` optional for generating docs faster
 
 ## Testing
 
-- Fix failing tests
 - Improve plotting tests
-- Improve global test coverage
 
 ## GitHub
 
-- Create more labels for issues and pull requests
 - Add CITATION.cff file

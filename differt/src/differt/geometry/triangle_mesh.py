@@ -1,7 +1,6 @@
 """Mesh geometry made of triangles and utilities."""
 # ruff: noqa: ERA001
 
-from functools import cached_property
 from typing import Any, Optional
 
 import equinox as eqx
@@ -124,8 +123,63 @@ class TriangleMesh(eqx.Module):
     """The array of triangle vertices."""
     triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle indices."""
+    face_colors: Optional[Float[Array, "num_triangles 3"]] = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """The array of face colors.
 
-    @cached_property
+    The array contains the face colors, as RGB triplets,
+    with a special placeholder value of :data:`(-1, -1, -1)`.
+    This attribute is :data:`None` if all face colors are unset.
+    """
+    face_materials: Optional[Int[Array, " num_triangles"]] = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """The array of face materials.
+
+    The array contains the material indices,
+    with a special placeholder value of :data:`-1`.
+    The obtain the name of the material, see :attr:`material_names`.
+    This attribute is :data:`None` if all face materials are unset.
+    """
+    material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple)
+    """The list of material names."""
+    object_bounds: Optional[Int[Array, "num_objects 2"]] = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """The array of object indices.
+
+    If the present mesh contains multiple objects, usually as a result of appending
+    multiple meshes together, this array contain start end end indices for each sub mesh.
+    """
+
+    @classmethod
+    def from_core(
+        cls, core_mesh: differt_core.geometry.triangle_mesh.TriangleMesh
+    ) -> "TriangleMesh":
+        """
+        Return a triangle mesh from a mesh created by the :mod:`differt_core` module.
+
+        Args:
+            core_mesh: The mesh from the core module.
+
+        Returns:
+            The corresponding mesh.
+        """
+        return cls(
+            vertices=core_mesh.vertices,
+            triangles=core_mesh.triangles.astype(int),
+            face_colors=core_mesh.face_colors,
+            face_materials=core_mesh.face_materials,
+            material_names=tuple(core_mesh.material_names),
+            object_bounds=core_mesh.object_bounds.astype(int)
+            if core_mesh.object_bounds is not None
+            else None,
+        )
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def normals(self) -> Float[Array, "num_triangles 3"]:
         """The triangle normals."""
         vertices = jnp.take(self.vertices, self.triangles, axis=0)
@@ -134,12 +188,16 @@ class TriangleMesh(eqx.Module):
 
         return normalize(normals)[0]
 
-    @cached_property
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
-    @cached_property
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
         return jnp.vstack(
@@ -240,11 +298,8 @@ class TriangleMesh(eqx.Module):
         Returns:
             The corresponding mesh containing only triangles.
         """
-        mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
-        return cls(
-            vertices=mesh.vertices,
-            triangles=mesh.triangles.astype(int),
-        )
+        core_mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_obj(file)
+        return cls.from_core(core_mesh)
 
     @classmethod
     def load_ply(cls, file: str) -> "TriangleMesh":
@@ -260,11 +315,8 @@ class TriangleMesh(eqx.Module):
         Returns:
             The corresponding mesh containing only triangles.
         """
-        mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
-        return cls(
-            vertices=mesh.vertices,
-            triangles=mesh.triangles.astype(int),
-        )
+        core_mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
+        return cls.from_core(core_mesh)
 
     def plot(self, **kwargs: Any) -> Any:
         """
@@ -277,6 +329,9 @@ class TriangleMesh(eqx.Module):
         Returns:
             The resulting plot output.
         """
+        if "face_colors" not in kwargs:
+            kwargs["face_colors"] = self.face_colors
+
         return draw_mesh(
             vertices=np.asarray(self.vertices),
             triangles=np.asarray(self.triangles),
