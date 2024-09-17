@@ -163,7 +163,7 @@ impl TriangleMesh {
 
     /// Move all the elements of ``other`` into ``self`` and update
     /// :attr`object_bounds`.
-    /// 
+    ///
     /// After calling this method, ``other`` will be empty.
     ///
     /// Args:
@@ -235,7 +235,13 @@ impl TriangleMesh {
         other.triangles.clear();
 
         self.object_bounds
-            .get_or_insert_with(|| vec![[0, offset]])
+            .get_or_insert_with(|| {
+                if offset > 0 {
+                    vec![[0, offset]]
+                } else {
+                    vec![]
+                }
+            })
             .push([offset, self.vertices.len()]);
     }
 
