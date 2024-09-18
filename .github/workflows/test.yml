@@ -94,8 +94,6 @@ jobs:
 
     - name: Setup Python
       uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.pyversion }}
 
     - name: Generate code coverage
       run: cargo tarpaulin --verbose --timeout 120 --out xml
@@ -116,7 +114,6 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
         cache: pip
         cache-dependency-path: uv.lock
 
@@ -229,8 +226,6 @@ jobs:
       uses: actions/checkout@v4
 
     - uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
 
     - name: Install NumPy
       run: pip install numpy
