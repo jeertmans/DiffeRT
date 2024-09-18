@@ -69,7 +69,8 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.pyversion }}
 
@@ -81,6 +82,35 @@ jobs:
 
     - name: Run Cargo test
       run: cargo test
+
+  cargo-tarpaulin:
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install NumPy
+      run: pip install numpy
+
+    - name: Run Cargo test
+      run: cargo test
+
+    - name: Generate code coverage
+      run: cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
+        fail_ci_if_error: true
 
   python-benchmark:
     runs-on: ubuntu-latest

@@ -317,7 +317,7 @@ pub mod complete {
                     let from_in_graph = from < num_nodes;
                     let to_in_graph = to < num_nodes;
 
-                    match (from_in_graph, to_in_graph) {
+                    (match (from_in_graph, to_in_graph) {
                         (true, true) => {
                             //This solution was obtained thanks to user @ronno, see:
                             // https://math.stackexchange.com/a/4874894/1297520.
@@ -326,38 +326,48 @@ pub mod complete {
                             let num_nodes_minus_1 = num_nodes.saturating_sub(1);
                             if from != to {
                                 num_nodes_minus_1
-                                    .saturating_pow(depth_minus_1)
-                                    .saturating_add_signed(if depth_minus_1 % 2 == 0 {
-                                        -1
-                                    } else {
-                                        1
+                                    .checked_pow(depth_minus_1)
+                                    .and_then(|num| {
+                                        num.checked_add_signed(if depth_minus_1 % 2 == 0 {
+                                            -1
+                                        } else {
+                                            1
+                                        })
                                     })
-                                    / num_nodes
+                                    .map(|num| num / num_nodes)
                             } else {
                                 num_nodes_minus_1
-                                    .saturating_pow(depth_minus_2)
-                                    .saturating_add_signed(if depth_minus_2 % 2 == 0 {
-                                        -1
-                                    } else {
-                                        1
+                                    .checked_pow(depth_minus_2)
+                                    .and_then(|num| {
+                                        num.checked_add_signed(if depth_minus_2 % 2 == 0 {
+                                            -1
+                                        } else {
+                                            1
+                                        })
                                     })
-                                    * num_nodes_minus_1
-                                    / num_nodes
+                                    .map(|num| (num / num_nodes) * num_nodes_minus_1)
                             }
                         },
                         (false, false) => {
                             // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
-                            (num_nodes).saturating_mul(
-                                num_nodes
-                                    .saturating_sub(1)
-                                    .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
-                            )
+                            num_nodes
+                                .saturating_sub(1)
+                                .checked_pow(num_intermediate_nodes.saturating_sub(1))
+                                .and_then(|num| num_nodes.checked_mul(num))
                         },
                         _ => {
                             // (num_nodes - 1)^num_intermediate_nodes
-                            (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
+                            (num_nodes.saturating_sub(1)).checked_pow(num_intermediate_nodes)
                         },
-                    }
+                    })
+                    .unwrap_or_else(|| {
+                        log::warn!(
+                            "OverflowError: overflow occurred when computing the total number of \
+                             paths, defaulting to maximum value {}.",
+                            usize::MAX
+                        );
+                        usize::MAX
+                    })
                 },
             };
 
