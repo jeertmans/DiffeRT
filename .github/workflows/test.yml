@@ -86,22 +86,19 @@ jobs:
   cargo-tarpaulin:
     runs-on: ubuntu-latest
     container:
-      image: xd009642/tarpaulin:develop-nightly
+      image: xd009642/tarpaulin
       options: --security-opt seccomp=unconfined
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup Python
-      run: |
-        apt update -y
-        apt install -y python3
-
-    - name: Install NumPy
-      run: pip install numpy
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.pyversion }}
 
     - name: Generate code coverage
-      run: cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+      run: cargo tarpaulin --verbose --timeout 120 --out xml
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
