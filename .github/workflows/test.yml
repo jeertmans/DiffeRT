@@ -93,15 +93,12 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      run: |
+        apt update -y
+        apt install -y python3
 
     - name: Install NumPy
       run: pip install numpy
-
-    - name: Run Cargo test
-      run: cargo test
 
     - name: Generate code coverage
       run: cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
