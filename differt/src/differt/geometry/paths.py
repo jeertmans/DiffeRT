@@ -1,10 +1,13 @@
+from typing import Optional
+
 import equinox as eqx
-import numpy as np
 import jax.numpy as jnp
-from jaxtyping import jaxtyped, Float, Int, Array
+import numpy as np
 from beartype import beartype as typechecker
+from jaxtyping import Array, Bool, Float, Int, jaxtyped
 
 from differt.plotting import draw_paths
+
 
 @jaxtyped(typechecker=typechecker)
 class Paths(eqx.Module):
@@ -14,15 +17,39 @@ class Paths(eqx.Module):
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
     """
-    vertices: Float[Array, "*batch path_length 3"]
+
+    vertices: Float[Array, "*batch path_length 3"] = eqx.field(converter=jnp.asarray)
     """The array of path vertices."""
-    objects: Int[Array, "*batch path_length"]
+    objects: Int[Array, "*batch path_length"] = eqx.field(converter=jnp.asarray)
     """The array of object indices.
-    
+
     To every path vertex corresponds one object (e.g., a triangle).
     A placeholder value of :python:`-1` can be used in specific cases,
     like for transmitter and receiver positions.
     """
+    mask: Optional[Bool[Array, " *batch"]] = eqx.field(
+        converter=jnp.asarray, default=None
+    )
+    """An optional mask to indicate which paths are valid and should be used.
+
+    TODO: motivate.
+    """
+
+    @property
+    @eqx.filter_jit
+    def masked_vertices(self) -> Float[Array, "num_valid_path path_length 3"]:
+        """The array of masked vertices, with batched dimensions flattened into one.
+
+        If :attr:`mask` is :data:`None`, then the returned array is simply
+        :data:`vertices` with the batch dimensions flattened.
+        """
+        *_, path_length, _ = self.vertices.shape
+        vertices = self.vertices.reshape((-1, path_length, 3))
+        if self.mask is not None:
+            mask = self.mask.reshape(-1)
+            return vertices[mask, :]
+        return vertices
+
     @eqx.filter_jit
     def group_by_objects(self) -> Int[Array, " *batch"]:
         """
@@ -69,10 +96,11 @@ class Paths(eqx.Module):
         *batch, path_length = self.objects.shape
 
         objects = self.objects.reshape((-1, path_length))
-        inverse = jnp.unique(objects, axis=0, size=objects.shape[0], return_inverse=True)[1]
+        inverse = jnp.unique(
+            objects, axis=0, size=objects.shape[0], return_inverse=True
+        )[1]
 
         return inverse.reshape(batch)
 
-
     def plot(self):
-        return draw_paths(np.asarray(self.vertices))
+        return draw_paths(np.asarray(self.masked_vertices))

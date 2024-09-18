@@ -10,17 +10,18 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
 import differt_core.scene.triangle_scene
-from differt.geometry.triangle_mesh import TriangleMesh
 from differt.geometry.paths import Paths
+from differt.geometry.triangle_mesh import (
+    TriangleMesh,
+    triangles_contain_vertices_assuming_inside_same_plane,
+)
 from differt.plotting import draw_markers, reuse
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
 )
 from differt.rt.utils import generate_all_path_candidates, rays_intersect_triangles
-from differt.geometry.triangle_mesh import (
-    triangles_contain_vertices_assuming_inside_same_plane,
-)
+
 
 @jaxtyped(typechecker=typechecker)
 class TriangleScene(eqx.Module):
@@ -90,12 +91,21 @@ class TriangleScene(eqx.Module):
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
 
+        # 1 - Broadcast arrays
+
         # [num_path_candidates *tx_batch *rx_batch 3]
-        tx = jnp.expand_dims(self.transmitters, (0, *(-i for i, _ in enumerate(tx_batch, start=2))))
-        rx = jnp.expand_dims(self.receivers, (0, *(i for i, _ in enumerate(rx_batch, start=1))))
-        print(f"{tx.shape = }, {rx.shape = }")
-        from_vertices = jnp.tile(tx, (num_path_candidates, *(1 for _ in tx_batch), *rx_batch, 1))
-        to_vertices = jnp.tile(rx, (num_path_candidates, *tx_batch, *(1 for _ in rx_batch), 1))
+        tx = jnp.expand_dims(
+            self.transmitters, (0, *(-i for i, _ in enumerate(tx_batch, start=2)))
+        )
+        rx = jnp.expand_dims(
+            self.receivers, (0, *(i for i, _ in enumerate(rx_batch, start=1)))
+        )
+        from_vertices = jnp.tile(
+            tx, (num_path_candidates, *(1 for _ in tx_batch), *rx_batch, 1)
+        )
+        to_vertices = jnp.tile(
+            rx, (num_path_candidates, *tx_batch, *(1 for _ in rx_batch), 1)
+        )
 
         # [num_path_candidates order 3]
         triangles = jnp.take(self.mesh.triangles, path_candidates, axis=0)
@@ -113,16 +123,20 @@ class TriangleScene(eqx.Module):
         mirror_normals = jnp.take(self.mesh.normals, path_candidates, axis=0)
 
         # [num_path_candidates *tx_batch *rx_batch order 3]
-        triangle_vertices = jnp.tile(triangle_vertices, (1, *tx_batch, *rx_batch, 1, 1, 1))
+        triangle_vertices = jnp.tile(
+            triangle_vertices, (1, *tx_batch, *rx_batch, 1, 1, 1)
+        )
         mirror_vertices = jnp.tile(mirror_vertices, (1, *tx_batch, *rx_batch, 1, 1))
         mirror_normals = jnp.tile(mirror_normals, (1, *tx_batch, *rx_batch, 1, 1))
 
         # 2 - Trace paths
 
         # [num_path_candidates *tx_batch *rx_batch order 3]
-        paths = image_method(from_vertices, to_vertices, mirror_vertices, mirror_normals)
+        paths = image_method(
+            from_vertices, to_vertices, mirror_vertices, mirror_normals
+        )
 
-        # 3 - Remove invalid paths
+        # 3 - Indentify invalid paths
 
         # 3.1 - Remove paths with vertices outside triangles
         # [num_path_candidates *tx_batch *rx_batch order]
@@ -136,9 +150,9 @@ class TriangleScene(eqx.Module):
         # [num_path_candidates *tx_batch *rx_batch order+2 3]
         full_paths = jnp.concatenate(
             (
-            jnp.expand_dims(from_vertices, axis=-2),
-            paths,
-            jnp.expand_dims(to_vertices, axis=-2),
+                jnp.expand_dims(from_vertices, axis=-2),
+                paths,
+                jnp.expand_dims(to_vertices, axis=-2),
             ),
             axis=-2,
         )
@@ -183,7 +197,7 @@ class TriangleScene(eqx.Module):
         # which is probably desirable, e.g., from a reflection) but in practice numerical
         # errors accumulate and will make this check impossible.
         # [num_paths_inter order+1 num_triangles]
-        intersect = (t < 0.999) & hit
+        intersect = (t < 0.999) & hit  # TODO: put variable 0.999 as argument (or tol?)
         #  [num_paths_inter]
         intersect = jnp.any(intersect, axis=(-1, -2))
         #  [num_paths_inter]
@@ -195,10 +209,14 @@ class TriangleScene(eqx.Module):
         full_paths = full_paths[mask, ...]
 
         vertices = full_paths
-        placeholders = - jnp.ones_like(path_candidates, shape=(*path_candidates.shape[:-1], 1))
-        objects = jnp.concatenate((placeholders, path_candidates, placeholders), axis=-1)
+        placeholders = -jnp.ones_like(  # TODO: add transmitter/receiver indices if relevant?
+            path_candidates, shape=(*path_candidates.shape[:-1], 1)
+        )
+        objects = jnp.concatenate(
+            (placeholders, path_candidates, placeholders), axis=-1
+        )
 
-        return Paths(vertices, objects)
+        return Paths(vertices, objects, mask)
 
     def plot(
         self,
@@ -231,7 +249,9 @@ class TriangleScene(eqx.Module):
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
-                draw_markers(np.asarray(self.transmitters).reshape((-1, 3)), **tx_kwargs)
+                draw_markers(
+                    np.asarray(self.transmitters).reshape((-1, 3)), **tx_kwargs
+                )
 
             if self.receivers.size > 0:
                 draw_markers(np.asarray(self.receivers).reshape((-1, 3)), **rx_kwargs)
