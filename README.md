@@ -51,7 +51,7 @@ but performant program. It also heavily uses the capabilities brought by
 
 To run build this package locally, you need:
 
-- [Python 3.9](https://www.python.org/) or above;
+- [Python 3.10](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
 - any modern C compiler;
 - [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;

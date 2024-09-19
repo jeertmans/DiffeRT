@@ -8,12 +8,12 @@ dependencies = [
   "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
 ]
 name = "differt-dev"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "1.0.0"
 
 [project.optional-dependencies]
 cuda = [
-  "jax[cuda]>=0.4.30",
+  "jax[cuda]>=0.4.32",
 ]
 docs = [
   "differt[all]",
