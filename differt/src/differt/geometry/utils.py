@@ -349,7 +349,7 @@ def fibonacci_lattice(
             >>> from differt.plotting import draw_markers
             >>>
             >>> xyz = np.asarray(fibonacci_lattice(100))
-            >>> draw_markers(xyz, marker={"color", xyz[:, 0]}, backend="plotly")  # doctest: +SKIP
+            >>> draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")  # doctest: +SKIP
     """
     phi = jnp.array(1.618033988749895, dtype=dtype)  # golden ratio
     i = jnp.arange(0.0, n, dtype=dtype)
