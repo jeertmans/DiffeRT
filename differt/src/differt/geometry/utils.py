@@ -352,9 +352,7 @@ def fibonacci_lattice(
             >>> from differt.plotting import draw_markers
             >>>
             >>> xyz = np.asarray(fibonacci_lattice(100))
-            >>> fig = draw_markers(
-            ...     xyz, marker={"color": xyz[:, 0]}, backend="plotly"
-            ... )
+            >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
             >>> fig  # doctest: +SKIP
     """
     if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
