@@ -348,7 +348,7 @@ def fibonacci_lattice(
             ... )
             >>> from differt.plotting import draw_markers
             >>>
-            >>> xyz = fibonacci_lattice(1000)
+            >>> xyz = fibonacci_lattice(100)
             >>> draw_markers(xyz, backend="plotly")  # doctest: +SKIP
     """
     phi = jnp.array(1.618033988749895, dtype=dtype)  # golden ratio

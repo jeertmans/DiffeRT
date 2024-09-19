@@ -24,7 +24,7 @@ class Paths(eqx.Module):
     """The array of object indices.
 
     To every path vertex corresponds one object (e.g., a triangle).
-    A placeholder value of :python:`-1` can be used in specific cases,
+    A placeholder value of ``-1`` can be used in specific cases,
     like for transmitter and receiver positions.
     """
     mask: Bool[Array, " *batch"] | None = eqx.field(
