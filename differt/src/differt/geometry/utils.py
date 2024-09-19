@@ -337,6 +337,9 @@ def fibonacci_lattice(
     Returns:
         The array of vertices.
 
+    Raises:
+        ValueError: If the provided dtype is not a floating dtype.
+
     Examples:
         The following example shows how to generate and plot
         a fibonacci lattice.
@@ -349,10 +352,16 @@ def fibonacci_lattice(
             >>> from differt.plotting import draw_markers
             >>>
             >>> xyz = np.asarray(fibonacci_lattice(100))
-            >>> draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")  # doctest: +SKIP
+            >>> draw_markers(
+            ...     xyz, marker={"color": xyz[:, 0]}, backend="plotly"
+            ... )  # doctest: +SKIP
     """
-    phi = jnp.array(1.618033988749895, dtype=dtype)  # golden ratio
-    i = jnp.arange(0.0, n, dtype=dtype)
+    if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
+        msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
+        raise ValueError(msg)
+
+    phi = 1.618033988749895  # golden ratio
+    i = jnp.arange(0.0, n)  # '0.0' forces floating point values
 
     lat = jnp.arccos(1 - 2 * i / n)
     lon = 2 * jnp.pi * i / phi
@@ -362,4 +371,4 @@ def fibonacci_lattice(
     co_lon = jnp.cos(lon)
     si_lon = jnp.sin(lon)
 
-    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1)
+    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)

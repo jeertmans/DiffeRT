@@ -6,9 +6,10 @@ import chex
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array, ArrayLike, Float, PRNGKeyArray
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry.utils import (
+    fibonacci_lattice,
     normalize,
     orthogonal_basis,
     pairwise_cross,
@@ -149,3 +150,49 @@ def test_rotation_matrices(
         got = rotation_matrix_along_axis(angle, +jnp.array(axis))
 
     chex.assert_trees_all_close(got, expected)
+
+
+@pytest.mark.parametrize("n", [0, 10, 100])
+@pytest.mark.parametrize(
+    ("dtype", "expected_dtype", "expectation"),
+    [
+        (None, jnp.float32, does_not_raise()),
+        (jnp.float32, jnp.float32, does_not_raise()),
+        (float, jnp.float64, does_not_raise()),
+        ("float", jnp.float64, does_not_raise()),
+        (jnp.float16, jnp.float16, does_not_raise()),
+        (jnp.float64, jnp.float64, does_not_raise()),
+        (
+            int,
+            jnp.float32,
+            pytest.raises(
+                ValueError,
+                match="Unsupported dtype <class 'int'>, must be a floating dtype.",
+            ),
+        ),
+        (
+            jnp.int32,
+            jnp.float32,
+            pytest.raises(
+                ValueError,
+                match="Unsupported dtype <class 'jax.numpy.int32'>, must be a floating dtype.",
+            ),
+        ),
+    ],
+)
+def test_fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None,
+    expected_dtype: jnp.dtype,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with jax.experimental.enable_x64(expected_dtype == jnp.float64), expectation:  # type: ignore[reportAttributeAccessIssue]
+        got = fibonacci_lattice(n, dtype=dtype)
+
+        normalized, lengths = normalize(got)
+
+        atol = jnp.finfo(expected_dtype).eps
+
+        chex.assert_type(got, expected_dtype)
+        chex.assert_trees_all_close(got, normalized, atol=atol)
+        chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)

@@ -1,3 +1,5 @@
+"""TODO: write this."""
+
 from typing import Any
 
 import equinox as eqx
@@ -16,6 +18,8 @@ class Paths(eqx.Module):
 
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
+
+    TODO: document args.
     """
 
     vertices: Float[Array, "*batch path_length 3"] = eqx.field(converter=jnp.asarray)

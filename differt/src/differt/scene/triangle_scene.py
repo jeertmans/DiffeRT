@@ -8,7 +8,7 @@ import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
 import differt_core.scene.triangle_scene
 from differt.geometry.paths import Paths
@@ -85,12 +85,17 @@ class TriangleScene(eqx.Module):
         return cls.from_core(core_scene)
 
     @eqx.filter_jit
-    def compute_paths(self, order: int) -> Paths:
+    def compute_paths(self, order: int, hit_tol: Float[ArrayLike, ""] = 1e-4) -> Paths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
         Args:
             order: The number of interaction, i.e., the number of bounces.
+            hit_tol: The tolerance applied to check if a ray hits another object or not,
+                before it reaches the expected position, i.e., the 'interaction' object.
+
+                Using a non-zero tolerance is required as it would otherwise trigger
+                false positives.
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -209,7 +214,9 @@ class TriangleScene(eqx.Module):
         # which is probably desirable, e.g., from a reflection) but in practice numerical
         # errors accumulate and will make this check impossible.
         # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles]
-        intersect = (t < 0.999) & hit  # TODO: put variable 0.999 as argument (or tol?)
+        intersect = (
+            t < (1.0 - hit_tol)
+        ) & hit  # TODO: put variable 0.999 as argument (or tol?)
         #  [num_path_candidates *tx_batch *rx_batch]
         intersect = jnp.any(intersect, axis=(-1, -2))
         #  [num_path_candidates *tx_batch *rx_batch]
