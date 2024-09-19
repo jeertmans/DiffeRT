@@ -3,7 +3,7 @@
 import sys
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any, Union
+from typing import Any
 
 import chex
 import equinox as eqx
@@ -19,8 +19,8 @@ else:
     from typing_extensions import TypeVarTuple, Unpack
 
 # Redefined here, because chex uses deprecated type hints
-# TODO: fixme
-OptState = Union[chex.Array, Iterable["OptState"], Mapping[Any, "OptState"]]
+# TODO: fixme when google/chex#361 is resolved.
+OptState = chex.Array | Iterable["OptState"] | Mapping[Any, "OptState"]
 Ts = TypeVarTuple("Ts")
 
 

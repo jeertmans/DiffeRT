@@ -3,19 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 import types
-from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
-
-from typing import ParamSpec
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, MutableMapping
+    from collections.abc import Callable, Iterator, MutableMapping
     from typing import Literal
 
     from matplotlib.figure import Figure as MplFigure

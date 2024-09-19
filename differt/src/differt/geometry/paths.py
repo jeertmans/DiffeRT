@@ -27,7 +27,9 @@ class Paths(eqx.Module):
     A placeholder value of :python:`-1` can be used in specific cases,
     like for transmitter and receiver positions.
     """
-    mask: Bool[Array, " *batch"] | None = eqx.field(converter=lambda x: jnp.asarray(x) if x is not None else None, default=None)
+    mask: Bool[Array, " *batch"] | None = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
     """An optional mask to indicate which paths are valid and should be used.
 
     TODO: motivate.
