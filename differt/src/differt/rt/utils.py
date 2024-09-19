@@ -26,8 +26,8 @@ present in this module do not take care of the interaction type.
 You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 
-from collections.abc import Iterator
-from typing import Callable, Generic, TypeVar, Union
+from collections.abc import Callable, Iterator
+from typing import Generic, TypeVar
 
 import jax
 import jax.numpy as jnp
@@ -60,7 +60,7 @@ class _SizedIterator(Generic[T]):
 
     """
 
-    def __init__(self, iter_: Iterator[T], size: Union[int, Callable[[], int]]) -> None:
+    def __init__(self, iter_: Iterator[T], size: int | Callable[[], int]) -> None:
         self.iter_ = iter_
         self.size = size
 

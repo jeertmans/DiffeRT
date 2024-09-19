@@ -1,7 +1,8 @@
 """Scene made of triangles and utilities."""
+# ruff: noqa: ERA001
 
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any
 
 import equinox as eqx
 import jax.numpy as jnp
@@ -85,13 +86,23 @@ class TriangleScene(eqx.Module):
 
     @eqx.filter_jit
     def compute_paths(self, order: int) -> Paths:
+        """
+        Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
+
+        Args:
+            order: The number of interaction, i.e., the number of bounces.
+
+        Returns:
+            The paths, as class wrapping path vertices, object indices, and a masked
+            identify valid paths.
+        """
+        # 1 - Broadcast arrays
+
         num_triangles = self.mesh.triangles.shape[0]
         path_candidates = generate_all_path_candidates(num_triangles, order)
         num_path_candidates = path_candidates.shape[0]
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
-
-        # 1 - Broadcast arrays
 
         # [num_path_candidates *tx_batch *rx_batch 3]
         tx = jnp.expand_dims(
@@ -136,16 +147,16 @@ class TriangleScene(eqx.Module):
             from_vertices, to_vertices, mirror_vertices, mirror_normals
         )
 
-        # 3 - Indentify invalid paths
+        # 3 - Identify invalid paths
 
-        # 3.1 - Remove paths with vertices outside triangles
+        # 3.1 - Identify paths with vertices outside triangles
         # [num_path_candidates *tx_batch *rx_batch order]
-        mask = triangles_contain_vertices_assuming_inside_same_plane(
+        mask_1 = triangles_contain_vertices_assuming_inside_same_plane(
             triangle_vertices,
             paths,
         )
         # [num_path_candidates *tx_batch *rx_batch]
-        mask = jnp.all(mask, axis=-1)
+        mask_1 = jnp.all(mask_1, axis=-1)
 
         # [num_path_candidates *tx_batch *rx_batch order+2 3]
         full_paths = jnp.concatenate(
@@ -157,56 +168,54 @@ class TriangleScene(eqx.Module):
             axis=-2,
         )
 
-        # 3.2 - Remove paths with vertices not on the same side of mirrors
+        # 3.2 - Identify paths with vertices not on the same side of mirrors
         # [num_path_candidates *tx_batch *rx_batch order]
-        mask = consecutive_vertices_are_on_same_side_of_mirrors(
+        mask_2 = consecutive_vertices_are_on_same_side_of_mirrors(
             full_paths,
             mirror_vertices,
             mirror_normals,
         )
 
-        # [num_paths_inter]
-        mask = jnp.all(mask, axis=-1)  # We will actually remove them later
+        # [num_path_candidates *tx_batch *rx_batch]
+        mask_2 = jnp.all(mask_2, axis=-1)  # We will actually remove them later
 
-        # 3.3 - Remove paths that are obstructed by other objects
-        # [num_paths_inter order+1 3]
+        # 3.3 - Identify paths that are obstructed by other objects
+        # [num_path_candidates *tx_batch *rx_batch order+1 3]
         ray_origins = full_paths[..., :-1, :]
-        # [num_paths_inter order+1 3]
+        # [num_path_candidates *tx_batch *rx_batch order+1 3]
         ray_directions = jnp.diff(full_paths, axis=-2)
 
-        # [num_paths_inter order+1 num_triangles 3]
+        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles 3]
         ray_origins = jnp.repeat(
             jnp.expand_dims(ray_origins, axis=-2),
             num_triangles,
             axis=-2,
         )
-        # [num_paths_inter order+1 num_triangles 3]
+        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles 3]
         ray_directions = jnp.repeat(
             jnp.expand_dims(ray_directions, axis=-2),
             num_triangles,
             axis=-2,
         )
 
-        # [num_paths_inter order+1 num_triangles], [num_paths_inter order+1 num_triangles]
+        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles],
+        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles]
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
-            jnp.broadcast_to(all_triangle_vertices, (*ray_origins.shape, 3)),
+            jnp.broadcast_to(self.mesh.triangle_vertices, (*ray_origins.shape, 3)),
         )
         # In theory, we could do t < 1.0 (because t == 1.0 means we are perfectly on a surface,
         # which is probably desirable, e.g., from a reflection) but in practice numerical
         # errors accumulate and will make this check impossible.
-        # [num_paths_inter order+1 num_triangles]
+        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles]
         intersect = (t < 0.999) & hit  # TODO: put variable 0.999 as argument (or tol?)
-        #  [num_paths_inter]
+        #  [num_path_candidates *tx_batch *rx_batch]
         intersect = jnp.any(intersect, axis=(-1, -2))
-        #  [num_paths_inter]
-        mask = mask & ~intersect
+        #  [num_path_candidates *tx_batch *rx_batch]
+        mask_3 = ~intersect
 
         # 4 - Obtain final valid paths
-
-        #  [num_paths_final]
-        full_paths = full_paths[mask, ...]
 
         vertices = full_paths
         placeholders = -jnp.ones_like(  # TODO: add transmitter/receiver indices if relevant?
@@ -215,14 +224,15 @@ class TriangleScene(eqx.Module):
         objects = jnp.concatenate(
             (placeholders, path_candidates, placeholders), axis=-1
         )
+        mask = mask_1 & mask_2 & mask_3
 
         return Paths(vertices, objects, mask)
 
     def plot(
         self,
-        tx_kwargs: Optional[Mapping[str, Any]] = None,
-        rx_kwargs: Optional[Mapping[str, Any]] = None,
-        mesh_kwargs: Optional[Mapping[str, Any]] = None,
+        tx_kwargs: Mapping[str, Any] | None = None,
+        rx_kwargs: Mapping[str, Any] | None = None,
+        mesh_kwargs: Mapping[str, Any] | None = None,
         **kwargs: Any,
     ) -> Any:  # TODO: change output type
         """

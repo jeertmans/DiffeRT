@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from typing import Callable
 
 import chex
 import jax

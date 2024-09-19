@@ -35,51 +35,51 @@ Examples:
 
     .. plotly::
 
-            >>> from differt.geometry.utils import normalize
-            >>> from differt.geometry.triangle_mesh import TriangleMesh
-            >>> from differt.plotting import draw_markers, draw_paths, reuse
-            >>> from differt.rt.image_method import image_method
-            >>>
-            >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
-            >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])
-            >>> mirror_vertices = jnp.array([
-            ...     [3.0, 3.0, 0.0],
-            ...     [4.0, 3.4, 0.0],
-            ... ])
-            >>> mirror_normals = jnp.array([
-            ...     [+1.0, -1.0, +0.0],
-            ...     [-1.0, +0.0, +0.0],
-            ... ])
-            >>> mirror_normals, _ = normalize(mirror_normals)
-            >>> path = image_method(
-            ...     from_vertex,
-            ...     to_vertex,
-            ...     mirror_vertices,
-            ...     mirror_normals,
-            ... )
-            >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
-            ...     TriangleMesh.plane(
-            ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
-            ...     ).plot(color="red")
-            ...     TriangleMesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
-            ...         color="red"
-            ...     )
-            ...
-            ...     full_path = jnp.concatenate(
-            ...         (
-            ...             from_vertex[None, :],
-            ...             path,
-            ...             to_vertex[None, :],
-            ...         ),
-            ...         axis=0,
-            ...     )
-            ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
-            ...     markers = jnp.vstack((from_vertex, to_vertex))
-            ...     draw_markers(
-            ...         markers, labels=["BS", "UE"], marker={"color": "black"}, name="BS/UE"
-            ...     )
-            ...     fig.update_layout(scene_aspectmode="data")
-            >>> fig  # doctest: +SKIP
+        >>> from differt.geometry.utils import normalize
+        >>> from differt.geometry.triangle_mesh import TriangleMesh
+        >>> from differt.plotting import draw_markers, draw_paths, reuse
+        >>> from differt.rt.image_method import image_method
+        >>>
+        >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
+        >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])
+        >>> mirror_vertices = jnp.array([
+        ...     [3.0, 3.0, 0.0],
+        ...     [4.0, 3.4, 0.0],
+        ... ])
+        >>> mirror_normals = jnp.array([
+        ...     [+1.0, -1.0, +0.0],
+        ...     [-1.0, +0.0, +0.0],
+        ... ])
+        >>> mirror_normals, _ = normalize(mirror_normals)
+        >>> path = image_method(
+        ...     from_vertex,
+        ...     to_vertex,
+        ...     mirror_vertices,
+        ...     mirror_normals,
+        ... )
+        >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
+        ...     TriangleMesh.plane(
+        ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
+        ...     ).plot(color="red")
+        ...     TriangleMesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
+        ...         color="red"
+        ...     )
+        ...
+        ...     full_path = jnp.concatenate(
+        ...         (
+        ...             from_vertex[None, :],
+        ...             path,
+        ...             to_vertex[None, :],
+        ...         ),
+        ...         axis=0,
+        ...     )
+        ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
+        ...     markers = jnp.vstack((from_vertex, to_vertex))
+        ...     draw_markers(
+        ...         markers, labels=["BS", "UE"], marker={"color": "black"}, name="BS/UE"
+        ...     )
+        ...     fig.update_layout(scene_aspectmode="data")
+        >>> fig  # doctest: +SKIP
 """
 
 import chex

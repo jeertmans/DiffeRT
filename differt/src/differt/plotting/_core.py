@@ -1,7 +1,7 @@
 """Core plotting implementations."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from jaxtyping import Float, Int, Num
@@ -40,7 +40,7 @@ def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 3D mesh made of triangles.
 
@@ -148,7 +148,7 @@ def _(
 def draw_paths(
     paths: Float[np.ndarray, r"\*batch path_length 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a batch of paths of the same length.
 
@@ -251,10 +251,10 @@ def _(
 @dispatch
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot markers and, optionally, their label.
 
@@ -299,8 +299,8 @@ def draw_markers(
 @draw_markers.register("vispy")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
@@ -323,8 +323,8 @@ def _(
 @draw_markers.register("matplotlib")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     raise NotImplementedError  # TODO: implement this
@@ -333,14 +333,16 @@ def _(
 @draw_markers.register("plotly")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,  # noqa: ARG001
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}
+    else:
+        kwargs = {"mode": "markers", **kwargs}
 
     x, y, z = markers.T
     return fig.add_scatter3d(
@@ -354,16 +356,14 @@ def _(
 
 @dispatch
 def draw_image(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
 
@@ -415,13 +415,11 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
@@ -467,13 +465,11 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
@@ -494,13 +490,11 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]

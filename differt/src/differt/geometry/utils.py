@@ -2,10 +2,11 @@
 
 from functools import partial
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, jaxtyped
 
 
 @jax.jit
@@ -318,3 +319,47 @@ def rotation_matrix_along_axis(
     o = jnp.outer(axis, axis)
 
     return co * i + si * x + (1 - co) * o
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None = None,
+) -> Float[Array, "{n} 3"]:
+    """
+    Return a lattice of vertices on the unit sphere.
+
+    Args:
+        n: The size of the lattice.
+        dtype: The float dtype of the vertices.
+
+    Returns:
+        The array of vertices.
+
+    Examples:
+        The following example shows how to generate and plot
+        a fibonacci lattice.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import (
+            ...     fibonacci_lattice,
+            ... )
+            >>> from differt.plotting import draw_markers
+            >>>
+            >>> xyz = fibonacci_lattice(1000)
+            >>> draw_markers(xyz, backend="plotly")  # doctest: +SKIP
+    """
+    phi = jnp.array(1.618033988749895, dtype=dtype)  # golden ratio
+    i = jnp.arange(0.0, n, dtype=dtype)
+
+    lat = jnp.arccos(1 - 2 * i / n)
+    lon = 2 * jnp.pi * i / phi
+
+    co_lat = jnp.cos(lat)
+    si_lat = jnp.sin(lat)
+    co_lon = jnp.cos(lon)
+    si_lon = jnp.sin(lon)
+
+    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1)

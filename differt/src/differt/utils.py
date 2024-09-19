@@ -1,9 +1,9 @@
 """General purpose utilities."""
 
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any, Callable, Optional, Union
+from typing import Any, Union
 
 import chex
 import equinox as eqx
@@ -101,7 +101,7 @@ def minimize(
     x0: Num[Array, "*batch n"],
     args: tuple[Unpack[Ts]] = (),
     steps: int = 1000,
-    optimizer: Optional[optax.GradientTransformation] = None,
+    optimizer: optax.GradientTransformation | None = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
     """
     Minimize a scalar function of one or more variables.
@@ -237,10 +237,10 @@ def minimize(
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
-    size: Optional[int] = None,
+    size: int | None = None,
     *,
     key: PRNGKeyArray,
-) -> Union[Float[Array, "size 3"], Float[Array, "3"]]:
+) -> Float[Array, "size 3"] | Float[Array, "3"]:
     """
     Sample point(s) in a 3D bounding box.
 

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any
 
 import equinox as eqx
 import jax.numpy as jnp
@@ -27,23 +27,21 @@ class Paths(eqx.Module):
     A placeholder value of :python:`-1` can be used in specific cases,
     like for transmitter and receiver positions.
     """
-    mask: Optional[Bool[Array, " *batch"]] = eqx.field(
-        converter=jnp.asarray, default=None
-    )
+    mask: Bool[Array, " *batch"] | None = eqx.field(converter=lambda x: jnp.asarray(x) if x is not None else None, default=None)
     """An optional mask to indicate which paths are valid and should be used.
 
     TODO: motivate.
     """
 
     @property
-    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def masked_vertices(self) -> Float[Array, "num_valid_path path_length 3"]:
         """The array of masked vertices, with batched dimensions flattened into one.
 
         If :attr:`mask` is :data:`None`, then the returned array is simply
         :data:`vertices` with the batch dimensions flattened.
         """
-        *_, path_length, _ = self.vertices.shape
+        path_length = self.vertices.shape[-2]
         vertices = self.vertices.reshape((-1, path_length, 3))
         if self.mask is not None:
             mask = self.mask.reshape(-1)
@@ -51,6 +49,7 @@ class Paths(eqx.Module):
         return vertices
 
     @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def group_by_objects(self) -> Int[Array, " *batch"]:
         """
         Return an array of unique object groups.
@@ -102,5 +101,15 @@ class Paths(eqx.Module):
 
         return inverse.reshape(batch)
 
-    def plot(self):
-        return draw_paths(np.asarray(self.masked_vertices))
+    def plot(self, **kwargs: Any) -> Any:
+        """
+        Plot the paths on a 3D scene.
+
+        Args:
+            kwargs: Keyword arguments passed to
+                :py:func:`draw_paths<differt.plotting.draw_paths>`.
+
+        Returns:
+            The resulting plot output.
+        """
+        return draw_paths(np.asarray(self.masked_vertices), **kwargs)

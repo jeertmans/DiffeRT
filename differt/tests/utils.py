@@ -1,7 +1,7 @@
 import inspect
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 import jax
 from jaxtyping import Array, PRNGKeyArray

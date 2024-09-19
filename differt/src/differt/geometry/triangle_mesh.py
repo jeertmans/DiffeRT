@@ -1,7 +1,7 @@
 """Mesh geometry made of triangles and utilities."""
 # ruff: noqa: ERA001
 
-from typing import Any, Optional
+from typing import Any
 
 import equinox as eqx
 import jax
@@ -114,6 +114,8 @@ class TriangleMesh(eqx.Module):
     """
     A simple geometry made of triangles.
 
+    TODO: extend arguments.
+
     Args:
         vertices: The array of triangle vertices.
         triangles: The array of triangle indices.
@@ -123,7 +125,7 @@ class TriangleMesh(eqx.Module):
     """The array of triangle vertices."""
     triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle indices."""
-    face_colors: Optional[Float[Array, "num_triangles 3"]] = eqx.field(
+    face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of face colors.
@@ -132,7 +134,7 @@ class TriangleMesh(eqx.Module):
     with a special placeholder value of :data:`(-1, -1, -1)`.
     This attribute is :data:`None` if all face colors are unset.
     """
-    face_materials: Optional[Int[Array, " num_triangles"]] = eqx.field(
+    face_materials: Int[Array, " num_triangles"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of face materials.
@@ -144,7 +146,7 @@ class TriangleMesh(eqx.Module):
     """
     material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple)
     """The list of material names."""
-    object_bounds: Optional[Int[Array, "num_objects 2"]] = eqx.field(
+    object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of object indices.
@@ -152,6 +154,16 @@ class TriangleMesh(eqx.Module):
     If the present mesh contains multiple objects, usually as a result of appending
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def triangle_vertices(self) -> Float[Array, "num_triangles 3 3"]:
+        """The array of indexed triangle vertices.
+
+        TODO: improve description.
+        """
+        return jnp.take(self.vertices, self.triangles, axis=0)
 
     @classmethod
     def from_core(
@@ -222,9 +234,9 @@ class TriangleMesh(eqx.Module):
         cls,
         vertex: Float[Array, "3"],
         *other_vertices: Float[Array, "3"],
-        normal: Optional[Float[Array, "3"]] = None,
+        normal: Float[Array, "3"] | None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
-        rotate: Optional[Float[ArrayLike, " "]] = None,
+        rotate: Float[ArrayLike, " "] | None = None,
     ) -> "TriangleMesh":
         """
         Create an plane mesh, made of two triangles.
