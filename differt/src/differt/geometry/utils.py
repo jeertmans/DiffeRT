@@ -330,6 +330,9 @@ def fibonacci_lattice(
     """
     Return a lattice of vertices on the unit sphere.
 
+    This function uses the Fibonacci lattice method :cite:`fibonacci-lattice`
+    to generate an almost uniformly distributed set of points on the unit sphere.
+
     Args:
         n: The size of the lattice.
         dtype: The float dtype of the vertices.
