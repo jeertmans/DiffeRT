@@ -85,7 +85,7 @@ class TriangleScene(eqx.Module):
         return cls.from_core(core_scene)
 
     @eqx.filter_jit
-    def compute_paths(self, order: int, hit_tol: Float[ArrayLike, ""] = 1e-4) -> Paths:
+    def compute_paths(self, order: int, hit_tol: Float[ArrayLike, ""] = 1e-3) -> Paths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
@@ -111,10 +111,10 @@ class TriangleScene(eqx.Module):
 
         # [num_path_candidates *tx_batch *rx_batch 3]
         tx = jnp.expand_dims(
-            self.transmitters, (0, *(-i for i, _ in enumerate(tx_batch, start=2)))
+            self.transmitters, (0, *(-i for i, _ in enumerate(rx_batch, start=2)))
         )
         rx = jnp.expand_dims(
-            self.receivers, (0, *(i for i, _ in enumerate(rx_batch, start=1)))
+            self.receivers, (0, *(i for i, _ in enumerate(tx_batch, start=1)))
         )
         from_vertices = jnp.tile(
             tx, (num_path_candidates, *(1 for _ in tx_batch), *rx_batch, 1)
@@ -129,20 +129,30 @@ class TriangleScene(eqx.Module):
         # [num_path_candidates order 3 3]
         triangle_vertices = jnp.take(self.mesh.vertices, triangles, axis=0)
 
-        # [num_path_candidates order 3]
+        # [num_paths_candidates *tx_batch *rx_batch order 3 3]
+        triangle_vertices = jnp.expand_dims(
+            triangle_vertices,
+            tuple(i for i, _ in enumerate((*tx_batch, *rx_batch), start=1)),
+        )
+        triangle_vertices = jnp.tile(
+            triangle_vertices, (1, *tx_batch, *rx_batch, 1, 1, 1)
+        )
+
+        # [num_path_candidates *tx_batch *rx_batch order 3]
         mirror_vertices = triangle_vertices[
             ...,
             0,
             :,
         ]  # Only one vertex per triangle is needed
+
         # [num_path_candidates order 3]
         mirror_normals = jnp.take(self.mesh.normals, path_candidates, axis=0)
 
         # [num_path_candidates *tx_batch *rx_batch order 3]
-        triangle_vertices = jnp.tile(
-            triangle_vertices, (1, *tx_batch, *rx_batch, 1, 1, 1)
+        mirror_normals = jnp.expand_dims(
+            mirror_normals,
+            tuple(i for i, _ in enumerate((*tx_batch, *rx_batch), start=1)),
         )
-        mirror_vertices = jnp.tile(mirror_vertices, (1, *tx_batch, *rx_batch, 1, 1))
         mirror_normals = jnp.tile(mirror_normals, (1, *tx_batch, *rx_batch, 1, 1))
 
         # 2 - Trace paths
@@ -214,9 +224,7 @@ class TriangleScene(eqx.Module):
         # which is probably desirable, e.g., from a reflection) but in practice numerical
         # errors accumulate and will make this check impossible.
         # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles]
-        intersect = (
-            t < (1.0 - hit_tol)
-        ) & hit  # TODO: put variable 0.999 as argument (or tol?)
+        intersect = (t < (1.0 - hit_tol)) & hit
         #  [num_path_candidates *tx_batch *rx_batch]
         intersect = jnp.any(intersect, axis=(-1, -2))
         #  [num_path_candidates *tx_batch *rx_batch]
@@ -225,12 +233,17 @@ class TriangleScene(eqx.Module):
         # 4 - Obtain final valid paths
 
         vertices = full_paths
+        path_candidates = jnp.expand_dims(
+            path_candidates,
+            axis=tuple(i for i, _ in enumerate((*tx_batch, *rx_batch), start=1)),
+        )
         placeholders = -jnp.ones_like(  # TODO: add transmitter/receiver indices if relevant?
             path_candidates, shape=(*path_candidates.shape[:-1], 1)
         )
         objects = jnp.concatenate(
             (placeholders, path_candidates, placeholders), axis=-1
         )
+        objects = jnp.tile(objects, (1, *tx_batch, *rx_batch, 1))
         mask = mask_1 & mask_2 & mask_3
 
         return Paths(vertices, objects, mask)

@@ -27,13 +27,15 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 
 from collections.abc import Callable, Iterator
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
+from differt.geometry.utils import fibonacci_lattice
 from differt_core.rt.graph import CompleteGraph
 
 T = TypeVar("T")
@@ -166,12 +168,13 @@ def generate_all_path_candidates_chunks_iter(
     return _SizedIterator(m, size=it.__len__)
 
 
-@jax.jit
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "*batch 3 3"],
+    *,
     epsilon: Float[ArrayLike, " "] = 1e-6,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
     """
@@ -228,14 +231,15 @@ def rays_intersect_triangles(
     return t, ~(cond_a | cond_u | cond_v | cond_t)
 
 
-@jax.jit
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def rays_intersect_any_triangle(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: Float[ArrayLike, " "] = 1e-6,
+    *,
     hit_threshold: Float[ArrayLike, " "] = 0.999,
+    **kwargs: Any,
 ) -> Bool[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
@@ -252,18 +256,12 @@ def rays_intersect_any_triangle(
         ray_directions: An array of ray direction. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
-        epsilon: A small tolerance threshold that allows rays
-            to hit the triangles slightly outside the actual area.
-            A positive value virtually increases the size of the triangles,
-            a negative value will have the opposite effect.
-
-            Such a tolerance is especially useful when rays are hitting
-            triangle edges, a very common case if geometries are planes
-            split into multiple triangles.
         hit_threshold: A threshold value below which a hit is considered to be valid.
             Above this threshold, the ray will only hit the triangle if prolonged.
             In theory, this threshold value should be equal to ``1.0``, but in a
-            small tolerance must be used.
+            small tolerance must be used.  # TODO: update with respect to compute_paths
+        kwargs: Keyword arguments passed to
+            :func:`rays_intersect_triangles`.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
@@ -279,13 +277,115 @@ def rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
             triangle_vertex,
-            epsilon=epsilon,
+            **kwargs,
         )
         intersect = intersect | ((t < hit_threshold) & hit)
         return intersect, None
 
     return jax.lax.scan(
         scan_fun,
-        init=jnp.zeros(batch, dtype=jnp.bool_),
+        init=jnp.zeros(batch, dtype=bool),
         xs=triangle_vertices,
+    )[0]
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def triangles_visible_from_vertices(
+    vertices: Float[Array, "*batch 3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    num_rays: int = int(1e6),
+    **kwargs: Any,
+) -> Bool[Array, "*batch num_triangles"]:
+    """
+    Return whether triangles are visible from vertex positions.
+
+    This function uses ray launching and
+    :func:`fibonacci_lattice<differt.geometry.utils.fibonacci_lattice>` to estimate
+    whether a given triangle can be reached from a specific vertex, i.e., with a ray path,
+    without interacting with any other triangle facet.
+
+    Args:
+        vertices: An array of vertices, used as origins of the rays.
+
+            Usually, this would be an array of transmitter positions.
+        triangle_vertices: An array of triangle vertices.
+        num_rays: The number of rays to launch.
+
+            The larger, the more accurate.
+        kwargs: Keyword arguments passed to
+            :func:`rays_intersect_triangles`.
+
+    Returns:
+        For each ray, whether it intersects with any of the triangles.
+
+    Examples:
+        The following example shows how to identify triangles as
+        visible from a given transmitter, coloring them in dark gray.
+
+        .. plotly::
+
+            >>> import equinox as eqx
+            >>> from differt.rt.utils import (
+            ...     triangles_visible_from_vertices,
+            ... )
+            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.triangle_scene import TriangleScene
+            >>>
+            >>> download_sionna_scenes()
+            >>> file = get_sionna_scene("simple_street_canyon")
+            >>> scene = TriangleScene.load_xml(file)
+            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> visible_triangles = triangles_visible_from_vertices(
+            ...     scene.transmitters,
+            ...     scene.mesh.triangle_vertices,
+            ... )
+            >>> visible_color = jnp.array([0.2, 0.2, 0.2])
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.mesh.face_colors,
+            ...     scene,
+            ...     scene.mesh.face_colors.at[visible_triangles, :].set(visible_color),
+            ... )
+            >>> fig = scene.plot(backend="plotly")
+            >>> fig  # doctest: +SKIP
+    """
+    *batch, _ = vertices.shape
+    num_triangles = triangle_vertices.shape[0]
+
+    # [num rays 3]
+    ray_directions = fibonacci_lattice(num_rays)
+
+    # [*batch num_triangles 3]
+    ray_origins = jnp.expand_dims(vertices, -2)
+    ray_origins = jnp.tile(vertices, (*(1 for _ in batch), num_triangles, 1))
+
+    # [*batch num_triangles 3 3]
+    triangle_vertices = jnp.broadcast_to(triangle_vertices, (*ray_origins.shape, 3))
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        visible: Bool[Array, "*batch num_triangles"], ray_direction: Float[Array, "3"]
+    ) -> tuple[Bool[Array, "*batch num_triangles"], None]:
+        ray_directions = jnp.broadcast_to(ray_direction, ray_origins.shape)
+        t, hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            **kwargs,
+        )
+        # We replace invalid hits with NaNs
+        t_nan = jnp.where(hit & (t > 0.0), t, jnp.nan)
+        first_hit_indices = jnp.nanargmin(t_nan, axis=-1)
+        # We replace -1 indices with 'out-of-bounds' indices
+        first_hit_indices = jnp.where(
+            first_hit_indices == -1, num_triangles, first_hit_indices
+        )
+        other_indices = jnp.indices(first_hit_indices.shape)
+        visible = visible.at[*other_indices, first_hit_indices].set(True)
+        return visible, None
+
+    return jax.lax.scan(
+        scan_fun,
+        init=jnp.zeros((*batch, num_triangles), dtype=bool),
+        xs=ray_directions,
     )[0]

@@ -155,6 +155,39 @@ class TriangleMesh(eqx.Module):
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
 
+    @jaxtyped(typechecker=typechecker)
+    def __getitem__(self, key: slice | Int[ArrayLike, "*batch"]) -> "TriangleMesh":
+        """Return a copy of this mesh, taking only specific triangles.
+
+        Warning:
+            As it is not possible to guarantee that indexing would not break existing
+            object bounds, the :attr:`object_bounds` attributed is simply dropped.
+
+        Args:
+            key: The key used to index :attr:`triangles`
+                along the first axis.
+
+        Returns:
+            A new mesh.
+        """
+        return TriangleMesh(
+            vertices=self.vertices,
+            triangles=self.triangles[key, :],
+            face_colors=self.face_colors[key, :]
+            if self.face_colors is not None
+            else None,
+            face_materials=self.face_materials[key, :]
+            if self.face_materials is not None
+            else None,
+            material_names=self.material_names,
+            object_bounds=None,
+        )
+
+    @property
+    def num_triangles(self) -> int:
+        """The number of triangles."""
+        return self.triangles.shape[0]
+
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
@@ -226,6 +259,30 @@ class TriangleMesh(eqx.Module):
             A new empty scene.
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
+
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def set_face_colors(
+        self,
+        colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
+    ) -> "TriangleMesh":
+        """
+        Return a copy of this mesh, with new face colors.
+
+        Args:
+            colors: The array of RGB colors.
+                If one color is provided, it will be applied to all triangles.
+
+        Returns:
+            A new mesh with updated face colors.
+        """
+        face_colors = jnp.broadcast_to(colors.reshape(-1, 3), self.triangles.shape)
+        return eqx.tree_at(
+            lambda m: m.face_colors,
+            self,
+            face_colors,
+            is_leaf=lambda x: x is None,
+        )
 
     @classmethod
     @eqx.filter_jit
@@ -341,8 +398,8 @@ class TriangleMesh(eqx.Module):
         Returns:
             The resulting plot output.
         """
-        if "face_colors" not in kwargs:
-            kwargs["face_colors"] = self.face_colors
+        if "face_colors" not in kwargs and self.face_colors is not None:
+            kwargs["face_colors"] = np.asarray(self.face_colors)
 
         return draw_mesh(
             vertices=np.asarray(self.vertices),
@@ -370,13 +427,10 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new random mesh.
         """
-        triangles = self.triangles[
-            jax.random.choice(
-                key,
-                self.triangles.shape[0],
-                shape=(size,),
-                replace=replace,
-            ),
-            :,
-        ]
-        return TriangleMesh(vertices=self.vertices, triangles=triangles)
+        indices = jax.random.choice(
+            key,
+            self.num_triangles,
+            shape=(size,),
+            replace=replace,
+        )
+        return self[indices]

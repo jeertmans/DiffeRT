@@ -115,6 +115,26 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
+    def test_num_triangle(self, two_buildings_mesh: TriangleMesh) -> None:
+        assert two_buildings_mesh.num_triangles == 24
+
+    def test_get_item(self, two_buildings_mesh: TriangleMesh) -> None:
+        got = two_buildings_mesh[:]
+
+        chex.assert_trees_all_equal(got, two_buildings_mesh)
+
+        indices = jnp.arange(two_buildings_mesh.num_triangles)
+
+        got = two_buildings_mesh[indices]
+
+        chex.assert_trees_all_equal(got, two_buildings_mesh)
+
+        got = two_buildings_mesh[::2]
+
+        assert got.num_triangles == two_buildings_mesh.num_triangles // 2
+
+        # TODO: test that other attributes are set correctly.
+
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2))
         triangles = jnp.ones((20, 3))
@@ -167,6 +187,29 @@ class TestTriangleMesh:
 
     def test_not_empty(self, two_buildings_mesh: TriangleMesh) -> None:
         assert not two_buildings_mesh.is_empty
+
+    @pytest.mark.parametrize(
+        ("shape", "expectation"),
+        [
+            ((3,), does_not_raise()),
+            ((1, 3), does_not_raise()),
+            ((24, 3), does_not_raise()),
+            ((30, 3), pytest.raises(TypeError)),
+            ((1, 24, 3), pytest.raises(TypeError)),
+        ],
+    )
+    def test_set_face_colors(
+        self,
+        shape: tuple[int, ...],
+        expectation: AbstractContextManager[Exception],
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+    ) -> None:
+        colors = jax.random.uniform(key, shape)
+        assert two_buildings_mesh.face_colors is None
+        with expectation:
+            mesh = two_buildings_mesh.set_face_colors(colors)
+            assert mesh.face_colors is not None
 
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)

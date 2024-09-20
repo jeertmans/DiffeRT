@@ -198,3 +198,7 @@ def test_rays_intersect_any_triangle(
         expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
 
         chex.assert_trees_all_equal(got, expected)
+
+
+def test_triangles_visible_from_vertices() -> None:
+    pass  # TODO: fixme.

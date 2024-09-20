@@ -162,6 +162,7 @@ extend-ignore = [
   "FIX002",  # line-contains-todo, comment this to find where TODOs are
   "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
   "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "PD",  # pandas-vet
   "PLR0913",  # too-many-arguments
   "PLR0914",  # too-many-local-variables
   "PLR6104",  # non-augmented-assignment
