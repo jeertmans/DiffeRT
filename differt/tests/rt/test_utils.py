@@ -12,10 +12,25 @@ from differt.rt.utils import (
     generate_all_path_candidates_iter,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
+    triangles_visible_from_vertices,
 )
 from differt.utils import sorted_array2
 
 from ..utils import random_inputs
+
+
+@pytest.fixture(scope="session")
+def cube_vertices() -> Array:
+    o3d = pytest.importorskip("open3d")
+    cube = o3d.geometry.TriangleMesh.create_box()
+
+    triangles_vertices = jnp.take(
+        jnp.asarray(cube.vertices), jnp.asarray(cube.triangles), axis=0
+    )
+
+    assert triangles_vertices.shape == (12, 3, 3)
+
+    return triangles_vertices
 
 
 @pytest.mark.parametrize(
@@ -116,11 +131,11 @@ def test_generate_all_path_candidates_chunks_iter(
 @pytest.mark.parametrize(
     ("ray_orig", "ray_dest", "expected"),
     [
-        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, -1.0]), jnp.array(True)),
-        (jnp.array([0.0, 0.0, 1.0]), jnp.array([1.0, 1.0, -1.0]), jnp.array(True)),
-        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, +0.5]), jnp.array(False)),
-        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.0]), jnp.array(False)),
-        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.5]), jnp.array(False)),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, -1.0]), jnp.array([True])),
+        (jnp.array([0.0, 0.0, 1.0]), jnp.array([1.0, 1.0, -1.0]), jnp.array([True])),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([0.5, 0.5, +0.5]), jnp.array([False])),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.0]), jnp.array([False])),
+        (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.5]), jnp.array([False])),
     ],
 )
 def test_rays_intersect_triangles(
@@ -128,7 +143,7 @@ def test_rays_intersect_triangles(
     ray_dest: Array,
     expected: Array,
 ) -> None:
-    triangle_vertices = jnp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+    triangle_vertices = jnp.array([[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]])
     t, hit = rays_intersect_triangles(
         ray_orig,
         ray_dest - ray_orig,
@@ -170,8 +185,6 @@ def test_rays_intersect_any_triangle(
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        *batch, _ = ray_origins.shape
-        num_triangles = triangle_vertices.shape[0]
         got = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
@@ -179,16 +192,6 @@ def test_rays_intersect_any_triangle(
             epsilon=epsilon,
             hit_threshold=hit_threshold,
         )
-        shape = (*batch, num_triangles, 3)
-        ray_origins = jnp.broadcast_to(
-            jnp.expand_dims(ray_origins, axis=-2),
-            shape,
-        )
-        ray_directions = jnp.broadcast_to(
-            jnp.expand_dims(ray_directions, axis=-2),
-            shape,
-        )
-        triangle_vertices = jnp.broadcast_to(triangle_vertices, (*shape, 3))
         expected_t, expected_hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
@@ -200,5 +203,42 @@ def test_rays_intersect_any_triangle(
         chex.assert_trees_all_equal(got, expected)
 
 
-def test_triangles_visible_from_vertices() -> None:
-    pass  # TODO: fixme.
+@pytest.mark.parametrize(
+    ("vertex", "expected_number"),
+    [
+        (jnp.array([4.0, 0.0, 0.0]), 2),  # Sees one face of the cude
+        (jnp.array([4.0, 4.0, 0.0]), 4),  # Sees two faces
+        (jnp.array([4.0, 4.0, 4.0]), 6),  # Sees three faces
+    ],
+)
+@pytest.mark.parametrize(
+    ("num_rays", "expectation"),
+    [
+        (10_000, does_not_raise()),
+        (1_000_000, does_not_raise()),
+        (
+            4,  # Impossible to find all visible faces with few rays
+            pytest.raises(
+                AssertionError,
+                match="Number of visible triangles did not match expectation.",
+            ),
+        ),
+    ],
+)
+def test_triangles_visible_from_vertices(
+    vertex: Array,
+    expected_number: int,
+    num_rays: int,
+    expectation: AbstractContextManager[Exception],
+    cube_vertices: Array,
+) -> None:
+    visible_triangles = triangles_visible_from_vertices(
+        vertex,
+        cube_vertices,
+        num_rays=num_rays,
+    )
+
+    with expectation:
+        assert (
+            visible_triangles.sum() == expected_number
+        ), "Number of visible triangles did not match expectation."

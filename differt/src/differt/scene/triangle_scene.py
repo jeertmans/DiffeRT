@@ -200,25 +200,12 @@ class TriangleScene(eqx.Module):
         # [num_path_candidates *tx_batch *rx_batch order+1 3]
         ray_directions = jnp.diff(full_paths, axis=-2)
 
-        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles 3]
-        ray_origins = jnp.repeat(
-            jnp.expand_dims(ray_origins, axis=-2),
-            num_triangles,
-            axis=-2,
-        )
-        # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles 3]
-        ray_directions = jnp.repeat(
-            jnp.expand_dims(ray_directions, axis=-2),
-            num_triangles,
-            axis=-2,
-        )
-
         # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles],
         # [num_path_candidates *tx_batch *rx_batch order+1 num_triangles]
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
-            jnp.broadcast_to(self.mesh.triangle_vertices, (*ray_origins.shape, 3)),
+            self.mesh.triangle_vertices,
         )
         # In theory, we could do t < 1.0 (because t == 1.0 means we are perfectly on a surface,
         # which is probably desirable, e.g., from a reflection) but in practice numerical

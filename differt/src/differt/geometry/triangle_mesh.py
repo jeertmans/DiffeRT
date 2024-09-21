@@ -191,7 +191,7 @@ class TriangleMesh(eqx.Module):
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def triangle_vertices(self) -> Float[Array, "num_triangles 3 3"]:
+    def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
         """The array of indexed triangle vertices.
 
         TODO: improve description.
@@ -225,10 +225,9 @@ class TriangleMesh(eqx.Module):
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def normals(self) -> Float[Array, "num_triangles 3"]:
+    def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
         """The triangle normals."""
-        vertices = jnp.take(self.vertices, self.triangles, axis=0)
-        vectors = jnp.diff(vertices, axis=1)
+        vectors = jnp.diff(self.triangle_vertices, axis=1)
         normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
 
         return normalize(normals)[0]
@@ -236,7 +235,7 @@ class TriangleMesh(eqx.Module):
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
+    def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 

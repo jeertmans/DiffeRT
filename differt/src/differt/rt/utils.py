@@ -173,10 +173,10 @@ def generate_all_path_candidates_chunks_iter(
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*batch 3"],
     ray_directions: Float[Array, "*batch 3"],
-    triangle_vertices: Float[Array, "*batch 3 3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
     *,
     epsilon: Float[ArrayLike, " "] = 1e-6,
-) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]:
+) -> tuple[Float[Array, "*batch num_triangles"], Bool[Array, "*batch num_triangles"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
 
@@ -201,34 +201,51 @@ def rays_intersect_triangles(
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.
     """
-    vertex_0 = triangle_vertices[..., 0, :]
-    vertex_1 = triangle_vertices[..., 1, :]
-    vertex_2 = triangle_vertices[..., 2, :]
+    *batch, _ = ray_origins.shape
 
+    # [batch_flattened 3]
+    ray_origins = ray_origins.reshape(-1, 3)
+    ray_directions = ray_directions.reshape(-1, 3)
+
+    # [num_triangles 3]
+    vertex_0 = triangle_vertices[:, 0, :]
+    vertex_1 = triangle_vertices[:, 1, :]
+    vertex_2 = triangle_vertices[:, 2, :]
+
+    # [num_triangles 3]
     edge_1 = vertex_1 - vertex_0
     edge_2 = vertex_2 - vertex_0
 
-    h = jnp.cross(ray_directions, edge_2, axis=-1)
-    a = jnp.sum(edge_1 * h, axis=-1)
+    # [batch_flattened num_triangles 3]
+    h = jnp.cross(ray_directions[:, None, :], edge_2[None, ...], axis=-1)
 
-    cond_a = (a > -epsilon) & (a < epsilon)  # type: ignore[reportOperatorIssue]
+    # [batch_flattened num_triangles]
+    a = jnp.einsum("ijk,jk->ij", h, edge_1)
+
+    cond_a = jnp.abs(a) < epsilon
 
     f = 1.0 / a
-    s = ray_origins - vertex_0
-    u = f * jnp.sum(s * h, axis=-1)
+    s = ray_origins[:, None, :] - vertex_0[None, ...]
+    u = f * jnp.einsum("ijk,ijk->ij", s, h)
 
     cond_u = (u < 0.0) | (u > 1.0)
 
-    q = jnp.cross(s, edge_1, axis=-1)
-    v = f * jnp.sum(ray_directions * q, axis=-1)
+    q = jnp.cross(s, edge_1[None, ...], axis=-1)
+    v = f * jnp.einsum("ijk,ik->ij", q, ray_directions)
 
     cond_v = (v < 0.0) | (u + v > 1.0)
 
-    t = f * jnp.sum(edge_2 * q, axis=-1)
+    t = f * jnp.einsum("ijk,jk->ij", q, edge_2)
 
     cond_t = t <= epsilon
 
-    return t, ~(cond_a | cond_u | cond_v | cond_t)
+    hit = ~(cond_a | cond_u | cond_v | cond_t)
+
+    num_triangles = triangle_vertices.shape[0]
+    t = t.reshape(*batch, num_triangles)
+    hit = hit.reshape(*batch, num_triangles)
+
+    return t, hit
 
 
 @eqx.filter_jit
@@ -272,14 +289,14 @@ def rays_intersect_any_triangle(
     def scan_fun(
         intersect: Bool[Array, " *batch"], triangle_vertex: Float[Array, "3 3"]
     ) -> tuple[Bool[Array, " *batch"], None]:
-        triangle_vertex = jnp.broadcast_to(triangle_vertex, (*batch, 3, 3))
+        triangle_vertices = triangle_vertex[None, ...]
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
-            triangle_vertex,
+            triangle_vertices,
             **kwargs,
         )
-        intersect = intersect | ((t < hit_threshold) & hit)
+        intersect = intersect | ((t[..., 0] < hit_threshold) & hit[..., 0])
         return intersect, None
 
     return jax.lax.scan(
@@ -289,7 +306,7 @@ def rays_intersect_any_triangle(
     )[0]
 
 
-@eqx.filter_jit
+# @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_visible_from_vertices(
     vertices: Float[Array, "*batch 3"],
@@ -352,15 +369,13 @@ def triangles_visible_from_vertices(
     *batch, _ = vertices.shape
     num_triangles = triangle_vertices.shape[0]
 
-    # [num rays 3]
+    # [*batch 3]
+    ray_origins = vertices
+
+    # [num_rays 3]
     ray_directions = fibonacci_lattice(num_rays)
 
-    # [*batch num_triangles 3]
-    ray_origins = jnp.expand_dims(vertices, -2)
-    ray_origins = jnp.tile(vertices, (*(1 for _ in batch), num_triangles, 1))
-
-    # [*batch num_triangles 3 3]
-    triangle_vertices = jnp.broadcast_to(triangle_vertices, (*ray_origins.shape, 3))
+    other_indices = jnp.indices(batch)
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
@@ -375,12 +390,12 @@ def triangles_visible_from_vertices(
         )
         # We replace invalid hits with NaNs
         t_nan = jnp.where(hit & (t > 0.0), t, jnp.nan)
+        # We find the first triangles where hit is True
         first_hit_indices = jnp.nanargmin(t_nan, axis=-1)
         # We replace -1 indices with 'out-of-bounds' indices
         first_hit_indices = jnp.where(
             first_hit_indices == -1, num_triangles, first_hit_indices
         )
-        other_indices = jnp.indices(first_hit_indices.shape)
         visible = visible.at[*other_indices, first_hit_indices].set(True)
         return visible, None
 
