@@ -103,9 +103,9 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
             ... )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
     """
+    # TODO: remove this function as it is not needed anymore
     if jnp.issubdtype(z.dtype, jnp.floating):
         return erfx(z)
-    # https://granite.phys.s.u-tokyo.ac.jp/svn/LCGT/trunk/sensitivity/Matlab/bKAGRA/@double/erfz.pdf
 
     if jnp.issubdtype(z.dtype, jnp.complex128):  # double precision
         N = 13  # noqa: N806
