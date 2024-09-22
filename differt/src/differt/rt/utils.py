@@ -25,6 +25,7 @@ present in this module do not take care of the interaction type.
 
 You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
+# ruff: noqa: ERA001
 
 from collections.abc import Callable, Iterator
 from typing import Any, Generic, TypeVar
@@ -306,7 +307,7 @@ def rays_intersect_any_triangle(
     )[0]
 
 
-# @eqx.filter_jit
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_visible_from_vertices(
     vertices: Float[Array, "*batch 3"],
@@ -366,21 +367,16 @@ def triangles_visible_from_vertices(
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
     """
-    *batch, _ = vertices.shape
-    num_triangles = triangle_vertices.shape[0]
-
     # [*batch 3]
     ray_origins = vertices
 
     # [num_rays 3]
     ray_directions = fibonacci_lattice(num_rays)
 
-    other_indices = jnp.indices(batch)
-
     @jaxtyped(typechecker=typechecker)
-    def scan_fun(
-        visible: Bool[Array, "*batch num_triangles"], ray_direction: Float[Array, "3"]
-    ) -> tuple[Bool[Array, "*batch num_triangles"], None]:
+    def ray_direction_to_visiblity(
+        ray_direction: Float[Array, "3"],
+    ) -> Bool[Array, "*batch num_triangles"]:
         ray_directions = jnp.broadcast_to(ray_direction, ray_origins.shape)
         t, hit = rays_intersect_triangles(
             ray_origins,
@@ -388,19 +384,8 @@ def triangles_visible_from_vertices(
             triangle_vertices,
             **kwargs,
         )
-        # We replace invalid hits with NaNs
-        t_nan = jnp.where(hit & (t > 0.0), t, jnp.nan)
-        # We find the first triangles where hit is True
-        first_hit_indices = jnp.nanargmin(t_nan, axis=-1)
-        # We replace -1 indices with 'out-of-bounds' indices
-        first_hit_indices = jnp.where(
-            first_hit_indices == -1, num_triangles, first_hit_indices
+        return t == jnp.min(
+            t, axis=-1, keepdims=True, initial=jnp.inf, where=(hit & (t > 0.0))
         )
-        visible = visible.at[*other_indices, first_hit_indices].set(True)
-        return visible, None
 
-    return jax.lax.scan(
-        scan_fun,
-        init=jnp.zeros((*batch, num_triangles), dtype=bool),
-        xs=ray_directions,
-    )[0]
+    return jax.vmap(ray_direction_to_visiblity)(ray_directions).any(axis=0)

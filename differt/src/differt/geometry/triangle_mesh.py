@@ -20,9 +20,9 @@ from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*batch 3 3"],
-    vertices: Float[Array, "*batch 3"],
-) -> Bool[Array, " *batch"]:
+    triangle_vertices: Float[Array, "*#batch 3 3"],
+    vertices: Float[Array, "*#batch 3"],
+) -> Bool[Array, " *#batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
 
@@ -80,10 +80,10 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def paths_intersect_triangles(
-    paths: Float[Array, "*batch path_length 3"],
+    paths: Float[Array, "*#batch path_length 3"],
     triangle_vertices: Float[Array, "num_triangles 3 3"],
     epsilon: Float[ArrayLike, " "] = 1e-6,
-) -> Bool[Array, " *batch"]:
+) -> Bool[Array, " *#batch"]:
     """
     Return whether each path intersect with any of the triangles.
 

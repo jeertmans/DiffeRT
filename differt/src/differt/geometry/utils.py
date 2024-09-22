@@ -2,7 +2,6 @@
 
 from functools import partial
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
@@ -321,7 +320,6 @@ def rotation_matrix_along_axis(
     return co * i + si * x + (1 - co) * o
 
 
-@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def fibonacci_lattice(
     n: int,

@@ -1,57 +1,48 @@
+import equinox as eqx
+import jax
 import jax.numpy as jnp
+from beartype import beartype as typechecker
+from jaxtyping import Array, Float, PRNGKeyArray, jaxtyped
 
 
-class PlanarMirrorsSetup:
-    """
-    Test setup that looks something like:
+@jaxtyped(typechecker=typechecker)
+class PlanarMirrorsSetup(eqx.Module):
+    from_vertices: Float[Array, "*batch 3"]
+    to_vertices: Float[Array, "*batch 3"]
+    mirror_vertices: Float[Array, "num_mirrors 3"]
+    mirror_normals: Float[Array, "num_mirrors 3"]
+    paths: Float[Array, "*batch num_mirrors 3"]
 
-                1           3
-             ───────     ───────
-           0                     4
-    (from) x                     x (to)
-
-                   ───────
-                      2
-
-    where xs are starting and ending vertices, and '───────' are mirrors.
-    """
-
-    def __init__(self, *batch: int) -> None:
-        from_vertex = jnp.array([0.0, 0.0, 0.0])
-        to_vertex = jnp.array([1.0, 0.0, 0.0])
-        mirror_vertices = jnp.array(
-            [[0.0, +1.0, 0.0], [0.0, -1.0, 0.0], [0.0, +1.0, 0.0]],
+    def broadcast_to(self, *batch: int) -> "PlanarMirrorsSetup":
+        return type(self)(
+            from_vertices=jnp.broadcast_to(self.from_vertices, (*batch, 3)),
+            to_vertices=jnp.broadcast_to(self.to_vertices, (*batch, 3)),
+            mirror_vertices=self.mirror_vertices,
+            mirror_normals=self.mirror_normals,
+            paths=jnp.broadcast_to(self.paths, (*batch, *self.mirror_vertices.shape)),
         )
-        mirror_normals = jnp.array(
-            [[0.0, -1.0, 0.0], [0.0, +1.0, 0.0], [0.0, -1.0, 0.0]],
-        )
-        path = jnp.array(
-            [[1.0 / 6.0, +1.0, 0.0], [3.0 / 6.0, -1.0, 0.0], [5.0 / 6.0, +1.0, 0.0]],
-        )
-        # Tile on batch dimensions
-        axis = tuple(range(len(batch)))
-        self.from_vertices = jnp.tile(from_vertex, (*batch, 1))
-        assert self.from_vertices.shape == (*batch, 3)
-        self.to_vertices = jnp.tile(to_vertex, (*batch, 1))
-        assert self.to_vertices.shape == (*batch, 3)
-        self.mirror_vertices = jnp.tile(
-            jnp.expand_dims(mirror_vertices, axis),
-            (*batch, 1, 1),
-        )
-        assert self.mirror_vertices.shape == (*batch, 3, 3)
-        self.mirror_normals = jnp.tile(
-            jnp.expand_dims(mirror_normals, axis),
-            (*batch, 1, 1),
-        )
-        assert self.mirror_normals.shape == (*batch, 3, 3)
-        self.paths = jnp.tile(jnp.expand_dims(path, axis), (*batch, 1, 1))
-        assert self.paths.shape == (*batch, 3, 3)
 
-        _ = jnp.concatenate(
-            (
-                jnp.expand_dims(self.from_vertices, -2),
-                self.paths,
-                jnp.expand_dims(self.to_vertices, -2),
-            ),
-            axis=-2,
-        )  # Check we can concatenate
+    def add_noeffect_noise(
+        self, scale: float = 0.0, *, key: PRNGKeyArray
+    ) -> "PlanarMirrorsSetup":
+        num_mirrors = self.mirror_normals.shape[0]
+        key_sign, key_shift = jax.random.split(key, 2)
+
+        # Randomly shifting mirror origins has no effect as long as it is perpendicular to their normal direction
+        shift = jax.random.normal(key_shift, shape=(num_mirrors, 3)) * scale
+        shift = shift - jnp.sum(shift * self.mirror_normals, axis=-1, keepdims=True) * self.mirror_normals
+        setup = eqx.tree_at(
+            lambda setup: setup.mirror_vertices,
+            self,
+            self.mirror_vertices + shift,
+        )
+
+        # Randomly flipping normals has no effect
+        sign = jax.random.choice(
+            key_sign, jnp.array([+1.0, -1.0]), shape=(num_mirrors,)
+        )
+        return eqx.tree_at(
+            lambda setup: setup.mirror_normals,
+            setup,
+            self.mirror_normals * sign[:, None],
+        )

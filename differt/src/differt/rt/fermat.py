@@ -9,6 +9,7 @@ this means that the path of least time is also the path of last distance.
 As a result, this module offers minimization methods for finding ray paths.
 """
 
+from functools import partial
 from typing import Any
 
 import equinox as eqx
@@ -25,8 +26,8 @@ from differt.utils import minimize
 def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
     **kwargs: Any,
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
@@ -73,11 +74,12 @@ def fermat_path_on_planar_mirrors(
             )
 
             full_paths = jnp.concatenate(
-                (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+                (from_vertices[..., None, :], got, to_vertices[..., None, :]),
                 axis=-2,
             )
     """
-    *batch, num_mirrors, _ = mirror_vertices.shape
+    batch = from_vertices.shape[:-1]
+    num_mirrors = mirror_vertices.shape[0]
     num_unknowns = 2 * num_mirrors
 
     mirror_directions_1, mirror_directions_2 = orthogonal_basis(mirror_normals)
@@ -85,26 +87,20 @@ def fermat_path_on_planar_mirrors(
     @jaxtyped(typechecker=typechecker)
     def st_to_xyz(
         st: Float[Array, "*batch num_unknowns"],
-        o: Float[Array, "*batch num_mirrors 3"],
-        d1: Float[Array, "*batch num_mirrors 3"],
-        d2: Float[Array, "*batch num_mirrors 3"],
     ) -> Float[Array, "*batch num_mirrors 3"]:
         s = st[..., 0::2, None]
         t = st[..., 1::2, None]
-        return o + d1 * s + d2 * t
+        return mirror_vertices + mirror_directions_1 * s + mirror_directions_2 * t
 
     @jaxtyped(typechecker=typechecker)
     def loss(  # noqa: PLR0917
         st: Float[Array, "*batch num_unknowns"],
-        o: Float[Array, "*batch num_mirrors 3"],
-        d1: Float[Array, "*batch num_mirrors 3"],
-        d2: Float[Array, "*batch num_mirrors 3"],
         from_: Float[Array, "*batch 3"],
         to: Float[Array, "*batch 3"],
-    ) -> Float[Array, "*batch"]:
-        xyz = st_to_xyz(st, o, d1, d2)
+    ) -> Float[Array, " *batch"]:
+        xyz = st_to_xyz(st)
         paths = jnp.concatenate(
-            (jnp.expand_dims(from_, axis=-2), xyz, jnp.expand_dims(to, axis=-2)),
+            (from_[..., None, :], xyz, to[..., None, :]),
             axis=-2,
         )
         vectors = jnp.diff(paths, axis=-2)
@@ -112,17 +108,11 @@ def fermat_path_on_planar_mirrors(
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, _losses = minimize(
+    st, _ = minimize(
         loss,
         st0,
-        args=(
-            mirror_vertices,
-            mirror_directions_1,
-            mirror_directions_2,
-            from_vertices,
-            to_vertices,
-        ),
+        args=(from_vertices, to_vertices),
         **kwargs,
     )
 
-    return st_to_xyz(st, mirror_vertices, mirror_directions_1, mirror_directions_2)
+    return st_to_xyz(st)

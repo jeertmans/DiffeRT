@@ -1,5 +1,6 @@
 import chex
 import pytest
+from jaxtyping import PRNGKeyArray
 
 from differt.rt.fermat import fermat_path_on_planar_mirrors
 
@@ -18,8 +19,12 @@ from .utils import PlanarMirrorsSetup
         ),
     ],
 )
-def test_image_method(batch: tuple[int, ...]) -> None:
-    setup = PlanarMirrorsSetup(*batch)
+def test_fermat_path_on_planar_mirrors(
+    batch: tuple[int, ...],
+    basic_planar_mirrors_setup: PlanarMirrorsSetup,
+    key: PRNGKeyArray,
+) -> None:
+    setup = basic_planar_mirrors_setup.broadcast_to(*batch).add_noeffect_noise(key=key)
     got = fermat_path_on_planar_mirrors(
         setup.from_vertices,
         setup.to_vertices,
@@ -27,4 +32,4 @@ def test_image_method(batch: tuple[int, ...]) -> None:
         setup.mirror_normals,
         steps=10000,
     )
-    chex.assert_trees_all_close(got, setup.paths, atol=1e-6)
+    chex.assert_trees_all_close(got, setup.paths, atol=1e-5)

@@ -81,6 +81,7 @@ Examples:
         ...     fig.update_layout(scene_aspectmode="data")
         >>> fig  # doctest: +SKIP
 """
+# ruff: noqa: ERA001
 
 import chex
 import jax
@@ -93,9 +94,9 @@ from jaxtyping import Array, Bool, Float, jaxtyped
 @jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "*batch 3"],
-    mirror_normals: Float[Array, "*batch 3"],
-) -> Float[Array, "*batch 3"]:
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
+) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the image of vertices with respect to mirrors.
 
@@ -125,18 +126,18 @@ def image_of_vertices_with_respect_to_mirrors(
         ...     key1,
         ...     key2,
         ... ) = jax.random.split(key, 3)
-        >>> batch = (10, 20, 30)
+        >>> *batch, num_mirrors = (10, 20, 30)
         >>> vertices = jax.random.uniform(
         ...     key0,
         ...     (*batch, 3),
         ... )
         >>> mirror_vertices = jax.random.uniform(
         ...     key1,
-        ...     (*batch, 3),
+        ...     (num_mirrors, 3),
         ... )
         >>> mirror_normals = jax.random.uniform(
         ...     key2,
-        ...     (*batch, 3),
+        ...     (num_mirrors, 3),
         ... )
         >>> images = image_of_vertices_with_respect_to_mirrors(
         ...     vertices,
@@ -147,9 +148,10 @@ def image_of_vertices_with_respect_to_mirrors(
         (10, 20, 30, 3)
 
     """
-    incident = vertices - mirror_vertices  # incident vectors
+    # [*batch num_mirrors ]
+    incident = vertices[..., None, :] - mirror_vertices  # incident vectors
     return (
-        vertices
+        vertices[..., None, :]
         - 2.0
         * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
         * mirror_normals
@@ -161,9 +163,9 @@ def image_of_vertices_with_respect_to_mirrors(
 def intersection_of_line_segments_with_planes(
     segment_starts: Float[Array, "*batch 3"],
     segment_ends: Float[Array, "*batch 3"],
-    plane_vertices: Float[Array, "*batch 3"],
-    plane_normals: Float[Array, "*batch 3"],
-) -> Float[Array, "*batch 3"]:
+    plane_vertices: Float[Array, "num_planes 3"],
+    plane_normals: Float[Array, "num_planes 3"],
+) -> Float[Array, "*batch num_planes 3"]:
     """
     Return the intersection points between line segments and (infinite) planes.
 
@@ -186,9 +188,16 @@ def intersection_of_line_segments_with_planes(
     Returns:
         An array of intersection vertices.
     """
+    # [*batch 1 3]
+    segment_starts = segment_starts[..., None, :]
+    segment_ends = segment_ends[..., None, :]
+    # [*batch 1 3]
     u = segment_ends - segment_starts
+    # [*batch num_planes 3]
     v = plane_vertices - segment_starts
+    # [*batch num_planes 1]
     un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
+    # [*batch num_planes 1]
     vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
     offset = jnp.where(un == 0.0, 0.0, vn * u / un)
     return segment_starts + offset
@@ -199,8 +208,8 @@ def intersection_of_line_segments_with_planes(
 def image_method(
     from_vertices: Float[Array, "*batch 3"],
     to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
@@ -238,49 +247,44 @@ def image_method(
             )
 
             full_paths = jnp.concatenate(
-                (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
+                (from_vertices[..., None, :], got, to_vertices[..., None, :]),
                 axis=-2,
             )
 
     """
-    # Put num_mirrors axis as leading axis
-    mirror_vertices = jnp.moveaxis(mirror_vertices, -2, 0)
-    mirror_normals = jnp.moveaxis(mirror_normals, -2, 0)
 
     @jaxtyped(typechecker=typechecker)
     def forward(
-        carry: Float[Array, "*batch 3"],
-        x: tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
+        previous_images: Float[Array, "*batch 3"],
+        mirror_vertex_and_normal: tuple[Float[Array, "3"], Float[Array, "3"]],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform forward pass on vertices by computing consecutive images."""
-        vertices = carry
-        mirror_vertices, mirror_normals = x
+        mirror_vertex, mirror_normal = mirror_vertex_and_normal
         images = image_of_vertices_with_respect_to_mirrors(
-            vertices,
-            mirror_vertices,
-            mirror_normals,
-        )
+            previous_images,
+            mirror_vertex.reshape(-1, 3),
+            mirror_normal.reshape(-1, 3),
+        )[..., 0, :]
         return images, images  # noqa: DOC201
 
     @jaxtyped(typechecker=typechecker)
     def backward(
-        carry: Float[Array, "*batch 3"],
-        x: tuple[
-            Float[Array, "*batch 3"],
-            Float[Array, "*batch 3"],
+        previous_intersections: Float[Array, "*batch 3"],
+        mirror_vertex_normal_and_images: tuple[
+            Float[Array, "3"],
+            Float[Array, "3"],
             Float[Array, "*batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         """Perform backward pass on images by computing the intersection with mirrors."""
-        vertices = carry
-        mirror_vertices, mirror_normals, images = x
+        mirror_vertex, mirror_normal, images = mirror_vertex_normal_and_images
 
         intersections = intersection_of_line_segments_with_planes(
-            vertices,
+            previous_intersections,
             images,
-            mirror_vertices,
-            mirror_normals,
-        )
+            mirror_vertex.reshape(-1, 3),
+            mirror_normal.reshape(-1, 3),
+        )[..., 0, :]
         return intersections, intersections  # noqa: DOC201
 
     _, images = jax.lax.scan(
@@ -295,15 +299,15 @@ def image_method(
         reverse=True,
     )
 
-    return jnp.moveaxis(paths, 0, -2)
+    return jnp.moveaxis(paths, 0, -2)  # Put 'num_mirrors' axis at the end
 
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "*batch num_vertices 3"],
-    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
 ) -> Bool[Array, "*batch num_mirrors"]:
     """
     Check if consecutive vertices, but skipping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
@@ -326,10 +330,21 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     """
     chex.assert_axis_dimension(vertices, -2, mirror_vertices.shape[-2] + 2)
 
-    v_prev = vertices[..., :-2, :] - mirror_vertices
-    v_next = vertices[..., +2:, :] - mirror_vertices
+    *batch, num_vertices, _ = vertices.shape
 
-    d_prev = jnp.sum(v_prev * mirror_normals, axis=-1)
-    d_next = jnp.sum(v_next * mirror_normals, axis=-1)
+    # [batch_flattened num_vertices 3]
+    vertices = vertices.reshape(-1, num_vertices, 3)
 
-    return (d_prev * d_next) >= 0.0
+    # d_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
+    #               = <v_{prev,next}, mirror_n> - <mirror_v, mirror_n>
+
+    # [num_mirrors]
+    dot_mirror = jnp.einsum("ij,ij->i", mirror_vertices, mirror_normals)
+
+    # [batch_flattened num_mirrors]
+    dot_prev = jnp.einsum("ijk,jk->ij", vertices[:, :-2, :], mirror_normals)
+    dot_next = jnp.einsum("ijk,jk->ij", vertices[:, +2:, :], mirror_normals)
+
+    return ((dot_prev >= dot_mirror) == (dot_next >= dot_mirror)).reshape(
+        *batch, num_vertices - 2
+    )
