@@ -30,7 +30,11 @@ class PlanarMirrorsSetup(eqx.Module):
 
         # Randomly shifting mirror origins has no effect as long as it is perpendicular to their normal direction
         shift = jax.random.normal(key_shift, shape=(num_mirrors, 3)) * scale
-        shift = shift - jnp.sum(shift * self.mirror_normals, axis=-1, keepdims=True) * self.mirror_normals
+        shift = (
+            shift
+            - jnp.sum(shift * self.mirror_normals, axis=-1, keepdims=True)
+            * self.mirror_normals
+        )
         setup = eqx.tree_at(
             lambda setup: setup.mirror_vertices,
             self,

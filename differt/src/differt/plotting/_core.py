@@ -249,6 +249,88 @@ def _(
 
 
 @dispatch
+def draw_rays(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a batch of rays.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray directions. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        kwargs: Keyword arguments passed to
+            :class:`LinePlot<vispy.scene.visuals.Arrow>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
+            or :func:`draw_paths` (because VisPy and Plotly don't have a nice quiver plot),
+            depending on the backend.
+
+    Returns:
+        The resulting plot output.
+
+    Examples:
+        The following example shows how to plot rays.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.plotting import draw_rays
+            >>>
+            >>> ray_origins = np.zeros(3)
+            >>> ray_directions = np.asarray(fibonacci_lattice(50))  # From JAX to NumPy array
+            >>> ray_origins, ray_directions = np.broadcast_arrays(ray_origins, ray_directions)
+            >>> fig = draw_rays(
+            ...     ray_origins,
+            ...     ray_directions,
+            ...     backend="plotly",
+            ... )
+            >>> fig  # doctest: +SKIP
+    """
+
+
+@draw_rays.register("vispy")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="vispy", **kwargs)
+
+
+@draw_rays.register("matplotlib")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    ray_origins = ray_origins.reshape(-1, 3)
+    ray_directions = ray_directions.reshape(-1, 3)
+
+    ax.quiver(*ray_origins.T, *ray_directions.T, **kwargs)
+
+    return fig
+
+
+@draw_rays.register("plotly")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="plotly", **kwargs)
+
+
+@dispatch
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
     labels: Sequence[str] | None = None,

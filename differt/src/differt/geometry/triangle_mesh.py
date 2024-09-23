@@ -85,7 +85,7 @@ def paths_intersect_triangles(
     epsilon: Float[ArrayLike, " "] = 1e-6,
 ) -> Bool[Array, " *#batch"]:
     """
-    Return whether each path intersect with any of the triangles.
+    Return whether each path intersects with any of the triangles.
 
     Args:
         paths: An array of ray paths of the same length.

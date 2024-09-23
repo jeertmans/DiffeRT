@@ -185,7 +185,7 @@ def rays_intersect_triangles(
 
     Args:
         ray_origins: An array of origin vertices.
-        ray_directions: An array of ray direction. The ray ends
+        ray_directions: An array of ray directions. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
         epsilon: A small tolerance threshold that allows rays
@@ -201,6 +201,53 @@ def rays_intersect_triangles(
         For each ray, return the scale factor of ``ray_directions`` for the
         vector to reach the corresponding triangle, and whether the intersection
         actually lies inside the triangle.
+
+    Examples:
+        The following example shows how to identify triangles that are
+        intersected by rays.
+
+        .. plotly::
+
+            >>> import equinox as eqx
+            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.plotting import draw_rays
+            >>> from differt.rt.utils import (
+            ...     rays_intersect_triangles,
+            ... )
+            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.triangle_scene import TriangleScene
+            >>>
+            >>> download_sionna_scenes()
+            >>> file = get_sionna_scene("simple_street_canyon")
+            >>> scene = TriangleScene.load_xml(file)
+            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...     scene.transmitters, fibonacci_lattice(25)
+            ... )
+            >>> # [num_rays=25 num_triangles]
+            >>> t, hit = rays_intersect_triangles(
+            ...     ray_origins, ray_directions, scene.mesh.triangle_vertices
+            ... )
+            >>> rays_hit = hit.any(axis=1)  # True if rays hit any triangle
+            >>> triangles_hit = hit.any(axis=0)  # True if triangles hit by any ray
+            >>> ray_directions *= np.max(
+            ...     t, axis=1, keepdims=True, initial=1.0, where=hit
+            ... )  # Scale rays length before plotting
+            >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
+            ...     np.asarray(ray_origins[rays_hit, :]),
+            ...     np.asarray(ray_directions[rays_hit, :]),
+            ...     backend="plotly",
+            ...     line={"color": "red"},
+            ...     showlegend=False,
+            ... )
+            >>> visible_color = jnp.array([0.2, 0.2, 0.2])
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.mesh.face_colors,
+            ...     scene,
+            ...     scene.mesh.face_colors.at[triangles_hit, :].set(visible_color),
+            ... )
+            >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
+            >>> fig  # doctest: +SKIP
     """
     *batch, _ = ray_origins.shape
 
@@ -225,7 +272,7 @@ def rays_intersect_triangles(
 
     cond_a = jnp.abs(a) < epsilon
 
-    f = 1.0 / a
+    f = jnp.where(a == 0, 0, 1.0 / a)
     s = ray_origins[:, None, :] - vertex_0[None, ...]
     u = f * jnp.einsum("ijk,ijk->ij", s, h)
 
@@ -367,6 +414,9 @@ def triangles_visible_from_vertices(
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
     """
+    batch = vertices.shape[:-1]
+    num_triangles = triangle_vertices.shape[0]
+
     # [*batch 3]
     ray_origins = vertices
 
@@ -374,9 +424,10 @@ def triangles_visible_from_vertices(
     ray_directions = fibonacci_lattice(num_rays)
 
     @jaxtyped(typechecker=typechecker)
-    def ray_direction_to_visiblity(
+    def scan_fun(
+        visible: Bool[Array, "*batch num_triangles"],
         ray_direction: Float[Array, "3"],
-    ) -> Bool[Array, "*batch num_triangles"]:
+    ) -> tuple[Bool[Array, "*batch num_triangles"], None]:
         ray_directions = jnp.broadcast_to(ray_direction, ray_origins.shape)
         t, hit = rays_intersect_triangles(
             ray_origins,
@@ -384,8 +435,13 @@ def triangles_visible_from_vertices(
             triangle_vertices,
             **kwargs,
         )
-        return t == jnp.min(
-            t, axis=-1, keepdims=True, initial=jnp.inf, where=(hit & (t > 0.0))
+        # A triangle is visible if it is the first triangle to be intersected by a ray.
+        visible = visible | (
+            t == jnp.min(t, axis=-1, keepdims=True, initial=jnp.inf, where=hit)
         )
 
-    return jax.vmap(ray_direction_to_visiblity)(ray_directions).any(axis=0)
+        return visible, None
+
+    return jax.lax.scan(
+        scan_fun, init=jnp.zeros((*batch, num_triangles), dtype=bool), xs=ray_directions
+    )[0]

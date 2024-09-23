@@ -9,7 +9,6 @@ this means that the path of least time is also the path of last distance.
 As a result, this module offers minimization methods for finding ray paths.
 """
 
-from functools import partial
 from typing import Any
 
 import equinox as eqx
@@ -93,7 +92,7 @@ def fermat_path_on_planar_mirrors(
         return mirror_vertices + mirror_directions_1 * s + mirror_directions_2 * t
 
     @jaxtyped(typechecker=typechecker)
-    def loss(  # noqa: PLR0917
+    def loss(
         st: Float[Array, "*batch num_unknowns"],
         from_: Float[Array, "*batch 3"],
         to: Float[Array, "*batch 3"],

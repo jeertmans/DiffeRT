@@ -3,7 +3,6 @@ from contextlib import nullcontext as does_not_raise
 
 import chex
 import jax.numpy as jnp
-import numpy as np
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
@@ -68,7 +67,9 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             incident = vertex[None, ...] - mirror_vertices
             expected = (
                 vertex[None, ...]
-                - 2.0 * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True) * mirror_normals
+                - 2.0
+                * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
+                * mirror_normals
             )
             chex.assert_trees_all_close(got[i, :, :], expected, rtol=1e-5)
 
@@ -77,7 +78,11 @@ def test_intersection_of_line_segments_with_planes() -> None:
     segment_starts = jnp.array(
         [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
     )
-    expected = jnp.array([[+0.5, +0.0, +0.0], [+0.0, +0.0, +0.0], [-0.5, +0.0, +0.0]]).reshape(3, 1, 3)
+    expected = jnp.array([
+        [+0.5, +0.0, +0.0],
+        [+0.0, +0.0, +0.0],
+        [-0.5, +0.0, +0.0],
+    ]).reshape(3, 1, 3)
     segment_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), segment_starts.shape)
     plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
     plane_normals = jnp.array([[0.0, 1.0, 0.0]])

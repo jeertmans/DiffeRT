@@ -153,6 +153,68 @@ def test_rays_intersect_triangles(
     chex.assert_trees_all_equal(got, expected)
 
 
+def test_rays_intersect_triangles_t_and_hit() -> None:
+    ray_origin = jnp.array([0.5, 0.5, -1.0])
+    ray_directions = jnp.array([
+        [0.0, 0.0, +1.0],
+        [0.0, 0.0, +0.5],
+        [0.0, 0.0, -1.0],
+        [1.0, 0.0, 0.0],
+    ])
+    ray_origins, ray_directions = jnp.broadcast_arrays(ray_origin, ray_directions)
+    triangle_vertices = jnp.array([
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        [[0.0, 0.0, 1.0], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0]],
+    ])
+    expected_t = jnp.array([[1.0, 2.0], [2.0, 4.0], [-1.0, -2.0], [0.0, 0.0]])
+    expected_hit = jnp.array([
+        [True, True],
+        [True, True],
+        [False, False],
+        [False, False],
+    ])
+
+    got_t, got_hit = rays_intersect_triangles(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+    )
+    chex.assert_trees_all_equal(got_t, expected_t)
+    chex.assert_trees_all_equal(got_hit, expected_hit)
+
+
+@pytest.mark.parametrize(
+    ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
+    [
+        ((3,), (3,), (1, 3, 3), does_not_raise()),
+        ((15, 5, 3), (15, 5, 3), (20, 3, 3), does_not_raise()),
+        (
+            (10, 5, 3),
+            (10, 2, 3),
+            (15, 3, 3),
+            pytest.raises(TypeError),
+        ),
+    ],
+)
+@random_inputs("ray_origins", "ray_directions", "triangle_vertices")
+def test_rays_intersect_triangles_random_inputs(
+    ray_origins: Array,
+    ray_directions: Array,
+    triangle_vertices: Array,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with expectation:
+        got_t, got_hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+        )
+
+        assert jnp.where(
+            got_hit, got_t > 0.0, True
+        ).all(), "t > 0 must be true everywhere hit is true"
+
+
 @pytest.mark.parametrize(
     ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
     [
