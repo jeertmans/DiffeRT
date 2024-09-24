@@ -66,17 +66,17 @@ from the corresponding entries in `x` and `y` input arguments.
 
 ## Convenient arrays broadcasting with `*#batch`
 
-Very frequently, input arguments will actually be annoted with `*#batch`
+Very frequently, input arguments will actually be annotated with `*#batch`
 instead of `*batch`. The important difference is that the former allows
 any input shapes, as long as they can be broadcasted together, i.e.,
 with {func}`jax.numpy.broadcast_arrays` or similar.
 
 This serves two principal objectives:
 
-1. avoid, when possibly, unecessary memory allocations, by not broacasting
+1. avoid, when possibly, unnecessary memory allocations, by not broadcasting
    arrays and directly using reduced results, like for the dot product.
    This, however, often depends on the ability of {func}`jax.jit` to
-   optimize some unecessary computations away.
+   optimize some unnecessary computations away.
 2. and make the function easier to use, without reducing their functionality.
 
 ## When batch axes are not available

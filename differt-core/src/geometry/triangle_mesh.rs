@@ -59,10 +59,10 @@ impl ply::PropertyAccess for PlyFace {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("vertex_indices", ply::Property::ListUInt(vec)) => {
+            ("vertex_indices" | "vertex_index", ply::Property::ListUInt(vec)) => {
                 self.vertex_indices = vec.iter().map(|&x| x as _).collect()
             },
-            ("vertex_indices", ply::Property::ListInt(vec)) => {
+            ("vertex_indices" | "vertex_index", ply::Property::ListInt(vec)) => {
                 self.vertex_indices = vec.iter().map(|&x| x as _).collect()
             },
             (k, property) => {

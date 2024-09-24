@@ -1,3 +1,4 @@
+import logging
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
@@ -35,6 +36,11 @@ def two_buildings_ply_file() -> str:
         .resolve(strict=True)
         .as_posix()
     )
+
+
+@pytest.fixture(scope="module")
+def cube_ply_file() -> str:
+    return Path(__file__).parent.joinpath("cube.ply").resolve(strict=True).as_posix()
 
 
 @pytest.fixture(scope="module")
@@ -219,6 +225,22 @@ class TestTriangleMesh:
     def test_load_ply(self, two_buildings_ply_file: str) -> None:
         mesh = TriangleMesh.load_ply(two_buildings_ply_file)
         assert mesh.triangles.shape == (24, 3)
+
+    def test_load_ply_with_colors(
+        self, cube_ply_file: str, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.INFO):
+            mesh = TriangleMesh.load_ply(cube_ply_file)
+
+            assert mesh.triangles.shape == (2, 3)
+            assert (
+                len([
+                    record
+                    for record in caplog.records
+                    if "because it is not a triangle" in record.msg
+                ])
+                == 5
+            )
 
     def test_compare_with_open3d(
         self,
