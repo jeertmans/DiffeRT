@@ -5,7 +5,6 @@ from collections.abc import Mapping
 from typing import Any
 
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
@@ -17,12 +16,13 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
+from differt.geometry.utils import assemble_paths
 from differt.plotting import draw_markers, reuse
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
 )
-from differt.rt.utils import generate_all_path_candidates, rays_intersect_triangles
+from differt.rt.utils import generate_all_path_candidates, rays_intersect_any_triangle
 
 
 @jaxtyped(typechecker=typechecker)
@@ -49,6 +49,20 @@ class TriangleScene(eqx.Module):
     """The array of receiver vertices."""
     mesh: TriangleMesh = eqx.field(default_factory=TriangleMesh.empty)
     """The triangle mesh."""
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def num_transmitters(self) -> int:
+        """The number of transmitters."""
+        return self.transmitters[..., 0].size
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def num_receivers(self) -> int:
+        """The number of receivers."""
+        return self.receivers[..., 0].size
 
     @classmethod
     def from_core(
@@ -85,7 +99,7 @@ class TriangleScene(eqx.Module):
         core_scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
 
-    @eqx.filter_jit
+    # @eqx.filter_jit
     def compute_paths(self, order: int, hit_tol: Float[ArrayLike, ""] = 1e-3) -> Paths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -111,20 +125,9 @@ class TriangleScene(eqx.Module):
         rx_batch = self.receivers.shape[:-1]
 
         # [tx_batch_flattened 3]
-        tx = self.transmitters.reshape(-1, 3)
-        tx_batch_flattened = tx.shape[0]
+        from_vertices = self.transmitters.reshape(-1, 3)
         # [rx_batch_flattened 3]
-        rx = self.receivers.reshape(-1, 3)
-        rx_batch_flattened = rx.shape[0]
-
-        # [tx_batch_flattened rx_batch_flattened 3]
-        from_vertices, to_vertices = jnp.broadcast_arrays(tx[:, None, :], rx[None, :, :])
-
-        # [batches_flattened 3]
-        from_vertices = from_vertices.reshape(-1, 3)
-        to_vertices = to_vertices.reshape(-1, 3)
-
-        print(f"{from_vertices.shape = }")
+        to_vertices = self.receivers.reshape(-1, 3)
 
         # [num_path_candidates order 3]
         triangles = jnp.take(self.mesh.triangles, path_candidates, axis=0)
@@ -144,65 +147,52 @@ class TriangleScene(eqx.Module):
 
         # 2 - Trace paths
 
-        # [num_path_candidates batches_flattened order 3]
-        paths = jax.vmap(image_method, in_axes=(None, None, 0, 0))(
-            from_vertices, to_vertices, mirror_vertices, mirror_normals
-        )
-
-        print(f"{paths.shape = }")
-
-        # 3 - Identify invalid paths
-
-        # 3.1 - Identify paths with vertices outside triangles
-        # [num_path_candidates batches_flattened order]
-        mask_1 = jax.vmap(triangles_contain_vertices_assuming_inside_same_plane, in_axes=(None, 0))(
-            triangle_vertices,
-            paths,
-        )
-        # [num_path_candidates batches_flattened]
-        mask_1 = jnp.all(mask_1, axis=-1)
-
-        # [num_path_candidates batches_flattened order+2 3]
-        full_paths = jnp.concatenate(
-            (
-                jnp.repeat(from_vertices[None, :, None, :], num_path_candidates, axis=0),
-                paths,
-                jnp.repeat(to_vertices[None, :, None, :], num_path_candidates, axis=0),
-            ),
-            axis=-2,
-        )
-
-        # 3.2 - Identify paths with vertices not on the same side of mirrors
-        # [num_path_candidates batches_flattened order]
-        mask_2 = jax.vmap(consecutive_vertices_are_on_same_side_of_mirrors)(
-            full_paths,
+        # [tx_batch_flat rx_batch_flat num_path_candidates order 3]
+        paths = image_method(
+            from_vertices[:, None, None, :],
+            to_vertices[None, :, None, :],
             mirror_vertices,
             mirror_normals,
         )
 
-        # [num_path_candidates batches_flattened]
-        mask_2 = jnp.all(mask_2, axis=-1)  # We will actually remove them later
+        # 3 - Identify invalid paths
+
+        # 3.1 - Identify paths with vertices outside triangles
+        # [tx_batch_flat rx_batch_flat num_path_candidates]
+        mask_1 = triangles_contain_vertices_assuming_inside_same_plane(
+            triangle_vertices,
+            paths,
+        ).all(axis=-1)  # Reduce on 'order'
+
+        # [tx_batch_flat rx_batch_flat num_path_candidates order+2 3]
+        full_paths = assemble_paths(
+            from_vertices[:, None, None, None, :],
+            paths,
+            to_vertices[None, :, None, None, :],
+        )
+
+        # 3.2 - Identify paths with vertices not on the same side of mirrors
+        # [tx_batch_flat rx_batch_flat num_path_candidates]
+        mask_2 = consecutive_vertices_are_on_same_side_of_mirrors(
+            full_paths,
+            mirror_vertices,
+            mirror_normals,
+        ).all(axis=-1)  # Reduce on 'order'
 
         # 3.3 - Identify paths that are obstructed by other objects
-        # [num_path_candidates batches_flattened order+1 3]
+        # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
         ray_origins = full_paths[..., :-1, :]
-        # [num_path_candidates batches_flattened order+1 3]
+        # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
         ray_directions = jnp.diff(full_paths, axis=-2)
 
-        # [num_path_candidates batches_flattened order+1 num_triangles]
-        t, hit = jax.vmap(rays_intersect_triangles, in_axes=(0, 0, None))(
+        # [tx_batch_flat rx_batch_flat num_path_candidates]
+        intersect = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
             self.mesh.triangle_vertices,
-        )
-        # In theory, we could do t < 1.0 (because t == 1.0 means we are perfectly on a surface,
-        # which is probably desirable, e.g., from a reflection) but in practice numerical
-        # errors accumulate and will make this check impossible.
-        # [num_path_candidates batches_flattened order+1 num_triangles]
-        intersect = (t < (1.0 - hit_tol)) & hit
-        #  [num_path_candidates batches_flattened]
-        intersect = jnp.any(intersect, axis=(-1, -2))
-        #  [num_path_candidates batches_flattened]
+            hit_threshold=(1.0 - hit_tol),
+        ).any(axis=-1)  # Reduce on 'order'
+
         mask_3 = ~intersect
 
         # 4 - Generate output paths and reshape
@@ -210,30 +200,33 @@ class TriangleScene(eqx.Module):
         vertices = full_paths
         mask = mask_1 & mask_2 & mask_3
 
-        # [num_paths_candidates 1 1 order].
-        path_candidates = path_candidates[:, None, None,:]
-
         object_dtype = path_candidates.dtype
 
-        if tx_batch:
-            tx_objects = jnp.arange(tx_batch_flattened, dtype=object_dtype)[None, :, None, None]
-        else:
-            tx_objects = jnp.array(-1, dtype=object_dtype)[None, None, None, None]
+        tx_objects = jnp.arange(self.num_transmitters, dtype=object_dtype)
+        rx_objects = jnp.arange(self.num_receivers, dtype=object_dtype)
 
-        if rx_batch:
-            rx_objects = jnp.arange(rx_batch_flattened, dtype=object_dtype)[None, None, :, None]
-        else:
-            rx_objects = jnp.array(-1, dtype=object_dtype)[None, None, None, None]
-
-        tx_objects, path_candidates, rx_objects = jnp.broadcast_arrays(tx_objects, path_candidates, rx_objects)
-
-        objects = jnp.concatenate(
-            (tx_objects, path_candidates, rx_objects), axis=-1
+        tx_objects = jnp.broadcast_to(
+            tx_objects,
+            (self.num_transmitters, self.num_receivers, num_path_candidates, 1),
+        )
+        rx_objects = jnp.broadcast_to(
+            tx_objects,
+            (self.num_transmitters, self.num_receivers, num_path_candidates, 1),
+        )
+        path_candidates = jnp.broadcast_to(
+            tx_objects,
+            (self.num_transmitters, self.num_receivers, num_path_candidates, order),
         )
 
-        batch = (num_path_candidates, *tx_batch, *rx_batch)
+        objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
 
-        return Paths(vertices.reshape(*batch, order+2, 3), objects.reshape(*batch, order+2), mask.reshape(*batch))
+        batch = (*tx_batch, *rx_batch, num_path_candidates)
+
+        return Paths(
+            vertices.reshape(*batch, order + 2, 3),
+            objects.reshape(*batch, order + 2),
+            mask.reshape(*batch),
+        )
 
     def plot(
         self,

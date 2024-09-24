@@ -12,7 +12,6 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 from differt.plotting import draw_mesh
-from differt.rt.utils import rays_intersect_triangles
 
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
@@ -65,48 +64,17 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
     # Dot product between all pairs of 'normal' vectors
     # [*batch]
-    d01 = jnp.sum(n0 * n1, axis=-1)
-    d12 = jnp.sum(n1 * n2, axis=-1)
-    d20 = jnp.sum(n2 * n0, axis=-1)
+    d01 = jnp.einsum("...i,...i->...", n0, n1)
+    d12 = jnp.einsum("...i,...i->...", n1, n2)
+    d20 = jnp.einsum("...i,...i->...", n2, n0)
 
     # [*batch]
     all_pos = (d01 >= 0.0) & (d12 >= 0.0) & (d20 >= 0.0)
     all_neg = (d01 <= 0.0) & (d12 <= 0.0) & (d20 <= 0.0)
+    # TODO: see if we can reduce the number of operations
 
     # The vertices are contained if all signs are the same
     return all_pos | all_neg
-
-
-@eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
-def paths_intersect_triangles(
-    paths: Float[Array, "*#batch path_length 3"],
-    triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: Float[ArrayLike, " "] = 1e-6,
-) -> Bool[Array, " *#batch"]:
-    """
-    Return whether each path intersects with any of the triangles.
-
-    Args:
-        paths: An array of ray paths of the same length.
-        triangle_vertices: An array of triangle vertices.
-        epsilon: A small tolerance threshold that excludes
-            a small portion of the path, to avoid indicating intersection
-            when a path *bounces off* a triangle.
-
-    Returns:
-        A boolean array indicating whether vertices are in the corresponding triangles or not.
-    """
-    ray_origins = paths[..., :-1, :]
-    ray_directions = jnp.diff(paths, axis=-2)
-
-    t, hit = rays_intersect_triangles(
-        ray_origins,
-        ray_directions,
-        jnp.broadcast_to(triangle_vertices, (*ray_origins.shape, 3)),
-    )
-    intersect = (t < (1 - epsilon)) & hit
-    return jnp.any(intersect, axis=(0, 2))
 
 
 @jaxtyped(typechecker=typechecker)

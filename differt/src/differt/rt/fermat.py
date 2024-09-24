@@ -23,10 +23,10 @@ from differt.utils import minimize
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def fermat_path_on_planar_mirrors(
-    from_vertices: Float[Array, "*batch 3"],
-    to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "num_mirrors 3"],
-    mirror_normals: Float[Array, "num_mirrors 3"],
+    from_vertices: Float[Array, "*#batch 3"],
+    to_vertices: Float[Array, "*#batch 3"],
+    mirror_vertices: Float[Array, "*#batch num_mirrors 3"],
+    mirror_normals: Float[Array, "*#batch num_mirrors 3"],
     **kwargs: Any,
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
@@ -77,27 +77,44 @@ def fermat_path_on_planar_mirrors(
                 axis=-2,
             )
     """
-    batch = from_vertices.shape[:-1]
-    num_mirrors = mirror_vertices.shape[0]
+    num_mirrors = mirror_vertices.shape[-2]
     num_unknowns = 2 * num_mirrors
+
+    batch = jnp.broadcast_shapes(
+        from_vertices.shape[:-1],
+        to_vertices.shape[:-1],
+        mirror_vertices.shape[:-2],
+        mirror_normals.shape[:-2],
+    )
+
+    from_vertices = jnp.broadcast_to(from_vertices, (*batch, 3))
+    to_vertices = jnp.broadcast_to(to_vertices, (*batch, 3))
+    mirror_vertices = jnp.broadcast_to(mirror_vertices, (*batch, num_mirrors, 3))
+    mirror_normals = jnp.broadcast_to(mirror_normals, (*batch, num_mirrors, 3))
 
     mirror_directions_1, mirror_directions_2 = orthogonal_basis(mirror_normals)
 
     @jaxtyped(typechecker=typechecker)
     def st_to_xyz(
         st: Float[Array, "*batch num_unknowns"],
+        o: Float[Array, "*batch num_mirrors 3"],
+        d1: Float[Array, "*batch num_mirrors 3"],
+        d2: Float[Array, "*batch num_mirrors 3"],
     ) -> Float[Array, "*batch num_mirrors 3"]:
         s = st[..., 0::2, None]
         t = st[..., 1::2, None]
-        return mirror_vertices + mirror_directions_1 * s + mirror_directions_2 * t
+        return o + d1 * s + d2 * t
 
     @jaxtyped(typechecker=typechecker)
-    def loss(
+    def loss(  # noqa: PLR0917
         st: Float[Array, "*batch num_unknowns"],
         from_: Float[Array, "*batch 3"],
         to: Float[Array, "*batch 3"],
+        o: Float[Array, "*batch num_mirrors 3"],
+        d1: Float[Array, "*batch num_mirrors 3"],
+        d2: Float[Array, "*batch num_mirrors 3"],
     ) -> Float[Array, " *batch"]:
-        xyz = st_to_xyz(st)
+        xyz = st_to_xyz(st, o, d1, d2)
         paths = jnp.concatenate(
             (from_[..., None, :], xyz, to[..., None, :]),
             axis=-2,
@@ -110,8 +127,14 @@ def fermat_path_on_planar_mirrors(
     st, _ = minimize(
         loss,
         st0,
-        args=(from_vertices, to_vertices),
+        args=(
+            from_vertices,
+            to_vertices,
+            mirror_vertices,
+            mirror_directions_1,
+            mirror_directions_2,
+        ),
         **kwargs,
     )
 
-    return st_to_xyz(st)
+    return st_to_xyz(st, mirror_vertices, mirror_directions_1, mirror_directions_2)

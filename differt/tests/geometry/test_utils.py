@@ -9,6 +9,7 @@ import pytest
 from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry.utils import (
+    assemble_paths,
     fibonacci_lattice,
     normalize,
     orthogonal_basis,
@@ -196,3 +197,33 @@ def test_fibonacci_lattice(
         chex.assert_type(got, expected_dtype)
         chex.assert_trees_all_close(got, normalized, atol=atol)
         chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)
+
+
+@pytest.mark.parametrize(
+    ("shapes", "expectation"),
+    [
+        (((2, 3),), does_not_raise()),
+        (((1, 3), (2, 3), (1, 3)), does_not_raise()),
+        (((1, 3), (10, 5, 2, 3), (1, 3)), does_not_raise()),
+        (((1, 3), (2, 4), (1, 3)), pytest.raises(TypeError)),
+        (((1, 3), (3,), (1, 3)), pytest.raises(TypeError)),
+        (((10, 1, 3), (10, 2, 3), (5, 1, 3)), pytest.raises(TypeError)),
+    ],
+)
+def test_assemble_paths(
+    shapes: tuple[tuple[int, ...], ...],
+    expectation: AbstractContextManager[Exception],
+    key: PRNGKeyArray,
+) -> None:
+    keys = jax.random.split(key, len(shapes))
+
+    path_segments = [
+        jax.random.uniform(key, shape=shape)
+        for key, shape in zip(keys, shapes, strict=False)
+    ]
+
+    with expectation:
+        got = assemble_paths(*path_segments)
+        expected_path_length = sum(shape[-2] for shape in shapes)
+
+        assert got.shape[-2] == expected_path_length

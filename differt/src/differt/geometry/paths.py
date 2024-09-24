@@ -1,4 +1,4 @@
-"""TODO: write this."""
+"""Ray paths utilities."""
 
 from typing import Any
 
@@ -6,7 +6,7 @@ import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 from differt.plotting import draw_paths
 
@@ -18,8 +18,6 @@ class Paths(eqx.Module):
 
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
-
-    TODO: document args.
     """
 
     vertices: Float[Array, "*batch path_length 3"] = eqx.field(converter=jnp.asarray)
@@ -36,22 +34,44 @@ class Paths(eqx.Module):
     )
     """An optional mask to indicate which paths are valid and should be used.
 
-    TODO: motivate.
+    The mask is kept separately to :attr:`vertices` so that we can keep information
+    batch ``*batch`` dimensions, which would not be possible if we were to directly
+    store valid paths.
     """
 
     @property
+    @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def masked_vertices(self) -> Float[Array, "num_valid_path path_length 3"]:
+    def path_length(self) -> int:
+        """The length (i.e., number of vertices) of each individual path."""
+        return self.objects.shape[-1]
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def num_valid_paths(self) -> Int[ArrayLike, ""]:
+        """The number of paths kept by :attr:`mask`.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        """
+        if self.mask is not None:
+            return self.mask.sum()
+        return self.objects[..., 0].size
+
+    @property
+    @jaxtyped(typechecker=typechecker)
+    def masked_vertices(
+        self,
+    ) -> Float[Array, "{self.num_valid_paths} {self.path_length} 3"]:
         """The array of masked vertices, with batched dimensions flattened into one.
 
         If :attr:`mask` is :data:`None`, then the returned array is simply
-        :data:`vertices` with the batch dimensions flattened.
+        :attr:`vertices` with the batch dimensions flattened.
         """
-        path_length = self.vertices.shape[-2]
-        vertices = self.vertices.reshape((-1, path_length, 3))
+        vertices = self.vertices.reshape((-1, self.path_length, 3))
         if self.mask is not None:
             mask = self.mask.reshape(-1)
-            return vertices[mask, :]
+            return vertices[mask, ...]
         return vertices
 
     @eqx.filter_jit
@@ -109,7 +129,7 @@ class Paths(eqx.Module):
 
     def plot(self, **kwargs: Any) -> Any:
         """
-        Plot the paths on a 3D scene.
+        Plot the (masked) paths on a 3D scene.
 
         Args:
             kwargs: Keyword arguments passed to

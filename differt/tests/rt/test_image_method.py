@@ -19,7 +19,7 @@ from .utils import PlanarMirrorsSetup
 
 def test_image_of_vertices_with_respect_to_mirrors() -> None:
     vertices = jnp.array([[+0.0, +0.0, +1.0], [+1.0, +2.0, +3.0]])
-    expected = jnp.array([[+0.0, +0.0, -1.0], [+1.0, +2.0, -3.0]]).reshape(2, 1, 3)
+    expected = jnp.array([[+0.0, +0.0, -1.0], [+1.0, +2.0, -3.0]])
     mirror_vertices = jnp.array([[0.0, 0.0, 0.0]])
     mirror_normals = jnp.array([[0.0, 0.0, 1.0]])
     got = image_of_vertices_with_respect_to_mirrors(
@@ -33,9 +33,12 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
 @pytest.mark.parametrize(
     ("vertices", "mirror_vertices", "mirror_normals", "expectation"),
     [
-        ((20, 3), (10, 3), (10, 3), does_not_raise()),
         ((10, 3), (1, 3), (1, 3), does_not_raise()),
+        ((10, 3), (10, 1, 3), (10, 1, 3), does_not_raise()),
+        ((10, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
+        ((1, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
         ((3,), (1, 3), (1, 3), does_not_raise()),
+        ((20, 3), (10, 3), (10, 3), pytest.raises(TypeError)),
         (
             (10, 3),
             (20, 3),
@@ -62,16 +65,21 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             vertices,
             mirror_vertices,
             mirror_normals,
-        ).reshape(-1, *mirror_vertices.shape)
-        for i, vertex in enumerate(vertices.reshape(-1, 3)):
-            incident = vertex[None, ...] - mirror_vertices
-            expected = (
-                vertex[None, ...]
-                - 2.0
-                * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
-                * mirror_normals
+        ).reshape(-1, 3)
+        vertices, mirror_vertices, mirror_normals = jnp.broadcast_arrays(
+            vertices, mirror_vertices, mirror_normals
+        )
+        for i, (vertex, mirror_vertex, mirror_normal) in enumerate(
+            zip(
+                vertices.reshape(-1, 3),
+                mirror_vertices.reshape(-1, 3),
+                mirror_normals.reshape(-1, 3),
+                strict=False,
             )
-            chex.assert_trees_all_close(got[i, :, :], expected, rtol=1e-5)
+        ):
+            incident = vertex - mirror_vertex
+            expected = vertex - 2.0 * jnp.sum(incident * mirror_normal) * mirror_normal
+            chex.assert_trees_all_close(got[i, :], expected, rtol=1e-5)
 
 
 def test_intersection_of_line_segments_with_planes() -> None:
@@ -82,7 +90,7 @@ def test_intersection_of_line_segments_with_planes() -> None:
         [+0.5, +0.0, +0.0],
         [+0.0, +0.0, +0.0],
         [-0.5, +0.0, +0.0],
-    ]).reshape(3, 1, 3)
+    ])
     segment_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), segment_starts.shape)
     plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
     plane_normals = jnp.array([[0.0, 1.0, 0.0]])
@@ -93,6 +101,39 @@ def test_intersection_of_line_segments_with_planes() -> None:
         plane_normals,
     )
     chex.assert_trees_all_close(got, expected)
+
+
+@pytest.mark.parametrize(
+    (
+        "segment_starts",
+        "segment_ends",
+        "plane_vertices",
+        "plane_normals",
+        "expectation",
+    ),
+    [
+        ((10, 3), (10, 3), (1, 3), (1, 3), does_not_raise()),
+        ((3,), (3,), (3,), (3,), does_not_raise()),
+        ((10, 3), (1, 10, 3), (1, 1, 3), (10, 1, 3), does_not_raise()),
+        ((10, 3), (1, 10, 3), (1, 1, 3), (10, 2, 3), pytest.raises(TypeError)),
+        ((20, 3), (10, 3), (10, 3), (10, 3), pytest.raises(TypeError)),
+    ],
+)
+@random_inputs("segment_starts", "segment_ends", "plane_vertices", "plane_normals")
+def test_intersection_of_line_segments_with_planes_random_inputs(
+    segment_starts: Array,
+    segment_ends: Array,
+    plane_vertices: Array,
+    plane_normals: Array,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with expectation:
+        _ = intersection_of_line_segments_with_planes(
+            segment_starts,
+            segment_ends,
+            plane_vertices,
+            plane_normals,
+        )
 
 
 @pytest.mark.parametrize(

@@ -57,6 +57,7 @@ def sphere() -> TriangleMesh:
     ("triangle_vertices", "vertices", "expectation"),
     [
         ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
+        ((1, 10, 3, 3), (20, 1, 3), does_not_raise()),
         ((10, 3, 3), (10, 3), does_not_raise()),
         ((3, 3), (3,), does_not_raise()),
         (

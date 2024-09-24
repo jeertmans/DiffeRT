@@ -172,12 +172,12 @@ def generate_all_path_candidates_chunks_iter(
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
-    ray_origins: Float[Array, "*batch 3"],
-    ray_directions: Float[Array, "*batch 3"],
-    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    ray_origins: Float[Array, "*#batch 3"],
+    ray_directions: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[Array, "*#batch 3 3"],
     *,
     epsilon: Float[ArrayLike, " "] = 1e-6,
-) -> tuple[Float[Array, "*batch num_triangles"], Bool[Array, "*batch num_triangles"]]:
+) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
 
@@ -226,7 +226,9 @@ def rays_intersect_triangles(
             ... )
             >>> # [num_rays=25 num_triangles]
             >>> t, hit = rays_intersect_triangles(
-            ...     ray_origins, ray_directions, scene.mesh.triangle_vertices
+            ...     ray_origins[:, None, :],
+            ...     ray_directions[:, None, :],
+            ...     scene.mesh.triangle_vertices,
             ... )
             >>> rays_hit = hit.any(axis=1)  # True if rays hit any triangle
             >>> triangles_hit = hit.any(axis=0)  # True if triangles hit by any ray
@@ -249,49 +251,39 @@ def rays_intersect_triangles(
             >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
             >>> fig  # doctest: +SKIP
     """
-    *batch, _ = ray_origins.shape
+    # [*batch 3]
+    vertex_0 = triangle_vertices[..., 0, :]
+    vertex_1 = triangle_vertices[..., 1, :]
+    vertex_2 = triangle_vertices[..., 2, :]
 
-    # [batch_flattened 3]
-    ray_origins = ray_origins.reshape(-1, 3)
-    ray_directions = ray_directions.reshape(-1, 3)
-
-    # [num_triangles 3]
-    vertex_0 = triangle_vertices[:, 0, :]
-    vertex_1 = triangle_vertices[:, 1, :]
-    vertex_2 = triangle_vertices[:, 2, :]
-
-    # [num_triangles 3]
+    # [*batch 3]
     edge_1 = vertex_1 - vertex_0
     edge_2 = vertex_2 - vertex_0
 
-    # [batch_flattened num_triangles 3]
-    h = jnp.cross(ray_directions[:, None, :], edge_2[None, ...], axis=-1)
+    # [*batch 3]
+    h = jnp.cross(ray_directions, edge_2, axis=-1)
 
-    # [batch_flattened num_triangles]
-    a = jnp.einsum("ijk,jk->ij", h, edge_1)
+    # [*batch]
+    a = jnp.einsum("...i,...i->...", h, edge_1)
 
     cond_a = jnp.abs(a) < epsilon
 
     f = jnp.where(a == 0, 0, 1.0 / a)
-    s = ray_origins[:, None, :] - vertex_0[None, ...]
-    u = f * jnp.einsum("ijk,ijk->ij", s, h)
+    s = ray_origins - vertex_0
+    u = f * jnp.einsum("...i,...i->...", s, h)
 
     cond_u = (u < 0.0) | (u > 1.0)
 
-    q = jnp.cross(s, edge_1[None, ...], axis=-1)
-    v = f * jnp.einsum("ijk,ik->ij", q, ray_directions)
+    q = jnp.cross(s, edge_1, axis=-1)
+    v = f * jnp.einsum("...i,...i->...", q, ray_directions)
 
     cond_v = (v < 0.0) | (u + v > 1.0)
 
-    t = f * jnp.einsum("ijk,jk->ij", q, edge_2)
+    t = f * jnp.einsum("...i,...i->...", q, edge_2)
 
     cond_t = t <= epsilon
 
     hit = ~(cond_a | cond_u | cond_v | cond_t)
-
-    num_triangles = triangle_vertices.shape[0]
-    t = t.reshape(*batch, num_triangles)
-    hit = hit.reshape(*batch, num_triangles)
 
     return t, hit
 
@@ -299,9 +291,9 @@ def rays_intersect_triangles(
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def rays_intersect_any_triangle(
-    ray_origins: Float[Array, "*batch 3"],
-    ray_directions: Float[Array, "*batch 3"],
-    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    ray_origins: Float[Array, "*#batch 3"],
+    ray_directions: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     *,
     hit_threshold: Float[ArrayLike, " "] = 0.999,
     **kwargs: Any,
@@ -324,27 +316,33 @@ def rays_intersect_any_triangle(
         hit_threshold: A threshold value below which a hit is considered to be valid.
             Above this threshold, the ray will only hit the triangle if prolonged.
             In theory, this threshold value should be equal to ``1.0``, but in a
-            small tolerance must be used.  # TODO: update with respect to compute_paths
+            small tolerance must be used.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
     """
-    *batch, _ = ray_origins.shape
+    # TODO: update 'hit_treshold' argument with respect to TriangleScene.compute_paths
+    # Put 'num_triangles' axis as leading axis
+    triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+
+    batch = jnp.broadcast_shapes(
+        ray_origins.shape[:-1], ray_directions.shape[:-1], triangle_vertices.shape[1:-2]
+    )
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        intersect: Bool[Array, " *batch"], triangle_vertex: Float[Array, "3 3"]
+        intersect: Bool[Array, " *#batch"],
+        triangle_vertices: Float[Array, "*#batch 3 3"],
     ) -> tuple[Bool[Array, " *batch"], None]:
-        triangle_vertices = triangle_vertex[None, ...]
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
             triangle_vertices,
             **kwargs,
         )
-        intersect = intersect | ((t[..., 0] < hit_threshold) & hit[..., 0])
+        intersect = intersect | ((t < hit_threshold) & hit)
         return intersect, None
 
     return jax.lax.scan(
@@ -357,8 +355,8 @@ def rays_intersect_any_triangle(
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_visible_from_vertices(
-    vertices: Float[Array, "*batch 3"],
-    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    vertices: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
@@ -382,7 +380,7 @@ def triangles_visible_from_vertices(
             :func:`rays_intersect_triangles`.
 
     Returns:
-        For each ray, whether it intersects with any of the triangles.
+        For each triangle, whether it intersects with any of the rays.
 
     Examples:
         The following example shows how to identify triangles as
@@ -414,24 +412,22 @@ def triangles_visible_from_vertices(
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
     """
-    batch = vertices.shape[:-1]
-    num_triangles = triangle_vertices.shape[0]
-
     # [*batch 3]
     ray_origins = vertices
 
     # [num_rays 3]
     ray_directions = fibonacci_lattice(num_rays)
 
+    batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
+
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         visible: Bool[Array, "*batch num_triangles"],
         ray_direction: Float[Array, "3"],
-    ) -> tuple[Bool[Array, "*batch num_triangles"], None]:
-        ray_directions = jnp.broadcast_to(ray_direction, ray_origins.shape)
+    ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
         t, hit = rays_intersect_triangles(
-            ray_origins,
-            ray_directions,
+            ray_origins[..., None, :],
+            ray_direction[..., None, :],
             triangle_vertices,
             **kwargs,
         )
@@ -443,5 +439,7 @@ def triangles_visible_from_vertices(
         return visible, None
 
     return jax.lax.scan(
-        scan_fun, init=jnp.zeros((*batch, num_triangles), dtype=bool), xs=ray_directions
+        scan_fun,
+        init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
+        xs=ray_directions,
     )[0]

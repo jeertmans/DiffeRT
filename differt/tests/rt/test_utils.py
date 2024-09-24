@@ -161,7 +161,6 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
         [0.0, 0.0, -1.0],
         [1.0, 0.0, 0.0],
     ])
-    ray_origins, ray_directions = jnp.broadcast_arrays(ray_origin, ray_directions)
     triangle_vertices = jnp.array([
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
         [[0.0, 0.0, 1.0], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0]],
@@ -175,8 +174,8 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
     ])
 
     got_t, got_hit = rays_intersect_triangles(
-        ray_origins,
-        ray_directions,
+        ray_origin[None, None, :],
+        ray_directions[:, None, :],
         triangle_vertices,
     )
     chex.assert_trees_all_equal(got_t, expected_t)
@@ -186,11 +185,11 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
 @pytest.mark.parametrize(
     ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
     [
-        ((3,), (3,), (1, 3, 3), does_not_raise()),
-        ((15, 5, 3), (15, 5, 3), (20, 3, 3), does_not_raise()),
+        ((3,), (3,), (3, 3), does_not_raise()),
+        ((15, 5, 3), (15, 5, 3), (5, 3, 3), does_not_raise()),
         (
-            (10, 5, 3),
-            (10, 2, 3),
+            (15, 5, 3),
+            (15, 5, 3),
             (15, 3, 3),
             pytest.raises(TypeError),
         ),
@@ -211,26 +210,28 @@ def test_rays_intersect_triangles_random_inputs(
         )
 
         assert jnp.where(
-            got_hit, got_t > 0.0, True
+            got_hit,
+            got_t > 0.0,
+            True,  # noqa: FBT003
         ).all(), "t > 0 must be true everywhere hit is true"
 
 
 @pytest.mark.parametrize(
     ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
     [
-        ((20, 10, 3), (20, 10, 3), (15, 3, 3), does_not_raise()),
-        ((10, 3), (10, 3), (15, 3, 3), does_not_raise()),
+        ((20, 10, 3), (20, 10, 3), (20, 10, 5, 3, 3), does_not_raise()),
+        ((10, 3), (10, 3), (1, 3, 3), does_not_raise()),
         ((3,), (3,), (1, 3, 3), does_not_raise()),
         (
             (10, 3),
             (20, 3),
-            (15, 3, 3),
+            (1, 3, 3),
             pytest.raises(TypeError),
         ),
         (
             (10, 3),
             (10, 4),
-            (15, 3, 3),
+            (10, 3, 3),
             pytest.raises(TypeError),
         ),
     ],
@@ -255,8 +256,8 @@ def test_rays_intersect_any_triangle(
             hit_threshold=hit_threshold,
         )
         expected_t, expected_hit = rays_intersect_triangles(
-            ray_origins,
-            ray_directions,
+            ray_origins[..., None, :],
+            ray_directions[..., None, :],
             triangle_vertices,
             epsilon=epsilon,
         )

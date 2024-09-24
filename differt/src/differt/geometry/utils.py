@@ -372,3 +372,33 @@ def fibonacci_lattice(
     si_lon = jnp.sin(lon)
 
     return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def assemble_paths(
+    *path_segments: Float[Array, "*#batch _num_vertices 3"],
+) -> Float[Array, "*#batch path_length 3"]:
+    """
+    Assemble paths by concatenating path vertices along the second to last axis.
+
+    Arrays broadcasting is automatically performed, and the total
+    path length is simply is sum of all the number of vertices.
+
+    Args:
+        path_segments: The path segments to assemble together.
+
+            Usually, this will be a 3-tuple of transmitter positions,
+            interaction points, and receiver positions.
+
+    Returns:
+        The assembled paths.
+    """
+    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in path_segments))
+
+    return jnp.concatenate(
+        tuple(
+            jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in path_segments
+        ),
+        axis=-2,
+    )
