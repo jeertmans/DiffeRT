@@ -7,7 +7,7 @@ import types
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
-from threading import Lock
+from threading import RLock
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ class _Defaults:
 
 @dataclass
 class _Config:
-    lock: Lock = field(default_factory=Lock)
+    lock: RLock = field(default_factory=RLock)
     defaults: _Defaults = field(default_factory=_Defaults)
 
     def set_defaults(self, /, **defaults: Any) -> None:

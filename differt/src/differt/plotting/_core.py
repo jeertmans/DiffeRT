@@ -146,7 +146,7 @@ def _(
 
 @dispatch
 def draw_paths(
-    paths: Float[np.ndarray, r"\*batch path_length 3"],
+    paths: Float[np.ndarray, "batch path_length 3"],
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -213,8 +213,9 @@ def _(
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        view.add(LinePlot(data=paths[i], **kwargs))
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
+        view.add(LinePlot(data=(x, y, z), **kwargs))
 
     view.camera.set_range()
 
@@ -228,8 +229,8 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        ax.plot(*paths[i].T, **kwargs)
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        ax.plot(*path.T, **kwargs)
 
     return fig
 
@@ -241,8 +242,8 @@ def _(
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        x, y, z = paths[i].T
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
         fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
     return fig

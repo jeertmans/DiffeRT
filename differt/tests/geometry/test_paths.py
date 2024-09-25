@@ -32,7 +32,7 @@ class TestPaths:
     @pytest.mark.parametrize("batch", [(), (1,), (1, 2, 3, 4)])
     @pytest.mark.parametrize("num_objects", [1, 10])
     @pytest.mark.parametrize("with_mask", [False, True])
-    def test_masked_vertices(
+    def test_masked_vertices_and_objects(
         self,
         path_length: int,
         batch: tuple[int, ...],
@@ -48,6 +48,10 @@ class TestPaths:
         num_paths = (
             int(paths.mask.sum()) if paths.mask is not None else math.prod(batch)
         )
+
+        assert got.size == num_paths * path_length * 3
+
+        got = paths.masked_objects
 
         assert got.size == num_paths * path_length * 3
 

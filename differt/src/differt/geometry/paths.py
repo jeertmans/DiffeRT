@@ -74,6 +74,21 @@ class Paths(eqx.Module):
             return vertices[mask, ...]
         return vertices
 
+    @property
+    @jaxtyped(typechecker=typechecker)
+    def masked_objects(
+        self,
+    ) -> Int[Array, "{self.num_valid_paths} {self.path_length}"]:
+        """The array of masked objects, with batched dimensions flattened into one.
+
+        Similar to :property:`masked_vertices`, but for :data:`objects`.
+        """
+        objects = self.objects.reshape((-1, self.path_length))
+        if self.mask is not None:
+            mask = self.mask.reshape(-1)
+            return objects[mask, ...]
+        return objects
+
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def group_by_objects(self) -> Int[Array, " *batch"]:

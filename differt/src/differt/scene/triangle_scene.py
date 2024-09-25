@@ -214,7 +214,7 @@ class TriangleScene(eqx.Module):
             (self.num_transmitters, self.num_receivers, num_path_candidates, 1),
         )
         path_candidates = jnp.broadcast_to(
-            tx_objects,
+            path_candidates,
             (self.num_transmitters, self.num_receivers, num_path_candidates, order),
         )
 
