@@ -225,6 +225,7 @@ impl SionnaScene {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn sionna(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Material>()?;

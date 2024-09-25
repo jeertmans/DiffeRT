@@ -28,6 +28,9 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 name = "differt_core"
 
+[lints.rust]
+unexpected_cfgs = {level = "warn", check-cfg = ['cfg(tarpaulin_include)']}
+
 [package]
 edition = "2021"
 name = "differt-core"

@@ -451,6 +451,7 @@ impl From<RawObj> for TriangleMesh {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn triangle_mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleMesh>()?;

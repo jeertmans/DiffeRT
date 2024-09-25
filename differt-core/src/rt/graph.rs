@@ -981,6 +981,7 @@ pub mod directed {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn graph(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<complete::CompleteGraph>()?;
