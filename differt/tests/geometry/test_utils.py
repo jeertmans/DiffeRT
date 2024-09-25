@@ -199,6 +199,25 @@ def test_fibonacci_lattice(
         chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)
 
 
+def test_assemble_paths() -> None:
+    tx = jnp.ones((5, 3))
+    paths = jnp.arange(24.0).reshape(4, 2, 3)
+    rx = -jnp.ones((6, 3))
+
+    expected = jnp.concatenate(
+        (
+            jnp.tile(tx[:, None, None, None, :], (1, 6, 4, 1, 1)),
+            jnp.tile(paths[None, None, ...], (5, 6, 1, 1, 1)),
+            jnp.tile(rx[None, :, None, None, :], (5, 1, 4, 1, 1)),
+        ),
+        axis=-2,
+    )
+
+    got = assemble_paths(tx[:, None, None, None, :], paths, rx[None, :, None, None, :])
+
+    chex.assert_trees_all_equal(got, expected)
+
+
 @pytest.mark.parametrize(
     ("shapes", "expectation"),
     [
@@ -210,7 +229,7 @@ def test_fibonacci_lattice(
         (((10, 1, 3), (10, 2, 3), (5, 1, 3)), pytest.raises(TypeError)),
     ],
 )
-def test_assemble_paths(
+def test_assemble_paths_random_inputs(
     shapes: tuple[tuple[int, ...], ...],
     expectation: AbstractContextManager[Exception],
     key: PRNGKeyArray,
