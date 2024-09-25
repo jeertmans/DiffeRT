@@ -131,6 +131,7 @@ filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
 ]
+log_level = "INFO"
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "serial",
