@@ -53,7 +53,7 @@ class TestPaths:
 
         got = paths.masked_objects
 
-        assert got.size == num_paths * path_length * 3
+        assert got.size == num_paths * path_length
 
     @pytest.mark.parametrize("path_length", [1, 2, 3])
     @pytest.mark.parametrize("batch", [(45,), (1, 10, 3, 4)])

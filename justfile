@@ -48,7 +48,7 @@ install:
 # Run code linters and formatters
 [group: 'dev']
 lint:
-  uv pre-commit run --all-files
+  uv run pre-commit run --all-files
 
 alias fmt := lint
 
@@ -60,7 +60,7 @@ test: test-python test-rust
 [group: 'python']
 [group: 'test']
 test-python *ARGS:
-  uv pytest {{ARGS}}
+  uv run pytest {{ARGS}}
 
 # Test Rust code
 [group: 'rust']

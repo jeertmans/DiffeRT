@@ -250,6 +250,8 @@ class TestTriangleMesh:
     def test_load_ply_with_colors(
         self, cube_ply_file: str, caplog: pytest.LogCaptureFixture
     ) -> None:
+        caplog.clear()
+
         with caplog.at_level(logging.INFO):
             mesh = TriangleMesh.load_ply(cube_ply_file)
 
