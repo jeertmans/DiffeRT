@@ -10,6 +10,6 @@ imports_granularity = "Crate"
 match_block_trailing_comma = true
 normalize_doc_attributes = true
 reorder_modules = true
+style_edition = "2024"
 unstable_features = true
-version = "Two"
 wrap_comments = true

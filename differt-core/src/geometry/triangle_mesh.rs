@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
 
-use numpy::{ndarray::arr2, PyArray1, PyArray2};
-use obj::raw::object::{parse_obj, RawObj};
+use numpy::{PyArray1, PyArray2, ndarray::arr2};
+use obj::raw::object::{RawObj, parse_obj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
@@ -378,14 +378,14 @@ impl From<RawObj> for TriangleMesh {
                             },
                             Err(e) => {
                                 log::warn!(
-                                    "An error occured when parsing MTL file {material_file}: {e}."
+                                    "An error occurred when parsing MTL file {material_file}: {e}."
                                 );
                             },
                         }
                     },
                     Err(e) => {
                         log::warn!(
-                            "An error occured when trying to read MTL file {material_file}: {e}."
+                            "An error occurred when trying to read MTL file {material_file}: {e}."
                         );
                     },
                 }

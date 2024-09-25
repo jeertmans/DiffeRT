@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File, io::BufReader};
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
-use serde::{de, Deserialize};
+use serde::{Deserialize, de};
 
 /// A scene as loaded from a Sionna-compatible
 /// XML file.

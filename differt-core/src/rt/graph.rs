@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    ndarray::{parallel::prelude::*, Array2, ArrayView2, Axis},
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
+    ndarray::{Array2, ArrayView2, Axis, parallel::prelude::*},
 };
 use pyo3::{prelude::*, types::PyType};
 
