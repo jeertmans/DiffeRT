@@ -29,6 +29,16 @@ def two_buildings_obj_file() -> str:
 
 
 @pytest.fixture(scope="module")
+def two_buildings_obj_with_mat_file() -> str:
+    return (
+        Path(__file__)
+        .parent.joinpath("two_buildings_with_mat.obj")
+        .resolve(strict=True)
+        .as_posix()
+    )
+
+
+@pytest.fixture(scope="module")
 def two_buildings_ply_file() -> str:
     return (
         Path(__file__)
@@ -221,6 +231,17 @@ class TestTriangleMesh:
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
+
+    def test_load_obj_with_mat(self, two_buildings_obj_with_mat_file: str) -> None:
+        mesh = TriangleMesh.load_obj(two_buildings_obj_with_mat_file)
+        assert mesh.triangles.shape == (24, 3)
+        assert len(mesh.material_names) == 2
+        assert {material_name.lower() for material_name in mesh.material_names} == {
+            "concrete",
+            "glass",
+        }
+        assert mesh.face_colors is not None
+        assert mesh.face_materials is not None
 
     def test_load_ply(self, two_buildings_ply_file: str) -> None:
         mesh = TriangleMesh.load_ply(two_buildings_ply_file)
