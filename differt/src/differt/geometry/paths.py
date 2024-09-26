@@ -1,5 +1,6 @@
 """Ray paths utilities."""
 
+from collections.abc import Iterator
 from typing import Any
 
 import equinox as eqx
@@ -141,6 +142,20 @@ class Paths(eqx.Module):
         )[1]
 
         return inverse.reshape(batch)
+
+    def __iter__(self) -> Iterator["Paths"]:
+        """Return an iterator over masked paths.
+
+        Each item of the iterator is itself an instance :class:`Paths`,
+        so you can still benefit from convenient methods like :meth:`plot`.
+
+        Returns:
+            An iterator of masked paths.
+        """
+        for vertices, objects in zip(
+            self.masked_vertices, self.masked_objects, strict=False
+        ):
+            yield Paths(vertices=vertices, objects=objects, mask=None)
 
     def plot(self, **kwargs: Any) -> Any:
         """

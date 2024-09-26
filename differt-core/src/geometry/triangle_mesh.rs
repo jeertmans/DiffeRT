@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
+use std::{fs::File, io::BufReader, path::PathBuf};
 
+use indexmap::IndexMap;
 use numpy::{PyArray1, PyArray2, ndarray::arr2};
 use obj::raw::object::{RawObj, parse_obj};
 use ply_rs::{parser, ply};
@@ -365,7 +366,7 @@ impl From<RawObj> for TriangleMesh {
         }
 
         if !raw_obj.material_libraries.is_empty() && !raw_obj.meshes.is_empty() {
-            let mut materials = HashMap::new();
+            let mut materials = IndexMap::new();
 
             for material_file in raw_obj.material_libraries {
                 match File::open(&material_file) {
