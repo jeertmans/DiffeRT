@@ -34,6 +34,4 @@ def simple_street_canyon_scene(sionna_folder: Path) -> TriangleScene:
     file = get_sionna_scene("simple_stree_canyon", folder=sionna_folder)
     scene = TriangleScene.load_xml(file)
     scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-32, 0, 35.0]))
-    scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+12, 0, 35.0]))
-
-    return scene
+    return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+12, 0, 35.0]))

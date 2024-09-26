@@ -87,7 +87,7 @@ class TestTriangleScene:
             scene.receivers[None, :],
         )
 
-        with jax.debug_nans(False):
+        with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
 
         chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
