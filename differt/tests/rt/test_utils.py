@@ -236,24 +236,29 @@ def test_rays_intersect_triangles_random_inputs(
         ),
     ],
 )
-@pytest.mark.parametrize("epsilon", [1e-6, 1e-2])
-@pytest.mark.parametrize("hit_threshold", [1.0, 0.999, 1.5, 0.5])
+@pytest.mark.parametrize("epsilon", [None, 1e-6, 1e-2])
+@pytest.mark.parametrize("hit_tol", [None, 0.0, 0.001, -0.5, 0.5])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_rays_intersect_any_triangle(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
-    epsilon: float,
-    hit_threshold: float,
+    epsilon: float | None,
+    hit_tol: float | None,
     expectation: AbstractContextManager[Exception],
 ) -> None:
+    if hit_tol is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        hit_tol = jnp.finfo(dtype).eps  # type: ignore[reportAssigmentType]
+
+    hit_threshold = 1.0 - hit_tol  # type: ignore[reportOperatorIssue]
     with expectation:
         got = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
             epsilon=epsilon,
-            hit_threshold=hit_threshold,
+            hit_tol=hit_tol,
         )
         expected_t, expected_hit = rays_intersect_triangles(
             ray_origins[..., None, :],

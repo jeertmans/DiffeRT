@@ -176,7 +176,7 @@ def rays_intersect_triangles(
     ray_directions: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, " "] = 1e-6,
+    epsilon: Float[ArrayLike, " "] | None = None,
 ) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
@@ -196,6 +196,9 @@ def rays_intersect_triangles(
             Such a tolerance is especially useful when rays are hitting
             triangle edges, a very common case if geometries are planes
             split into multiple triangles.
+
+            If not specified, the default is ten times the epsilon value
+            of the currently used floating point dtype.
 
     Returns:
         For each ray, return the scale factor of ``ray_directions`` for the
@@ -251,6 +254,10 @@ def rays_intersect_triangles(
             >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
             >>> fig  # doctest: +SKIP
     """
+    if epsilon is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        epsilon = 10 * jnp.finfo(dtype).eps
+
     # [*batch 3]
     vertex_0 = triangle_vertices[..., 0, :]
     vertex_1 = triangle_vertices[..., 1, :]
@@ -295,7 +302,7 @@ def rays_intersect_any_triangle(
     ray_directions: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     *,
-    hit_threshold: Float[ArrayLike, " "] = 0.999,
+    hit_tol: Float[ArrayLike, " "] | None = None,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"]:
     """
@@ -313,17 +320,26 @@ def rays_intersect_any_triangle(
         ray_directions: An array of ray direction. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
-        hit_threshold: A threshold value below which a hit is considered to be valid.
-            Above this threshold, the ray will only hit the triangle if prolonged.
-            In theory, this threshold value should be equal to ``1.0``, but in a
-            small tolerance must be used.
+        hit_tol: The tolerance applied to check if a ray hits another object or not,
+            before it reaches the expected position, i.e., the 'interaction' object.
+
+            Using a non-zero tolerance is required as it would otherwise trigger
+            false positives.
+
+            If not specified, the default is ten times the epsilon value
+            of the currently used floating point dtype.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
     """
-    # TODO: update 'hit_treshold' argument with respect to TriangleScene.compute_paths
+    if hit_tol is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        hit_tol = 10.0 * jnp.finfo(dtype).eps
+
+    hit_threshold = 1.0 - hit_tol
+
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
 

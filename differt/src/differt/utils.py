@@ -83,9 +83,6 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
                [1, 0, 1, 1, 1],
                [1, 1, 0, 1, 0],
                [1, 1, 1, 0, 1]], dtype=int32)
-
-
-
     """
     if array.size == 0:
         return array

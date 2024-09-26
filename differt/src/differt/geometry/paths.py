@@ -1,6 +1,6 @@
 """Ray paths utilities."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import equinox as eqx
@@ -156,6 +156,22 @@ class Paths(eqx.Module):
             self.masked_vertices, self.masked_objects, strict=False
         ):
             yield Paths(vertices=vertices, objects=objects, mask=None)
+
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def reduce(
+        self, fun: Callable[[Float[Array, "*batch n"]], Float[Array, " *batch"]]
+    ) -> Float[Array, " "]:
+        """Apply a function on all paths and accumulate the result into a scalar value.
+
+        Args:
+            fun: The function to be called on all path vertices.
+
+        Returns:
+            The sum of the results, with contributions from
+            invalid paths that are set to zero.
+        """
+        return jnp.sum(fun(self.vertices), where=self.mask)
 
     def plot(self, **kwargs: Any) -> Any:
         """
