@@ -240,22 +240,21 @@ class TriangleScene(eqx.Module):
 
         Args:
             tx_kwargs: A mapping of keyword arguments passed to
-                :py:func:`draw_markers<differt.plotting.draw_markers>`.
+                :func:`draw_markers<differt.plotting.draw_markers>`.
             rx_kwargs: A mapping of keyword arguments passed to
-                :py:func:`draw_markers<differt.plotting.draw_markers>`.
+                :func:`draw_markers<differt.plotting.draw_markers>`.
             mesh_kwargs: A mapping of keyword arguments passed to
-                :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
-            kwargs: Keyword arguments passed to both
-                :py:func:`draw_markers<differt.plotting.draw_markers>` and
-                :py:meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
+                :meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
+            kwargs: Keyword arguments passed to
+                :func:`reuse<differt.plotting.reuse>`.
 
         Returns:
             The resulting plot output.
         """
         # TODO: remove **kwargs because reuse should already passed **kwargs.
-        tx_kwargs = {"labels": "tx", **(tx_kwargs or {}), **kwargs}
-        rx_kwargs = {"labels": "rx", **(rx_kwargs or {}), **kwargs}
-        mesh_kwargs = {**(mesh_kwargs or {}), **kwargs}
+        tx_kwargs = {"labels": "tx", **(tx_kwargs or {})}
+        rx_kwargs = {"labels": "rx", **(rx_kwargs or {})}
+        mesh_kwargs = {} if mesh_kwargs is None else mesh_kwargs
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:

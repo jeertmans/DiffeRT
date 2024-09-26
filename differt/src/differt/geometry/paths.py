@@ -82,7 +82,7 @@ class Paths(eqx.Module):
     ) -> Int[Array, "{self.num_valid_paths} {self.path_length}"]:
         """The array of masked objects, with batched dimensions flattened into one.
 
-        Similar to :property:`masked_vertices`, but for :data:`objects`.
+        Similar to :attr:`masked_vertices`, but for :data:`objects`.
         """
         objects = self.objects.reshape((-1, self.path_length))
         if self.mask is not None:
@@ -149,8 +149,8 @@ class Paths(eqx.Module):
         Each item of the iterator is itself an instance :class:`Paths`,
         so you can still benefit from convenient methods like :meth:`plot`.
 
-        Returns:
-            An iterator of masked paths.
+        Yields:
+            Masked paths, one at a time.
         """
         for vertices, objects in zip(
             self.masked_vertices, self.masked_objects, strict=False
@@ -163,7 +163,7 @@ class Paths(eqx.Module):
 
         Args:
             kwargs: Keyword arguments passed to
-                :py:func:`draw_paths<differt.plotting.draw_paths>`.
+                :func:`draw_paths<differt.plotting.draw_paths>`.
 
         Returns:
             The resulting plot output.

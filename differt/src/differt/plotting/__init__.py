@@ -4,10 +4,10 @@ Plotting utilities for DiffeRT objects.
 .. warning::
 
     Unlike in other modules, plotting utilities work
-    with NumPy arrays (:py:class:`np.ndarray<numpy.ndarray>`)
+    with NumPy arrays (:class:`np.ndarray<numpy.ndarray>`)
     instead of JAX arrays. Therefore, it is important to first
     convert any JAX array into its NumPy equivalent with
-    :py:func:`np.asarray<numpy.asarray>` before using it as an
+    :func:`np.asarray<numpy.asarray>` before using it as an
     argument to any of the functions defined here.
 
 
@@ -25,9 +25,9 @@ that the user should be aware of.
 VisPy
 -----
 
-VisPy uses :py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>` objects
+VisPy uses :class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>` objects
 to display contents, on which a view is attached. The view
-(:py:class:`ViewBox<vispy.scene.widgets.viewbox.ViewBox>`)
+(:class:`ViewBox<vispy.scene.widgets.viewbox.ViewBox>`)
 is what contains
 the data to be plotted.
 
@@ -46,7 +46,7 @@ nicely within Jupyter notebooks.
 Matplotlib
 ----------
 
-Matplotlib uses :py:class:`Figure<matplotlib.figure.Figure>` objects
+Matplotlib uses :class:`Figure<matplotlib.figure.Figure>` objects
 to display contents, on which multiple axes can be attached. In turn, each
 axis can contain data to be plotted.
 
@@ -57,7 +57,7 @@ In turn, each of those functions returns a figure on which you
 can later add data.
 
 It is also possible to pass an existing axis
-(:py:class:`Axes<matplotlib.axes.Axes>`)
+(:class:`Axes<matplotlib.axes.Axes>`)
 on which data will be plotted: ``draw_*(..., ax=ax)``.
 
 .. warning::
@@ -79,7 +79,7 @@ outputs. Hence, Plotly is a very good choice for publishing
 nice interactive plots on webpages.
 
 Plots are fully contained inside
-:py:class:`Figure<plotly.graph_objects.Figure>` objects, and can be nicely
+:class:`Figure<plotly.graph_objects.Figure>` objects, and can be nicely
 displayed within Jupyter notebooks without further configuration.
 
 To reuse an existing ``figure`` object, you can do the same as with

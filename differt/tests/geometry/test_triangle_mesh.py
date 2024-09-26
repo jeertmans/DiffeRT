@@ -1,7 +1,6 @@
 import logging
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from pathlib import Path
 
 import chex
 import jax
@@ -16,57 +15,6 @@ from differt.geometry.triangle_mesh import (
 )
 
 from ..utils import random_inputs
-
-
-@pytest.fixture(scope="module")
-def two_buildings_obj_file() -> str:
-    return (
-        Path(__file__)
-        .parent.joinpath("two_buildings.obj")
-        .resolve(strict=True)
-        .as_posix()
-    )
-
-
-@pytest.fixture(scope="module")
-def two_buildings_obj_with_mat_file() -> str:
-    return (
-        Path(__file__)
-        .parent.joinpath("two_buildings_with_mat.obj")
-        .resolve(strict=True)
-        .as_posix()
-    )
-
-
-@pytest.fixture(scope="module")
-def two_buildings_ply_file() -> str:
-    return (
-        Path(__file__)
-        .parent.joinpath("two_buildings.ply")
-        .resolve(strict=True)
-        .as_posix()
-    )
-
-
-@pytest.fixture(scope="module")
-def cube_ply_file() -> str:
-    return Path(__file__).parent.joinpath("cube.ply").resolve(strict=True).as_posix()
-
-
-@pytest.fixture(scope="module")
-def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
-    return TriangleMesh.load_obj(two_buildings_obj_file)
-
-
-@pytest.fixture(scope="module")
-def sphere() -> TriangleMesh:
-    from vispy.geometry import create_sphere  # noqa: PLC0415
-
-    mesh = create_sphere()
-
-    vertices = jnp.asarray(mesh.get_vertices())
-    triangles = jnp.asarray(mesh.get_faces(), dtype=int)
-    return TriangleMesh(vertices=vertices, triangles=triangles)
 
 
 @pytest.mark.parametrize(
@@ -303,5 +251,5 @@ class TestTriangleMesh:
         expected = jnp.ones_like(got)
         chex.assert_trees_all_close(got, expected)
 
-    def test_plot(self, sphere: TriangleMesh) -> None:
-        sphere.plot()
+    def test_plot(self, sphere_mesh: TriangleMesh) -> None:
+        sphere_mesh.plot()

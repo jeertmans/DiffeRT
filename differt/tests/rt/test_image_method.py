@@ -6,11 +6,12 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
+from differt.geometry.utils import normalize
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
     image_of_vertices_with_respect_to_mirrors,
-    intersection_of_line_segments_with_planes,
+    intersection_of_rays_with_planes,
 )
 
 from ..utils import random_inputs
@@ -82,8 +83,8 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             chex.assert_trees_all_close(got[i, :], expected, rtol=1e-5)
 
 
-def test_intersection_of_line_segments_with_planes() -> None:
-    segment_starts = jnp.array(
+def test_intersection_of_rays_with_planes() -> None:
+    ray_origins = jnp.array(
         [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
     )
     expected = jnp.array([
@@ -91,12 +92,13 @@ def test_intersection_of_line_segments_with_planes() -> None:
         [+0.0, +0.0, +0.0],
         [-0.5, +0.0, +0.0],
     ])
-    segment_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), segment_starts.shape)
+    ray_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), ray_origins.shape)
+    ray_directions = ray_ends - ray_origins
     plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
     plane_normals = jnp.array([[0.0, 1.0, 0.0]])
-    got = intersection_of_line_segments_with_planes(
-        segment_starts,
-        segment_ends,
+    got = intersection_of_rays_with_planes(
+        ray_origins,
+        ray_directions,
         plane_vertices,
         plane_normals,
     )
@@ -105,8 +107,8 @@ def test_intersection_of_line_segments_with_planes() -> None:
 
 @pytest.mark.parametrize(
     (
-        "segment_starts",
-        "segment_ends",
+        "ray_origins",
+        "ray_directions",
         "plane_vertices",
         "plane_normals",
         "expectation",
@@ -119,18 +121,18 @@ def test_intersection_of_line_segments_with_planes() -> None:
         ((20, 3), (10, 3), (10, 3), (10, 3), pytest.raises(TypeError)),
     ],
 )
-@random_inputs("segment_starts", "segment_ends", "plane_vertices", "plane_normals")
-def test_intersection_of_line_segments_with_planes_random_inputs(
-    segment_starts: Array,
-    segment_ends: Array,
+@random_inputs("ray_origins", "ray_directions", "plane_vertices", "plane_normals")
+def test_intersection_of_rays_with_planes_random_inputs(
+    ray_origins: Array,
+    ray_directions: Array,
     plane_vertices: Array,
     plane_normals: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        _ = intersection_of_line_segments_with_planes(
-            segment_starts,
-            segment_ends,
+        _ = intersection_of_rays_with_planes(
+            ray_origins,
+            ray_directions,
             plane_vertices,
             plane_normals,
         )
@@ -165,6 +167,37 @@ def test_image_method(
         setup.mirror_normals,
     )
     chex.assert_trees_all_close(got, setup.paths)
+
+
+@pytest.mark.parametrize(
+    ("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals"),
+    [
+        ((3), (3,), (1, 3), (1, 3)),
+        ((3), (3,), (10, 3), (10, 3)),
+        ((5, 3), (3,), (10, 3), (10, 3)),
+    ],
+)
+@random_inputs("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals")
+def test_image_method_return_vertices_on_mirrors(
+    from_vertices: Array,
+    to_vertices: Array,
+    mirror_vertices: Array,
+    mirror_normals: Array,
+) -> None:
+    mirror_normals = normalize(mirror_normals)[0]
+    paths = image_method(
+        from_vertices,
+        to_vertices,
+        mirror_vertices,
+        mirror_normals,
+    )
+    vectors = paths - mirror_vertices
+    # Dot product should be zero as vectors are perpendicular to normals
+    got = jnp.einsum("...i,...i->...", vectors, mirror_normals)
+    got = jnp.nan_to_num(got, posinf=0.0, neginf=0.0)  # Remove 'inf' values
+
+    excepted = jnp.zeros_like(got)
+    chex.assert_trees_all_close(got, excepted, atol=1e-4)
 
 
 @pytest.mark.parametrize(

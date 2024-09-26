@@ -360,7 +360,7 @@ class TriangleMesh(eqx.Module):
 
         Args:
             kwargs: Keyword arguments passed to
-                :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
+                :func:`draw_mesh<differt.plotting.draw_mesh>`.
 
         Returns:
             The resulting plot output.

@@ -88,6 +88,18 @@ class TestPaths:
 
         assert at_least_one_test, "This test is useless, please remove."
 
+    def test_iter(self, key: PRNGKeyArray) -> None:
+        paths = random_paths(6, 3, 2, num_objects=20, with_mask=True, key=key)
+
+        got = 0
+        for path in paths:
+            got += 1
+
+            assert isinstance(path, Paths)
+            assert path.num_valid_paths == 1
+
+        assert got == paths.num_valid_paths
+
     @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
         paths = random_paths(3, 4, 5, num_objects=30, with_mask=True, key=key)

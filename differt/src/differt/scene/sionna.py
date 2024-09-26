@@ -35,7 +35,7 @@ def download_sionna_scenes(
     """
     Download the scenes from Sionna, and store them in the given folder.
 
-    If cached is :py:data:`False` and folder exists, then it will
+    If cached is :data:`False` and folder exists, then it will
     raise an error if not empty: please clear it first!
 
     Args:
@@ -47,7 +47,7 @@ def download_sionna_scenes(
         chunk_size: The chunk size, in bytes, used when downloading
             the data.
         progress: Whether to output a progress bar when downloading.
-        leave: If ``progress`` is :py:data:`True`, whether to leave
+        leave: If ``progress`` is :data:`True`, whether to leave
             the progress bar upon completion.
         timeout: How many seconds to wait before giving up on the download,
             see :func:`requests.request`.

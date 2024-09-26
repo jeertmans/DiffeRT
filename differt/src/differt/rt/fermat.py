@@ -51,7 +51,7 @@ def fermat_path_on_planar_mirrors(
                 be unit vectors. However, we keep the same documentation so it is
                 easier for the user to move from one method to the other.
         kwargs: Keyword arguments passed to
-            :py:func:`minimize<differt.utils.minimize>`.
+            :func:`minimize<differt.utils.minimize>`.
 
     Returns:
         An array of ray paths obtained using Fermat's principle.
@@ -61,20 +61,21 @@ def fermat_path_on_planar_mirrors(
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`jax.numpy.concatenate`:
+        :func:`assemble_paths<differt.geometry.utils.assemble_paths>`:
 
         .. code-block:: python
 
-            paths = fermat_path_on_planar_mirrors(
+            paths = image_method(
                 from_vertices,
                 to_vertices,
                 mirror_vertices,
                 mirror_normals,
             )
 
-            full_paths = jnp.concatenate(
-                (from_vertices[..., None, :], got, to_vertices[..., None, :]),
-                axis=-2,
+            full_paths = assemble_paths(
+                from_vertices[..., None, :],
+                paths,
+                to_vertices[..., None, :],
             )
     """
     num_mirrors = mirror_vertices.shape[-2]

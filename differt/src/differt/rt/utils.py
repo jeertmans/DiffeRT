@@ -43,7 +43,7 @@ T = TypeVar("T")
 
 
 class _SizedIterator(Generic[T]):
-    """A custom generatic class that is both :py:class:`Iterator<collections.abc.Iterator>` and :py:class:`Sized<collections.abc.Sized>`.
+    """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
     Args:
         iter_: The iterator.
@@ -306,7 +306,7 @@ def rays_intersect_any_triangle(
     checking if at least one of the triangles is intersect.
 
     A triangle is considered to be intersected if
-    ``t < hit_threshold & hit`` evaluates to :py:data:`True`.
+    ``t < hit_threshold & hit`` evaluates to :data:`True`.
 
     Args:
         ray_origins: An array of origin vertices.

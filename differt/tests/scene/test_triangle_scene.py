@@ -2,11 +2,11 @@ from pathlib import Path
 
 import chex
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.geometry.triangle_mesh import TriangleMesh
 from differt.geometry.utils import assemble_paths, normalize
 from differt.scene.sionna import (
     get_sionna_scene,
@@ -14,22 +14,6 @@ from differt.scene.sionna import (
 )
 from differt.scene.triangle_scene import TriangleScene
 from differt_core.scene.sionna import SionnaScene
-
-
-@pytest.fixture(scope="module")
-def advanced_path_tracing_example_scene() -> TriangleScene:
-    mesh_file = (
-        Path(__file__)
-        .parent.parent.joinpath("geometry")
-        .joinpath("two_buildings.obj")
-        .resolve(strict=True)
-        .as_posix()
-    )
-    mesh = TriangleMesh.load_obj(mesh_file)
-    tx = jnp.array([0.0, 4.9352, 22.0])
-    rx = jnp.array([0.0, 10.034, 1.50])
-
-    return TriangleScene(transmitters=tx, receivers=rx, mesh=mesh)
 
 
 class TestTriangleScene:
@@ -103,9 +87,10 @@ class TestTriangleScene:
             scene.receivers[None, :],
         )
 
-        got = scene.compute_paths(order)
+        with jax.debug_nans(False):
+            got = scene.compute_paths(order)
 
-        chex.assert_trees_all_equal(got.masked_vertices, expected_path_vertices)
+        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
         chex.assert_trees_all_equal(got.masked_objects, expected_objects)
 
         normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)

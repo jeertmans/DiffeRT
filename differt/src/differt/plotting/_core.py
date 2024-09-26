@@ -48,9 +48,9 @@ def draw_mesh(
         vertices: The array of triangle vertices.
         triangles: The array of triangle indices.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Mesh>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Mesh>`,
+            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
 
             .. important::
@@ -155,9 +155,9 @@ def draw_paths(
     Args:
         paths: The array of path vertices.
         kwargs: Keyword arguments passed to
-            :py:class:`LinePlot<vispy.scene.visuals.LinePlot>`,
-            :py:meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`LinePlot<vispy.scene.visuals.LinePlot>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
@@ -345,13 +345,13 @@ def draw_markers(
         markers: The array of marker vertices.
         labels: The marker labels.
         text_kwargs: A mapping of keyword arguments
-            passed to :py:class:`Text<vispy.scene.visuals.Text>`
+            passed to :class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
             By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
-            :py:class:`Markers<vispy.scene.visuals.Markers>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`Markers<vispy.scene.visuals.Markers>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
@@ -463,9 +463,9 @@ def draw_image(
             the image.
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Image>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Image>`,
+            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
     Returns:

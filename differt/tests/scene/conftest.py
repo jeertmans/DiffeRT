@@ -1,11 +1,18 @@
-from pathlib import Path
+__all__ = (
+    "advanced_path_tracing_example_scene",
+    "simple_street_canyon_scene",
+    "sionna_folder",
+    "two_buildings_mesh",
+    "two_buildings_obj_file",
+)
 
-import pytest
 
-from differt.scene.sionna import SIONNA_SCENES_FOLDER, download_sionna_scenes
-
-
-@pytest.fixture(scope="session")
-def sionna_folder() -> Path:
-    download_sionna_scenes(folder=SIONNA_SCENES_FOLDER)
-    return SIONNA_SCENES_FOLDER
+from ..geometry.fixtures import (
+    two_buildings_mesh,  # Needed by 'advanced_path_tracing_example_scene'
+    two_buildings_obj_file,  # Needed by 'two_buildings_mesh'
+)
+from .fixtures import (
+    advanced_path_tracing_example_scene,
+    simple_street_canyon_scene,
+    sionna_folder,
+)

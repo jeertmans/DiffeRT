@@ -1,15 +1,15 @@
 """
 Special functions.
 
-This module extends the :py:mod:`jax.scipy.special` module
-by adding missing function from :py:mod:`scipy.special`,
+This module extends the :mod:`jax.scipy.special` module
+by adding missing function from :mod:`scipy.special`,
 or by extending already implemented function to the
 complex domain.
 
 Those new implementation are needed to keep the ability
 of differentating code, otherwise we could just
 call the SciPy function and wrap their output
-with :py:func:`jnp.asarray<jax.numpy.asarray>`.
+with :func:`jnp.asarray<jax.numpy.asarray>`.
 """
 
 import jax
@@ -26,7 +26,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     Evaluate the error function at the given points.
 
     The current implementation is written using
-    the real-valued error function :py:func:`jax.scipy.special.erf`
+    the real-valued error function :func:`jax.scipy.special.erf`
     and the approximation as detailed in :cite:`erf-complex`.
 
     The output type (real or complex) is determined by the
@@ -34,7 +34,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
 
     Warning:
         Currently, we observe that
-        this function and :py:data:`scipy.special.erf`
+        this function and :data:`scipy.special.erf`
         starts to diverge for :math:`|z| > 6`. If you know
         how to avoid this problem, please contact us!
 
@@ -48,13 +48,13 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
         Regarding performances, there are two possible outputs:
 
         1. If ``z`` is real, then this function compiles to
-           :py:func:`jax.scipy.special.erf`, and will therefore
+           :func:`jax.scipy.special.erf`, and will therefore
            have the same performances (when JIT compilation
            is done). Compared to the SciPy equivalent, we measured
            that our implementation is **~ 10 times faster**.
         2. If ``z`` is complex, then our implementation is
            **~ 3 times faster** than
-           :py:data:`scipy.special.erf`.
+           :data:`scipy.special.erf`.
 
         Those results were measured on centered random uniform arrays
         with :math:`10^5` elements.
@@ -167,7 +167,7 @@ def erfc(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
     The output type (real or complex) is determined by the
     input type.
 
-    See :py:func:`erf` for more details.
+    See :func:`erf` for more details.
 
     Args:
         z: The array of real or complex points to evaluate.
@@ -200,7 +200,7 @@ def fresnel(
     Evaluate the two Fresnel integrals at the given points.
 
     This current implementation is written using
-    the error function :py:func:`erf<differt.em.special.erf>`
+    the error function :func:`erf<differt.em.special.erf>`
     see :cite:`fresnel-integrals`.
 
     The output type (real or complex) is determined by the

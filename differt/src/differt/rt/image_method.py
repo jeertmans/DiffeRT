@@ -160,43 +160,43 @@ def image_of_vertices_with_respect_to_mirrors(
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def intersection_of_line_segments_with_planes(
-    segment_starts: Float[Array, "*#batch 3"],
-    segment_ends: Float[Array, "*#batch 3"],
+def intersection_of_rays_with_planes(
+    ray_origins: Float[Array, "*#batch 3"],
+    ray_directions: Float[Array, "*#batch 3"],
     plane_vertices: Float[Array, "*#batch 3"],
     plane_normals: Float[Array, "*#batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Return the intersection points between line segments and (infinite) planes.
+    Return the intersection points between rays and (infinite) planes.
 
-    If a line segment is parallel to the corresponding plane, then
-    the corresponding vertex in ``from_vertices`` will be returned.
+    Warning:
+        If a ray is parallel to the corresponding plane,
+        then an infinite value is returned, as a result of a division by zero,
+        except for the cases where the ``ray_origins`` vertices already lie on
+        the plane, then ``ray_origins`` is returned.
 
     Args:
-        segment_starts: An array of vertices describing the start of line
-            segments.
-
-            .. note::
-
-                ``segment_starts`` and ``segment_ends`` are interchangeable.
-        segment_ends: An array of vertices describing the end of line segments.
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray directions. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
         plane_vertices: An array of plane vertices. For each plane, any
             vertex on this plane can be used.
         plane_normals: an array of plane normals, where each normal has a unit
-            length and if perpendicular to the corresponding plane.
+            length and is perpendicular to the corresponding plane.
 
     Returns:
         An array of intersection vertices.
     """
     # [*batch 3]
-    u = segment_ends - segment_starts
-    v = plane_vertices - segment_starts
+    u = ray_directions
+    v = plane_vertices - ray_origins
     # [*batch 1]
     un = jnp.einsum("...i,...i->...", u, plane_normals)[..., None]
     # [*batch 1]
     vn = jnp.einsum("...i,...i->...", v, plane_normals)[..., None]
-    offset = jnp.where(un == 0.0, 0.0, vn * u / un)
-    return segment_starts + offset
+
+    t = vn / jnp.where(vn == 0.0, 1.0, un)
+    return ray_origins + ray_directions * jnp.where(u == 0.0, 1.0, t)
 
 
 @jax.jit
@@ -209,6 +209,11 @@ def image_method(
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
+
+    Warning:
+        NaNs and infinity values should be treated as invalid paths, and will naturally
+        occur when image paths are impossible to trace, e.g., when a mirror
+        is parallel to a ray segment that it is supposed to reflect.
 
     Args:
         from_vertices: An array of ``from`` vertices, i.e., vertices from which the
@@ -231,7 +236,7 @@ def image_method(
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`jax.numpy.concatenate`:
+        :func:`assemble_paths<differt.geometry.utils.assemble_paths>`:
 
         .. code-block:: python
 
@@ -242,9 +247,10 @@ def image_method(
                 mirror_normals,
             )
 
-            full_paths = jnp.concatenate(
-                (from_vertices[..., None, :], got, to_vertices[..., None, :]),
-                axis=-2,
+            full_paths = assemble_paths(
+                from_vertices[..., None, :],
+                paths,
+                to_vertices[..., None, :],
             )
 
     """
@@ -291,9 +297,9 @@ def image_method(
         """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
-        intersections = intersection_of_line_segments_with_planes(
+        intersections = intersection_of_rays_with_planes(
             previous_intersections,
-            images,
+            images - previous_intersections,
             mirror_vertices,
             mirror_normals,
         )
