@@ -66,15 +66,20 @@ def test_fermat(
 
 @pytest.mark.benchmark(group="triangles_visible_from_vertices")
 @pytest.mark.parametrize("num_rays", [100, 1000, 10000])
+@pytest.mark.parametrize("use_scan", [False, True])
 def test_transmitter_visibility_in_simple_street_canyon_scene(
     num_rays: int,
+    use_scan: bool,
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
     scene = simple_street_canyon_scene
     _ = benchmark(
         lambda: triangles_visible_from_vertices(
-            scene.transmitters, scene.mesh.triangle_vertices, num_rays=num_rays
+            scene.transmitters,
+            scene.mesh.triangle_vertices,
+            num_rays=num_rays,
+            use_scan=use_scan,
         ).block_until_ready()
     )
 
@@ -82,9 +87,11 @@ def test_transmitter_visibility_in_simple_street_canyon_scene(
 @pytest.mark.benchmark(group="compute_paths")
 @pytest.mark.parametrize("order", [0, 1, 2])
 @pytest.mark.parametrize("chunk_size", [None, 20_000])
+@pytest.mark.parametrize("use_scan", [False, True])
 def test_compute_paths_in_simple_street_canyon_scene(
     order: int,
     chunk_size: int | None,
+    use_scan: bool,
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
@@ -93,7 +100,11 @@ def test_compute_paths_in_simple_street_canyon_scene(
 
         @jax.debug_nans(False)  # noqa: FBT003
         def bench_fun() -> None:
-            for path in scene.compute_paths(order, chunk_size=chunk_size):
+            for path in scene.compute_paths(
+                order,
+                chunk_size=chunk_size,
+                use_scan=use_scan,
+            ):
                 path.vertices.block_until_ready()
 
     else:
@@ -101,7 +112,9 @@ def test_compute_paths_in_simple_street_canyon_scene(
         @jax.debug_nans(False)  # noqa: FBT003
         def bench_fun() -> None:
             scene.compute_paths(
-                order, chunk_size=chunk_size
+                order,
+                chunk_size=chunk_size,
+                use_scan=use_scan,
             ).vertices.block_until_ready()  # type: ignore[reportAttributeAccessIssue]
 
     _ = benchmark(bench_fun)
