@@ -344,7 +344,7 @@ def rays_intersect_any_triangle(
 
     hit_threshold = 1.0 - hit_tol
 
-    if use_scan:  # TODO: test me
+    if use_scan:
         # Put 'num_triangles' axis as leading axis
         triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
 
@@ -455,7 +455,7 @@ def triangles_visible_from_vertices(
     # [num_rays 3]
     ray_directions = fibonacci_lattice(num_rays)
 
-    if use_scan:  # TODO: test me
+    if use_scan:
         batch = jnp.broadcast_shapes(
             ray_origins.shape[:-1], triangle_vertices.shape[:-3]
         )
@@ -466,9 +466,9 @@ def triangles_visible_from_vertices(
             ray_direction: Float[Array, "3"],
         ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
             t, hit = rays_intersect_triangles(
-                ray_origins[..., None, None, :],
-                ray_direction,
-                triangle_vertices[..., :, None, :, :],
+                ray_origins[..., None, :],
+                ray_direction[..., None, :],
+                triangle_vertices,
                 **kwargs,
             )
             # A triangle is visible if it is the first triangle to be intersected by a ray.
