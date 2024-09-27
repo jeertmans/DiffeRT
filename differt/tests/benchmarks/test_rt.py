@@ -59,3 +59,23 @@ def test_fermat(
             setup.mirror_normals,
         ).block_until_ready()
     )
+
+def test_stupid(benchmark: BenchmarkFixture, sionna_folder) -> None:
+    benchmark(lambda: sionna_folder)
+
+
+"""
+@pytest.mark.benchmark(group="triangles_visible_from_vertices")
+@pytest.mark.parametrize("num_rays", [100, 1000, 10000])
+def test_transmitter_visibility_in_simple_street_canyon_scene(
+    num_rays: int,
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+) -> None:
+    scene = simple_street_canyon_scene
+    _ = benchmark(
+        lambda: triangles_visible_from_vertices(
+            scene.transmitters, scene.mesh.triangle_vertices, num_rays=num_rays
+        ).block_until_ready()
+    )
+"""
