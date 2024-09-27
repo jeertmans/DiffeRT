@@ -244,13 +244,14 @@ class TriangleScene(eqx.Module):
             )
 
         if chunk_size:
-            for path_candidates in generate_all_path_candidates_chunks_iter(
-                num_triangles, order, chunk_size=chunk_size
-            ):
-                yield _compute_paths(path_candidates)
-        else:
-            path_candidates = generate_all_path_candidates(num_triangles, order)
-            return _compute_paths(path_candidates)  # noqa: B901
+            return (
+                _compute_paths(path_candidates)
+                for path_candidates in generate_all_path_candidates_chunks_iter(
+                    num_triangles, order, chunk_size=chunk_size
+                )
+            )
+        path_candidates = generate_all_path_candidates(num_triangles, order)
+        return _compute_paths(path_candidates)
 
     def plot(
         self,

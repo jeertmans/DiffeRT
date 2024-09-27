@@ -24,5 +24,6 @@ differt/src/differt/scene/scenes/
 
 # Tools
 
+.benchmarks/
 .coverage*
 coverage.xml
