@@ -119,10 +119,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup uv
-      uses: astral-sh/setup-uv@v2
+    - uses: actions/setup-python@v5
       with:
-        enable-cache: true
+        cache: pip
+        cache-dependency-path: uv.lock
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -130,7 +130,7 @@ jobs:
         components: llvm-tools
 
     - name: Install dependencies
-      run: uv sync --locked --no-dev --extra tests
+      run: pip install ".[tests]"
 
     - name: Build wheel with profiling profile
       uses: PyO3/maturin-action@v1
@@ -148,9 +148,8 @@ jobs:
 
     - name: Generate profile data
       run: |
-        uv run python -m ensurepip
-        uv run python -m pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
-        uv run pytest --benchmark-enable differt/tests/benchmarks
+        pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
+        pytest --benchmark-enable differt/tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
     - name: Merge GO data
@@ -167,12 +166,12 @@ jobs:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
     - name: Install PGO-optimized wheel
-      run: uv pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
+      run: pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: uv run pytest differt/tests/benchmarks --codspeed
+        run: pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
