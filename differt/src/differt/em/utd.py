@@ -32,7 +32,7 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
         C(z) - j S(z) = \int\limits_\sqrt{z}^\infty e^{-j u^2} \text{d}u.
 
     Because JAX does not provide a XLA implementation of
-    :py:data:`scipy.special.fresnel`, this implementation relies on a
+    :data:`scipy.special.fresnel`, this implementation relies on a
     custom complex-valued implementation of the error function and
     the fact that:
 

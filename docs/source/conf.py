@@ -15,6 +15,7 @@ from typing import Any
 from sphinx.application import Sphinx
 
 from differt import __version__
+from differt.scene.sionna import download_sionna_scenes
 
 project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
@@ -199,4 +200,6 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
 
 def setup(app: Sphinx) -> None:
+    download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
+
     app.connect("autodoc-before-process-signature", fix_sionna_folder)

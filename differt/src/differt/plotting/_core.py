@@ -1,7 +1,7 @@
 """Core plotting implementations."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from jaxtyping import Float, Int, Num
@@ -40,7 +40,7 @@ def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 3D mesh made of triangles.
 
@@ -48,9 +48,9 @@ def draw_mesh(
         vertices: The array of triangle vertices.
         triangles: The array of triangle indices.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Mesh>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Mesh>`,
+            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
 
             .. important::
@@ -146,18 +146,18 @@ def _(
 
 @dispatch
 def draw_paths(
-    paths: Float[np.ndarray, r"\*batch path_length 3"],
+    paths: Float[np.ndarray, "batch path_length 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a batch of paths of the same length.
 
     Args:
         paths: The array of path vertices.
         kwargs: Keyword arguments passed to
-            :py:class:`LinePlot<vispy.scene.visuals.LinePlot>`,
-            :py:meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`LinePlot<vispy.scene.visuals.LinePlot>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
@@ -213,8 +213,9 @@ def _(
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        view.add(LinePlot(data=paths[i], **kwargs))
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
+        view.add(LinePlot(data=(x, y, z), **kwargs))
 
     view.camera.set_range()
 
@@ -228,8 +229,8 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        ax.plot(*paths[i].T, **kwargs)
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        ax.plot(*path.T, **kwargs)
 
     return fig
 
@@ -241,20 +242,102 @@ def _(
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        x, y, z = paths[i].T
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
         fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
     return fig
 
 
 @dispatch
+def draw_rays(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a batch of rays.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray directions. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        kwargs: Keyword arguments passed to
+            :class:`LinePlot<vispy.scene.visuals.Arrow>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
+            or :func:`draw_paths` (because VisPy and Plotly don't have a nice quiver plot),
+            depending on the backend.
+
+    Returns:
+        The resulting plot output.
+
+    Examples:
+        The following example shows how to plot rays.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.plotting import draw_rays
+            >>>
+            >>> ray_origins = np.zeros(3)
+            >>> ray_directions = np.asarray(fibonacci_lattice(50))  # From JAX to NumPy array
+            >>> ray_origins, ray_directions = np.broadcast_arrays(ray_origins, ray_directions)
+            >>> fig = draw_rays(
+            ...     ray_origins,
+            ...     ray_directions,
+            ...     backend="plotly",
+            ... )
+            >>> fig  # doctest: +SKIP
+    """
+
+
+@draw_rays.register("vispy")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="vispy", **kwargs)
+
+
+@draw_rays.register("matplotlib")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    ray_origins = ray_origins.reshape(-1, 3)
+    ray_directions = ray_directions.reshape(-1, 3)
+
+    ax.quiver(*ray_origins.T, *ray_directions.T, **kwargs)
+
+    return fig
+
+
+@draw_rays.register("plotly")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="plotly", **kwargs)
+
+
+@dispatch
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot markers and, optionally, their label.
 
@@ -262,13 +345,13 @@ def draw_markers(
         markers: The array of marker vertices.
         labels: The marker labels.
         text_kwargs: A mapping of keyword arguments
-            passed to :py:class:`Text<vispy.scene.visuals.Text>`
+            passed to :class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
             By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
-            :py:class:`Markers<vispy.scene.visuals.Markers>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`Markers<vispy.scene.visuals.Markers>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
@@ -299,8 +382,8 @@ def draw_markers(
 @draw_markers.register("vispy")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
@@ -323,8 +406,8 @@ def _(
 @draw_markers.register("matplotlib")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     raise NotImplementedError  # TODO: implement this
@@ -333,14 +416,16 @@ def _(
 @draw_markers.register("plotly")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,  # noqa: ARG001
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}
+    else:
+        kwargs = {"mode": "markers", **kwargs}
 
     x, y, z = markers.T
     return fig.add_scatter3d(
@@ -354,16 +439,14 @@ def _(
 
 @dispatch
 def draw_image(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
 
@@ -380,9 +463,9 @@ def draw_image(
             the image.
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Image>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Image>`,
+            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
     Returns:
@@ -415,13 +498,11 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
@@ -467,13 +548,11 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
@@ -494,13 +573,11 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]

@@ -5,7 +5,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, jaxtyped
 
 
 @jax.jit
@@ -318,3 +318,87 @@ def rotation_matrix_along_axis(
     o = jnp.outer(axis, axis)
 
     return co * i + si * x + (1 - co) * o
+
+
+@jaxtyped(typechecker=typechecker)
+def fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None = None,
+) -> Float[Array, "{n} 3"]:
+    """
+    Return a lattice of vertices on the unit sphere.
+
+    This function uses the Fibonacci lattice method :cite:`fibonacci-lattice`
+    to generate an almost uniformly distributed set of points on the unit sphere.
+
+    Args:
+        n: The size of the lattice.
+        dtype: The float dtype of the vertices.
+
+    Returns:
+        The array of vertices.
+
+    Raises:
+        ValueError: If the provided dtype is not a floating dtype.
+
+    Examples:
+        The following example shows how to generate and plot
+        a fibonacci lattice.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import (
+            ...     fibonacci_lattice,
+            ... )
+            >>> from differt.plotting import draw_markers
+            >>>
+            >>> xyz = np.asarray(fibonacci_lattice(100))
+            >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
+            >>> fig  # doctest: +SKIP
+    """
+    if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
+        msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
+        raise ValueError(msg)
+
+    phi = 1.618033988749895  # golden ratio
+    i = jnp.arange(0.0, n)  # '0.0' forces floating point values
+
+    lat = jnp.arccos(1 - 2 * i / n)
+    lon = 2 * jnp.pi * i / phi
+
+    co_lat = jnp.cos(lat)
+    si_lat = jnp.sin(lat)
+    co_lon = jnp.cos(lon)
+    si_lon = jnp.sin(lon)
+
+    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def assemble_paths(
+    *path_segments: Float[Array, "*#batch _num_vertices 3"],
+) -> Float[Array, "*#batch path_length 3"]:
+    """
+    Assemble paths by concatenating path vertices along the second to last axis.
+
+    Arrays broadcasting is automatically performed, and the total
+    path length is simply is sum of all the number of vertices.
+
+    Args:
+        path_segments: The path segments to assemble together.
+
+            Usually, this will be a 3-tuple of transmitter positions,
+            interaction points, and receiver positions.
+
+    Returns:
+        The assembled paths.
+    """
+    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in path_segments))
+
+    return jnp.concatenate(
+        tuple(
+            jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in path_segments
+        ),
+        axis=-2,
+    )

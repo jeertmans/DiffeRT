@@ -1,14 +1,16 @@
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from typing import Callable
 
 import chex
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array, ArrayLike, Float, PRNGKeyArray
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry.utils import (
+    assemble_paths,
+    fibonacci_lattice,
     normalize,
     orthogonal_basis,
     pairwise_cross,
@@ -149,3 +151,98 @@ def test_rotation_matrices(
         got = rotation_matrix_along_axis(angle, +jnp.array(axis))
 
     chex.assert_trees_all_close(got, expected)
+
+
+@pytest.mark.parametrize("n", [0, 10, 100])
+@pytest.mark.parametrize(
+    ("dtype", "expected_dtype", "expectation"),
+    [
+        (None, jnp.float32, does_not_raise()),
+        (jnp.float32, jnp.float32, does_not_raise()),
+        (float, jnp.float64, does_not_raise()),
+        ("float", jnp.float64, does_not_raise()),
+        (jnp.float16, jnp.float16, does_not_raise()),
+        (jnp.float64, jnp.float64, does_not_raise()),
+        (
+            int,
+            jnp.float32,
+            pytest.raises(
+                ValueError,
+                match="Unsupported dtype <class 'int'>, must be a floating dtype.",
+            ),
+        ),
+        (
+            jnp.int32,
+            jnp.float32,
+            pytest.raises(
+                ValueError,
+                match="Unsupported dtype <class 'jax.numpy.int32'>, must be a floating dtype.",
+            ),
+        ),
+    ],
+)
+def test_fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None,
+    expected_dtype: jnp.dtype,
+    expectation: AbstractContextManager[Exception],
+) -> None:
+    with jax.experimental.enable_x64(expected_dtype == jnp.float64), expectation:  # type: ignore[reportAttributeAccessIssue]
+        got = fibonacci_lattice(n, dtype=dtype)
+
+        normalized, lengths = normalize(got)
+
+        atol = jnp.finfo(expected_dtype).eps
+
+        chex.assert_type(got, expected_dtype)
+        chex.assert_trees_all_close(got, normalized, atol=atol)
+        chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)
+
+
+def test_assemble_paths() -> None:
+    tx = jnp.ones((5, 3))
+    paths = jnp.arange(24.0).reshape(4, 2, 3)
+    rx = -jnp.ones((6, 3))
+
+    expected = jnp.concatenate(
+        (
+            jnp.tile(tx[:, None, None, None, :], (1, 6, 4, 1, 1)),
+            jnp.tile(paths[None, None, ...], (5, 6, 1, 1, 1)),
+            jnp.tile(rx[None, :, None, None, :], (5, 1, 4, 1, 1)),
+        ),
+        axis=-2,
+    )
+
+    got = assemble_paths(tx[:, None, None, None, :], paths, rx[None, :, None, None, :])
+
+    chex.assert_trees_all_equal(got, expected)
+
+
+@pytest.mark.parametrize(
+    ("shapes", "expectation"),
+    [
+        (((2, 3),), does_not_raise()),
+        (((1, 3), (2, 3), (1, 3)), does_not_raise()),
+        (((1, 3), (10, 5, 2, 3), (1, 3)), does_not_raise()),
+        (((1, 3), (2, 4), (1, 3)), pytest.raises(TypeError)),
+        (((1, 3), (3,), (1, 3)), pytest.raises(TypeError)),
+        (((10, 1, 3), (10, 2, 3), (5, 1, 3)), pytest.raises(TypeError)),
+    ],
+)
+def test_assemble_paths_random_inputs(
+    shapes: tuple[tuple[int, ...], ...],
+    expectation: AbstractContextManager[Exception],
+    key: PRNGKeyArray,
+) -> None:
+    keys = jax.random.split(key, len(shapes))
+
+    path_segments = [
+        jax.random.uniform(key, shape=shape)
+        for key, shape in zip(keys, shapes, strict=False)
+    ]
+
+    with expectation:
+        got = assemble_paths(*path_segments)
+        expected_path_length = sum(shape[-2] for shape in shapes)
+
+        assert got.shape[-2] == expected_path_length

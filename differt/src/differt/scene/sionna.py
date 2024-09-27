@@ -14,7 +14,6 @@ import tarfile
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Optional, Union
 
 import requests
 from filelock import FileLock
@@ -26,17 +25,17 @@ SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
 def download_sionna_scenes(
     branch_or_tag: str = "main",
     *,
-    folder: Union[str, Path] = SIONNA_SCENES_FOLDER,
+    folder: str | Path = SIONNA_SCENES_FOLDER,
     cached: bool = True,
     chunk_size: int = 1024,
     progress: bool = True,
     leave: bool = False,
-    timeout: Optional[Union[float, tuple[float, float]]] = None,
+    timeout: float | tuple[float, float] | None = None,
 ) -> None:
     """
     Download the scenes from Sionna, and store them in the given folder.
 
-    If cached is :py:data:`False` and folder exists, then it will
+    If cached is :data:`False` and folder exists, then it will
     raise an error if not empty: please clear it first!
 
     Args:
@@ -48,7 +47,7 @@ def download_sionna_scenes(
         chunk_size: The chunk size, in bytes, used when downloading
             the data.
         progress: Whether to output a progress bar when downloading.
-        leave: If ``progress`` is :py:data:`True`, whether to leave
+        leave: If ``progress`` is :data:`True`, whether to leave
             the progress bar upon completion.
         timeout: How many seconds to wait before giving up on the download,
             see :func:`requests.request`.
@@ -99,7 +98,7 @@ def download_sionna_scenes(
                 tar.extractall(path=folder, members=members(tar), filter="data")
 
 
-def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> list[str]:
+def list_sionna_scenes(*, folder: str | Path = SIONNA_SCENES_FOLDER) -> list[str]:
     """
     List available Sionna scenes, by name.
 
@@ -118,7 +117,7 @@ def list_sionna_scenes(*, folder: Union[str, Path] = SIONNA_SCENES_FOLDER) -> li
 def get_sionna_scene(
     scene_name: str,
     *,
-    folder: Union[str, Path] = SIONNA_SCENES_FOLDER,
+    folder: str | Path = SIONNA_SCENES_FOLDER,
 ) -> str:
     """
     Return the path to the given Sionna scene.

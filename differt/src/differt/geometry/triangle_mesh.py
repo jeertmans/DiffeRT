@@ -1,7 +1,7 @@
 """Mesh geometry made of triangles and utilities."""
 # ruff: noqa: ERA001
 
-from typing import Any, Optional
+from typing import Any
 
 import equinox as eqx
 import jax
@@ -12,7 +12,6 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
 from differt.plotting import draw_mesh
-from differt.rt.utils import rays_intersect_triangles
 
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
@@ -20,9 +19,9 @@ from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*batch 3 3"],
-    vertices: Float[Array, "*batch 3"],
-) -> Bool[Array, " *batch"]:
+    triangle_vertices: Float[Array, "*#batch 3 3"],
+    vertices: Float[Array, "*#batch 3"],
+) -> Bool[Array, " *#batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
 
@@ -65,54 +64,25 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
     # Dot product between all pairs of 'normal' vectors
     # [*batch]
-    d01 = jnp.sum(n0 * n1, axis=-1)
-    d12 = jnp.sum(n1 * n2, axis=-1)
-    d20 = jnp.sum(n2 * n0, axis=-1)
+    d01 = jnp.einsum("...i,...i->...", n0, n1)
+    d12 = jnp.einsum("...i,...i->...", n1, n2)
+    d20 = jnp.einsum("...i,...i->...", n2, n0)
 
     # [*batch]
     all_pos = (d01 >= 0.0) & (d12 >= 0.0) & (d20 >= 0.0)
     all_neg = (d01 <= 0.0) & (d12 <= 0.0) & (d20 <= 0.0)
+    # TODO: see if we can reduce the number of operations
 
     # The vertices are contained if all signs are the same
     return all_pos | all_neg
-
-
-@eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
-def paths_intersect_triangles(
-    paths: Float[Array, "*batch path_length 3"],
-    triangle_vertices: Float[Array, "num_triangles 3 3"],
-    epsilon: Float[ArrayLike, " "] = 1e-6,
-) -> Bool[Array, " *batch"]:
-    """
-    Return whether each path intersect with any of the triangles.
-
-    Args:
-        paths: An array of ray paths of the same length.
-        triangle_vertices: An array of triangle vertices.
-        epsilon: A small tolerance threshold that excludes
-            a small portion of the path, to avoid indicating intersection
-            when a path *bounces off* a triangle.
-
-    Returns:
-        A boolean array indicating whether vertices are in the corresponding triangles or not.
-    """
-    ray_origins = paths[..., :-1, :]
-    ray_directions = jnp.diff(paths, axis=-2)
-
-    t, hit = rays_intersect_triangles(
-        ray_origins,
-        ray_directions,
-        jnp.broadcast_to(triangle_vertices, (*ray_origins.shape, 3)),
-    )
-    intersect = (t < (1 - epsilon)) & hit
-    return jnp.any(intersect, axis=(0, 2))
 
 
 @jaxtyped(typechecker=typechecker)
 class TriangleMesh(eqx.Module):
     """
     A simple geometry made of triangles.
+
+    TODO: extend arguments.
 
     Args:
         vertices: The array of triangle vertices.
@@ -123,7 +93,7 @@ class TriangleMesh(eqx.Module):
     """The array of triangle vertices."""
     triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle indices."""
-    face_colors: Optional[Float[Array, "num_triangles 3"]] = eqx.field(
+    face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of face colors.
@@ -132,7 +102,7 @@ class TriangleMesh(eqx.Module):
     with a special placeholder value of :data:`(-1, -1, -1)`.
     This attribute is :data:`None` if all face colors are unset.
     """
-    face_materials: Optional[Int[Array, " num_triangles"]] = eqx.field(
+    face_materials: Int[Array, " num_triangles"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of face materials.
@@ -144,7 +114,7 @@ class TriangleMesh(eqx.Module):
     """
     material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple)
     """The list of material names."""
-    object_bounds: Optional[Int[Array, "num_objects 2"]] = eqx.field(
+    object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of object indices.
@@ -152,6 +122,49 @@ class TriangleMesh(eqx.Module):
     If the present mesh contains multiple objects, usually as a result of appending
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
+
+    @jaxtyped(typechecker=typechecker)
+    def __getitem__(self, key: slice | Int[ArrayLike, "*batch"]) -> "TriangleMesh":
+        """Return a copy of this mesh, taking only specific triangles.
+
+        Warning:
+            As it is not possible to guarantee that indexing would not break existing
+            object bounds, the :attr:`object_bounds` attributed is simply dropped.
+
+        Args:
+            key: The key used to index :attr:`triangles`
+                along the first axis.
+
+        Returns:
+            A new mesh.
+        """
+        return TriangleMesh(
+            vertices=self.vertices,
+            triangles=self.triangles[key, :],
+            face_colors=self.face_colors[key, :]
+            if self.face_colors is not None
+            else None,
+            face_materials=self.face_materials[key, :]
+            if self.face_materials is not None
+            else None,
+            material_names=self.material_names,
+            object_bounds=None,
+        )
+
+    @property
+    def num_triangles(self) -> int:
+        """The number of triangles."""
+        return self.triangles.shape[0]
+
+    @property
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
+        """The array of indexed triangle vertices.
+
+        TODO: improve description.
+        """
+        return jnp.take(self.vertices, self.triangles, axis=0)
 
     @classmethod
     def from_core(
@@ -180,10 +193,9 @@ class TriangleMesh(eqx.Module):
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def normals(self) -> Float[Array, "num_triangles 3"]:
+    def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
         """The triangle normals."""
-        vertices = jnp.take(self.vertices, self.triangles, axis=0)
-        vectors = jnp.diff(vertices, axis=1)
+        vectors = jnp.diff(self.triangle_vertices, axis=1)
         normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
 
         return normalize(normals)[0]
@@ -191,7 +203,7 @@ class TriangleMesh(eqx.Module):
     @property
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
+    def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
@@ -215,6 +227,30 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def set_face_colors(
+        self,
+        colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
+    ) -> "TriangleMesh":
+        """
+        Return a copy of this mesh, with new face colors.
+
+        Args:
+            colors: The array of RGB colors.
+                If one color is provided, it will be applied to all triangles.
+
+        Returns:
+            A new mesh with updated face colors.
+        """
+        face_colors = jnp.broadcast_to(colors.reshape(-1, 3), self.triangles.shape)
+        return eqx.tree_at(
+            lambda m: m.face_colors,
+            self,
+            face_colors,
+            is_leaf=lambda x: x is None,
+        )
+
     @classmethod
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
@@ -222,9 +258,9 @@ class TriangleMesh(eqx.Module):
         cls,
         vertex: Float[Array, "3"],
         *other_vertices: Float[Array, "3"],
-        normal: Optional[Float[Array, "3"]] = None,
+        normal: Float[Array, "3"] | None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
-        rotate: Optional[Float[ArrayLike, " "]] = None,
+        rotate: Float[ArrayLike, " "] | None = None,
     ) -> "TriangleMesh":
         """
         Create an plane mesh, made of two triangles.
@@ -324,13 +360,13 @@ class TriangleMesh(eqx.Module):
 
         Args:
             kwargs: Keyword arguments passed to
-                :py:func:`draw_mesh<differt.plotting.draw_mesh>`.
+                :func:`draw_mesh<differt.plotting.draw_mesh>`.
 
         Returns:
             The resulting plot output.
         """
-        if "face_colors" not in kwargs:
-            kwargs["face_colors"] = self.face_colors
+        if "face_colors" not in kwargs and self.face_colors is not None:
+            kwargs["face_colors"] = np.asarray(self.face_colors)
 
         return draw_mesh(
             vertices=np.asarray(self.vertices),
@@ -358,13 +394,10 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new random mesh.
         """
-        triangles = self.triangles[
-            jax.random.choice(
-                key,
-                self.triangles.shape[0],
-                shape=(size,),
-                replace=replace,
-            ),
-            :,
-        ]
-        return TriangleMesh(vertices=self.vertices, triangles=triangles)
+        indices = jax.random.choice(
+            key,
+            self.num_triangles,
+            shape=(size,),
+            replace=replace,
+        )
+        return self[indices]

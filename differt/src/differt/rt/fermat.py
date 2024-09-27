@@ -23,10 +23,10 @@ from differt.utils import minimize
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def fermat_path_on_planar_mirrors(
-    from_vertices: Float[Array, "*batch 3"],
-    to_vertices: Float[Array, "*batch 3"],
-    mirror_vertices: Float[Array, "*batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*batch num_mirrors 3"],
+    from_vertices: Float[Array, "*#batch 3"],
+    to_vertices: Float[Array, "*#batch 3"],
+    mirror_vertices: Float[Array, "*#batch num_mirrors 3"],
+    mirror_normals: Float[Array, "*#batch num_mirrors 3"],
     **kwargs: Any,
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
@@ -51,7 +51,7 @@ def fermat_path_on_planar_mirrors(
                 be unit vectors. However, we keep the same documentation so it is
                 easier for the user to move from one method to the other.
         kwargs: Keyword arguments passed to
-            :py:func:`minimize<differt.utils.minimize>`.
+            :func:`minimize<differt.utils.minimize>`.
 
     Returns:
         An array of ray paths obtained using Fermat's principle.
@@ -61,24 +61,37 @@ def fermat_path_on_planar_mirrors(
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`jax.numpy.concatenate`:
+        :func:`assemble_paths<differt.geometry.utils.assemble_paths>`:
 
         .. code-block:: python
 
-            paths = fermat_path_on_planar_mirrors(
+            paths = image_method(
                 from_vertices,
                 to_vertices,
                 mirror_vertices,
                 mirror_normals,
             )
 
-            full_paths = jnp.concatenate(
-                (jnp.expand_dims(from_vertices, -2), got, jnp.expand_dims(to_vertices, -2)),
-                axis=-2,
+            full_paths = assemble_paths(
+                from_vertices[..., None, :],
+                paths,
+                to_vertices[..., None, :],
             )
     """
-    *batch, num_mirrors, _ = mirror_vertices.shape
+    num_mirrors = mirror_vertices.shape[-2]
     num_unknowns = 2 * num_mirrors
+
+    batch = jnp.broadcast_shapes(
+        from_vertices.shape[:-1],
+        to_vertices.shape[:-1],
+        mirror_vertices.shape[:-2],
+        mirror_normals.shape[:-2],
+    )
+
+    from_vertices = jnp.broadcast_to(from_vertices, (*batch, 3))
+    to_vertices = jnp.broadcast_to(to_vertices, (*batch, 3))
+    mirror_vertices = jnp.broadcast_to(mirror_vertices, (*batch, num_mirrors, 3))
+    mirror_normals = jnp.broadcast_to(mirror_normals, (*batch, num_mirrors, 3))
 
     mirror_directions_1, mirror_directions_2 = orthogonal_basis(mirror_normals)
 
@@ -96,15 +109,15 @@ def fermat_path_on_planar_mirrors(
     @jaxtyped(typechecker=typechecker)
     def loss(  # noqa: PLR0917
         st: Float[Array, "*batch num_unknowns"],
+        from_: Float[Array, "*batch 3"],
+        to: Float[Array, "*batch 3"],
         o: Float[Array, "*batch num_mirrors 3"],
         d1: Float[Array, "*batch num_mirrors 3"],
         d2: Float[Array, "*batch num_mirrors 3"],
-        from_: Float[Array, "*batch 3"],
-        to: Float[Array, "*batch 3"],
-    ) -> Float[Array, "*batch"]:
+    ) -> Float[Array, " *batch"]:
         xyz = st_to_xyz(st, o, d1, d2)
         paths = jnp.concatenate(
-            (jnp.expand_dims(from_, axis=-2), xyz, jnp.expand_dims(to, axis=-2)),
+            (from_[..., None, :], xyz, to[..., None, :]),
             axis=-2,
         )
         vectors = jnp.diff(paths, axis=-2)
@@ -112,15 +125,15 @@ def fermat_path_on_planar_mirrors(
         return jnp.sum(lengths, axis=-1)
 
     st0 = jnp.zeros((*batch, num_unknowns))
-    st, _losses = minimize(
+    st, _ = minimize(
         loss,
         st0,
         args=(
+            from_vertices,
+            to_vertices,
             mirror_vertices,
             mirror_directions_1,
             mirror_directions_2,
-            from_vertices,
-            to_vertices,
         ),
         **kwargs,
     )

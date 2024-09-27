@@ -1,7 +1,8 @@
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, path::PathBuf};
 
-use numpy::{ndarray::arr2, PyArray1, PyArray2};
-use obj::raw::object::{parse_obj, RawObj};
+use indexmap::IndexMap;
+use numpy::{PyArray1, PyArray2, ndarray::arr2};
+use obj::raw::object::{RawObj, parse_obj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
@@ -59,10 +60,10 @@ impl ply::PropertyAccess for PlyFace {
     }
     fn set_property(&mut self, key: String, property: ply::Property) {
         match (key.as_ref(), property) {
-            ("vertex_indices", ply::Property::ListUInt(vec)) => {
+            ("vertex_indices" | "vertex_index", ply::Property::ListUInt(vec)) => {
                 self.vertex_indices = vec.iter().map(|&x| x as _).collect()
             },
-            ("vertex_indices", ply::Property::ListInt(vec)) => {
+            ("vertex_indices" | "vertex_index", ply::Property::ListInt(vec)) => {
                 self.vertex_indices = vec.iter().map(|&x| x as _).collect()
             },
             (k, property) => {
@@ -248,9 +249,18 @@ impl TriangleMesh {
     #[classmethod]
     pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
-        let obj: RawObj = parse_obj(input).map_err(|err| {
+        let mut obj: RawObj = parse_obj(input).map_err(|err| {
             PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
         })?;
+
+        for material_file in obj.material_libraries.iter_mut() {
+            let mut path = PathBuf::from(filename);
+            path.set_file_name(&material_file);
+            if let Some(path_str) = path.to_str() {
+                *material_file = path_str.to_string();
+            }
+        }
+
         Ok(obj.into())
     }
 
@@ -294,7 +304,7 @@ impl TriangleMesh {
                             .read_payload_for_element(&mut input, element, &header)
                             .map_err(|err| {
                                 PyValueError::new_err(format!(
-                                    "An error occurred while reading the face elements of ply \
+                                    "An error occurred while reading the face elements of PLY \
                                      file: {}",
                                     err
                                 ))
@@ -305,7 +315,7 @@ impl TriangleMesh {
                                     let indices = face.vertex_indices;
                                     Some([indices[0], indices[1], indices[2]])
                                 } else {
-                                    log::info!("Face: skipping because it is not a triangle.");
+                                    log::info!("Skipping a face because it is not a triangle.");
                                     None
                                 }
                             }),
@@ -324,7 +334,7 @@ impl TriangleMesh {
 }
 
 impl From<RawObj> for TriangleMesh {
-    fn from(raw_obj: RawObj) -> Self {
+    fn from(mut raw_obj: RawObj) -> Self {
         use obj::raw::object::Polygon::*;
 
         let vertices = raw_obj
@@ -355,12 +365,84 @@ impl From<RawObj> for TriangleMesh {
             }
         }
 
-        // TODO: remove duplicate vertices to reduce the size further.
-        // Steps:
-        // 1. Sort vertices
-        // 2. Identify same vertices (consecutive)
-        // 3. Remap triangles to point to first occurrence
-        // 4. Resize the triangles array and renumber from 0 to ...
+        if !raw_obj.material_libraries.is_empty() && !raw_obj.meshes.is_empty() {
+            let mut materials = IndexMap::new();
+
+            for material_file in raw_obj.material_libraries {
+                match File::open(&material_file) {
+                    Ok(file) => {
+                        match obj::raw::material::parse_mtl(BufReader::new(file)) {
+                            Ok(raw_mat) => {
+                                for (material_name, material) in raw_mat.materials {
+                                    materials.insert(material_name, material);
+                                }
+                            },
+                            Err(e) => {
+                                log::warn!(
+                                    "An error occurred when parsing MTL file {material_file}: {e}."
+                                );
+                            },
+                        }
+                    },
+                    Err(e) => {
+                        log::warn!(
+                            "An error occurred when trying to read MTL file {material_file}: {e}."
+                        );
+                    },
+                }
+            }
+
+            let mut face_colors = vec![[0.0, 0.0, 0.0]; triangles.len()];
+            let mut face_materials = vec![-1; triangles.len()];
+            let mut material_names = Vec::new();
+
+            for (material_index, (material_name, material)) in materials.into_iter().enumerate() {
+                if let Some(group) = raw_obj.meshes.remove(&material_name) {
+                    use obj::raw::material::MtlColor;
+                    let material_color = if let Some(MtlColor::Rgb(r, g, b)) = material.diffuse {
+                        [r, g, b]
+                    } else {
+                        log::warn!(
+                            "Currently, we only support diffuse color in RGB format, but it was \
+                             not present."
+                        );
+                        [0.0, 0.0, 0.0]
+                    };
+                    for polygon_range in group.polygons {
+                        face_colors[(polygon_range.start)..(polygon_range.end)]
+                            .fill(material_color);
+                        face_materials[(polygon_range.start)..(polygon_range.end)]
+                            .fill(material_index as isize);
+                    }
+                } else {
+                    log::warn!(
+                        "Material {material_name} was listed in OBJ material libraries, but is \
+                         not present is mesh groups."
+                    );
+                }
+                material_names.push(material_name);
+            }
+
+            if !raw_obj.meshes.is_empty() {
+                log::warn!(
+                    "Some materials listed in mesh groups where not listed in material libraries: \
+                     {}.",
+                    raw_obj.meshes.into_keys().collect::<Vec<_>>().join(", ")
+                );
+            }
+
+            let face_colors = Some(face_colors);
+            let face_materials = Some(face_materials);
+
+            return Self {
+                vertices,
+                triangles,
+                face_colors,
+                face_materials,
+                material_names,
+                ..Default::default()
+            };
+        }
 
         Self {
             vertices,
@@ -370,6 +452,7 @@ impl From<RawObj> for TriangleMesh {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn triangle_mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleMesh>()?;

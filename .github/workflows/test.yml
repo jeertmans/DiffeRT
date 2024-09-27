@@ -47,7 +47,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install dependencies
-      run: uv sync --no-dev --extra tests
+      run: uv sync --locked --no-dev --extra tests
 
     - name: Run tests
       run: uv run pytest
@@ -63,7 +63,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.9', '3.10', '3.11', '3.12']
+        pyversion: ['3.10', '3.11', '3.12']
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
@@ -120,28 +120,30 @@ jobs:
       uses: actions/checkout@v4
 
     - uses: actions/setup-python@v5
+      id: setup-python
       with:
         cache: pip
         cache-dependency-path: uv.lock
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v2
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         components: llvm-tools
 
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+
     - name: Install dependencies
-      run: pip install ".[tests]"
+      run: uv pip install -r pyproject.toml --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
 
-    - name: Run Benchmarks on changes
-      run: pytest --benchmark-only --benchmark-save=changes differt-core/tests/benchmarks
-
-    - name: Build wheel with profiling profile
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --release
-          --out pgo-wheel
-        working-directory: differt-core
+    - name: Build differt-core for profiling
+      run: |
+        rm -f python/differt_core/*.so
+        pip install -e . --config-settings=build-args='--profile profiling'
+      working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -150,79 +152,23 @@ jobs:
       shell: bash
 
     - name: Generate profile data
+      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+
+    - name: Merge PGO data
+      run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
+
+    - name: Build differt-core for benchmarking
       run: |
-        python -m ensurepip
-        python -m pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
-        pytest --benchmark-only differt-core/tests/benchmarks
-        rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
-
-    - name: Merge GO data
-      run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata
-
-    - name: Build PGO-optimized wheel
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --release
-          --out opt-wheel
-        working-directory: differt-core
+        rm -f python/differt_core/*.so
+        pip install -e . --config-settings=build-args='--profile profiling'
+      working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
-    - name: Run Benchmarks on changes with PGO-optimized wheel
-      run: |
-        python -m pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
-        pytest --benchmark-only --benchmark-save=pgo differt-core/tests/benchmarks
-
-    - name: Checkout base branch
-      uses: actions/checkout@v4
+    - name: Run CodSpeed benchmarks
+      uses: CodSpeedHQ/action@v3
       with:
-        ref: ${{ github.event.pull_request.base.sha }}
-        clean: false
-
-    - name: Install dependencies (before changes)
-      run: pip install ".[tests]"
-
-    - name: Build wheel before changes
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --release
-          --out dist
-        working-directory: differt-core
-
-    - name: Run Benchmarks before changes
-      run: |
-        python -m pip install differt-core --no-index --no-deps --find-links differt-core/dist --force-reinstall
-        pytest --benchmark-only --benchmark-save=before differt-core/tests/benchmarks
-
-    - name: Compare benchmarks
-      run: |
-        echo 'results<<EOF' >> $GITHUB_OUTPUT
-        pytest-benchmark compare --group-by=name --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
-      id: compare
-
-    - name: Comment PR with benchmarks
-      uses: thollander/actions-comment-pull-request@v2
-      continue-on-error: true
-      with:
-        message: |
-          Python benchmark results:
-          ```
-          ${{ steps.compare.outputs.results }}
-          ```
-        comment_tag: python-benchmarks
-
-      id: comment
-
-    - name: If PR comment failed, write to PR summary
-      if: steps.comment.outcome != 'success'
-      run: |
-        echo '### Python benchmark results' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        run: pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
@@ -232,57 +178,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5
 
     - name: Install NumPy
-      run: pip install numpy
+      run: pip install "numpy<2"
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - uses: taiki-e/install-action@v2
-      with:
-        tool: critcmp@0.1.8
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
 
-    - name: Run Benchmarks on changes
-      run: cargo bench --bench bench_main -- --save-baseline changes
-
-    - name: Checkout base branch
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.base.sha }}
-        clean: false
-
-    - name: Run Benchmarks before changes
-      run: cargo bench --bench bench_main -- --save-baseline before
-
-    - name: Compare benchmarks
-      run: |
-        echo 'results<<EOF' >> $GITHUB_OUTPUT
-        critcmp before changes >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
-      id: compare
-
-    - name: Comment PR with benchmarks
-      uses: thollander/actions-comment-pull-request@v2
-      continue-on-error: true
-      with:
-        message: |
-          Rust benchmark results:
-          ```
-          ${{ steps.compare.outputs.results }}
-          ```
-        comment_tag: rust-benchmarks
-
-      id: comment
-
-    - name: If PR comment failed, write to PR summary
-      if: steps.comment.outcome != 'success'
-      run: |
-        echo '### Rust benchmark results' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+    - name: Run Benchmarks
+      run: cargo bench
 
   linkcheck-docs:
     runs-on: ubuntu-latest
@@ -296,7 +205,7 @@ jobs:
         enable-cache: true
 
     - name: Install dependencies
-      run: uv sync --no-dev --extra docs
+      run: uv sync --locked --no-dev --extra docs
 
     - name: Install Just
       uses: taiki-e/install-action@just

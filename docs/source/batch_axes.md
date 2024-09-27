@@ -64,6 +64,21 @@ That is, the resulting output will have a shape of `*batch`,
 where is entry is the result of the dot produt between `n` pairs of values
 from the corresponding entries in `x` and `y` input arguments.
 
+## Convenient arrays broadcasting with `*#batch`
+
+Very frequently, input arguments will actually be annotated with `*#batch`
+instead of `*batch`. The important difference is that the former allows
+any input shapes, as long as they can be broadcasted together, i.e.,
+with {func}`jax.numpy.broadcast_arrays` or similar.
+
+This serves two principal objectives:
+
+1. avoid, when possibly, unnecessary memory allocations, by not broadcasting
+   arrays and directly using reduced results, like for the dot product.
+   This, however, often depends on the ability of {func}`jax.jit` to
+   optimize some unnecessary computations away.
+2. and make the function easier to use, without reducing their functionality.
+
 ## When batch axes are not available
 
 If a function does not offer batch axes, there are two possibilities:

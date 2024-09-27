@@ -68,7 +68,7 @@ def builder_inited(app: Sphinx) -> None:  # noqa: C901, PLR0912
 
     options.append(f"--templatedir={app.config.apidoc_templatedir}")
 
-    for module_dir_rel, output_dir_rel in zip(module_dirs, output_dirs):
+    for module_dir_rel, output_dir_rel in zip(module_dirs, output_dirs, strict=False):
         module_dir = Path(module_dir_rel)
         if not module_dir.is_absolute():
             module_dir = Path(app.srcdir) / module_dir_rel

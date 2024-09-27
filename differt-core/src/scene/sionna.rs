@@ -1,7 +1,8 @@
-use std::{collections::HashMap, fs::File, io::BufReader};
+use std::{fs::File, io::BufReader};
 
+use indexmap::IndexMap;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
-use serde::{de, Deserialize};
+use serde::{Deserialize, de};
 
 /// A scene as loaded from a Sionna-compatible
 /// XML file.
@@ -23,7 +24,7 @@ pub(crate) struct SionnaScene {
     ///
     /// Currently, only BSDF materials are used.
     #[serde(rename = "bsdf", deserialize_with = "deserialize_materials")]
-    pub(crate) materials: HashMap<String, Material>,
+    pub(crate) materials: IndexMap<String, Material>,
     /// dict[str, Shape]: A mapping between shape IDs and actual
     /// shapes.
     ///
@@ -32,15 +33,15 @@ pub(crate) struct SionnaScene {
     /// Also, any face normals attribute is ignored, as normals are
     /// recomputed using JAX arrays in the :mod:`differt` module.
     #[serde(rename = "shape", deserialize_with = "deserialize_shapes")]
-    pub(crate) shapes: HashMap<String, Shape>,
+    pub(crate) shapes: IndexMap<String, Shape>,
 }
 
-fn deserialize_materials<'de, D>(deserializer: D) -> Result<HashMap<String, Material>, D::Error>
+fn deserialize_materials<'de, D>(deserializer: D) -> Result<IndexMap<String, Material>, D::Error>
 where
     D: de::Deserializer<'de>,
 {
     Vec::<Material>::deserialize(deserializer).map(|v| {
-        let mut map = HashMap::with_capacity(v.len());
+        let mut map = IndexMap::with_capacity(v.len());
 
         for material in v {
             if let Some(material) = map.insert(material.id.clone(), material) {
@@ -55,12 +56,12 @@ where
     })
 }
 
-fn deserialize_shapes<'de, D>(deserializer: D) -> Result<HashMap<String, Shape>, D::Error>
+fn deserialize_shapes<'de, D>(deserializer: D) -> Result<IndexMap<String, Shape>, D::Error>
 where
     D: de::Deserializer<'de>,
 {
     Vec::<Shape>::deserialize(deserializer).map(|v| {
-        let mut map = HashMap::with_capacity(v.len());
+        let mut map = IndexMap::with_capacity(v.len());
 
         for shape in v {
             if let Some(shape) = map.insert(shape.id.clone(), shape) {
@@ -225,6 +226,7 @@ impl SionnaScene {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn sionna(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Material>()?;

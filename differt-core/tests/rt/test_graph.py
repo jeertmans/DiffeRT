@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pytest
 
@@ -140,12 +142,13 @@ class TestDiGraph:
     ) -> None:
         graph = CompleteGraph(num_nodes)
         from_, to = num_nodes, num_nodes + 1
-        _ = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
 
-        for record in caplog.records:
-            assert record.levelname == "WARNING"
+        caplog.clear()
 
-        assert (
-            "OverflowError: overflow occurred when computing the total number of paths"
-            in caplog.text
-        )
+        with caplog.at_level(logging.WARNING):
+            _ = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
+
+            assert (
+                "OverflowError: overflow occurred when computing the total number of paths"
+                in caplog.text
+            )

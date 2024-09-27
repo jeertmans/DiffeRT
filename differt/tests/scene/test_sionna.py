@@ -43,7 +43,7 @@ def test_list_sionna_scenes(sionna_folder: Path) -> None:
     assert len(l_a) > 0
     l_b = list_sionna_scenes(folder=str(sionna_folder))
 
-    for s_a, s_b in zip(l_a, l_b):
+    for s_a, s_b in zip(l_a, l_b, strict=False):
         assert s_a == s_b
 
 

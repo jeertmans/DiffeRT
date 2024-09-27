@@ -4,7 +4,14 @@ from contextlib import nullcontext as does_not_raise
 import numpy as np
 import pytest
 
-from differt.plotting import draw_image, draw_markers, draw_mesh, draw_paths, use
+from differt.plotting import (
+    draw_image,
+    draw_markers,
+    draw_mesh,
+    draw_paths,
+    draw_rays,
+    use,
+)
 
 
 @pytest.mark.parametrize(
@@ -31,6 +38,19 @@ def test_draw_paths(
     paths = rng.random(size=(10, 4, 3))
     with use(backend):
         _ = draw_paths(paths)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    ["vispy", "matplotlib", "plotly"],
+)
+def test_draw_rays(
+    rng: np.random.Generator,
+    backend: str,
+) -> None:
+    ray_origins, ray_directions = rng.random(size=(2, 10, 4, 3))
+    with use(backend):
+        _ = draw_rays(ray_origins, ray_directions)
 
 
 @pytest.mark.parametrize(
