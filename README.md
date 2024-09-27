@@ -120,7 +120,7 @@ pytest
 or benchmark it:
 
 ```bash
-pytest --benchmark-only
+pytest --benchmark-enable differt/tests/benchmarks
 ```
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet

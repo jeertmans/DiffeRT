@@ -153,7 +153,7 @@ jobs:
       run: |
         python -m ensurepip
         python -m pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
-        pytest --benchmark-only differt-core/tests/benchmarks
+        pytest --benchmark-enable differt/tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
     - name: Merge GO data
@@ -169,60 +169,13 @@ jobs:
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
-    - name: Run Benchmarks on changes with PGO-optimized wheel
-      run: |
-        python -m pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
-        pytest --benchmark-only --benchmark-save=pgo
+    - name: Install PGO-optimized wheel
+      run: python -m pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
 
-    - name: Checkout base branch
-      uses: actions/checkout@v4
+    - name: Run CodSpeed benchmarks
+      uses: CodSpeedHQ/action@v3
       with:
-        ref: ${{ github.event.pull_request.base.sha }}
-        clean: false
-
-    - name: Install dependencies (before changes)
-      run: pip install ".[tests]"
-
-    - name: Build wheel before changes
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --release
-          --out dist
-        working-directory: differt-core
-
-    - name: Run Benchmarks before changes
-      run: |
-        python -m pip install differt-core --no-index --no-deps --find-links differt-core/dist --force-reinstall
-        pytest --benchmark-only --benchmark-save=before
-
-    - name: Compare benchmarks
-      run: |
-        echo 'results<<EOF' >> $GITHUB_OUTPUT
-        pytest-benchmark compare --group-by=name --columns="mean,stddev,ops" >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
-      id: compare
-
-    - name: Comment PR with benchmarks
-      uses: thollander/actions-comment-pull-request@v2
-      continue-on-error: true
-      with:
-        message: |
-          Python benchmark results:
-          ```
-          ${{ steps.compare.outputs.results }}
-          ```
-        comment_tag: python-benchmarks
-
-      id: comment
-
-    - name: If PR comment failed, write to PR summary
-      if: steps.comment.outcome != 'success'
-      run: |
-        echo '### Python benchmark results' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        run: pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest

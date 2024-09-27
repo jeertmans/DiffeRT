@@ -789,6 +789,7 @@ tests = [
     { name = "open3d-cpu", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
+    { name = "pytest-codspeed" },
     { name = "pytest-cov" },
     { name = "pytest-env" },
     { name = "pytest-missing-modules" },
@@ -807,6 +808,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
+    { name = "pytest-codspeed" },
     { name = "pytest-cov" },
     { name = "pytest-env" },
     { name = "pytest-missing-modules" },
@@ -835,6 +837,7 @@ requires-dist = [
     { name = "pillow", marker = "extra == 'docs'", specifier = ">=10.1.0" },
     { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.4.3" },
     { name = "pytest-benchmark", marker = "extra == 'tests'", specifier = ">=4.0.0" },
+    { name = "pytest-codspeed", marker = "extra == 'tests'", specifier = ">=2.2.0" },
     { name = "pytest-cov", marker = "extra == 'tests'", specifier = ">=4.1.0" },
     { name = "pytest-env", marker = "extra == 'tests'", specifier = ">=1.1.3" },
     { name = "pytest-missing-modules", marker = "extra == 'tests'", specifier = ">=0.2.0" },
@@ -1299,6 +1302,7 @@ name = "jax-cuda12-pjrt"
 version = "0.4.33"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/cd/d12ea8644ae21df284e144a64da26b70b020602cd98cd9d4b8011aa33a6e/jax_cuda12_pjrt-0.4.33-py3-none-manylinux2014_aarch64.whl", hash = "sha256:6a9945a8b58fabd040a06850f5ca6bcf94b9ec45b8248afb20c7f2eb809e2cea", size = 83222099 },
     { url = "https://files.pythonhosted.org/packages/d3/1d/585fd2a2785f86e0a7a7562240ff3da9f9dc319782283d9548d6d417582f/jax_cuda12_pjrt-0.4.33-py3-none-manylinux2014_x86_64.whl", hash = "sha256:b43f199ec27fd9b3bb79b34ed297894ad50bb7a6eab62012baaa9ea6607b22de", size = 99675023 },
 ]
 
@@ -1310,8 +1314,11 @@ dependencies = [
     { name = "jax-cuda12-pjrt" },
 ]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/21/84/111b21ed28b082f87a7b0529487766dc0c8b9da17869979e20f33f289d7d/jax_cuda12_plugin-0.4.33-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:80736e03df2a5a0c35e4801f59e4d3c8b94cc8e8a03221763c95dcf7851fd120", size = 14853117 },
     { url = "https://files.pythonhosted.org/packages/e4/ad/1d5ca6d4bda8ce94986a33a15865d1481327cfa3a666fc399b209a4fe0ca/jax_cuda12_plugin-0.4.33-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:a88cf22061416a97731ef837d56695e73d5ebd26aefc612328eeea510d3ed7e5", size = 14857263 },
+    { url = "https://files.pythonhosted.org/packages/8c/77/c38bbe531853124b01f9f7a4730117e97b9ec92b55b70f326bf8453664e6/jax_cuda12_plugin-0.4.33-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:bb81b2f65b1bb8e65b966b6f79985d3b168d495628b694fdf1791cd89696694e", size = 14851056 },
     { url = "https://files.pythonhosted.org/packages/36/6a/14b199d8a3e4de1fe5ba7338e9f0864ca06838b7b442fb3cd13f1becc450/jax_cuda12_plugin-0.4.33-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:ad8f8863ee8d5e11a867bd71b37e979939cad64d0f74efd52cdb37292517613e", size = 14858153 },
+    { url = "https://files.pythonhosted.org/packages/b2/71/6dbc91ece1821ebb0edc6a457e9384aaaa163b7cc5e0bcff161f5df3b43d/jax_cuda12_plugin-0.4.33-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:750b8147076b17ddff097bd6b38f1db227eba6674eb4e5843dbb007e0b6bec33", size = 14847835 },
     { url = "https://files.pythonhosted.org/packages/0b/fb/2315fd599ee0b163b2cda5ea8a5f47ce1bcaec756483586f89e0c0f681e7/jax_cuda12_plugin-0.4.33-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:73c54317223aa8a5b46f6821d7cacfb38f4dbd2fc66f2a83a33419b4d72a5211", size = 14854471 },
 ]
 
@@ -2895,6 +2902,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/08/e6b0067efa9a1f2a1eb3043ecd8a0c48bfeb60d3255006dcc829d72d5da2/pytest-benchmark-4.0.0.tar.gz", hash = "sha256:fb0785b83efe599a6a956361c0691ae1dbb5318018561af10f3e915caa0048d1", size = 334641 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/a1/3b70862b5b3f830f0422844f25a823d0470739d994466be9dbbbb414d85a/pytest_benchmark-4.0.0-py3-none-any.whl", hash = "sha256:fdb7db64e31c8b277dff9850d2a2556d8b60bcb0ea6524e36e28ffd7c87f71d6", size = 43951 },
+]
+
+[[package]]
+name = "pytest-codspeed"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cffi" },
+    { name = "filelock" },
+    { name = "pytest" },
+    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/40/6a/ba0b067dba286443a04c9d32ff75ef3bc169617ee347d1a97972ada62665/pytest_codspeed-2.2.1.tar.gz", hash = "sha256:0adc24baf01c64a6ca0a0b83b3cd704351708997e09ec086b7776c32227d4e0a", size = 9163 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/0b/e3541064afcf24ed54bcabfa6eb5f8083eb335d5c58c7b5b95bc31127f86/pytest_codspeed-2.2.1-py3-none-any.whl", hash = "sha256:aad08033015f3e6c8c14c8bf0eca475921a9b088e92c98b626bf8af8f516471e", size = 10126 },
 ]
 
 [[package]]

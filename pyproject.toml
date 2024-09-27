@@ -38,6 +38,7 @@ tests = [
   "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
+  "pytest-codspeed>=2.2.0",
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
   "pytest-missing-modules>=0.2.0",
@@ -117,10 +118,10 @@ addopts = [
   "--doctest-ignore-import-errors",
   "--doctest-glob=*.md",
   "--doctest-glob=*.rst",
-  "--benchmark-columns=mean,stddev,ops",
+  "--benchmark-columns=mean,stddev,ops,iterations",
   "--benchmark-group-by=group",
   "--benchmark-warmup=on",
-  "--benchmark-skip",
+  "--benchmark-disable",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
