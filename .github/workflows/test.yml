@@ -174,57 +174,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
+    - name: Setup Python
+      uses: actions/setup-python@v5
 
     - name: Install NumPy
-      run: pip install numpy
+      run: pip install numpy<2
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - uses: taiki-e/install-action@v2
-      with:
-        tool: critcmp@0.1.8
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
 
-    - name: Run Benchmarks on changes
-      run: cargo bench --bench bench_main -- --save-baseline changes
-
-    - name: Checkout base branch
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.base.sha }}
-        clean: false
-
-    - name: Run Benchmarks before changes
-      run: cargo bench --bench bench_main -- --save-baseline before
-
-    - name: Compare benchmarks
-      run: |
-        echo 'results<<EOF' >> $GITHUB_OUTPUT
-        critcmp before changes >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
-      id: compare
-
-    - name: Comment PR with benchmarks
-      uses: thollander/actions-comment-pull-request@v2
-      continue-on-error: true
-      with:
-        message: |
-          Rust benchmark results:
-          ```
-          ${{ steps.compare.outputs.results }}
-          ```
-        comment_tag: rust-benchmarks
-
-      id: comment
-
-    - name: If PR comment failed, write to PR summary
-      if: steps.comment.outcome != 'success'
-      run: |
-        echo '### Rust benchmark results' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.compare.outputs.results }}' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+    - name: Run Benchmarks
+      run: cargo bench
 
   linkcheck-docs:
     runs-on: ubuntu-latest
