@@ -161,9 +161,6 @@ jobs:
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
-    - name: Install PGO-optimized wheel
-      run: pip install differt-core --no-index --no-deps --find-links differt-core/opt-wheel --force-reinstall
-
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
