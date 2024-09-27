@@ -309,12 +309,14 @@ def image_method(
         forward,
         init=from_vertices,
         xs=(mirror_vertices, mirror_normals),
+        unroll=True,
     )
     _, paths = jax.lax.scan(
         backward,
         init=to_vertices,
         xs=(mirror_vertices, mirror_normals, images),
         reverse=True,
+        unroll=True,
     )
 
     return jnp.moveaxis(paths, 0, -2)  # Put 'num_mirrors' axis at the end
