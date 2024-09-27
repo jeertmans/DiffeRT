@@ -3,8 +3,8 @@ debug = true
 strip = false
 
 [profile.profiling]
-inherits = "release"
 debug = true
+inherits = "release"
 strip = false
 
 [profile.release]

@@ -43,3 +43,4 @@ If you feel something is missing, please create
 ## GitHub
 
 - Add CITATION.cff file
+- Build PGO wheels for release too

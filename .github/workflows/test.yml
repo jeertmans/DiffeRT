@@ -141,7 +141,7 @@ jobs:
         pip install -e . --config-settings=build-args='--profile profiling'
       working-directory: differt-core
       env:
-        RUSTFLAGS: "-Cprofile-generate=${{ github.workspace }}/profdata"
+        RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
     - name: Detect Rust host
       run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"

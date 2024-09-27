@@ -27,7 +27,3 @@ differt/src/differt/scene/scenes/
 .benchmarks/
 .coverage*
 coverage.xml
-
-# PGO
-
-differt-core/pgo-wheel/
