@@ -148,7 +148,7 @@ jobs:
       shell: bash
 
     - name: Generate profile data
-      run: pytest --dist=no --benchmark-enable differt/tests/benchmarks
+      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
 
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
