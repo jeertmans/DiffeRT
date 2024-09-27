@@ -148,7 +148,8 @@ jobs:
 
     - name: Generate profile data
       run: |
-        uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
+        uv run python -m ensurepip
+        uv run python -m pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
         uv run pytest --benchmark-enable differt/tests/benchmarks
         rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
