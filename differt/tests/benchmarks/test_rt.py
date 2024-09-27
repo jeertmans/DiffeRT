@@ -6,6 +6,7 @@ from differt.rt.fermat import fermat_path_on_planar_mirrors
 from differt.rt.image_method import (
     image_method,
 )
+from differt.rt.utils import triangles_visible_from_vertices
 from differt.scene.triangle_scene import TriangleScene
 from differt.scene.sionna import get_sionna_scene
 
