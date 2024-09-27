@@ -12,7 +12,9 @@ build:
     post_system_dependencies:
     - nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
     post_create_environment:
-    - pip install uv
+    - asdf plugin add uv
+    - asdf install uv latest
+    - asdf global uv latest
     - uv pip install -r pyproject.toml --extra docs --no-cache --python $READTHEDOCS_VIRTUALENV_PATH
 sphinx:
   builder: html
