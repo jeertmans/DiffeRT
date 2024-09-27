@@ -90,12 +90,12 @@ class TestTriangleScene:
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
 
-        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
-        chex.assert_trees_all_equal(got.masked_objects, expected_objects)
+        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)  # type: ignore[reportAttributeAccessIssue]
+        chex.assert_trees_all_equal(got.masked_objects, expected_objects)  # type: ignore[reportAttributeAccessIssue]
 
-        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
+        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)  # type: ignore[reportAttributeAccessIssue]
 
-        rays = jnp.diff(got.masked_vertices, axis=-2)
+        rays = jnp.diff(got.masked_vertices, axis=-2)  # type: ignore[reportAttributeAccessIssue]
 
         rays = normalize(rays)[0]
 

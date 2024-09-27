@@ -119,9 +119,6 @@ class TriangleScene(eqx.Module):
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
             identify valid paths.
-
-        Yields:
-            The paths, but in chunks of ``chunk_size``.
         """
         # 0 - Constants arrays of chunks
         num_triangles = self.mesh.triangles.shape[0]

@@ -1,3 +1,4 @@
+import jax
 import pytest
 from jaxtyping import PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
@@ -8,7 +9,6 @@ from differt.rt.image_method import (
 )
 from differt.rt.utils import triangles_visible_from_vertices
 from differt.scene.triangle_scene import TriangleScene
-from differt.scene.sionna import get_sionna_scene
 
 from ..rt.utils import PlanarMirrorsSetup
 
@@ -63,13 +63,7 @@ def test_fermat(
         ).block_until_ready()
     )
 
-def test_stupid(benchmark: BenchmarkFixture, sionna_folder) -> None:
-    file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-    scene = TriangleScene.load_xml(file)
-    benchmark(lambda: scene)
 
-
-"""
 @pytest.mark.benchmark(group="triangles_visible_from_vertices")
 @pytest.mark.parametrize("num_rays", [100, 1000, 10000])
 def test_transmitter_visibility_in_simple_street_canyon_scene(
@@ -83,4 +77,31 @@ def test_transmitter_visibility_in_simple_street_canyon_scene(
             scene.transmitters, scene.mesh.triangle_vertices, num_rays=num_rays
         ).block_until_ready()
     )
-"""
+
+
+@pytest.mark.benchmark(group="compute_paths")
+@pytest.mark.parametrize("order", [0, 1, 2])
+@pytest.mark.parametrize("chunk_size", [None, 20_000])
+def test_compute_paths_in_simple_street_canyon_scene(
+    order: int,
+    chunk_size: int | None,
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+) -> None:
+    scene = simple_street_canyon_scene
+    if chunk_size:
+
+        @jax.debug_nans(False)  # noqa: FBT003
+        def bench_fun() -> None:
+            for path in scene.compute_paths(order, chunk_size=chunk_size):
+                path.vertices.block_until_ready()
+
+    else:
+
+        @jax.debug_nans(False)  # noqa: FBT003
+        def bench_fun() -> None:
+            scene.compute_paths(
+                order, chunk_size=chunk_size
+            ).vertices.block_until_ready()  # type: ignore[reportAttributeAccessIssue]
+
+    _ = benchmark(bench_fun)
