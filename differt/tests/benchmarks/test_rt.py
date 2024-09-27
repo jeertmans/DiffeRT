@@ -6,6 +6,8 @@ from differt.rt.fermat import fermat_path_on_planar_mirrors
 from differt.rt.image_method import (
     image_method,
 )
+from differt.scene.triangle_scene import TriangleScene
+from differt.scene.sionna import get_sionna_scene
 
 from ..rt.utils import PlanarMirrorsSetup
 
@@ -61,7 +63,9 @@ def test_fermat(
     )
 
 def test_stupid(benchmark: BenchmarkFixture, sionna_folder) -> None:
-    benchmark(lambda: sionna_folder)
+    file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
+    scene = TriangleScene.load_xml(file)
+    benchmark(lambda: scene)
 
 
 """
