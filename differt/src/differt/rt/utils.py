@@ -466,9 +466,9 @@ def triangles_visible_from_vertices(
             ray_direction: Float[Array, "3"],
         ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
             t, hit = rays_intersect_triangles(
-                ray_origins[..., None, :],
-                ray_direction[..., None, :],
-                triangle_vertices,
+                ray_origins[..., None, None, :],
+                ray_direction,
+                triangle_vertices[..., :, None, :, :],
                 **kwargs,
             )
             # A triangle is visible if it is the first triangle to be intersected by a ray.
@@ -493,6 +493,6 @@ def triangles_visible_from_vertices(
         **kwargs,
     )
 
-    return (t == jnp.min(t, axis=-1, keepdims=True, initial=jnp.inf, where=hit)).any(
+    return (t == jnp.min(t, axis=-2, keepdims=True, initial=jnp.inf, where=hit)).any(
         axis=-1
     )
