@@ -303,7 +303,7 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
-    use_scan: bool = False,
+    use_scan: bool = True,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"]:
     """
@@ -391,7 +391,7 @@ def triangles_visible_from_vertices(
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
     *,
-    use_scan: bool = False,
+    use_scan: bool = True,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
     """
