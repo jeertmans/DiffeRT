@@ -136,7 +136,7 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         args: >
-          --release
+          --profile profiling
           --out pgo-wheel
         working-directory: differt-core
       env:
@@ -159,7 +159,7 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         args: >
-          --release
+          --profile profiling
           --out opt-wheel
         working-directory: differt-core
       env:
