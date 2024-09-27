@@ -1,6 +1,6 @@
 import pytest
 from jaxtyping import PRNGKeyArray
-from pytest_benchmark.fixture import BenchmarkFixture
+from pytest_codspeed import BenchmarkFixture
 
 from differt.rt.fermat import fermat_path_on_planar_mirrors
 from differt.rt.image_method import (
