@@ -129,39 +129,35 @@ jobs:
       with:
         components: llvm-tools
 
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+
     - name: Install dependencies
       run: pip install ".[tests]"
 
-    - name: Build wheel with profiling profile
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --profile profiling
-          --out pgo-wheel
-        working-directory: differt-core
+    - name: Build differt-core for profiling
+      run: |
+        rm -f python/differt_core/*.so
+        pip install -e . --config-settings=build-args='--profile profiling'
+      working-directory: differt-core
       env:
-        RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
+        RUSTFLAGS: "-Cprofile-generate=${{ github.workspace }}/profdata"
 
     - name: Detect Rust host
       run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
       shell: bash
 
     - name: Generate profile data
+      run: pytest --benchmark-enable differt/tests/benchmarks
+
+    - name: Merge PGO data
+      run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
+
+    - name: Build differt-core for benchmarking
       run: |
-        pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
-        pytest --benchmark-enable differt/tests/benchmarks
-        rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
-
-    - name: Merge GO data
-      run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata
-
-    - name: Build PGO-optimized wheel
-      uses: PyO3/maturin-action@v1
-      with:
-        args: >
-          --profile profiling
-          --out opt-wheel
-        working-directory: differt-core
+        rm -f python/differt_core/*.so
+        pip install -e . --config-settings=build-args='--profile profiling'
+      working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
