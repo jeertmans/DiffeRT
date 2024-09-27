@@ -5,8 +5,9 @@ build:
     python: '3.11'
     rust: '1.75'
   commands:
-  - sudo apt-get update --assume-yes --quiet
-  - sudo apt-get install --assume-yes --quiet -- freeglut3-dev xvfb x11-utils
+  - asdf install freeglut3-dev latest
+  - asdf install xvfb latest
+  - asdf install x11-utils latest
   - nohup Xvfb $DISPLAY -screen 0 1400x900x24 -dpi 96 +extension RANDR +render &
   - asdf plugin add uv
   - asdf install uv latest
