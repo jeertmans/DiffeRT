@@ -178,7 +178,7 @@ jobs:
       uses: actions/setup-python@v5
 
     - name: Install NumPy
-      run: pip install numpy<2
+      run: pip install "numpy<2"
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
