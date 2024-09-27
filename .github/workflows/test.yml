@@ -132,9 +132,6 @@ jobs:
     - name: Install dependencies
       run: pip install ".[tests]"
 
-    - name: Run Benchmarks on changes
-      run: pytest --benchmark-only --benchmark-save=changes
-
     - name: Build wheel with profiling profile
       uses: PyO3/maturin-action@v1
       with:
