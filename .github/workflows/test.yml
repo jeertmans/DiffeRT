@@ -137,7 +137,7 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Install dependencies
-      run: uv pip install . --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
+      run: uv pip install -r pyproject.toml --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
 
     - name: Build differt-core for profiling
       run: |
