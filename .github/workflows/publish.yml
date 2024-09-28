@@ -159,7 +159,7 @@ jobs:
       run: uv sync
 
     - name: Build package
-      run: uv build --package differt
+      run: uv build --package differt -o dist
 
     - name: Upload sdist
       uses: actions/upload-artifact@v4
