@@ -78,15 +78,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
 @jaxtyped(typechecker=typechecker)
 class TriangleMesh(eqx.Module):
-    """
-    A simple geometry made of triangles.
-
-    TODO: extend arguments.
-
-    Args:
-        vertices: The array of triangle vertices.
-        triangles: The array of triangle indices.
-    """
+    """A simple geometry made of triangles."""
 
     vertices: Float[Array, "num_vertices 3"] = eqx.field(converter=jnp.asarray)
     """The array of triangle vertices."""
@@ -98,7 +90,7 @@ class TriangleMesh(eqx.Module):
     """The array of face colors.
 
     The array contains the face colors, as RGB triplets,
-    with a special placeholder value of :data:`(-1, -1, -1)`.
+    with a black color used as defaults (if some faces have a color).
     This attribute is :data:`None` if all face colors are unset.
     """
     face_materials: Int[Array, " num_triangles"] | None = eqx.field(
@@ -218,10 +210,9 @@ class TriangleMesh(eqx.Module):
         )
 
     @classmethod
-    @eqx.filter_jit
     def empty(cls) -> "TriangleMesh":
         """
-        Create an empty mesh.
+        Create a empty mesh.
 
         Returns:
             A new empty scene.
@@ -253,7 +244,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @classmethod
-    @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def plane(
         cls,

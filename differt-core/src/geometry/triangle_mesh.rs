@@ -14,7 +14,7 @@ pub(crate) struct TriangleMesh {
     face_colors: Option<Vec<[f32; 3]>>,
     face_materials: Option<Vec<isize>>,
     #[pyo3(get)]
-    /// List of material names.
+    /// list[str]: List of material names.
     material_names: Vec<String>,
     object_bounds: Option<Vec<[usize; 2]>>,
 }
@@ -119,21 +119,25 @@ impl TriangleMesh {
 
 #[pymethods]
 impl TriangleMesh {
-    /// TODO.
+    /// jaxtyping.Float[np.ndarray, 'num_vertices 3']: The array of triangle vertices.
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         let array = arr2(&self.vertices);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// TODO.
+    /// jaxtyping.Int[np.ndarray, 'num_triangles 3']: The array of triangle indices.
     #[getter]
     fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         let array = arr2(&self.triangles);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// TODO.
+    /// jaxtyping.Float[numpy.ndarray, 'num_vertices 3'] | None: The array of face colors.
+    ///
+    /// The array contains the face colors, as RGB triplets,
+    /// with a black color used as defaults (if some faces have a color).
+    /// This attribute is :data:`None` if all face colors are unset.
     #[getter]
     fn face_colors<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<f32>>> {
         if let Some(face_colors) = &self.face_colors {
@@ -143,7 +147,12 @@ impl TriangleMesh {
         None
     }
 
-    /// TODO.
+    /// jaxtyping.Int[numpy.ndarray, 'num_vertices'] | None: The array of face materials.
+    ///
+    /// The array contains the material indices,
+    /// with a special placeholder value of :data:`-1`.
+    /// The obtain the name of the material, see :attr:`material_names`.
+    /// This attribute is :data:`None` if all face materials are unset.
     #[getter]
     fn face_materials<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<isize>>> {
         if let Some(face_materials) = &self.face_materials {
@@ -152,7 +161,11 @@ impl TriangleMesh {
         None
     }
 
-    /// TODO.
+    /// jaxtyping.Int[numpy.ndarray, 'num_objects 2'] | None: The array of object indices.
+    ///
+    /// If the present mesh contains multiple objects, usually as a result of
+    /// appending multiple meshes together, this array contain start end end
+    /// indices for each sub mesh.
     #[getter]
     fn object_bounds<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<usize>>> {
         if let Some(object_bounds) = &self.object_bounds {
@@ -163,7 +176,7 @@ impl TriangleMesh {
     }
 
     /// Move all the elements of ``other`` into ``self`` and update
-    /// :attr`object_bounds`.
+    /// :attr:`object_bounds`.
     ///
     /// After calling this method, ``other`` will be empty.
     ///
@@ -246,6 +259,19 @@ impl TriangleMesh {
             .push([offset, self.vertices.len()]);
     }
 
+    /// Load a triangle mesh from a Wavefront .obj file.
+    ///
+    /// Currently, only vertices and triangles are loaded. Triangle normals
+    /// are ignored because they are computed with
+    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// JAX so that they can be differentiated with respect to triangle
+    /// vertices.
+    ///
+    /// Args:
+    ///     file (str): The path to the Wavefront .obj file.
+    ///
+    /// Returns:
+    ///     TriangleMesh: The corresponding mesh containing only triangles.
     #[classmethod]
     pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
@@ -264,6 +290,19 @@ impl TriangleMesh {
         Ok(obj.into())
     }
 
+    /// Load a triangle mesh from a Stanford PLY .ply file.
+    ///
+    /// Currently, only vertices and triangles are loaded. Triangle normals
+    /// are ignored because they are computed with
+    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// JAX so that they can be differentiated with respect to triangle
+    /// vertices.
+    ///
+    /// Args:
+    ///     file (str): The path to the Stanford PLY .ply file.
+    ///
+    /// Returns:
+    ///     TriangleMesh: The corresponding mesh containing only triangles.
     #[classmethod]
     pub(crate) fn load_ply(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let mut input = BufReader::new(File::open(filename)?);

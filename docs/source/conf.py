@@ -89,7 +89,8 @@ ogp_use_first_image = True
 
 # -- Sphinx autodoc typehints settings
 
-always_document_param_types = True
+always_document_param_types = False
+autodoc_member_order = "bysource"  # We force class variables to appear first
 
 # -- MyST-nb settings
 myst_heading_anchors = 3
