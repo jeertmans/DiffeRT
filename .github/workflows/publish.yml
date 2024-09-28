@@ -9,6 +9,13 @@ on:
     tags:
     - '*'
   workflow_dispatch:
+    inputs:
+      publish-differt:
+        type: boolean
+        description: Publish differt
+      publish-differt-core:
+        type: boolean
+        description: Publish differt-core
 
 permissions:
   contents: read
@@ -118,7 +125,7 @@ jobs:
   release-core:
     name: Release differt-core
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags')) || github.event.inputs.publish-differt-core
     needs: [linux, windows, macos, sdist]
     environment: release
     permissions:
@@ -168,5 +175,5 @@ jobs:
         path: dist
 
     - name: Publish to PyPI
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags')) || github.event.inputs.publish-differt
       uses: pypa/gh-action-pypi-publish@release/v1
