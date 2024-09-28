@@ -1,7 +1,6 @@
 """Utilities for working with 3D geometries."""
 
-from functools import partial
-
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
@@ -66,7 +65,7 @@ def normalize(
     return vector / length, jnp.squeeze(length, axis=-1)
 
 
-@partial(jax.jit, static_argnames=("normalize",))
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
     u: Float[Array, "*batch 3"],

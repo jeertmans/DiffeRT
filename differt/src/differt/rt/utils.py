@@ -303,7 +303,6 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
-    use_scan: bool = True,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"]:
     """
@@ -329,9 +328,6 @@ def rays_intersect_any_triangle(
 
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
-        use_scan: Whether to use :func:`jax.lax.scan` to potentially avoid
-            allocating multiple arrays of size ``#batch num_triangles 3 3``,
-            at the cost of a slower runtime.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -344,44 +340,34 @@ def rays_intersect_any_triangle(
 
     hit_threshold = 1.0 - hit_tol
 
-    if use_scan:
-        # Put 'num_triangles' axis as leading axis
-        triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+    # Put 'num_triangles' axis as leading axis
+    triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
 
-        batch = jnp.broadcast_shapes(
-            ray_origins.shape[:-1],
-            ray_directions.shape[:-1],
-            triangle_vertices.shape[1:-2],
-        )
-
-        @jaxtyped(typechecker=typechecker)
-        def scan_fun(
-            intersect: Bool[Array, " *#batch"],
-            triangle_vertices: Float[Array, "*#batch 3 3"],
-        ) -> tuple[Bool[Array, " *batch"], None]:
-            t, hit = rays_intersect_triangles(
-                ray_origins,
-                ray_directions,
-                triangle_vertices,
-                **kwargs,
-            )
-            intersect = intersect | ((t < hit_threshold) & hit)
-            return intersect, None
-
-        return jax.lax.scan(
-            scan_fun,
-            init=jnp.zeros(batch, dtype=bool),
-            xs=triangle_vertices,
-        )[0]
-
-    t, hit = rays_intersect_triangles(
-        ray_origins[..., None, :],
-        ray_directions[..., None, :],
-        triangle_vertices,
-        **kwargs,
+    batch = jnp.broadcast_shapes(
+        ray_origins.shape[:-1],
+        ray_directions.shape[:-1],
+        triangle_vertices.shape[1:-2],
     )
 
-    return ((t < hit_threshold) & hit).any(axis=-1)
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        intersect: Bool[Array, " *#batch"],
+        triangle_vertices: Float[Array, "*#batch 3 3"],
+    ) -> tuple[Bool[Array, " *batch"], None]:
+        t, hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            **kwargs,
+        )
+        intersect = intersect | ((t < hit_threshold) & hit)
+        return intersect, None
+
+    return jax.lax.scan(
+        scan_fun,
+        init=jnp.zeros(batch, dtype=bool),
+        xs=triangle_vertices,
+    )[0]
 
 
 @eqx.filter_jit
@@ -390,8 +376,6 @@ def triangles_visible_from_vertices(
     vertices: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
-    *,
-    use_scan: bool = True,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
     """
@@ -410,9 +394,6 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
-        use_scan: Whether to use :func:`jax.lax.scan` to potentially avoid
-            allocating multiple arrays of size ``#batch num_triangles num_rays 3 3``,
-            at the cost of a slower runtime.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -455,44 +436,28 @@ def triangles_visible_from_vertices(
     # [num_rays 3]
     ray_directions = fibonacci_lattice(num_rays)
 
-    if use_scan:
-        batch = jnp.broadcast_shapes(
-            ray_origins.shape[:-1], triangle_vertices.shape[:-3]
+    batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        visible: Bool[Array, "*batch num_triangles"],
+        ray_direction: Float[Array, "3"],
+    ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
+        t, hit = rays_intersect_triangles(
+            ray_origins[..., None, :],
+            ray_direction[..., None, :],
+            triangle_vertices,
+            **kwargs,
+        )
+        # A triangle is visible if it is the first triangle to be intersected by a ray.
+        visible = visible | (
+            t == jnp.min(t, axis=-1, keepdims=True, initial=jnp.inf, where=hit)
         )
 
-        @jaxtyped(typechecker=typechecker)
-        def scan_fun(
-            visible: Bool[Array, "*batch num_triangles"],
-            ray_direction: Float[Array, "3"],
-        ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
-            t, hit = rays_intersect_triangles(
-                ray_origins[..., None, :],
-                ray_direction[..., None, :],
-                triangle_vertices,
-                **kwargs,
-            )
-            # A triangle is visible if it is the first triangle to be intersected by a ray.
-            visible = visible | (
-                t == jnp.min(t, axis=-1, keepdims=True, initial=jnp.inf, where=hit)
-            )
+        return visible, None
 
-            return visible, None
-
-        return jax.lax.scan(
-            scan_fun,
-            init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
-            xs=ray_directions,
-        )[0]
-
-    # TODO: test swapping axes to see if it improves performances
-
-    t, hit = rays_intersect_triangles(
-        ray_origins[..., None, None, :],
-        ray_directions,
-        triangle_vertices[..., :, None, :, :],
-        **kwargs,
-    )
-
-    return (t == jnp.min(t, axis=-2, keepdims=True, initial=jnp.inf, where=hit)).any(
-        axis=-1
-    )
+    return jax.lax.scan(
+        scan_fun,
+        init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
+        xs=ray_directions,
+    )[0]

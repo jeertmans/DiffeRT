@@ -16,7 +16,7 @@ from differt.plotting import draw_mesh
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 
-@eqx.filter_jit
+@jax.jit
 @jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
     triangle_vertices: Float[Array, "*#batch 3 3"],
@@ -157,7 +157,7 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0]
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
         """The array of indexed triangle vertices.
@@ -191,7 +191,7 @@ class TriangleMesh(eqx.Module):
         )
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
         """The triangle normals."""
@@ -201,14 +201,14 @@ class TriangleMesh(eqx.Module):
         return normalize(normals)[0]
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
@@ -227,7 +227,7 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def set_face_colors(
         self,

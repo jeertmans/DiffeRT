@@ -2,7 +2,6 @@
 
 import sys
 from collections.abc import Callable, Iterable, Mapping
-from functools import partial
 from typing import Any
 
 import chex
@@ -91,7 +90,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 
 
 # Beartype does not support TypeVarTuple at the moment
-@partial(jax.jit, static_argnames=("fun", "steps", "optimizer"))
+@eqx.filter_jit
 @jaxtyped(typechecker=None)
 def minimize(
     fun: Callable[[Num[Array, "*batch n"], *Ts], Num[Array, " *batch"]],

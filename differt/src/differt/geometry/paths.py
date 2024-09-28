@@ -4,6 +4,7 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
@@ -41,14 +42,13 @@ class Paths(eqx.Module):
     """
 
     @property
-    @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def path_length(self) -> int:
         """The length (i.e., number of vertices) of each individual path."""
         return self.objects.shape[-1]
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def num_valid_paths(self) -> Int[ArrayLike, ""]:
         """The number of paths kept by :attr:`mask`.
@@ -90,7 +90,7 @@ class Paths(eqx.Module):
             return objects[mask, ...]
         return objects
 
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def group_by_objects(self) -> Int[Array, " *batch"]:
         """

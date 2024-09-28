@@ -5,6 +5,7 @@ from collections.abc import Iterator, Mapping
 from typing import Any
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
@@ -55,14 +56,14 @@ class TriangleScene(eqx.Module):
     """The triangle mesh."""
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def num_transmitters(self) -> int:
         """The number of transmitters."""
         return self.transmitters[..., 0].size
 
     @property
-    @eqx.filter_jit
+    @jax.jit
     @jaxtyped(typechecker=typechecker)
     def num_receivers(self) -> int:
         """The number of receivers."""
