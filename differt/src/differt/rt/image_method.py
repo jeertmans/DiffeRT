@@ -153,7 +153,7 @@ def image_of_vertices_with_respect_to_mirrors(
     return (
         vertices
         - 2.0
-        * jnp.einsum("...i,...i->...", incident, mirror_normals)[..., None]
+        * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
         * mirror_normals
     )
 
@@ -191,9 +191,9 @@ def intersection_of_rays_with_planes(
     u = ray_directions
     v = plane_vertices - ray_origins
     # [*batch 1]
-    un = jnp.einsum("...i,...i->...", u, plane_normals)[..., None]
+    un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
     # [*batch 1]
-    vn = jnp.einsum("...i,...i->...", v, plane_normals)[..., None]
+    vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
 
     t = vn / jnp.where(vn == 0.0, 1.0, un)
     return ray_origins + ray_directions * jnp.where(u == 0.0, 1.0, t)
@@ -350,14 +350,14 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     """
     chex.assert_axis_dimension(vertices, -2, mirror_vertices.shape[-2] + 2)
 
-    # d_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
-    #               = <v_{prev,next}, mirror_n> - <mirror_v, mirror_n>
+    # dot_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
 
     # [num_mirrors]
-    dot_mirror = jnp.einsum("...i,...i->...", mirror_vertices, mirror_normals)
+    d_prev = vertices[..., :-2, :] - mirror_vertices
+    d_next = vertices[..., +2:, :] - mirror_vertices
 
     # [*batch num_mirrors]
-    dot_prev = jnp.einsum("...i,...i->...", vertices[..., :-2, :], mirror_normals)
-    dot_next = jnp.einsum("...i,...i->...", vertices[..., +2:, :], mirror_normals)
+    dot_prev = jnp.sum(d_prev * mirror_normals, axis=-1)
+    dot_next = jnp.sum(d_next * mirror_normals, axis=-1)
 
-    return (dot_prev >= dot_mirror) == (dot_next >= dot_mirror)
+    return jnp.sign(dot_prev) == jnp.sign(dot_next)

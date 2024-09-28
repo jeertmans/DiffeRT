@@ -64,14 +64,13 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
     # Dot product between all pairs of 'normal' vectors
     # [*batch]
-    d01 = jnp.einsum("...i,...i->...", n0, n1)
-    d12 = jnp.einsum("...i,...i->...", n1, n2)
-    d20 = jnp.einsum("...i,...i->...", n2, n0)
+    d01 = jnp.sum(n0 * n1, axis=-1)
+    d12 = jnp.sum(n1 * n2, axis=-1)
+    d20 = jnp.sum(n2 * n0, axis=-1)
 
     # [*batch]
     all_pos = (d01 >= 0.0) & (d12 >= 0.0) & (d20 >= 0.0)
     all_neg = (d01 <= 0.0) & (d12 <= 0.0) & (d20 <= 0.0)
-    # TODO: see if we can reduce the number of operations
 
     # The vertices are contained if all signs are the same
     return all_pos | all_neg
@@ -112,7 +111,9 @@ class TriangleMesh(eqx.Module):
     The obtain the name of the material, see :attr:`material_names`.
     This attribute is :data:`None` if all face materials are unset.
     """
-    material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple, static=True)
+    material_names: tuple[str, ...] = eqx.field(
+        converter=tuple, default_factory=tuple, static=True
+    )
     """The list of material names."""
     object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
@@ -300,7 +301,10 @@ class TriangleMesh(eqx.Module):
             w = jnp.cross(u, v)
             (normal, _) = normalize(w)
 
-        u, v = orthogonal_basis(normal, normalize=True)
+        u, v = orthogonal_basis(
+            normal,  # type: ignore[reportArgumentType]
+            normalize=True,
+        )
 
         s = 0.5 * side_length
 

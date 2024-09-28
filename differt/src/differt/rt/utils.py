@@ -268,25 +268,25 @@ def rays_intersect_triangles(
     edge_2 = vertex_2 - vertex_0
 
     # [*batch 3]
-    h = jnp.cross(ray_directions, edge_2, axis=-1)
+    h = jnp.cross(ray_directions, edge_2)
 
     # [*batch]
-    a = jnp.einsum("...i,...i->...", h, edge_1)
+    a = jnp.sum(h * edge_1, axis=-1)
 
     cond_a = jnp.abs(a) < epsilon
 
-    f = jnp.where(a == 0, 0, 1.0 / a)
+    f = jnp.where(a == 0.0, 0, 1.0 / a)
     s = ray_origins - vertex_0
-    u = f * jnp.einsum("...i,...i->...", s, h)
+    u = f * jnp.sum(s * h, axis=-1)
 
     cond_u = (u < 0.0) | (u > 1.0)
 
-    q = jnp.cross(s, edge_1, axis=-1)
-    v = f * jnp.einsum("...i,...i->...", q, ray_directions)
+    q = jnp.cross(s, edge_1)
+    v = f * jnp.sum(q * ray_directions, axis=-1)
 
     cond_v = (v < 0.0) | (u + v > 1.0)
 
-    t = f * jnp.einsum("...i,...i->...", q, edge_2)
+    t = f * jnp.sum(q * edge_2, axis=-1)
 
     cond_t = t <= epsilon
 
@@ -338,7 +338,7 @@ def rays_intersect_any_triangle(
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         hit_tol = 10.0 * jnp.finfo(dtype).eps
 
-    hit_threshold = 1.0 - hit_tol
+    hit_threshold = 1.0 - hit_tol  # type: ignore[reportOperatorIssue]
 
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
