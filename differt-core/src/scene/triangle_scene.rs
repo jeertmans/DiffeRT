@@ -5,7 +5,9 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use super::sionna::SionnaScene;
 use crate::geometry::triangle_mesh::TriangleMesh;
 
-/// A scene that contains one mesh, usually begin the results of multiple call to :meth:`TriangleMesh.append<differt_core.geometry.triangle_mesh.TriangleMesh.append>`.
+/// A scene that contains one mesh, usually begin the results of multiple call
+/// to :meth:`TriangleMesh.append<differt_core.geometry.triangle_mesh.
+/// TriangleMesh.append>`.
 ///
 /// This class is only useful to provide a fast constructor for scenes
 /// created using the Sionna file format.

@@ -119,21 +119,21 @@ impl TriangleMesh {
 
 #[pymethods]
 impl TriangleMesh {
-    /// Float[Array, 'num_vertices 3']: The array of triangle vertices.
+    /// jaxtyping.Float[np.ndarray, 'num_vertices 3']: The array of triangle vertices.
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         let array = arr2(&self.vertices);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// Int[np.ndarray, 'num_triangles 3']: The array of triangle indices.
+    /// jaxtyping.Int[np.ndarray, 'num_triangles 3']: The array of triangle indices.
     #[getter]
     fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         let array = arr2(&self.triangles);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// Float[Array, 'num_vertices 3'] | None: The array of face colors.
+    /// jaxtyping.Float[numpy.ndarray, 'num_vertices 3'] | None: The array of face colors.
     ///
     /// The array contains the face colors, as RGB triplets,
     /// with a black color used as defaults (if some faces have a color).
@@ -147,7 +147,7 @@ impl TriangleMesh {
         None
     }
 
-    /// Int[Array, 'num_vertices'] | None: The array of face materials.
+    /// jaxtyping.Int[numpy.ndarray, 'num_vertices'] | None: The array of face materials.
     ///
     /// The array contains the material indices,
     /// with a special placeholder value of :data:`-1`.
@@ -161,10 +161,11 @@ impl TriangleMesh {
         None
     }
 
-    /// Int[Array, 'num_objects 2'] | None: The array of object indices.
+    /// jaxtyping.Int[numpy.ndarray, 'num_objects 2'] | None: The array of object indices.
     ///
-    /// If the present mesh contains multiple objects, usually as a result of appending multiple meshes
-    /// together, this array contain start end end indices for each sub mesh.
+    /// If the present mesh contains multiple objects, usually as a result of
+    /// appending multiple meshes together, this array contain start end end
+    /// indices for each sub mesh.
     #[getter]
     fn object_bounds<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<usize>>> {
         if let Some(object_bounds) = &self.object_bounds {
@@ -263,7 +264,8 @@ impl TriangleMesh {
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
     /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
-    /// JAX so that they can be differentiated with respect to triangle vertices.
+    /// JAX so that they can be differentiated with respect to triangle
+    /// vertices.
     ///
     /// Args:
     ///     file (str): The path to the Wavefront .obj file.
@@ -293,7 +295,8 @@ impl TriangleMesh {
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
     /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
-    /// JAX so that they can be differentiated with respect to triangle vertices.
+    /// JAX so that they can be differentiated with respect to triangle
+    /// vertices.
     ///
     /// Args:
     ///     file (str): The path to the Stanford PLY .ply file.
