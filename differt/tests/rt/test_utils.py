@@ -238,7 +238,6 @@ def test_rays_intersect_triangles_random_inputs(
 )
 @pytest.mark.parametrize("epsilon", [None, 1e-6, 1e-2])
 @pytest.mark.parametrize("hit_tol", [None, 0.0, 0.001, -0.5, 0.5])
-@pytest.mark.parametrize("use_scan", [False, True])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_rays_intersect_any_triangle(
     ray_origins: Array,
@@ -246,7 +245,6 @@ def test_rays_intersect_any_triangle(
     triangle_vertices: Array,
     epsilon: float | None,
     hit_tol: float | None,
-    use_scan: bool,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     if hit_tol is None:
@@ -261,7 +259,6 @@ def test_rays_intersect_any_triangle(
             triangle_vertices,
             epsilon=epsilon,
             hit_tol=hit_tol,
-            use_scan=use_scan,
         )
         expected_t, expected_hit = rays_intersect_triangles(
             ray_origins[..., None, :],
@@ -296,12 +293,10 @@ def test_rays_intersect_any_triangle(
         ),
     ],
 )
-@pytest.mark.parametrize("use_scan", [False, True])
 def test_triangles_visible_from_vertices(
     vertex: Array,
     expected_number: int,
     num_rays: int,
-    use_scan: bool,
     expectation: AbstractContextManager[Exception],
     cube_vertices: Array,
 ) -> None:
@@ -309,7 +304,6 @@ def test_triangles_visible_from_vertices(
         vertex,
         cube_vertices,
         num_rays=num_rays,
-        use_scan=use_scan,
     )
 
     with expectation:

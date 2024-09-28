@@ -112,7 +112,7 @@ class TriangleMesh(eqx.Module):
     The obtain the name of the material, see :attr:`material_names`.
     This attribute is :data:`None` if all face materials are unset.
     """
-    material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple)
+    material_names: tuple[str, ...] = eqx.field(converter=tuple, default_factory=tuple, static=True)
     """The list of material names."""
     object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
