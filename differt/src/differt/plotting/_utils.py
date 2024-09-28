@@ -69,7 +69,7 @@ def get_backend(backend: str | None = None) -> BackendName:
     """
     Return the name of the backend to use.
 
-    If data:`None` is provided, then the default
+    If :data:`None` is provided, then the default
     backend is returned. Otherwise, the backend corresponding to
     value of :data:`backend`.
 
