@@ -7,11 +7,11 @@ from jaxtyping import Array, Float, PRNGKeyArray, jaxtyped
 
 @jaxtyped(typechecker=typechecker)
 class PlanarMirrorsSetup(eqx.Module):
-    from_vertices: Float[Array, "*batch 3"]
-    to_vertices: Float[Array, "*batch 3"]
-    mirror_vertices: Float[Array, "*batch num_mirrors 3"]
-    mirror_normals: Float[Array, "*batch num_mirrors 3"]
-    paths: Float[Array, "*batch num_mirrors 3"]
+    from_vertices: Float[Array, "*#batch 3"]
+    to_vertices: Float[Array, "*#batch 3"]
+    mirror_vertices: Float[Array, "*#batch num_mirrors 3"]
+    mirror_normals: Float[Array, "*#batch num_mirrors 3"]
+    paths: Float[Array, "*#batch num_mirrors 3"]
 
     def broadcast_to(self, *batch: int) -> "PlanarMirrorsSetup":
         num_mirrors = self.mirror_vertices.shape[-2]
