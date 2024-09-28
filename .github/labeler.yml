@@ -31,7 +31,7 @@ python:
 rust:
 - changed-files:
   - any-glob-to-any-file:
-    - '**/*.py'
+    - '**/*.rs'
 
 tests:
 - changed-files:
