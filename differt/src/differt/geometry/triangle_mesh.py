@@ -212,7 +212,7 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def empty(cls) -> "TriangleMesh":
         """
-        Create an empty mesh.
+        Create a empty mesh.
 
         Returns:
             A new empty scene.
