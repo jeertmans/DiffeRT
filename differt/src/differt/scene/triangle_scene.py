@@ -32,15 +32,7 @@ from differt.rt.utils import (
 
 @jaxtyped(typechecker=typechecker)
 class TriangleScene(eqx.Module):
-    """
-    A simple scene made of one or more triangle meshes, some transmitters and some receivers.
-
-    Args:
-        transmitters: The array of transmitter vertices.
-        receivers: The array of receiver vertices.
-        meshes: The triangle mesh.
-        materials: The mesh materials.
-    """
+    """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
         converter=jnp.asarray,
