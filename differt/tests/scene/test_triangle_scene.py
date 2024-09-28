@@ -102,8 +102,8 @@ class TestTriangleScene:
         indicents = rays[..., :-1, :]
         reflecteds = rays[..., +1:, :]
 
-        dot_incidents = jnp.einsum("...i,...i->...", -indicents, normals)
-        dot_reflecteds = jnp.einsum("...i,...i->...", reflecteds, normals)
+        dot_incidents = jnp.sum(-indicents * normals, axis=-1)
+        dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 

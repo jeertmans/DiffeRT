@@ -193,7 +193,7 @@ def test_image_method_return_vertices_on_mirrors(
     )
     vectors = paths - mirror_vertices
     # Dot product should be zero as vectors are perpendicular to normals
-    got = jnp.einsum("...i,...i->...", vectors, mirror_normals)
+    got = jnp.sum(vectors * mirror_normals, axis=-1)
     got = jnp.nan_to_num(got, posinf=0.0, neginf=0.0)  # Remove 'inf' values
 
     excepted = jnp.zeros_like(got)
