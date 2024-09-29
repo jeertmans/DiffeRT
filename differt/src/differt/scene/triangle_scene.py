@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Int, jaxtyped
 
 import differt_core.scene.triangle_scene
 from differt.geometry.paths import Paths
@@ -60,6 +60,76 @@ class TriangleScene(eqx.Module):
     def num_receivers(self) -> int:
         """The number of receivers."""
         return self.receivers[..., 0].size
+
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def with_transmitters_grid(
+        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
+    ) -> "TriangleScene":
+        """
+        Return a copy of this scene with a 2D grid of transmitters placed at a fixed height.
+
+        The transmitters are uniformly spaced on the whole scene.
+
+        Args:
+            m: The number of sample along x dimension.
+            n: The number of sample along y dimension,
+                defaults to ``m`` is left unspecified.
+            height: The height at which transmitters are placed.
+
+        Returns:
+            The new scene.
+        """
+        if n is None:
+            n = m
+
+        dtype = self.mesh.vertices.dtype
+
+        (min_x, min_y, _), (max_x, max_y, _) = self.mesh.bounding_box
+
+        x, y = jnp.meshgrid(
+            jnp.linspace(min_x, max_x, m, dtype=dtype),
+            jnp.linspace(min_y, max_y, n, dtype=dtype),
+        )
+        z = jnp.full_like(x, height)
+
+        return eqx.tree_at(
+            lambda s: s.transmitters, self, jnp.stack((x, y, z), axis=-1)
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def with_receivers_grid(
+        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
+    ) -> "TriangleScene":
+        """
+        Return a copy of this scene with a 2D grid of receivers placed at a fixed height.
+
+        The receivers are uniformly spaced on the whole scene.
+
+        Args:
+            m: The number of sample along x dimension.
+            n: The number of sample along y dimension,
+                defaults to ``m`` is left unspecified.
+            height: The height at which receivers are placed.
+
+        Returns:
+            The new scene.
+        """
+        if n is None:
+            n = m
+
+        dtype = self.mesh.vertices.dtype
+
+        (min_x, min_y, _), (max_x, max_y, _) = self.mesh.bounding_box
+
+        x, y = jnp.meshgrid(
+            jnp.linspace(min_x, max_x, m, dtype=dtype),
+            jnp.linspace(min_y, max_y, n, dtype=dtype),
+        )
+        z = jnp.full_like(x, height)
+
+        return eqx.tree_at(lambda s: s.receivers, self, jnp.stack((x, y, z), axis=-1))
 
     @classmethod
     def from_core(
@@ -209,11 +279,11 @@ class TriangleScene(eqx.Module):
             rx_objects = jnp.arange(self.num_receivers, dtype=object_dtype)
 
             tx_objects = jnp.broadcast_to(
-                tx_objects,
+                tx_objects[:, None, None, None],
                 (self.num_transmitters, self.num_receivers, num_path_candidates, 1),
             )
             rx_objects = jnp.broadcast_to(
-                tx_objects,
+                rx_objects[None, :, None, None],
                 (self.num_transmitters, self.num_receivers, num_path_candidates, 1),
             )
             path_candidates = jnp.broadcast_to(
