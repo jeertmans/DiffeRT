@@ -8,9 +8,77 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped, jaxtyped
 
 from differt.plotting import draw_paths
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def _groups(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
+    """
+    Return unique group indices along batch dimension.
+
+    Args:
+        array: The array to search groups in.
+
+    Returns:
+        The array of unique group indices.
+    """
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        indices: Int[Array, " batch"],
+        row_and_index: tuple[Shaped[Array, " n"], Int[Array, " "]],
+    ) -> tuple[Int[Array, " batch"], None]:
+        row, index = row_and_index
+        indices = jnp.where((array == row).all(axis=-1), index, indices)
+        return indices, None
+
+    return jax.lax.scan(
+        scan_fun,
+        init=jnp.empty(array.shape[0], dtype=jnp.int32),
+        xs=(array, jnp.arange(array.shape[0])),
+        reverse=True,
+    )[0]
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def merge_groups(
+    groups_a: Int[Array, " *batch"], groups_b: Int[Array, " *batch"]
+) -> Int[Array, " *batch"]:
+    """
+    Merge two groups as returned by :meth:`groups`.
+
+    Let the returned array be ``groups``,
+    then ``groups[i] == groups[j]`` is for all ``i``,
+    ``j`` indices such that
+    ``(groups_a[i], groups_b[i]) == (groups_a[j], groups_b[j])``,
+    granted that arrays have been reshaped to uni-dimensionsal
+    arrays. Of course, this method handles multiple dimensions
+    and will reshape the output array to match initial shape.
+
+    Warning:
+        The indices used for the new groups will be completly
+        different from the one used in individual groups, and
+        it will no longer be possible to directly link
+        an index to some values in a mask.
+
+        Indeed, retrieving original mask values needs first
+        to retrieve the indices in ``groups_a`` (or ``groups_b``).
+
+    Args:
+        groups_a: The first array of group indices.
+        groups_b: The second array of group indices.
+
+    Returns:
+        The new array group indices.
+    """
+    batch = groups_a.shape
+    return _groups(
+        jnp.stack((groups_a, groups_b), axis=-1).reshape(-1, 2),
+    ).reshape(batch)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -90,6 +158,47 @@ class Paths(eqx.Module):
             return objects[mask, ...]
         return objects
 
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def mask_groups(self, axis: int = -1) -> Int[Array, " *partial_batch"]:
+        """
+        Return an array of same group indices.
+
+        Let the returned array be ``groups``,
+        then ``groups[i] == groups[j]`` is for all ``i``,
+        ``j`` indices such that ``self.mask[i, :] == self.mask[j, :]``,
+        granted that arrays has been each reshaped to a two-dimensionsal
+        array and that ``axis`` is the last dimension. Of course, this
+        method handles multiple dimensions and will reshape the output
+        array to match initial shape, except for dimension ``axis``
+        that is removed.
+
+        The purpose of this method is to easily identify similar
+        multipath structures, when a group of paths all have the
+        same path candidates that are valid.
+
+        Args:
+            axis: The axis along to compare paths.
+
+                By default, the last axis is used to match the
+                ``num_path_candidates`` axis as returned by
+                :meth:`TriangleScene.compute_paths<differt.scene.triangle_scene.TriangleScene.compute_paths`.
+
+        Returns:
+            The array of group indices.
+
+        Raises:
+            ValueError: If :attr:`mask` is None.
+        """
+        if self.mask is None:
+            msg = "Cannot create groups from non-existing mask!"
+            raise ValueError(msg)
+
+        mask = jnp.moveaxis(self.mask, axis, -1)
+        *partial_batch, last_axis = mask.shape
+
+        return _groups(mask.reshape(-1, last_axis)).reshape(partial_batch)
+
     @jax.jit
     @jaxtyped(typechecker=typechecker)
     def group_by_objects(self) -> Int[Array, " *batch"]:
@@ -137,11 +246,7 @@ class Paths(eqx.Module):
         *batch, path_length = self.objects.shape
 
         objects = self.objects.reshape((-1, path_length))
-        inverse = jnp.unique(
-            objects, axis=0, size=objects.shape[0], return_inverse=True
-        )[1]
-
-        return inverse.reshape(batch)
+        return _groups(objects).reshape(batch)
 
     def __iter__(self) -> Iterator["Paths"]:
         """Return an iterator over masked paths.

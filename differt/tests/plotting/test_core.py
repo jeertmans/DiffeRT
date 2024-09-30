@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from differt.plotting import (
+    draw_contour,
     draw_image,
     draw_markers,
     draw_mesh,
@@ -57,7 +58,13 @@ def test_draw_rays(
     ("backend", "expectation"),
     [
         ("vispy", does_not_raise()),
-        ("matplotlib", pytest.raises(NotImplementedError)),
+        (
+            "matplotlib",
+            pytest.warns(
+                UserWarning,
+                match="Matplotlib does not currently support adding labels to markers",
+            ),
+        ),
         ("plotly", does_not_raise()),
     ],
 )
@@ -95,3 +102,34 @@ def test_draw_image(
 
     with use(backend):
         _ = draw_image(data, x=x if pass_xy else None, y=y if pass_xy else None)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    ["vispy", "matplotlib", "plotly"],
+)
+@pytest.mark.parametrize(
+    "pass_xy",
+    [True, False],
+)
+@pytest.mark.parametrize("fill", [False, True])
+@pytest.mark.parametrize("levels", [None, 10, np.linspace(0, 1, 21)])
+def test_draw_contour(
+    backend: str, pass_xy: bool, fill: bool, levels: int | np.ndarray | None
+) -> None:
+    x = np.linspace(0, 1, 10)
+    y = np.linspace(0, 1, 20)
+    X, Y = np.meshgrid(x, y)  # noqa: N806
+    data = X * Y
+
+    if (backend == "vispy" and (fill or isinstance(levels, int))) or (
+        backend == "plotly" and isinstance(levels, np.ndarray)
+    ):
+        expectation = pytest.warns(UserWarning)
+    else:
+        expectation = does_not_raise()
+
+    with use(backend), expectation:
+        _ = draw_contour(
+            data, x=x if pass_xy else None, y=y if pass_xy else None, fill=fill
+        )
