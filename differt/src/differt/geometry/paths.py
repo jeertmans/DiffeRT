@@ -240,8 +240,8 @@ class Paths(eqx.Module):
             >>> paths = Paths(vertices, objects)
             >>> groups = paths.group_by_objects()
             >>> groups
-            Array([[4, 4, 3, 5, 2, 3],
-                   [5, 0, 0, 6, 1, 3]], dtype=int32)
+            Array([[ 0,  0,  2,  3,  4,  2],
+                   [ 3,  7,  7,  9, 10,  2]], dtype=int32)
         """
         *batch, path_length = self.objects.shape
 
