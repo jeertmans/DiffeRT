@@ -109,6 +109,28 @@ class Paths(eqx.Module):
     store valid paths.
     """
 
+    @jaxtyped(typechecker=typechecker)
+    def reshape(self, *batch: int) -> "Paths":
+        """
+        Return a copy with reshaped paths' batch dimensions to match a given shape.
+
+        Args:
+            batch: The new batch shapes.
+
+        Returns:
+            A new paths instance with specified batch dimensions.
+        """
+        vertices = self.vertices.reshape(*batch, self.path_length, 3)
+        objects = self.objects.reshape(*batch, self.path_length)
+        mask = self.mask.reshape(*batch) if self.mask is not None else None
+
+        return eqx.tree_at(
+            lambda p: (p.vertices, p.objects, p.mask),
+            self,
+            (vertices, objects, mask),
+            is_leaf=lambda x: x is None,
+        )
+
     @property
     @jaxtyped(typechecker=typechecker)
     def path_length(self) -> int:
