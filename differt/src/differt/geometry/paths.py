@@ -15,17 +15,7 @@ from differt.plotting import draw_paths
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def _groups(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
-    """
-    Return unique group indices along batch dimension.
-
-    Args:
-        array: The array to search groups in.
-
-    Returns:
-        The array of unique group indices.
-    """
-
+def _cluster_ids(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         indices: Int[Array, " batch"],
@@ -45,39 +35,35 @@ def _groups(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def merge_groups(
-    groups_a: Int[Array, " *batch"], groups_b: Int[Array, " *batch"]
+def merge_cluster_ids(
+    cluster_ids_a: Int[Array, " *batch"],
+    cluster_ids_b: Int[Array, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
-    Merge two groups as returned by :meth:`groups`.
+    Merge two arrays of cluster indices as returned by :meth:`Paths.multipath_clusters`.
 
-    Let the returned array be ``groups``,
-    then ``groups[i] == groups[j]`` is for all ``i``,
-    ``j`` indices such that
+    Let the returned array be ``cluster_ids``,
+    then ``cluster_ids[i] == cluster_ids[j]`` for all ``i``,
+    ``j`` indices if
     ``(groups_a[i], groups_b[i]) == (groups_a[j], groups_b[j])``,
-    granted that arrays have been reshaped to uni-dimensionsal
+    granted that arrays have been reshaped to uni-dimensional
     arrays. Of course, this method handles multiple dimensions
     and will reshape the output array to match initial shape.
 
     Warning:
-        The indices used for the new groups will be completly
-        different from the one used in individual groups, and
-        it will no longer be possible to directly link
-        an index to some values in a mask.
-
-        Indeed, retrieving original mask values needs first
-        to retrieve the indices in ``groups_a`` (or ``groups_b``).
+        The indices used in the returned array have nothing to
+        do with the ones used in individual arrays.
 
     Args:
-        groups_a: The first array of group indices.
-        groups_b: The second array of group indices.
+        cluster_ids_a: The first array of cluster indices.
+        cluster_ids_b: The second array of cluster indices.
 
     Returns:
         The new array group indices.
     """
-    batch = groups_a.shape
-    return _groups(
-        jnp.stack((groups_a, groups_b), axis=-1).reshape(-1, 2),
+    batch = cluster_ids_a.shape
+    return _cluster_ids(
+        jnp.stack((cluster_ids_a, cluster_ids_b), axis=-1).reshape(-1, 2),
     ).reshape(batch)
 
 
@@ -182,14 +168,17 @@ class Paths(eqx.Module):
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def mask_groups(self, axis: int = -1) -> Int[Array, " *partial_batch"]:
+    def multipath_clusters(
+        self,
+        axis: int = -1,
+    ) -> Int[Array, " *partial_batch"]:
         """
-        Return an array of same group indices.
+        Return an array of same multipath cluster indices.
 
-        Let the returned array be ``groups``,
-        then ``groups[i] == groups[j]`` is for all ``i``,
-        ``j`` indices such that ``self.mask[i, :] == self.mask[j, :]``,
-        granted that arrays has been each reshaped to a two-dimensionsal
+        Let the returned array be ``cluster_ids``,
+        then ``cluster_ids[i] == cluster_ids[j]`` for all ``i``,
+        ``j`` indices if ``self.mask[i, :] == self.mask[j, :]``,
+        granted that each array has been reshaped to a two-dimensional
         array and that ``axis`` is the last dimension. Of course, this
         method handles multiple dimensions and will reshape the output
         array to match initial shape, except for dimension ``axis``
@@ -198,6 +187,15 @@ class Paths(eqx.Module):
         The purpose of this method is to easily identify similar
         multipath structures, when a group of paths all have the
         same path candidates that are valid.
+
+        If the different path candidates are not all on the same axis,
+        e.g., as a result of masking invalid paths, then you can still
+        use :meth:`group_by_objects` to identify simular paths.
+        Note that :meth:`group_by_objects` will possibly return
+        different indices for different transmitter / receiver pairs,
+        as they have different indices. To avoid this, you should probably
+        slice the :attr:`objects` array to exclude first and last objects, i.e.,
+        with ``self.objects[..., 1:-1]``.
 
         Args:
             axis: The axis along to compare paths.
@@ -213,13 +211,13 @@ class Paths(eqx.Module):
             ValueError: If :attr:`mask` is None.
         """
         if self.mask is None:
-            msg = "Cannot create groups from non-existing mask!"
+            msg = "Cannot create multiplath clusters from non-existing mask!"
             raise ValueError(msg)
 
         mask = jnp.moveaxis(self.mask, axis, -1)
         *partial_batch, last_axis = mask.shape
 
-        return _groups(mask.reshape(-1, last_axis)).reshape(partial_batch)
+        return _cluster_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
 
     @jax.jit
     @jaxtyped(typechecker=typechecker)
@@ -229,6 +227,10 @@ class Paths(eqx.Module):
 
         This function is useful to group paths that
         undergo the same types of interactions.
+
+        Internally, it uses the same logic as
+        :meth:`multipath_clusters`, but applied to object indices
+        rather than on mask.
 
         Returns:
             An array of group indices.
@@ -268,7 +270,7 @@ class Paths(eqx.Module):
         *batch, path_length = self.objects.shape
 
         objects = self.objects.reshape((-1, path_length))
-        return _groups(objects).reshape(batch)
+        return _cluster_ids(objects).reshape(batch)
 
     def __iter__(self) -> Iterator["Paths"]:
         """Return an iterator over masked paths.

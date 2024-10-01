@@ -4,7 +4,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, DTypeLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int, jaxtyped
 
 
 @jax.jit
@@ -401,3 +401,48 @@ def assemble_paths(
         ),
         axis=-2,
     )
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def min_distance_between_clusters(
+    cluster_vertices: Float[Array, "*batch 3"],
+    cluster_ids: Int[Array, "*batch"],
+) -> Float[Array, "*batch"]:
+    """
+    Compute the minimal (Euclidean) distance between vertices in different clusters.
+
+    For every vertex, the minimum distance to another vertex that is not is the same
+    cluster is computed.
+
+    Args:
+        cluster_vertices: The array of vertex coordinates.
+        cluster_ids: The array of corresponding cluster indices.
+
+    Returns:
+        The array of minimal distances.
+    """
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        _: None, vertex_and_cluster_id: tuple[Float[Array, "3"], Int[Array, " "]]
+    ) -> tuple[None, Float[Array, " "]]:
+        vertex, cluster_id = vertex_and_cluster_id
+        min_dist = jnp.min(
+            jnp.linalg.norm(
+                cluster_vertices - vertex,
+                axis=-1,
+            ),
+            initial=jnp.inf,
+            where=(cluster_id != cluster_ids),
+        )
+        return None, min_dist
+
+    return jax.lax.scan(
+        scan_fun,
+        init=None,
+        xs=(
+            cluster_vertices.reshape(-1, 3),
+            cluster_ids.reshape(-1),
+        ),
+    )[1].reshape(cluster_ids.shape)
