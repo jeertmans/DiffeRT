@@ -186,7 +186,9 @@ class TriangleScene(eqx.Module):
         return self.receivers[..., 0].size
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def with_transmitters_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
@@ -222,7 +224,9 @@ class TriangleScene(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def with_receivers_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:

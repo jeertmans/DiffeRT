@@ -101,7 +101,9 @@ class Paths(eqx.Module):
     store valid paths.
     """
 
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def reshape(self, *batch: int) -> Self:
         """
         Return a copy with reshaped paths' batch dimensions to match a given shape.
@@ -196,7 +198,7 @@ class Paths(eqx.Module):
 
         If the different path candidates are not all on the same axis,
         e.g., as a result of masking invalid paths, then you can still
-        use :meth:`group_by_objects` to identify simular paths.
+        use :meth:`group_by_objects` to identify similar paths.
         Note that :meth:`group_by_objects` will possibly return
         different indices for different transmitter / receiver pairs,
         as they have different indices. To avoid this, you should probably

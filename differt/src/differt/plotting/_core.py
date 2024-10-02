@@ -619,19 +619,19 @@ def draw_contour(  # noqa: PLR0917
         data: The values over which the contour is drawn.
         x: The x-coordinates corresponding to first dimension
             of the image. Those coordinates will be used to scale and translate
-            the countour.
+            the contour.
         y: The y-coordinates corresponding to second dimension
             of the image. Those coordinates will be used to scale and translate
             the contour.
-        z0: The z-coordinate at which the countour is placed.
-        levels: The levels at which the countour is drawn.
-        fill: Whether to fill the countour.
+        z0: The z-coordinate at which the contour is placed.
+        levels: The levels at which the contour is drawn.
+        fill: Whether to fill the contour.
         kwargs: Keyword arguments passed to
             :class:`Mesh<vispy.scene.visuals.Isorcurve>`,
             :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.contour>`,
             (or :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`
             if ``fill`` is :data:`True`),
-            or :class:`Countour<plotly.graph_objects.Countour>`, depending on the
+            or :class:`Contour<plotly.graph_objects.Contour>`, depending on the
             backend.
 
     Returns:

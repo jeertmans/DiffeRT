@@ -122,7 +122,9 @@ class TriangleMesh(eqx.Module):
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
 
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def __getitem__(self, key: slice | Int[ArrayLike, "*batch"]) -> Self:
         """Return a copy of this mesh, taking only specific triangles.
 
@@ -143,7 +145,7 @@ class TriangleMesh(eqx.Module):
                 m.triangles,
                 m.face_colors,
                 m.face_materials,
-                m.bounds,
+                m.object_bounds,
             ),
             self,
             (
@@ -155,7 +157,7 @@ class TriangleMesh(eqx.Module):
                 else None,
                 None,
             ),
-            lambda x: x is None,
+            is_leaf=lambda x: x is None,
         )
 
     @property
@@ -234,7 +236,9 @@ class TriangleMesh(eqx.Module):
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def set_face_colors(
         self,
         colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
@@ -258,7 +262,9 @@ class TriangleMesh(eqx.Module):
         )
 
     @classmethod
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def plane(
         cls,
         vertex: Float[Array, "3"],
@@ -383,7 +389,9 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def sample(
         self,
         size: int,

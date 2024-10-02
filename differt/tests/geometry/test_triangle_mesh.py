@@ -159,8 +159,20 @@ class TestTriangleMesh:
             ((3,), does_not_raise()),
             ((1, 3), does_not_raise()),
             ((24, 3), does_not_raise()),
-            ((30, 3), pytest.raises(TypeError)),
-            ((1, 24, 3), pytest.raises(TypeError)),
+            pytest.param(
+                (30, 3),
+                pytest.raises(TypeError),
+                marks=pytest.mark.xfail(
+                    reason="Unsupported type checking of typing.Self"
+                ),
+            ),
+            pytest.param(
+                (1, 24, 3),
+                pytest.raises(TypeError),
+                marks=pytest.mark.xfail(
+                    reason="Unsupported type checking of typing.Self"
+                ),
+            ),
         ],
     )
     def test_set_face_colors(
