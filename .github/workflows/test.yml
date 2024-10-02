@@ -24,7 +24,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
 
@@ -126,7 +126,7 @@ jobs:
         cache-dependency-path: uv.lock
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v3
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -200,7 +200,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
 
