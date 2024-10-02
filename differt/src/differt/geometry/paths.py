@@ -1,5 +1,6 @@
 """Ray paths utilities."""
 
+import sys
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -11,6 +12,11 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped, jaxtyped
 
 from differt.plotting import draw_paths
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 @jax.jit
@@ -96,7 +102,7 @@ class Paths(eqx.Module):
     """
 
     @jaxtyped(typechecker=typechecker)
-    def reshape(self, *batch: int) -> "Paths":
+    def reshape(self, *batch: int) -> Self:
         """
         Return a copy with reshaped paths' batch dimensions to match a given shape.
 
@@ -272,7 +278,7 @@ class Paths(eqx.Module):
         objects = self.objects.reshape((-1, path_length))
         return _cluster_ids(objects).reshape(batch)
 
-    def __iter__(self) -> Iterator["Paths"]:
+    def __iter__(self) -> Iterator[Self]:
         """Return an iterator over masked paths.
 
         Each item of the iterator is itself an instance :class:`Paths`,
@@ -281,10 +287,11 @@ class Paths(eqx.Module):
         Yields:
             Masked paths, one at a time.
         """
+        cls = type(self)
         for vertices, objects in zip(
             self.masked_vertices, self.masked_objects, strict=False
         ):
-            yield Paths(vertices=vertices, objects=objects, mask=None)
+            yield cls(vertices=vertices, objects=objects, mask=None)
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)

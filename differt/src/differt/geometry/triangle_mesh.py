@@ -1,6 +1,7 @@
 """Mesh geometry made of triangles and utilities."""
 # ruff: noqa: ERA001
 
+import sys
 from typing import Any
 
 import equinox as eqx
@@ -14,6 +15,11 @@ import differt_core.geometry.triangle_mesh
 from differt.plotting import draw_mesh
 
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 @jax.jit
@@ -117,7 +123,7 @@ class TriangleMesh(eqx.Module):
     """
 
     @jaxtyped(typechecker=typechecker)
-    def __getitem__(self, key: slice | Int[ArrayLike, "*batch"]) -> "TriangleMesh":
+    def __getitem__(self, key: slice | Int[ArrayLike, "*batch"]) -> Self:
         """Return a copy of this mesh, taking only specific triangles.
 
         Warning:
@@ -131,17 +137,25 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new mesh.
         """
-        return TriangleMesh(
-            vertices=self.vertices,
-            triangles=self.triangles[key, :],
-            face_colors=self.face_colors[key, :]
-            if self.face_colors is not None
-            else None,
-            face_materials=self.face_materials[key, :]
-            if self.face_materials is not None
-            else None,
-            material_names=self.material_names,
-            object_bounds=None,
+        return eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.bounds,
+            ),
+            self,
+            (
+                self.vertices,
+                self.triangles[key, :],
+                self.face_colors[key, :] if self.face_colors is not None else None,
+                self.face_materials[key, :]
+                if self.face_materials is not None
+                else None,
+                None,
+            ),
+            lambda x: x is None,
         )
 
     @property
@@ -162,7 +176,7 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def from_core(
         cls, core_mesh: differt_core.geometry.triangle_mesh.TriangleMesh
-    ) -> "TriangleMesh":
+    ) -> Self:
         """
         Return a triangle mesh from a mesh created by the :mod:`differt_core` module.
 
@@ -210,7 +224,7 @@ class TriangleMesh(eqx.Module):
         )
 
     @classmethod
-    def empty(cls) -> "TriangleMesh":
+    def empty(cls) -> Self:
         """
         Create a empty mesh.
 
@@ -224,7 +238,7 @@ class TriangleMesh(eqx.Module):
     def set_face_colors(
         self,
         colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
-    ) -> "TriangleMesh":
+    ) -> Self:
         """
         Return a copy of this mesh, with new face colors.
 
@@ -252,7 +266,7 @@ class TriangleMesh(eqx.Module):
         normal: Float[Array, "3"] | None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
-    ) -> "TriangleMesh":
+    ) -> Self:
         """
         Create an plane mesh, made of two triangles.
 
@@ -315,7 +329,7 @@ class TriangleMesh(eqx.Module):
         return self.triangles.size == 0
 
     @classmethod
-    def load_obj(cls, file: str) -> "TriangleMesh":
+    def load_obj(cls, file: str) -> Self:
         """
         Load a triangle mesh from a Wavefront .obj file.
 
@@ -332,7 +346,7 @@ class TriangleMesh(eqx.Module):
         return cls.from_core(core_mesh)
 
     @classmethod
-    def load_ply(cls, file: str) -> "TriangleMesh":
+    def load_ply(cls, file: str) -> Self:
         """
         Load a triangle mesh from a Stanford PLY .ply file.
 
@@ -376,7 +390,7 @@ class TriangleMesh(eqx.Module):
         replace: bool = False,
         *,
         key: PRNGKeyArray,
-    ) -> "TriangleMesh":
+    ) -> Self:
         """
         Generate a new mesh by randomly sampling triangles from this geometry.
 

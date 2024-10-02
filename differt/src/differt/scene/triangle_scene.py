@@ -1,6 +1,7 @@
 """Scene made of triangles and utilities."""
 # ruff: noqa: ERA001
 
+import sys
 from collections.abc import Iterator, Mapping
 from typing import Any
 
@@ -28,6 +29,11 @@ from differt.rt.utils import (
     generate_all_path_candidates_chunks_iter,
     rays_intersect_any_triangle,
 )
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 @eqx.filter_jit
@@ -183,7 +189,7 @@ class TriangleScene(eqx.Module):
     @jaxtyped(typechecker=typechecker)
     def with_transmitters_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
-    ) -> "TriangleScene":
+    ) -> Self:
         """
         Return a copy of this scene with a 2D grid of transmitters placed at a fixed height.
 
@@ -219,7 +225,7 @@ class TriangleScene(eqx.Module):
     @jaxtyped(typechecker=typechecker)
     def with_receivers_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
-    ) -> "TriangleScene":
+    ) -> Self:
         """
         Return a copy of this scene with a 2D grid of receivers placed at a fixed height.
 
@@ -252,7 +258,7 @@ class TriangleScene(eqx.Module):
     @classmethod
     def from_core(
         cls, core_scene: differt_core.scene.triangle_scene.TriangleScene
-    ) -> "TriangleScene":
+    ) -> Self:
         """
         Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
@@ -267,7 +273,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def load_xml(cls, file: str) -> "TriangleScene":
+    def load_xml(cls, file: str) -> Self:
         """
         Load a triangle scene from a XML file.
 
