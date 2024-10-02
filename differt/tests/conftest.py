@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from functools import cache
 from pathlib import Path
 
 import jax
@@ -52,6 +53,7 @@ def close_figure(
         _figure = plt.figure
         fig = None
 
+        @cache
         def figure() -> Figure:
             nonlocal fig
             fig = _figure()
