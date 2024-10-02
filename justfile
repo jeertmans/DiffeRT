@@ -40,6 +40,12 @@ clean:
   cargo clean
   rm -rf dist
 
+# Force reloading CUDA after suspend, see: https://github.com/ami-iit/jaxsim/issues/50#issuecomment-2022483137
+[group: 'dev']
+cuda-reload:
+  sudo rmmod nvidia_uvm
+  sudo modprobe nvidia_uvm
+
 # List JAX's devices
 [group: 'python']
 [group: 'test']

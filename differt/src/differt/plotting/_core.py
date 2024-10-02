@@ -1,5 +1,6 @@
 """Core plotting implementations."""
 
+import warnings
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -351,6 +352,7 @@ def draw_markers(
             By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
             :class:`Markers<vispy.scene.visuals.Markers>`,
+            :meth:`scatter<mpl_toolkits.mplot3d.axes3d.Axes3D.scatter>`,
             or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
@@ -358,7 +360,7 @@ def draw_markers(
         The resulting plot output.
 
     Warning:
-        Unsupported backend(s): Matplotlib.
+        Matplotlib does not support labels.
 
     Examples:
         The following example shows how to plot several annotated markers.
@@ -410,7 +412,18 @@ def _(
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
-    raise NotImplementedError  # TODO: implement this
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    if labels is not None:
+        msg = "Matplotlib does not currently support adding labels to markers, this option is ignored."
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        del labels, text_kwargs
+
+    xs, ys, zs = markers.T
+
+    ax.scatter(xs, ys, zs=zs, **kwargs)
+
+    return fig
 
 
 @draw_markers.register("plotly")
@@ -464,7 +477,7 @@ def draw_image(
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
             :class:`Mesh<vispy.scene.visuals.Image>`,
-            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
+            :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
             or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
@@ -510,9 +523,6 @@ def _(
     from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
-
-    if np.issubdtype(data.dtype, np.floating):
-        data = data.astype(np.float32)
 
     image = Image(data, **kwargs)
 
@@ -588,5 +598,196 @@ def _(
         y=y,
         z=np.full_like(data, z0),
         surfacecolor=data,
+        **kwargs,
+    )
+
+
+@dispatch
+def draw_contour(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a 2D contour on a 3D canvas, at using a fixed z-coordinate.
+
+    Args:
+        data: The values over which the contour is drawn.
+        x: The x-coordinates corresponding to first dimension
+            of the image. Those coordinates will be used to scale and translate
+            the contour.
+        y: The y-coordinates corresponding to second dimension
+            of the image. Those coordinates will be used to scale and translate
+            the contour.
+        z0: The z-coordinate at which the contour is placed.
+        levels: The levels at which the contour is drawn.
+        fill: Whether to fill the contour.
+        kwargs: Keyword arguments passed to
+            :class:`Mesh<vispy.scene.visuals.Isorcurve>`,
+            :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.contour>`,
+            (or :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`
+            if ``fill`` is :data:`True`),
+            or :class:`Contour<plotly.graph_objects.Contour>`, depending on the
+            backend.
+
+    Returns:
+        The resulting plot output.
+
+    Warning:
+        VisPy does not support filling the contour.
+        Plotly does not support 3D contours, and will draw the coontour on
+        a 2D figure instead.
+
+    Examples:
+        The following example shows how plot a 2-D contour,
+        without and with axis scaling, and filling.
+
+        .. plotly::
+            :fig-vars: fig1, fig2
+
+            >>> from differt.plotting import draw_contour
+            >>>
+            >>> x = np.linspace(-1.0, +1.0, 10)
+            >>> y = np.linspace(-4.0, +4.0, 20)
+            >>> X, Y = np.meshgrid(x, y)
+            >>> Z = np.cos(X) * np.sin(Y)
+            >>> fig1 = draw_contour(Z, backend="plotly")
+            >>> fig1  # doctest: +SKIP
+            >>>
+            >>> fig2 = draw_contour(Z, x=x, y=y, fill=True, backend="plotly")
+            >>> fig2  # doctest: +SKIP
+
+    """
+
+
+@draw_contour.register("vispy")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    from vispy.scene.visuals import Isocurve  # noqa: PLC0415
+    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+
+    if isinstance(levels, int):
+        msg = (
+            f"VisPy does not support using {type(levels)} as parameters for `levels`. "
+            f"A range of {levels + 1 = } values from {data.min() = } to {data.max() = } is used instead."
+        )
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        levels = np.linspace(data.min(), data.max(), levels + 1)
+
+    if fill:
+        msg = "VisPy does not support filling contour, this option is ignored."
+        warnings.warn(msg, UserWarning, stacklevel=2)
+
+    canvas, view = process_vispy_kwargs(kwargs)
+
+    iso = Isocurve(data, levels=levels, **kwargs)
+
+    m, n = data.shape[:2]
+
+    if x is not None:
+        xmin = np.min(x)
+        xmax = np.max(x)
+        xshift = xmin
+        xscale = abs(xmax - xmin) / m
+    else:
+        xshift = 0.0
+        xscale = 1.0
+
+    if y is not None:
+        ymin = np.min(y)
+        ymax = np.max(y)
+        yshift = ymin
+        yscale = abs(ymax - ymin) / n
+    else:
+        yshift = 0.0
+        yscale = 1.0
+
+    # TODO: fix me, this does work
+
+    iso.transform = STTransform(
+        scale=(xscale, yscale),
+        translate=(xshift, yshift, z0),
+    )
+
+    view.add(iso)
+
+    return canvas
+
+
+@draw_contour.register("matplotlib")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    m, n = data.shape[:2]
+
+    if x is None:
+        x = np.arange(n)
+
+    if y is None:
+        y = np.arange(m)
+
+    if fill:
+        ax.contourf(x, y, data, offset=z0, levels=levels, **kwargs)
+    else:
+        ax.contour(x, y, data, offset=z0, levels=levels, **kwargs)
+
+    return fig
+
+
+@draw_contour.register("plotly")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    fig = process_plotly_kwargs(kwargs)
+
+    del z0
+
+    if "contours_coloring" not in kwargs and not fill:
+        kwargs["contours_coloring"] = "lines"
+
+    if isinstance(levels, int):
+        kwargs.setdefault("autocontour", True)
+        kwargs.setdefault("ncontours", levels)
+    elif isinstance(levels, np.ndarray):
+        msg = (
+            "Plotly does not support arbitrary level values, but only linearly spaced levels. "
+            f"A range of values from {levels.min() = } to {levels.max() = } with step "
+            f"{(levels.max() - levels.min()) / max(1, levels.size - 1) = :.2f} is used instead."
+        )
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        contours = kwargs.setdefault("contours", {})
+        contours["start"] = levels.min()
+        contours["end"] = levels.max()
+        contours["size"] = (levels.max() - levels.min()) / max(1, levels.size - 1)
+
+    return fig.add_contour(
+        x=x,
+        y=y,
+        z=data,
         **kwargs,
     )

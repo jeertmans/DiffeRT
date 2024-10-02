@@ -1,9 +1,13 @@
+from collections.abc import Iterator
+from functools import cache
 from pathlib import Path
 
 import jax
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
+from matplotlib.figure import Figure
 
 
 @pytest.fixture
@@ -39,3 +43,27 @@ def pyproject_toml(project_dir: Path) -> Path:
 @pytest.fixture(scope="session")
 def cargo_toml(project_dir: Path) -> Path:
     return project_dir.joinpath("Cargo.toml").resolve(strict=True)
+
+
+@pytest.fixture(autouse=True)
+def close_figure(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> Iterator[None]:
+    if "backend" in request.fixturenames:
+        _figure = plt.figure
+        fig = None
+
+        @cache
+        def figure() -> Figure:
+            nonlocal fig
+            fig = _figure()
+            return fig
+
+        with monkeypatch.context() as m:
+            m.setattr(plt, "figure", figure)
+            yield None
+
+        if fig is not None:
+            plt.close(fig)
+    else:
+        yield None

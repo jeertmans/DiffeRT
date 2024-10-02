@@ -107,6 +107,33 @@ class TestTriangleScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
+    @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
+    @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
+    def test_compute_paths_on_grid(
+        self,
+        m_tx: int,
+        n_tx: int | None,
+        m_rx: int,
+        n_rx: int | None,
+        advanced_path_tracing_example_scene: TriangleScene,
+    ) -> None:
+        scene = advanced_path_tracing_example_scene
+        scene = scene.with_transmitters_grid(m_tx, n_tx)
+        scene = scene.with_receivers_grid(m_rx, n_rx)
+        paths = scene.compute_paths(order=1)
+
+        if n_tx is None:
+            n_tx = m_tx
+        if n_rx is None:
+            n_rx = m_rx
+
+        num_path_candidates = scene.mesh.triangles.shape[0]
+
+        chex.assert_shape(
+            paths.vertices,  # type: ignore[reportAttributeAccessIssue]
+            (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
+        )
+
     @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
     def test_plot(
         self,
