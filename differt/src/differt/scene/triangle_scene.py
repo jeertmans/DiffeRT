@@ -27,6 +27,7 @@ from differt.rt.image_method import (
 from differt.rt.utils import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
+    rays_intersect_triangles,
     rays_intersect_any_triangle,
 )
 
@@ -79,10 +80,10 @@ def _compute_paths(
 
     # 3.1 - Identify paths with vertices outside triangles
     # [tx_batch_flat rx_batch_flat num_path_candidates]
-    mask_1 = triangles_contain_vertices_assuming_inside_same_plane(
-        triangle_vertices,
-        paths,
-    ).all(axis=-1)  # Reduce on 'order'
+    #mask_1 = triangles_contain_vertices_assuming_inside_same_plane(
+    #    triangle_vertices,
+    #    paths,
+    #).all(axis=-1)  # Reduce on 'order'
 
     # [tx_batch_flat rx_batch_flat num_path_candidates order+2 3]
     full_paths = assemble_paths(
@@ -104,6 +105,14 @@ def _compute_paths(
     ray_origins = full_paths[..., :-1, :]
     # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
     ray_directions = jnp.diff(full_paths, axis=-2)
+
+    valid = rays_intersect_triangles(
+        ray_origins[..., :-1, :],
+        ray_directions[..., :-1, :],
+        triangle_vertices,
+    )[1].all(axis=-1)
+    
+    mask_1 = valid
 
     # [tx_batch_flat rx_batch_flat num_path_candidates]
     intersect = rays_intersect_any_triangle(
