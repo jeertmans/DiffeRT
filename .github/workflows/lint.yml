@@ -30,7 +30,7 @@ jobs:
       run: pre-commit autoupdate
 
     - name: Create a pull request with updated versions
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       with:
         branch: update/pre-commit-hooks
         title: 'chore(deps): update pre-commit hooks'
@@ -47,7 +47,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
 
