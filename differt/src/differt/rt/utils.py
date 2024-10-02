@@ -273,24 +273,22 @@ def rays_intersect_triangles(
     # [*batch]
     a = jnp.sum(h * edge_1, axis=-1)
 
-    cond_a = jnp.abs(a) < epsilon
+    hit = jnp.abs(a) > epsilon
 
     f = jnp.where(a == 0.0, 0, 1.0 / a)
     s = ray_origins - vertex_0
     u = f * jnp.sum(s * h, axis=-1)
 
-    cond_u = (u < 0.0) | (u > 1.0)
+    hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
     v = f * jnp.sum(q * ray_directions, axis=-1)
 
-    cond_v = (v < 0.0) | (u + v > 1.0)
+    hit &= (v >= 0.0) & (u + v <= 1.0)
 
     t = f * jnp.sum(q * edge_2, axis=-1)
 
-    cond_t = t <= epsilon
-
-    hit = ~(cond_a | cond_u | cond_v | cond_t)
+    hit &= t > epsilon
 
     return t, hit
 
