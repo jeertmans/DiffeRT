@@ -2,7 +2,7 @@
 # ruff: noqa: ERA001
 
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from typing import Any
 
 import equinox as eqx
@@ -24,6 +24,7 @@ from differt.rt.image_method import (
     image_method,
 )
 from differt.rt.utils import (
+    SizedIterator,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     rays_intersect_any_triangle,
@@ -303,7 +304,7 @@ class TriangleScene(eqx.Module):
 
     def compute_paths(
         self, order: int, *, chunk_size: int | None = None, **kwargs: Any
-    ) -> Paths | Iterator[Paths]:
+    ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
@@ -329,14 +330,18 @@ class TriangleScene(eqx.Module):
         to_vertices = self.receivers.reshape(-1, 3)
 
         if chunk_size:
-            return (
+            path_candidates_iter = generate_all_path_candidates_chunks_iter(
+                num_triangles, order, chunk_size=chunk_size
+            )
+            len = path_candidates_iter.__len__
+            it = (
                 _compute_paths(
                     self.mesh, from_vertices, to_vertices, path_candidates, **kwargs
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
-                for path_candidates in generate_all_path_candidates_chunks_iter(
-                    num_triangles, order, chunk_size=chunk_size
-                )
+                for path_candidates in path_candidates_iter
             )
+
+            return SizedIterator(it, size=len)
 
         path_candidates = generate_all_path_candidates(num_triangles, order)
         return _compute_paths(
