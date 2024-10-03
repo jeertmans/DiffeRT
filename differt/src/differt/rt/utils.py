@@ -28,7 +28,7 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 # ruff: noqa: ERA001
 
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sized
 from typing import Any, Generic, TypeVar
 
 import equinox as eqx
@@ -48,8 +48,12 @@ else:
 T = TypeVar("T")
 
 @typechecker
-class SizedIterator(Iterator, Generic[T]):
+class SizedIterator(Iterator, Sized, Generic[T]):
     """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
+
+    The main purpose of this class is to be able to use
+    `tqdm <https://github.com/tqdm/tqdm>`_ utilities
+    on iterators and have some meaningful information about how iterations are left.
 
     Args:
         iter_: The iterator.
