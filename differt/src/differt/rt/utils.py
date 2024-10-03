@@ -47,6 +47,7 @@ else:
 
 T = TypeVar("T")
 
+
 @typechecker
 class SizedIterator(Iterator, Sized, Generic[T]):
     """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
@@ -72,6 +73,7 @@ class SizedIterator(Iterator, Sized, Generic[T]):
         5
 
     """
+
     __slots__ = ("_iter", "_size")
 
     def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:

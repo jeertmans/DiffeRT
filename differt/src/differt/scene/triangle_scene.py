@@ -333,7 +333,7 @@ class TriangleScene(eqx.Module):
             path_candidates_iter = generate_all_path_candidates_chunks_iter(
                 num_triangles, order, chunk_size=chunk_size
             )
-            len = path_candidates_iter.__len__
+            size = path_candidates_iter.__len__
             it = (
                 _compute_paths(
                     self.mesh, from_vertices, to_vertices, path_candidates, **kwargs
@@ -341,7 +341,7 @@ class TriangleScene(eqx.Module):
                 for path_candidates in path_candidates_iter
             )
 
-            return SizedIterator(it, size=len)
+            return SizedIterator(it, size=size)
 
         path_candidates = generate_all_path_candidates(num_triangles, order)
         return _compute_paths(

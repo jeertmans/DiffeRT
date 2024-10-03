@@ -152,9 +152,7 @@ class TriangleMesh(eqx.Module):
                 self.vertices,
                 self.triangles[key, :],
                 self.face_colors[key, :] if self.face_colors is not None else None,
-                self.face_materials[key]
-                if self.face_materials is not None
-                else None,
+                self.face_materials[key] if self.face_materials is not None else None,
                 None,
             ),
             is_leaf=lambda x: x is None,
