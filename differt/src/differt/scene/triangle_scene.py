@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 import differt_core.scene.triangle_scene
 from differt.geometry.paths import Paths
@@ -44,6 +44,8 @@ def _compute_paths(
     from_vertices: Float[Array, "num_from_vertices 3"],
     to_vertices: Float[Array, "num_to_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
+    *,
+    pmap: bool | str = False,
     **kwargs: Any,
 ) -> Paths:
     epsilon = kwargs.pop("epsilon", None)
@@ -69,66 +71,113 @@ def _compute_paths(
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    # 2 - Trace paths
+    @jaxtyped(typechecker=typechecker)
+    def batched_fun(
+        from_vertices: Float[Array, "num_from_vertices 3"],
+        to_vertices: Float[Array, "num_to_vertices 3"],
+    ) -> tuple[
+        Float[
+            Array, "num_from_vertices num_to_vertices num_path_candidates path_length 3"
+        ],
+        Bool[Array, "num_from_vertices num_to_vertices num_path_candidates"],
+    ]:
+        # 2 - Trace paths
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates order 3]
-    paths = image_method(
-        from_vertices[:, None, None, :],
-        to_vertices[None, :, None, :],
-        mirror_vertices,
-        mirror_normals,
-    )
+        # [num_from_vertices num_to_vertices num_path_candidates order 3]
+        paths = image_method(
+            from_vertices[:, None, None, :],
+            to_vertices[None, :, None, :],
+            mirror_vertices,
+            mirror_normals,
+        )
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates order+2 3]
-    full_paths = assemble_paths(
-        from_vertices[:, None, None, None, :],
-        paths,
-        to_vertices[None, :, None, None, :],
-    )
+        # [num_from_vertices num_to_vertices num_path_candidates order+2 3]
+        full_paths = assemble_paths(
+            from_vertices[:, None, None, None, :],
+            paths,
+            to_vertices[None, :, None, None, :],
+        )
 
-    # 3 - Identify invalid paths
+        # 3 - Identify invalid paths
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
-    ray_origins = full_paths[..., :-1, :]
-    # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
-    ray_directions = jnp.diff(full_paths, axis=-2)
+        # [num_from_vertices num_to_vertices num_path_candidates order+1 3]
+        ray_origins = full_paths[..., :-1, :]
+        # [num_from_vertices num_to_vertices num_path_candidates order+1 3]
+        ray_directions = jnp.diff(full_paths, axis=-2)
 
-    # 3.1 - Check if paths vertices are inside respective triangles
+        # 3.1 - Check if paths vertices are inside respective triangles
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates]
-    inside_triangles = rays_intersect_triangles(
-        ray_origins[..., :-1, :],
-        ray_directions[..., :-1, :],
-        triangle_vertices,
-        epsilon=epsilon,
-    )[1].all(axis=-1)  # Reduce on 'order' axis
+        # [num_from_vertices num_to_vertices num_path_candidates]
+        inside_triangles = rays_intersect_triangles(
+            ray_origins[..., :-1, :],
+            ray_directions[..., :-1, :],
+            triangle_vertices,
+            epsilon=epsilon,
+        )[1].all(axis=-1)  # Reduce on 'order' axis
 
-    # 3.2 - Check if consecutive path vertices are on the same side of mirrors
+        # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates]
-    valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
-        full_paths,
-        mirror_vertices,
-        mirror_normals,
-    ).all(axis=-1)  # Reduce on 'order'
+        # [num_from_vertices num_to_vertices num_path_candidates]
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+            full_paths,
+            mirror_vertices,
+            mirror_normals,
+        ).all(axis=-1)  # Reduce on 'order'
 
-    # 3.3 - Identify paths that are blocked by other objects
+        # 3.3 - Identify paths that are blocked by other objects
 
-    # [tx_batch_flat rx_batch_flat num_path_candidates]
-    blocked = rays_intersect_any_triangle(
-        ray_origins,
-        ray_directions,
-        mesh.triangle_vertices,
-        epsilon=epsilon,
-        hit_tol=hit_tol,
-    ).any(axis=-1)  # Reduce on 'order'
+        # [num_from_vertices num_to_vertices num_path_candidates]
+        blocked = rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+        ).any(axis=-1)  # Reduce on 'order'
+
+        # TODO: we also need to somehow mask degenerate paths, e.g., when two reflections occur on an edge
+
+        mask = inside_triangles & valid_reflections & ~blocked
+
+        return full_paths, mask
+
+    if pmap:
+        if isinstance(pmap, str):
+            backend = pmap
+        else:
+            backend = None
+
+        num_devices = jax.local_device_count(backend)
+
+        if from_vertices.shape[0] % num_devices == 0:
+            args = (from_vertices.reshape(num_devices, -1, 3), to_vertices)
+            in_axes = (0, None)
+            out_axes = (0, 0)
+            collapse = (0, 2)
+        elif to_vertices.shape[0] % num_devices == 0:
+            args = (from_vertices, to_vertices.reshape(num_devices, -1, 3))
+            in_axes = (None, 0)
+            out_axes = (1, 1)
+            collapse = (1, 3)
+        else:
+            msg = (
+                f"Found {num_devices} devices available, "
+                "but could not find any input with a size that is a multiple of that value. "
+                "Please user a number of transmitter or receiver points that is a "
+                f"multiple of {num_devices}."
+            )
+            raise ValueError(msg)
+
+        vertices, mask = jax.pmap(batched_fun, in_axes=in_axes, out_axes=out_axes)(  # type: ignore[reportArgumentType]
+            *args
+        )
+        vertices = jax.lax.collapse(vertices, *collapse)
+        mask = jax.lax.collapse(mask, *collapse)
+
+    else:
+        vertices, mask = batched_fun(from_vertices, to_vertices)
 
     # 4 - Generate output paths and reshape
-
-    vertices = full_paths
-    mask = inside_triangles & valid_reflections & ~blocked
-
-    # TODO: we also need to somehow mask degenerate paths, e.g., when two reflections occur on an edge
 
     object_dtype = path_candidates.dtype
 
@@ -303,7 +352,12 @@ class TriangleScene(eqx.Module):
         return cls.from_core(core_scene)
 
     def compute_paths(
-        self, order: int, *, chunk_size: int | None = None, **kwargs: Any
+        self,
+        order: int,
+        *,
+        chunk_size: int | None = None,
+        pmap: bool | str = False,
+        **kwargs: Any,
     ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -312,6 +366,12 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
+            pmap: If :data:`True`, :func:`jax.lax.pmap` is used to perform path tracing in parallel
+                over multiple devices. Either the number of transmitters or the number of receivers
+                **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
+
+                You can also pass a string to specify the backend, see ``backend`` argument
+                in :func:`jax.lax.pmap`.
             kwargs: Keyword arguments passed to
                 :func:`rays_intersect_any_triangle<differt.rt.utils.rays_intersect_any_triangle>`.
 
@@ -336,7 +396,12 @@ class TriangleScene(eqx.Module):
             size = path_candidates_iter.__len__
             it = (
                 _compute_paths(
-                    self.mesh, from_vertices, to_vertices, path_candidates, **kwargs
+                    self.mesh,
+                    from_vertices,
+                    to_vertices,
+                    path_candidates,
+                    pmap=pmap,
+                    **kwargs,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -345,7 +410,7 @@ class TriangleScene(eqx.Module):
 
         path_candidates = generate_all_path_candidates(num_triangles, order)
         return _compute_paths(
-            self.mesh, from_vertices, to_vertices, path_candidates, **kwargs
+            self.mesh, from_vertices, to_vertices, path_candidates, pmap=pmap, **kwargs
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

@@ -1,3 +1,6 @@
+import os
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 
 import chex
@@ -109,18 +112,20 @@ class TestTriangleScene:
 
     @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
     @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
+    @pytest.mark.parametrize("pmap", [False, True, "cpu"])
     def test_compute_paths_on_grid(
         self,
         m_tx: int,
         n_tx: int | None,
         m_rx: int,
         n_rx: int | None,
+        pmap: bool | str,
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
         scene = advanced_path_tracing_example_scene
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
-        paths = scene.compute_paths(order=1)
+        paths = scene.compute_paths(order=1, pmap=pmap)
 
         if n_tx is None:
             n_tx = m_tx
@@ -133,6 +138,62 @@ class TestTriangleScene:
             paths.vertices,  # type: ignore[reportAttributeAccessIssue]
             (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
         )
+
+    @pytest.mark.parametrize(
+        ("m_tx", "n_tx", "m_rx", "n_rx", "expectation"),
+        [
+            (8, 8, 1, 1, does_not_raise()),
+            (1, 1, 8, 8, does_not_raise()),
+            (4, 2, 1, 1, does_not_raise()),
+            (1, 1, 2, 4, does_not_raise()),
+            pytest.param(
+                7,
+                1,
+                1,
+                1,
+                pytest.raises(ValueError, match="Found 8 devices available"),
+                marks=pytest.mark.xfail(
+                    reason="Faking the number of devices does not seem to work."
+                ),
+            ),
+            pytest.param(
+                1,
+                2,
+                4,
+                1,
+                pytest.raises(ValueError, match="Found 8 devices available"),
+                marks=pytest.mark.xfail(
+                    reason="Faking the number of devices does not seem to work."
+                ),
+            ),
+        ],
+    )
+    def test_compute_paths_pmap(
+        self,
+        m_tx: int,
+        n_tx: int,
+        m_rx: int,
+        n_rx: int,
+        expectation: AbstractContextManager[Exception],
+        advanced_path_tracing_example_scene: TriangleScene,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        scene = advanced_path_tracing_example_scene
+        scene = scene.with_transmitters_grid(m_tx, n_tx)
+        scene = scene.with_receivers_grid(m_rx, n_rx)
+
+        with monkeypatch.context() as m, expectation:
+            flags = os.environ.get("XLA_FLAGS", "")
+            m.setenv("XLA_FLAGS", flags + " --xla_force_host_platform_device_count=8")
+
+            paths = scene.compute_paths(order=1, pmap="cpu")
+
+            num_path_candidates = scene.mesh.triangles.shape[0]
+
+            chex.assert_shape(
+                paths.vertices,  # type: ignore[reportAttributeAccessIssue]
+                (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
+            )
 
     @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
     def test_plot(
