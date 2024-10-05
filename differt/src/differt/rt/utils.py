@@ -27,7 +27,8 @@ You can read more about path candidates in :cite:`mpt-eucap2023`.
 """
 # ruff: noqa: ERA001
 
-from collections.abc import Callable, Iterator
+import sys
+from collections.abc import Callable, Iterator, Sized
 from typing import Any, Generic, TypeVar
 
 import equinox as eqx
@@ -39,11 +40,21 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 from differt.geometry.utils import fibonacci_lattice
 from differt_core.rt.graph import CompleteGraph
 
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 T = TypeVar("T")
 
 
-class _SizedIterator(Generic[T]):
+@typechecker
+class SizedIterator(Iterator, Sized, Generic[T]):
     """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
+
+    The main purpose of this class is to be able to use
+    `tqdm <https://github.com/tqdm/tqdm>`_ utilities
+    on iterators and have some meaningful information about how iterations are left.
 
     Args:
         iter_: The iterator.
@@ -52,31 +63,33 @@ class _SizedIterator(Generic[T]):
     Examples:
         The following example shows how to create a sized iterator.
 
-        >>> from differt.rt.utils import _SizedIterator
+        >>> from differt.rt.utils import SizedIterator
         >>> l = [1, 2, 3, 4, 5]
-        >>> it = _SizedIterator(iter_=iter(l), size=5)
+        >>> it = SizedIterator(iter=iter(l), size=5)
         >>> len(it)
         5
-        >>> it = _SizedIterator(iter_=iter(l), size=l.__len__)
+        >>> it = SizedIterator(iter=iter(l), size=l.__len__)
         >>> len(it)
         5
 
     """
 
-    def __init__(self, iter_: Iterator[T], size: int | Callable[[], int]) -> None:
-        self.iter_ = iter_
-        self.size = size
+    __slots__ = ("_iter", "_size")
 
-    def __iter__(self) -> "_SizedIterator[T]":
+    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:
+        self._iter = iter
+        self._size = size
+
+    def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> T:
-        return next(self.iter_)
+        return next(self._iter)
 
     def __len__(self) -> int:
-        if isinstance(self.size, int):
-            return self.size
-        return self.size()
+        if isinstance(self._size, int):
+            return self._size
+        return self._size()
 
 
 @jaxtyped(typechecker=typechecker)
@@ -120,7 +133,7 @@ def generate_all_path_candidates(
 def generate_all_path_candidates_iter(
     num_primitives: int,
     order: int,
-) -> _SizedIterator[Int[Array, " order"]]:
+) -> SizedIterator[Int[Array, " order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`.
 
@@ -138,7 +151,7 @@ def generate_all_path_candidates_iter(
         include_from_and_to=False,
     )
     m = (jnp.asarray(arr, dtype=int) for arr in it)
-    return _SizedIterator(m, size=it.__len__)
+    return SizedIterator(m, size=it.__len__)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -146,7 +159,7 @@ def generate_all_path_candidates_chunks_iter(
     num_primitives: int,
     order: int,
     chunk_size: int = 1000,
-) -> _SizedIterator[Int[Array, "chunk_size order"]]:
+) -> SizedIterator[Int[Array, "chunk_size order"]]:
     """
     Iterator variant of :func:`generate_all_path_candidates`, grouped in chunks of size of max. ``chunk_size``.
 
@@ -166,7 +179,7 @@ def generate_all_path_candidates_chunks_iter(
         chunk_size=chunk_size,
     )
     m = (jnp.asarray(arr, dtype=int) for arr in it)
-    return _SizedIterator(m, size=it.__len__)
+    return SizedIterator(m, size=it.__len__)
 
 
 @eqx.filter_jit

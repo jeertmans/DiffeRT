@@ -2,7 +2,7 @@
 # ruff: noqa: ERA001
 
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from typing import Any
 
 import equinox as eqx
@@ -16,7 +16,6 @@ import differt_core.scene.triangle_scene
 from differt.geometry.paths import Paths
 from differt.geometry.triangle_mesh import (
     TriangleMesh,
-    triangles_contain_vertices_assuming_inside_same_plane,
 )
 from differt.geometry.utils import assemble_paths
 from differt.plotting import draw_markers, reuse
@@ -25,9 +24,11 @@ from differt.rt.image_method import (
     image_method,
 )
 from differt.rt.utils import (
+    SizedIterator,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     rays_intersect_any_triangle,
+    rays_intersect_triangles,
 )
 
 if sys.version_info >= (3, 11):
@@ -45,6 +46,9 @@ def _compute_paths(
     path_candidates: Int[Array, "num_path_candidates order"],
     **kwargs: Any,
 ) -> Paths:
+    epsilon = kwargs.pop("epsilon", None)
+    hit_tol = kwargs.pop("hit_tol", None)
+
     # 1 - Broadcast arrays
 
     num_path_candidates = path_candidates.shape[0]
@@ -75,15 +79,6 @@ def _compute_paths(
         mirror_normals,
     )
 
-    # 3 - Identify invalid paths
-
-    # 3.1 - Identify paths with vertices outside triangles
-    # [tx_batch_flat rx_batch_flat num_path_candidates]
-    mask_1 = triangles_contain_vertices_assuming_inside_same_plane(
-        triangle_vertices,
-        paths,
-    ).all(axis=-1)  # Reduce on 'order'
-
     # [tx_batch_flat rx_batch_flat num_path_candidates order+2 3]
     full_paths = assemble_paths(
         from_vertices[:, None, None, None, :],
@@ -91,34 +86,47 @@ def _compute_paths(
         to_vertices[None, :, None, None, :],
     )
 
-    # 3.2 - Identify paths with vertices not on the same side of mirrors
-    # [tx_batch_flat rx_batch_flat num_path_candidates]
-    mask_2 = consecutive_vertices_are_on_same_side_of_mirrors(
-        full_paths,
-        mirror_vertices,
-        mirror_normals,
-    ).all(axis=-1)  # Reduce on 'order'
+    # 3 - Identify invalid paths
 
-    # 3.3 - Identify paths that are obstructed by other objects
     # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
     ray_origins = full_paths[..., :-1, :]
     # [tx_batch_flat rx_batch_flat num_path_candidates order+1 3]
     ray_directions = jnp.diff(full_paths, axis=-2)
 
+    # 3.1 - Check if paths vertices are inside respective triangles
+
     # [tx_batch_flat rx_batch_flat num_path_candidates]
-    intersect = rays_intersect_any_triangle(
+    inside_triangles = rays_intersect_triangles(
+        ray_origins[..., :-1, :],
+        ray_directions[..., :-1, :],
+        triangle_vertices,
+        epsilon=epsilon,
+    )[1].all(axis=-1)  # Reduce on 'order' axis
+
+    # 3.2 - Check if consecutive path vertices are on the same side of mirrors
+
+    # [tx_batch_flat rx_batch_flat num_path_candidates]
+    valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+        full_paths,
+        mirror_vertices,
+        mirror_normals,
+    ).all(axis=-1)  # Reduce on 'order'
+
+    # 3.3 - Identify paths that are blocked by other objects
+
+    # [tx_batch_flat rx_batch_flat num_path_candidates]
+    blocked = rays_intersect_any_triangle(
         ray_origins,
         ray_directions,
         mesh.triangle_vertices,
-        **kwargs,
+        epsilon=epsilon,
+        hit_tol=hit_tol,
     ).any(axis=-1)  # Reduce on 'order'
-
-    mask_3 = ~intersect
 
     # 4 - Generate output paths and reshape
 
     vertices = full_paths
-    mask = mask_1 & mask_2 & mask_3
+    mask = inside_triangles & valid_reflections & ~blocked
 
     # TODO: we also need to somehow mask degenerate paths, e.g., when two reflections occur on an edge
 
@@ -296,7 +304,7 @@ class TriangleScene(eqx.Module):
 
     def compute_paths(
         self, order: int, *, chunk_size: int | None = None, **kwargs: Any
-    ) -> Paths | Iterator[Paths]:
+    ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
@@ -322,14 +330,18 @@ class TriangleScene(eqx.Module):
         to_vertices = self.receivers.reshape(-1, 3)
 
         if chunk_size:
-            return (
+            path_candidates_iter = generate_all_path_candidates_chunks_iter(
+                num_triangles, order, chunk_size=chunk_size
+            )
+            size = path_candidates_iter.__len__
+            it = (
                 _compute_paths(
                     self.mesh, from_vertices, to_vertices, path_candidates, **kwargs
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
-                for path_candidates in generate_all_path_candidates_chunks_iter(
-                    num_triangles, order, chunk_size=chunk_size
-                )
+                for path_candidates in path_candidates_iter
             )
+
+            return SizedIterator(it, size=size)
 
         path_candidates = generate_all_path_candidates(num_triangles, order)
         return _compute_paths(

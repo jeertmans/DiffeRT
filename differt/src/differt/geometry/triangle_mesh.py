@@ -152,9 +152,7 @@ class TriangleMesh(eqx.Module):
                 self.vertices,
                 self.triangles[key, :],
                 self.face_colors[key, :] if self.face_colors is not None else None,
-                self.face_materials[key, :]
-                if self.face_materials is not None
-                else None,
+                self.face_materials[key] if self.face_materials is not None else None,
                 None,
             ),
             is_leaf=lambda x: x is None,
@@ -221,8 +219,11 @@ class TriangleMesh(eqx.Module):
     @jaxtyped(typechecker=typechecker)
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
+        # Using self.triangle_vertices is important because, e.g., as a result of using
+        # __getitem__, some vertices in 'self.vertices' may no longer be used by this mesh.
+        vertices = self.triangle_vertices.reshape(-1, 3)
         return jnp.vstack(
-            (jnp.min(self.vertices, axis=0), jnp.max(self.vertices, axis=0)),
+            (jnp.min(vertices, axis=0), jnp.max(vertices, axis=0)),
         )
 
     @classmethod

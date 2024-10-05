@@ -242,26 +242,28 @@ impl TriangleMesh {
             x.append(y);
         }
 
-        let offset = self.vertices.len();
+        let index_offset = self.vertices.len();
+        let bound_offset = self.triangles.len();
         self.vertices.append(&mut other.vertices);
 
         self.triangles.reserve(other.triangles.len());
 
         for [v0, v1, v2] in &other.triangles {
-            self.triangles.push([v0 + offset, v1 + offset, v2 + offset]);
+            self.triangles
+                .push([v0 + index_offset, v1 + index_offset, v2 + index_offset]);
         }
 
         other.triangles.clear();
 
         self.object_bounds
             .get_or_insert_with(|| {
-                if offset > 0 {
-                    vec![[0, offset]]
+                if bound_offset > 0 {
+                    vec![[0, bound_offset]]
                 } else {
                     vec![]
                 }
             })
-            .push([offset, self.vertices.len()]);
+            .push([bound_offset, self.triangles.len()]);
     }
 
     /// Load a triangle mesh from a Wavefront .obj file.
