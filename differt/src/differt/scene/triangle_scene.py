@@ -10,6 +10,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype as typechecker
+from jax.experimental import mesh_utils
+from jax.experimental.shard_map import shard_map
+from jax.sharding import Mesh
+from jax.sharding import PartitionSpec as P  # noqa: N814
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 import differt_core.scene.triangle_scene
@@ -45,7 +49,7 @@ def _compute_paths(
     to_vertices: Float[Array, "num_to_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
-    pmap: bool | str = False,
+    parallel: bool = False,
     **kwargs: Any,
 ) -> Paths:
     epsilon = kwargs.pop("epsilon", None)
@@ -72,7 +76,7 @@ def _compute_paths(
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
     @jaxtyped(typechecker=typechecker)
-    def batched_fun(
+    def fun(
         from_vertices: Float[Array, "num_from_vertices 3"],
         to_vertices: Float[Array, "num_to_vertices 3"],
     ) -> tuple[
@@ -141,24 +145,15 @@ def _compute_paths(
 
         return full_paths, mask
 
-    if pmap:
-        if isinstance(pmap, str):
-            backend = pmap
-        else:
-            backend = None
-
-        num_devices = jax.local_device_count(backend)
+    if parallel:
+        num_devices = jax.device_count()
 
         if from_vertices.shape[0] % num_devices == 0:
-            args = (from_vertices.reshape(num_devices, -1, 3), to_vertices)
-            in_axes = (0, None)
-            out_axes = (0, 0)
-            collapse = (0, 2)
+            in_specs = (P("i", None), P(None, None))
+            out_specs = (P("i", None, None, None, None), P("i", None, None))
         elif to_vertices.shape[0] % num_devices == 0:
-            args = (from_vertices, to_vertices.reshape(num_devices, -1, 3))
-            in_axes = (None, 0)
-            out_axes = (1, 1)
-            collapse = (1, 3)
+            in_specs = (P(None, None), P("i", None))
+            out_specs = (P(None, "i", None, None, None), P(None, "i", None))
         else:
             msg = (
                 f"Found {num_devices} devices available, "
@@ -168,14 +163,14 @@ def _compute_paths(
             )
             raise ValueError(msg)
 
-        vertices, mask = jax.pmap(batched_fun, in_axes=in_axes, out_axes=out_axes)(  # type: ignore[reportArgumentType]
-            *args
+        fun = shard_map(  # type: ignore[reportAssigmentType]
+            fun,
+            Mesh(mesh_utils.create_device_mesh((num_devices,)), axis_names=("i",)),
+            in_specs=in_specs,
+            out_specs=out_specs,
         )
-        vertices = jax.lax.collapse(vertices, *collapse)
-        mask = jax.lax.collapse(mask, *collapse)
 
-    else:
-        vertices, mask = batched_fun(from_vertices, to_vertices)
+    vertices, mask = fun(from_vertices, to_vertices)
 
     # 4 - Generate output paths and reshape
 
@@ -356,7 +351,7 @@ class TriangleScene(eqx.Module):
         order: int,
         *,
         chunk_size: int | None = None,
-        pmap: bool | str = False,
+        parallel: bool = False,
         **kwargs: Any,
     ) -> Paths | SizedIterator[Paths]:
         """
@@ -366,12 +361,9 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
-            pmap: If :data:`True`, :func:`jax.pmap` is used to perform path tracing in parallel
-                over multiple devices. Either the number of transmitters or the number of receivers
+            parallel: If :data:`True`, ray tracing if performed in parallel across all available
+                devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
-
-                You can also pass a string to specify the backend, see ``backend`` argument
-                in :func:`jax.pmap`.
             kwargs: Keyword arguments passed to
                 :func:`rays_intersect_any_triangle<differt.rt.utils.rays_intersect_any_triangle>`.
 
@@ -400,7 +392,7 @@ class TriangleScene(eqx.Module):
                     from_vertices,
                     to_vertices,
                     path_candidates,
-                    pmap=pmap,
+                    parallel=parallel,
                     **kwargs,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
@@ -410,7 +402,12 @@ class TriangleScene(eqx.Module):
 
         path_candidates = generate_all_path_candidates(num_triangles, order)
         return _compute_paths(
-            self.mesh, from_vertices, to_vertices, path_candidates, pmap=pmap, **kwargs
+            self.mesh,
+            from_vertices,
+            to_vertices,
+            path_candidates,
+            parallel=parallel,
+            **kwargs,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

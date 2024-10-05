@@ -76,17 +76,17 @@ class SizedIterator(Iterator, Sized, Generic[T]):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:
+    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:  # noqa: A002,D107
         self._iter = iter
         self._size = size
 
-    def __iter__(self) -> Self:
+    def __iter__(self) -> Self:  # noqa: D105
         return self
 
-    def __next__(self) -> T:
+    def __next__(self) -> T:  # noqa: D105
         return next(self._iter)
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105
         if isinstance(self._size, int):
             return self._size
         return self._size()
