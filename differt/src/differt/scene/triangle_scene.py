@@ -148,6 +148,7 @@ def _compute_paths(
     if parallel:
         num_devices = jax.device_count()
 
+        # TODO: allow also to have i,i mesh if product of both is a multiple of 'num_devices'
         if from_vertices.shape[0] % num_devices == 0:
             in_specs = (P("i", None), P(None, None))
             out_specs = (P("i", None, None, None, None), P("i", None, None))
