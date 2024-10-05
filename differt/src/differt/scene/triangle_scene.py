@@ -366,12 +366,12 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
-            pmap: If :data:`True`, :func:`jax.lax.pmap` is used to perform path tracing in parallel
+            pmap: If :data:`True`, :func:`jax.pmap` is used to perform path tracing in parallel
                 over multiple devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
 
                 You can also pass a string to specify the backend, see ``backend`` argument
-                in :func:`jax.lax.pmap`.
+                in :func:`jax.pmap`.
             kwargs: Keyword arguments passed to
                 :func:`rays_intersect_any_triangle<differt.rt.utils.rays_intersect_any_triangle>`.
 
