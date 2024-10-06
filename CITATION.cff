@@ -1,21 +1,25 @@
-cff-version: "1.2.0"
-authors:
-- family-names: Eertmans
-  given-names: Jérome
-  orcid: "https://orcid.org/0000-0002-5579-5360"
-doi: 10.5281/zenodo.13895021
-message: If you use this software, please cite us.
-repository-code: 'https://github.com/jeertmans/DiffeRT'
-license: MIT
-version: v0.0.20
+cff-version: 1.2.0
+title: >-
+  Differentiable Ray Tracing Toolbox for Radio Propagation
+  Simulations
+message: 'If you use this software, please cite us.'
 type: software
-url: 'https://eertmans.be/DiffeRT
-title: Differentiable Ray Tracing Toolbox for Radio Propagation Simulations
-abstract: >-
-  Differentiable Ray Tracer for Radio-Propagation Modeling.
+authors:
+  - family-names: Eertmans
+    given-names: Jérome
+    orcid: 'https://orcid.org/0000-0002-5579-5360'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.13895021
+    description: Zenodo Archive
+repository-code: 'https://github.com/jeertmans/DiffeRT'
+url: 'https://eertmans.be/DiffeRT'
+abstract: Differentiable Ray Tracer for Radio-Propagation Modeling.
 keywords:
   - Ray Tracing
   - Differentiable
   - JAX
   - Radio Propagation
   - Modeling
+license: MIT
+version: v0.0.20
