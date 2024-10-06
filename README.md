@@ -125,7 +125,7 @@ pytest --benchmark-enable differt/tests/benchmarks
 
 ## Citing
 
-If you use this this software, please cite it as
+If you use this software, please cite it as
 [detailed here](https://differt.readthedocs.io/latest/citing.html).
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
