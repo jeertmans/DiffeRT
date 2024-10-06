@@ -1,3 +1,5 @@
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 
 import chex
@@ -133,6 +135,55 @@ class TestTriangleScene:
             paths.vertices,  # type: ignore[reportAttributeAccessIssue]
             (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
         )
+
+    @pytest.mark.skipif(
+        jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
+    )
+    @pytest.mark.parametrize(
+        ("m_tx", "n_tx", "m_rx", "n_rx", "expectation"),
+        [
+            (8, 8, 1, 1, does_not_raise()),
+            (1, 1, 8, 8, does_not_raise()),
+            (4, 2, 1, 1, does_not_raise()),
+            (1, 1, 2, 4, does_not_raise()),
+            (
+                7,
+                1,
+                1,
+                1,
+                pytest.raises(ValueError, match="Found 8 devices available"),
+            ),
+            (
+                1,
+                2,
+                4,
+                1,
+                pytest.raises(ValueError, match="Found 8 devices available"),
+            ),
+        ],
+    )
+    def test_compute_paths_parallel(
+        self,
+        m_tx: int,
+        n_tx: int,
+        m_rx: int,
+        n_rx: int,
+        expectation: AbstractContextManager[Exception],
+        advanced_path_tracing_example_scene: TriangleScene,
+    ) -> None:
+        scene = advanced_path_tracing_example_scene
+        scene = scene.with_transmitters_grid(m_tx, n_tx)
+        scene = scene.with_receivers_grid(m_rx, n_rx)
+
+        with expectation:
+            paths = scene.compute_paths(order=1, parallel=True)
+
+            num_path_candidates = scene.mesh.triangles.shape[0]
+
+            chex.assert_shape(
+                paths.vertices,  # type: ignore[reportAttributeAccessIssue]
+                (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
+            )
 
     @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
     def test_plot(
