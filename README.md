@@ -123,12 +123,17 @@ or benchmark it:
 pytest --benchmark-enable differt/tests/benchmarks
 ```
 
+## Citing
+
+If you use this software, please cite it as
+[detailed here](https://differt.readthedocs.io/latest/citing.html).
+
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT/
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.11386432.svg
-[doi-url]: https://doi.org/10.5281/zenodo.11386432
+[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.13895021.svg
+[doi-url]: https://doi.org/10.5281/zenodo.13895021
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=v63alnTWzu
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT
