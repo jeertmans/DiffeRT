@@ -80,6 +80,11 @@ version = "{new_version}"'''
 search = '''name = "differt-core"
 version = "{current_version}"'''
 
+[[tool.bumpversion.files]]
+filename = "CITATION.cff"
+replace = "version: v{new_version}"
+search = "version: v{current_version}"
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
