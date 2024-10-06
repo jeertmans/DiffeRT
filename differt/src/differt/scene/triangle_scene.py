@@ -362,7 +362,7 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
-            parallel: If :data:`True`, ray tracing if performed in parallel across all available
+            parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
             kwargs: Keyword arguments passed to
