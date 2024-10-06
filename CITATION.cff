@@ -10,6 +10,7 @@ license: MIT
 version: v0.0.20
 type: software
 url: 'https://eertmans.be/DiffeRT
+title: Differentiable Ray Tracing Toolbox for Radio Propagation Simulations
 abstract: >-
   Differentiable Ray Tracer for Radio-Propagation Modeling.
 keywords:
