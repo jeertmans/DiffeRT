@@ -281,8 +281,12 @@ def draw_rays(
             >>> from differt.plotting import draw_rays
             >>>
             >>> ray_origins = np.zeros(3)
-            >>> ray_directions = np.asarray(fibonacci_lattice(50))  # From JAX to NumPy array
-            >>> ray_origins, ray_directions = np.broadcast_arrays(ray_origins, ray_directions)
+            >>> ray_directions = np.asarray(
+            ...     fibonacci_lattice(50)
+            ... )  # From JAX to NumPy array
+            >>> ray_origins, ray_directions = np.broadcast_arrays(
+            ...     ray_origins, ray_directions
+            ... )
             >>> fig = draw_rays(
             ...     ray_origins,
             ...     ray_directions,
