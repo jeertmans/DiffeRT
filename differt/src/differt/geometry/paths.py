@@ -251,7 +251,7 @@ class Paths(eqx.Module):
 
             >>> from differt.geometry.paths import Paths
             >>>
-            >>> key = jax.random.PRNGKey(1234)
+            >>> key = jax.random.key(1234)
             >>> key_v, key_o = jax.random.split(key, 2)
             >>> *batch, path_length = (2, 6, 3)
             >>> vertices = jax.random.uniform(key_v, (*batch, path_length, 3))

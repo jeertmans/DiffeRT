@@ -29,7 +29,7 @@ def random_inputs(
         @wraps(fun)
         def _wrapper_(*args: Any, **kwargs: Any) -> Any:
             bound_args = sig.bind(*args, **kwargs)
-            keys = jax.random.split(jax.random.PRNGKey(seed), len(arg_names))
+            keys = jax.random.split(jax.random.key(seed), len(arg_names))
             for key, arg_name in zip(keys, arg_names, strict=False):
                 shape = bound_args.arguments[arg_name]
                 bound_args.arguments[arg_name] = sampler(key, shape)
