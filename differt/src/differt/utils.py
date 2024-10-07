@@ -43,7 +43,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ... )
         >>>
         >>> arr = jnp.arange(10).reshape(5, 2)
-        >>> key = jax.random.PRNGKey(1234)
+        >>> key = jax.random.key(1234)
         >>> (
         ...     key1,
         ...     key2,
@@ -175,7 +175,7 @@ def minimize(
         >>>
         >>> batch = (1, 2, 3)
         >>> n = 10
-        >>> key = jax.random.PRNGKey(1234)
+        >>> key = jax.random.key(1234)
         >>> offset = jax.random.uniform(key, (*batch, n))
         >>>
         >>> def f(x, offset, scale=2.0):
@@ -246,7 +246,7 @@ def sample_points_in_bounding_box(
         bounding_box: The bounding box (min. and max. coordinates).
         size: The sample size or :data:`None`. If :data:`None`,
             the returned array is 1D. Otherwise, it is 2D.
-        key: The :func:`jax.random.PRNGKey` to be used.
+        key: The :func:`jax.random.key` to be used.
 
     Returns:
         An array of points randomly sampled.

@@ -10,6 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
+from differt.geometry.paths import Paths
 from differt.geometry.utils import assemble_paths, normalize
 from differt.scene.sionna import (
     get_sionna_scene,
@@ -97,12 +98,81 @@ class TestTriangleScene:
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
 
-        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)  # type: ignore[reportAttributeAccessIssue]
-        chex.assert_trees_all_equal(got.masked_objects, expected_objects)  # type: ignore[reportAttributeAccessIssue]
+        assert isinstance(got, Paths)  # Hint to Pyright
 
-        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)  # type: ignore[reportAttributeAccessIssue]
+        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
+        chex.assert_trees_all_equal(got.masked_objects, expected_objects)
 
-        rays = jnp.diff(got.masked_vertices, axis=-2)  # type: ignore[reportAttributeAccessIssue]
+        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
+
+        rays = jnp.diff(got.masked_vertices, axis=-2)
+
+        rays = normalize(rays)[0]
+
+        indicents = rays[..., :-1, :]
+        reflecteds = rays[..., +1:, :]
+
+        dot_incidents = jnp.sum(-indicents * normals, axis=-1)
+        dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
+
+        chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
+
+    @pytest.mark.parametrize(
+        ("order", "expected_path_vertices", "expected_objects"),
+        [
+            (0, jnp.empty((1, 0, 3)), jnp.array([[0, 0]])),
+            (
+                1,
+                jnp.array([
+                    [[0.0, -8.613334655761719, 32.0]],
+                    [[0.0, 9.571563720703125, 32.0]],
+                    [[1.9073486328125e-06, 0.0, -0.030788421630859375]],
+                ]),
+                jnp.array([[0, 18, 0], [0, 38, 0], [0, 72, 0]]),
+            ),
+            (
+                2,
+                jnp.array([
+                    [
+                        [-11.579630851745605, -8.613335609436035, 32.0],
+                        [10.420369148254395, 9.571564674377441, 32.0],
+                    ],
+                    [
+                        [-10.420370101928711, 9.571562767028809, 32.0],
+                        [11.579629898071289, -8.613335609436035, 32.0],
+                    ],
+                ]),
+                jnp.array([[0, 19, 39, 0], [0, 38, 18, 0]]),
+            ),
+        ],
+    )
+    def test_compute_paths_on_simple_street_canyon(
+        self,
+        order: int,
+        expected_path_vertices: Array,
+        expected_objects: Array,
+        simple_street_canyon_scene: TriangleScene,
+    ) -> None:
+        scene = simple_street_canyon_scene
+        expected_path_vertices = assemble_paths(
+            scene.transmitters[None, :],
+            expected_path_vertices,
+            scene.receivers[None, :],
+        )
+
+        with jax.debug_nans(False):  # noqa: FBT003
+            got = scene.compute_paths(order)
+
+        assert isinstance(got, Paths)  # Hint to Pyright
+
+        chex.assert_trees_all_close(
+            got.masked_vertices, expected_path_vertices, atol=1e-5
+        )
+        chex.assert_trees_all_equal(got.masked_objects, expected_objects)
+
+        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
+
+        rays = jnp.diff(got.masked_vertices, axis=-2)
 
         rays = normalize(rays)[0]
 

@@ -22,7 +22,7 @@ def seed() -> int:
 
 @pytest.fixture
 def key(seed: int) -> PRNGKeyArray:
-    return jax.random.PRNGKey(seed)
+    return jax.random.key(seed)
 
 
 @pytest.fixture

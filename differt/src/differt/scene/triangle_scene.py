@@ -51,10 +51,13 @@ def _compute_paths(
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
     parallel: bool = False,
-    **kwargs: Any,
+    epsilon: Float[ArrayLike, " "] | None = None,
+    hit_tol: Float[ArrayLike, " "] | None = None,
+    min_len: Float[ArrayLike, " "] | None = None,
 ) -> Paths:
-    epsilon = kwargs.pop("epsilon", None)
-    hit_tol = kwargs.pop("hit_tol", None)
+    if min_len is None:
+        dtype = jnp.result_type(mesh.vertices, from_vertices, to_vertices)
+        min_len = 10 * jnp.finfo(dtype).eps
 
     # 1 - Broadcast arrays
 
@@ -144,9 +147,15 @@ def _compute_paths(
             hit_tol=hit_tol,
         ).any(axis=-1)  # Reduce on 'order'
 
-        # TODO: we also need to somehow mask degenerate paths, e.g., when two reflections occur on an edge
+        # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
-        mask = inside_triangles & valid_reflections & ~blocked
+        ray_lengths = jnp.sum(ray_directions * ray_directions, axis=-1)  # Squared norm
+
+        too_small = (ray_lengths < min_len).any(
+            axis=-1
+        )  # Any path segment being too smal
+
+        mask = inside_triangles & valid_reflections & ~blocked & ~too_small
 
         return full_paths, mask
 
@@ -359,7 +368,9 @@ class TriangleScene(eqx.Module):
         chunk_size: int | None = None,
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
-        **kwargs: Any,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
     ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -383,8 +394,14 @@ class TriangleScene(eqx.Module):
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
-            kwargs: Keyword arguments passed to
+            epsilon: Tolelance for checking ray / objects intersection, see
+                :func:`rays_intersect_triangles<differt.rt.utils.rays_intersect_triangles>`.
+            hit_tol: Tolerance for checking blockage (i.e., obstruction), see
                 :func:`rays_intersect_any_triangle<differt.rt.utils.rays_intersect_any_triangle>`.
+            min_len: Minimal (squared) length that each path segment must have for a path to be valid.
+
+                If not specified, the default is ten times the epsilon value
+                of the currently used floating point dtype.
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -426,7 +443,9 @@ class TriangleScene(eqx.Module):
                     to_vertices,
                     path_candidates,
                     parallel=parallel,
-                    **kwargs,
+                    epsilon=epsilon,
+                    hit_tol=hit_tol,
+                    min_len=min_len,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -445,7 +464,9 @@ class TriangleScene(eqx.Module):
             to_vertices,
             path_candidates,
             parallel=parallel,
-            **kwargs,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+            min_len=min_len,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

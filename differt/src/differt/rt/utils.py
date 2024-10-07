@@ -367,7 +367,7 @@ def rays_intersect_any_triangle(
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        intersect: Bool[Array, " *#batch"],
+        intersect: Bool[Array, " *batch"],
         triangle_vertices: Float[Array, "*#batch 3 3"],
     ) -> tuple[Bool[Array, " *batch"], None]:
         t, hit = rays_intersect_triangles(
