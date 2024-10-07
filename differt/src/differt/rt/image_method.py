@@ -76,7 +76,10 @@ Examples:
         ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
         ...     markers = jnp.vstack((from_vertex, to_vertex))
         ...     draw_markers(
-        ...         markers, labels=["BS", "UE"], marker={"color": "black"}, name="BS/UE"
+        ...         markers,
+        ...         labels=["BS", "UE"],
+        ...         marker={"color": "black"},
+        ...         name="BS/UE",
         ...     )
         ...     fig.update_layout(scene_aspectmode="data")
         >>> fig  # doctest: +SKIP

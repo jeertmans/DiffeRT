@@ -230,13 +230,18 @@ def rays_intersect_triangles(
             >>> from differt.rt.utils import (
             ...     rays_intersect_triangles,
             ... )
-            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.sionna import (
+            ...     get_sionna_scene,
+            ...     download_sionna_scenes,
+            ... )
             >>> from differt.scene.triangle_scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
             >>> scene = TriangleScene.load_xml(file)
-            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
+            ... )
             >>> ray_origins, ray_directions = jnp.broadcast_arrays(
             ...     scene.transmitters, fibonacci_lattice(25)
             ... )
@@ -421,13 +426,18 @@ def triangles_visible_from_vertices(
             >>> from differt.rt.utils import (
             ...     triangles_visible_from_vertices,
             ... )
-            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.sionna import (
+            ...     get_sionna_scene,
+            ...     download_sionna_scenes,
+            ... )
             >>> from differt.scene.triangle_scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
             >>> scene = TriangleScene.load_xml(file)
-            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
+            ... )
             >>> visible_triangles = triangles_visible_from_vertices(
             ...     scene.transmitters,
             ...     scene.mesh.triangle_vertices,

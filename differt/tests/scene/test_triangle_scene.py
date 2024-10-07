@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
@@ -7,7 +8,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, Int, PRNGKeyArray
 
 from differt.geometry.utils import assemble_paths, normalize
 from differt.scene.sionna import (
@@ -16,6 +17,10 @@ from differt.scene.sionna import (
 )
 from differt.scene.triangle_scene import TriangleScene
 from differt_core.scene.sionna import SionnaScene
+
+skip_if_not_8_devices = pytest.mark.skipif(
+    jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
+)
 
 
 class TestTriangleScene:
@@ -109,6 +114,66 @@ class TestTriangleScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
+    @pytest.mark.parametrize(
+        ("order", "chunk_size", "path_candidates", "expectation"),
+        [
+            (0, None, None, does_not_raise()),
+            (0, 1000, None, does_not_raise()),
+            (None, None, jnp.empty((1, 0), dtype=jnp.int32), does_not_raise()),
+            (
+                0,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                pytest.raises(ValueError, match="You must specify one of"),
+            ),
+            (
+                None,
+                1000,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                pytest.warns(UserWarning, match="Argument 'chunk_size' is ignored"),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "parallel", [False, pytest.param(True, marks=skip_if_not_8_devices)]
+    )
+    def test_compute_paths_on_empty_scene(
+        self,
+        order: int | None,
+        chunk_size: int | None,
+        path_candidates: Int[Array, "num_path_candidates order"] | None,
+        expectation: AbstractContextManager[Exception],
+        parallel: bool,
+        key: PRNGKeyArray,
+    ) -> None:
+        key_tx, key_rx = jax.random.split(key, 2)
+
+        if parallel:
+            transmitters = jax.random.uniform(key_tx, (8, 3))
+        else:
+            transmitters = jax.random.uniform(key_tx, (1, 3))
+
+        receivers = jax.random.uniform(key_rx, (1, 3))
+
+        scene = TriangleScene(transmitters=transmitters, receivers=receivers)
+        expected_path_vertices = assemble_paths(
+            transmitters[:, None, None, None, :],
+            receivers[None, :, None, None, :],
+        )
+
+        with expectation:
+            with jax.debug_nans(False):  # noqa: FBT003
+                got = scene.compute_paths(
+                    order=order,
+                    chunk_size=chunk_size,
+                    path_candidates=path_candidates,
+                    parallel=parallel,
+                )
+
+            paths = next(got) if isinstance(got, Iterator) else got
+
+            chex.assert_trees_all_close(paths.vertices, expected_path_vertices)
+
     @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
     @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
     def test_compute_paths_on_grid(
@@ -136,9 +201,7 @@ class TestTriangleScene:
             (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
         )
 
-    @pytest.mark.skipif(
-        jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
-    )
+    @skip_if_not_8_devices
     @pytest.mark.parametrize(
         ("m_tx", "n_tx", "m_rx", "n_rx", "expectation"),
         [

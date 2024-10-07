@@ -132,7 +132,7 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of `other_vertices` or `normal`, not both.",
+            match="You must specify one of 'other_vertices' or 'normal', not both.",
         ):
             _ = TriangleMesh.plane(*vertices, normal=normal)
 
@@ -143,7 +143,7 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of `other_vertices` or `normal`, not both.",
+            match="You must specify one of 'other_vertices' or 'normal', not both.",
         ):
             _ = TriangleMesh.plane(center)
 

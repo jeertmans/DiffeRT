@@ -160,7 +160,9 @@ def minimize(
         >>> # You can also change the optimizer and the number of steps
         >>> import optax
         >>> optimizer = optax.noisy_sgd(learning_rate=0.003)
-        >>> x, y = minimize(f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer)
+        >>> x, y = minimize(
+        ...     f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer
+        ... )
         >>> chex.assert_trees_all_close(x, 4.0 * jnp.ones(5), rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
 

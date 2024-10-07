@@ -2,6 +2,7 @@
 # ruff: noqa: ERA001
 
 import sys
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
@@ -57,13 +58,17 @@ def _compute_paths(
 
     # 1 - Broadcast arrays
 
-    num_path_candidates = path_candidates.shape[0]
+    num_path_candidates, order = path_candidates.shape
 
     # [num_path_candidates order 3]
-    triangles = jnp.take(mesh.triangles, path_candidates, axis=0)
+    triangles = jnp.take(mesh.triangles, path_candidates, axis=0).reshape(
+        num_path_candidates, order, 3
+    )  # reshape required if mesh is empty
 
     # [num_path_candidates order 3 3]
-    triangle_vertices = jnp.take(mesh.vertices, triangles, axis=0)
+    triangle_vertices = jnp.take(mesh.vertices, triangles, axis=0).reshape(
+        num_path_candidates, order, 3, 3
+    )  # reshape required if mesh is empty
 
     # [num_path_candidates order 3]
     mirror_vertices = triangle_vertices[
@@ -349,19 +354,32 @@ class TriangleScene(eqx.Module):
 
     def compute_paths(
         self,
-        order: int,
+        order: int | None,
         *,
         chunk_size: int | None = None,
+        path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         **kwargs: Any,
     ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
+        Note:
+            Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
+            using the :func:`image_method<differt.rt.image_method.image_method>`. More types of interactions
+            and path tracing methods will be added in the future, so stay tuned!
+
         Args:
             order: The number of interaction, i.e., the number of bounces.
+
+                This or ``path_candidates`` must be specified.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
+
+                Unused if ``path_candidates`` is provided.
+            path_candidates: An option array of path candidates, see :ref:`path_candidates`.
+
+                This is helpful to only generate paths on a subset of the scene.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
@@ -371,7 +389,19 @@ class TriangleScene(eqx.Module):
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
             identify valid paths.
+
+        Raises:
+            ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
+                or if both have been provided simultaneously.
         """
+        if (order is None) == (path_candidates is None):
+            msg = "You must specify one of 'order' or `path_candidates`, not both."
+            raise ValueError(msg)
+        if (chunk_size is not None) and (path_candidates is not None):
+            msg = "Argument 'chunk_size' is ignored when 'path_candidates' is provided."
+            warnings.warn(msg, UserWarning, stacklevel=2)
+            chunk_size = None
+
         # 0 - Constants arrays of chunks
         num_triangles = self.mesh.triangles.shape[0]
         tx_batch = self.transmitters.shape[:-1]
@@ -384,7 +414,9 @@ class TriangleScene(eqx.Module):
 
         if chunk_size:
             path_candidates_iter = generate_all_path_candidates_chunks_iter(
-                num_triangles, order, chunk_size=chunk_size
+                num_triangles,
+                order,  # type: ignore[reportArgumentType]
+                chunk_size=chunk_size,
             )
             size = path_candidates_iter.__len__
             it = (
@@ -401,7 +433,12 @@ class TriangleScene(eqx.Module):
 
             return SizedIterator(it, size=size)
 
-        path_candidates = generate_all_path_candidates(num_triangles, order)
+        if path_candidates is None:
+            path_candidates = generate_all_path_candidates(
+                num_triangles,
+                order,  # type: ignore[reportArgumentType]
+            )
+
         return _compute_paths(
             self.mesh,
             from_vertices,

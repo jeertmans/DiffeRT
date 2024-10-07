@@ -171,6 +171,9 @@ class TriangleMesh(eqx.Module):
 
         TODO: improve description.
         """
+        if self.triangles.size == 0:
+            return jnp.empty_like(self.vertices, shape=(0, 3, 3))
+
         return jnp.take(self.vertices, self.triangles, axis=0)
 
     @classmethod
@@ -294,11 +297,11 @@ class TriangleMesh(eqx.Module):
             A new plane mesh.
 
         Raises:
-            ValueError: If one of two ``other_vertices`` or ``normal``
-                were not provided.
+            ValueError: If neither ``other_vertices`` nor ``normal`` has been provided,
+                or if both have been provided simultaneously.
         """
         if (other_vertices == ()) == (normal is None):
-            msg = "You must specify one of `other_vertices` or `normal`, not both."
+            msg = "You must specify one of 'other_vertices' or 'normal', not both."
             raise ValueError(msg)
         if other_vertices:
             if len(other_vertices) != 2:  # noqa: PLR2004
