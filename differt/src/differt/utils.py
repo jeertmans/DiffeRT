@@ -247,7 +247,7 @@ def sample_points_in_bounding_box(
     Args:
         bounding_box: The bounding box (min. and max. coordinates).
         shape: The sample shape or :data:`None`. If :data:`None`,
-            the returned array is 1D. Othewise, the shape
+            the returned array is 1D. Otherwise, the shape
             of the returned array is ``(*shape, 3)``.
         key: The :func:`jax.random.PRNGKey` to be used.
 

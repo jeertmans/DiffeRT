@@ -121,6 +121,18 @@ class TriangleMesh(eqx.Module):
     If the present mesh contains multiple objects, usually as a result of appending
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
+    assume_quads: bool = eqx.field(default=False)
+    """Flag indicating whether triangles can be paired into quadrilaterals.
+
+    Setting this to :data:`True` will not check anything, except that
+    :attr:`num_triangles` should is even, but each two consecutive
+    triangles are assumed to represent a quadrilateral surface.
+    """
+
+    def __check_init__(self) -> None:  # noqa: D105,PLW3201
+        if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
+            msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
+            raise ValueError(msg)
 
     @jaxtyped(
         typechecker=None
@@ -162,6 +174,19 @@ class TriangleMesh(eqx.Module):
     def num_triangles(self) -> int:
         """The number of triangles."""
         return self.triangles.shape[0]
+
+    @property
+    def num_quads(self) -> int:
+        """The number of quadrilaterals.
+
+        Raises:
+            ValueError: If :attr:`assume_quads` is :data:`False`.
+        """
+        if not self.assume_quads:
+            msg = "Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'."
+            raise ValueError(msg)
+
+        return self.triangles.shape[0] // 2
 
     @property
     @jax.jit

@@ -73,6 +73,21 @@ def _compute_paths(
         num_path_candidates, order, 3, 3
     )  # reshape required if mesh is empty
 
+    if mesh.assume_quads:
+        # [num_path_candidates order 2 3]
+        quads = jnp.take(
+            mesh.triangles,
+            jnp.stack((path_candidates, path_candidates + 1), axis=-1),
+            axis=0,
+        ).reshape(num_path_candidates, order, 2, 3)  # reshape required if mesh is empty
+
+        # [num_path_candidates order 2 3 3]
+        quad_vertices = jnp.take(mesh.vertices, quads, axis=0).reshape(
+            num_path_candidates, order, 2, 3, 3
+        )  # reshape required if mesh is empty
+    else:
+        quad_vertices = None
+
     # [num_path_candidates order 3]
     mirror_vertices = triangle_vertices[
         ...,
@@ -120,12 +135,24 @@ def _compute_paths(
         # 3.1 - Check if paths vertices are inside respective triangles
 
         # [num_from_vertices num_to_vertices num_path_candidates]
-        inside_triangles = rays_intersect_triangles(
-            ray_origins[..., :-1, :],
-            ray_directions[..., :-1, :],
-            triangle_vertices,
-            epsilon=epsilon,
-        )[1].all(axis=-1)  # Reduce on 'order' axis
+        if mesh.assume_quads:
+            inside_triangles = (
+                rays_intersect_triangles(
+                    ray_origins[..., :-1, None, :],
+                    ray_directions[..., :-1, None, :],
+                    quad_vertices,  # type: ignore[reportArgumentType]
+                    epsilon=epsilon,
+                )[1]
+                .any(axis=-1)
+                .all(axis=-1)
+            )  # Reduce on 'order' axis and on the two triangles (per quad)
+        else:
+            inside_triangles = rays_intersect_triangles(
+                ray_origins[..., :-1, :],
+                ray_directions[..., :-1, :],
+                triangle_vertices,
+                epsilon=epsilon,
+            )[1].all(axis=-1)  # Reduce on 'order' axis
 
         # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
@@ -153,7 +180,7 @@ def _compute_paths(
 
         too_small = (ray_lengths < min_len).any(
             axis=-1
-        )  # Any path segment being too smal
+        )  # Any path segment being too small
 
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small
 
@@ -391,6 +418,9 @@ class TriangleScene(eqx.Module):
             path_candidates: An option array of path candidates, see :ref:`path_candidates`.
 
                 This is helpful to only generate paths on a subset of the scene.
+
+                If ``self.mesh.assume_quads`` is :data:`True`, then path candidates are
+                rounded down toward the nearest even value.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. Either the number of transmitters or the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
@@ -420,7 +450,9 @@ class TriangleScene(eqx.Module):
             chunk_size = None
 
         # 0 - Constants arrays of chunks
-        num_triangles = self.mesh.triangles.shape[0]
+        num_objects = (
+            self.mesh.num_quads if self.mesh.assume_quads else self.mesh.num_triangles
+        )
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
 
@@ -431,7 +463,7 @@ class TriangleScene(eqx.Module):
 
         if chunk_size:
             path_candidates_iter = generate_all_path_candidates_chunks_iter(
-                num_triangles,
+                num_objects,
                 order,  # type: ignore[reportArgumentType]
                 chunk_size=chunk_size,
             )
@@ -441,7 +473,7 @@ class TriangleScene(eqx.Module):
                     self.mesh,
                     from_vertices,
                     to_vertices,
-                    path_candidates,
+                    2 * path_candidates if self.mesh.assume_quads else path_candidates,
                     parallel=parallel,
                     epsilon=epsilon,
                     hit_tol=hit_tol,
@@ -454,9 +486,14 @@ class TriangleScene(eqx.Module):
 
         if path_candidates is None:
             path_candidates = generate_all_path_candidates(
-                num_triangles,
+                num_objects,
                 order,  # type: ignore[reportArgumentType]
             )
+
+            if self.mesh.assume_quads:
+                path_candidates = 2 * path_candidates
+        elif self.mesh.assume_quads:
+            path_candidates -= path_candidates % 2
 
         return _compute_paths(
             self.mesh,
