@@ -76,17 +76,17 @@ class SizedIterator(Iterator, Sized, Generic[T]):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:
+    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:  # noqa: A002,D107
         self._iter = iter
         self._size = size
 
-    def __iter__(self) -> Self:
+    def __iter__(self) -> Self:  # noqa: D105
         return self
 
-    def __next__(self) -> T:
+    def __next__(self) -> T:  # noqa: D105
         return next(self._iter)
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105
         if isinstance(self._size, int):
             return self._size
         return self._size()
@@ -230,13 +230,18 @@ def rays_intersect_triangles(
             >>> from differt.rt.utils import (
             ...     rays_intersect_triangles,
             ... )
-            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.sionna import (
+            ...     get_sionna_scene,
+            ...     download_sionna_scenes,
+            ... )
             >>> from differt.scene.triangle_scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
             >>> scene = TriangleScene.load_xml(file)
-            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
+            ... )
             >>> ray_origins, ray_directions = jnp.broadcast_arrays(
             ...     scene.transmitters, fibonacci_lattice(25)
             ... )
@@ -362,7 +367,7 @@ def rays_intersect_any_triangle(
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        intersect: Bool[Array, " *#batch"],
+        intersect: Bool[Array, " *batch"],
         triangle_vertices: Float[Array, "*#batch 3 3"],
     ) -> tuple[Bool[Array, " *batch"], None]:
         t, hit = rays_intersect_triangles(
@@ -421,13 +426,18 @@ def triangles_visible_from_vertices(
             >>> from differt.rt.utils import (
             ...     triangles_visible_from_vertices,
             ... )
-            >>> from differt.scene.sionna import get_sionna_scene, download_sionna_scenes
+            >>> from differt.scene.sionna import (
+            ...     get_sionna_scene,
+            ...     download_sionna_scenes,
+            ... )
             >>> from differt.scene.triangle_scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
             >>> scene = TriangleScene.load_xml(file)
-            >>> scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0]))
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
+            ... )
             >>> visible_triangles = triangles_visible_from_vertices(
             ...     scene.transmitters,
             ...     scene.mesh.triangle_vertices,

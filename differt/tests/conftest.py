@@ -2,12 +2,17 @@ from collections.abc import Iterator
 from functools import cache
 from pathlib import Path
 
+import chex
 import jax
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 from matplotlib.figure import Figure
+
+
+def pytest_configure() -> None:
+    chex.set_n_cpu_devices(8)
 
 
 @pytest.fixture
@@ -17,7 +22,7 @@ def seed() -> int:
 
 @pytest.fixture
 def key(seed: int) -> PRNGKeyArray:
-    return jax.random.PRNGKey(seed)
+    return jax.random.key(seed)
 
 
 @pytest.fixture

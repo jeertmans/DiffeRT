@@ -33,5 +33,5 @@ def advanced_path_tracing_example_scene(
 def simple_street_canyon_scene(sionna_folder: Path) -> TriangleScene:
     file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
     scene = TriangleScene.load_xml(file)
-    scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-37.0, 14.0, 35.0]))
-    return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([12.0, 0.0, 35.0]))
+    scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-22.0, 0.0, 32.0]))
+    return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+22.0, 0.0, 32.0]))

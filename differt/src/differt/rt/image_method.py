@@ -76,7 +76,10 @@ Examples:
         ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
         ...     markers = jnp.vstack((from_vertex, to_vertex))
         ...     draw_markers(
-        ...         markers, labels=["BS", "UE"], marker={"color": "black"}, name="BS/UE"
+        ...         markers,
+        ...         labels=["BS", "UE"],
+        ...         marker={"color": "black"},
+        ...         name="BS/UE",
         ...     )
         ...     fig.update_layout(scene_aspectmode="data")
         >>> fig  # doctest: +SKIP
@@ -120,7 +123,7 @@ def image_of_vertices_with_respect_to_mirrors(
         ...     image_of_vertices_with_respect_to_mirrors,
         ... )
         >>>
-        >>> key = jax.random.PRNGKey(0)
+        >>> key = jax.random.key(0)
         >>> (
         ...     key0,
         ...     key1,

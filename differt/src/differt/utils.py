@@ -43,7 +43,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ... )
         >>>
         >>> arr = jnp.arange(10).reshape(5, 2)
-        >>> key = jax.random.PRNGKey(1234)
+        >>> key = jax.random.key(1234)
         >>> (
         ...     key1,
         ...     key2,
@@ -160,7 +160,9 @@ def minimize(
         >>> # You can also change the optimizer and the number of steps
         >>> import optax
         >>> optimizer = optax.noisy_sgd(learning_rate=0.003)
-        >>> x, y = minimize(f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer)
+        >>> x, y = minimize(
+        ...     f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer
+        ... )
         >>> chex.assert_trees_all_close(x, 4.0 * jnp.ones(5), rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
 
@@ -173,7 +175,7 @@ def minimize(
         >>>
         >>> batch = (1, 2, 3)
         >>> n = 10
-        >>> key = jax.random.PRNGKey(1234)
+        >>> key = jax.random.key(1234)
         >>> offset = jax.random.uniform(key, (*batch, n))
         >>>
         >>> def f(x, offset, scale=2.0):
@@ -233,17 +235,20 @@ def minimize(
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
-    size: int | None = None,
+    shape: tuple[int, ...] | None = None,
     *,
     key: PRNGKeyArray,
-) -> Float[Array, "size 3"] | Float[Array, "3"]:
+) -> (
+    Float[Array, "*shape 3"] | Float[Array, "3"]
+):  # TODO: use symbolic expression to link to 'shape' parameter
     """
     Sample point(s) in a 3D bounding box.
 
     Args:
         bounding_box: The bounding box (min. and max. coordinates).
-        size: The sample size or :data:`None`. If :data:`None`,
-            the returned array is 1D. Otherwise, it is 2D.
+        shape: The sample shape or :data:`None`. If :data:`None`,
+            the returned array is 1D. Otherwise, the shape
+            of the returned array is ``(*shape, 3)``.
         key: The :func:`jax.random.PRNGKey` to be used.
 
     Returns:
@@ -253,9 +258,9 @@ def sample_points_in_bounding_box(
     amax = bounding_box[1, :]
     scale = amax - amin
 
-    if size is None:
-        r = jax.random.uniform(key, shape=(3,))
-        return r * scale + amin
+    if shape is None:
+        shape = ()
 
-    r = jax.random.uniform(key, shape=(size, 3))
-    return r * scale[None, :] + amin[None, :]
+    r = jax.random.uniform(key, shape=(*shape, 3))
+
+    return r * scale + amin

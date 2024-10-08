@@ -121,6 +121,18 @@ class TriangleMesh(eqx.Module):
     If the present mesh contains multiple objects, usually as a result of appending
     multiple meshes together, this array contain start end end indices for each sub mesh.
     """
+    assume_quads: bool = eqx.field(default=False)
+    """Flag indicating whether triangles can be paired into quadrilaterals.
+
+    Setting this to :data:`True` will not check anything, except that
+    :attr:`num_triangles` should is even, but each two consecutive
+    triangles are assumed to represent a quadrilateral surface.
+    """
+
+    def __check_init__(self) -> None:  # noqa: D105,PLW3201
+        if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
+            msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
+            raise ValueError(msg)
 
     @jaxtyped(
         typechecker=None
@@ -164,6 +176,19 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0]
 
     @property
+    def num_quads(self) -> int:
+        """The number of quadrilaterals.
+
+        Raises:
+            ValueError: If :attr:`assume_quads` is :data:`False`.
+        """
+        if not self.assume_quads:
+            msg = "Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'."
+            raise ValueError(msg)
+
+        return self.triangles.shape[0] // 2
+
+    @property
     @jax.jit
     @jaxtyped(typechecker=typechecker)
     def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
@@ -171,6 +196,9 @@ class TriangleMesh(eqx.Module):
 
         TODO: improve description.
         """
+        if self.triangles.size == 0:
+            return jnp.empty_like(self.vertices, shape=(0, 3, 3))
+
         return jnp.take(self.vertices, self.triangles, axis=0)
 
     @classmethod
@@ -294,11 +322,11 @@ class TriangleMesh(eqx.Module):
             A new plane mesh.
 
         Raises:
-            ValueError: If one of two ``other_vertices`` or ``normal``
-                were not provided.
+            ValueError: If neither ``other_vertices`` nor ``normal`` has been provided,
+                or if both have been provided simultaneously.
         """
         if (other_vertices == ()) == (normal is None):
-            msg = "You must specify one of `other_vertices` or `normal`, not both."
+            msg = "You must specify one of 'other_vertices' or 'normal', not both."
             raise ValueError(msg)
         if other_vertices:
             if len(other_vertices) != 2:  # noqa: PLR2004
@@ -406,7 +434,7 @@ class TriangleMesh(eqx.Module):
         Args:
             size: The size of the sample, i.e., the number of triangles.
             replace: Whether to sample with or without replacement.
-            key: The :func:`jax.random.PRNGKey` to be used.
+            key: The :func:`jax.random.key` to be used.
 
         Returns:
             A new random mesh.

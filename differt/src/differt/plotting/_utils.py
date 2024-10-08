@@ -153,9 +153,13 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
         'matplotlib'
         >>> my_plot()  # So that now it defaults to 'matplotlib' and color='red'
         Using matplotlib backend with args = (), kwargs = {'color': 'red'}
-        >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
+        >>> my_plot(
+        ...     backend="vispy"
+        ... )  # Of course, the 'vispy' backend is still available
         Using vispy backend with args = (), kwargs = {'color': 'red'}
-        >>> my_plot(backend="vispy", color="green")  # And we can also override any default
+        >>> my_plot(
+        ...     backend="vispy", color="green"
+        ... )  # And we can also override any default
         Using vispy backend with args = (), kwargs = {'color': 'green'}
         >>> dplt.set_defaults("vispy")  # Reset all defaults
         'vispy'
@@ -204,7 +208,9 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         >>>
         >>> my_plot()  # When not specified, use default backend
         Using vispy backend with args = (), kwargs = {}
-        >>> with dplt.use():  # No parameters = reset defaults (except the default backend)
+        >>> with (
+        ...     dplt.use()
+        ... ):  # No parameters = reset defaults (except the default backend)
         ...     my_plot()
         Using vispy backend with args = (), kwargs = {}
         >>> with dplt.use("plotly"):  # We can change the default backend
