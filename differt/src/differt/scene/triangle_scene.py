@@ -363,7 +363,7 @@ class TriangleScene(eqx.Module):
 
     def compute_paths(
         self,
-        order: int | None,
+        order: int | None = None,
         *,
         chunk_size: int | None = None,
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,

@@ -235,18 +235,21 @@ def minimize(
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
-    size: int | None = None,
+    shape: tuple[int, ...] | None = None,
     *,
     key: PRNGKeyArray,
-) -> Float[Array, "size 3"] | Float[Array, "3"]:
+) -> (
+    Float[Array, "*shape 3"] | Float[Array, "3"]
+):  # TODO: use symbolic expression to link to 'shape' parameter
     """
     Sample point(s) in a 3D bounding box.
 
     Args:
         bounding_box: The bounding box (min. and max. coordinates).
-        size: The sample size or :data:`None`. If :data:`None`,
-            the returned array is 1D. Otherwise, it is 2D.
-        key: The :func:`jax.random.key` to be used.
+        shape: The sample shape or :data:`None`. If :data:`None`,
+            the returned array is 1D. Othewise, the shape
+            of the returned array is ``(*shape, 3)``.
+        key: The :func:`jax.random.PRNGKey` to be used.
 
     Returns:
         An array of points randomly sampled.
@@ -255,9 +258,9 @@ def sample_points_in_bounding_box(
     amax = bounding_box[1, :]
     scale = amax - amin
 
-    if size is None:
-        r = jax.random.uniform(key, shape=(3,))
-        return r * scale + amin
+    if shape is None:
+        shape = ()
 
-    r = jax.random.uniform(key, shape=(size, 3))
-    return r * scale[None, :] + amin[None, :]
+    r = jax.random.uniform(key, shape=(*shape, 3))
+
+    return r * scale + amin
