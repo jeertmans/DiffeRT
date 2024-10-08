@@ -3,6 +3,7 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jaxtyping
@@ -80,8 +81,36 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
-    def test_num_triangle(self, two_buildings_mesh: TriangleMesh) -> None:
+    def test_num_triangles(self, two_buildings_mesh: TriangleMesh) -> None:
         assert two_buildings_mesh.num_triangles == 24
+
+    def test_num_quads(self, two_buildings_mesh: TriangleMesh) -> None:
+        with pytest.raises(
+            ValueError,
+            match="Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'.",
+        ):
+            _ = two_buildings_mesh.num_quads
+
+        quad_mesh = eqx.tree_at(
+            lambda m: m.assume_quads, two_buildings_mesh, replace=True
+        )
+
+        assert quad_mesh.num_quads == 12
+
+        non_quad_mesh = two_buildings_mesh[1:]
+
+        with pytest.raises(
+            ValueError,
+            match="You cannot set 'assume_quads' to 'True' if the number of triangles is not even!",
+        ):
+            _ = TriangleMesh(
+                vertices=non_quad_mesh.vertices,
+                triangles=non_quad_mesh.triangles,
+                assume_quads=True,
+            )
+
+        # 'tree_at' bypasses '__check_init__', so this will not raise an error
+        _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
 
     def test_get_item(self, two_buildings_mesh: TriangleMesh) -> None:
         got = two_buildings_mesh[:]

@@ -81,19 +81,25 @@ class TestTriangleScene:
             ),
         ],
     )
+    @pytest.mark.parametrize("assume_quads", [False, True])
     def test_compute_paths_on_advanced_path_tracing_example(
         self,
         order: int,
         expected_path_vertices: Array,
         expected_objects: Array,
+        assume_quads: bool,
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
         scene = advanced_path_tracing_example_scene
+        scene = eqx.tree_at(lambda s: s.mesh.assume_quads, scene, assume_quads)
         expected_path_vertices = assemble_paths(
             scene.transmitters[None, :],
             expected_path_vertices,
             scene.receivers[None, :],
         )
+
+        if assume_quads:
+            expected_objects -= expected_objects % 2
 
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
@@ -146,19 +152,25 @@ class TestTriangleScene:
             ),
         ],
     )
+    @pytest.mark.parametrize("assume_quads", [False, True])
     def test_compute_paths_on_simple_street_canyon(
         self,
         order: int,
         expected_path_vertices: Array,
         expected_objects: Array,
+        assume_quads: bool,
         simple_street_canyon_scene: TriangleScene,
     ) -> None:
         scene = simple_street_canyon_scene
+        scene = eqx.tree_at(lambda s: s.mesh.assume_quads, scene, assume_quads)
         expected_path_vertices = assemble_paths(
             scene.transmitters[None, :],
             expected_path_vertices,
             scene.receivers[None, :],
         )
+
+        if assume_quads:
+            expected_objects -= expected_objects % 2
 
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
