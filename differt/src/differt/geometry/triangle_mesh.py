@@ -201,6 +201,23 @@ class TriangleMesh(eqx.Module):
 
         return jnp.take(self.vertices, self.triangles, axis=0)
 
+    def set_assume_quads(self, flag: bool = True) -> Self:
+        """
+        Return a copy of this mesh with :attr:`assume_quads` set to ``flag``.
+
+        Unlike with using :func:`equinox.tree_at`, this function will also
+        perform runtime checks.
+
+        Agrs:
+            flag: The new flag value.
+
+        Returns:
+            A new mesh.
+        """
+        mesh = eqx.tree_at(lambda m: m.assume_quads, self, flag)
+        mesh.__check_init__()
+        return mesh
+
     @classmethod
     def from_core(
         cls, core_mesh: differt_core.geometry.triangle_mesh.TriangleMesh

@@ -279,6 +279,20 @@ class TriangleScene(eqx.Module):
         """The number of receivers."""
         return self.receivers[..., 0].size
 
+    def set_assume_quads(self, flag: bool = True) -> Self:
+        """
+        Return a copy of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.triangle_mesh.TriangleMesh.assume_quads>` set to ``flag``.
+
+        This is simply a convenient wrapper around :meth:`TriangleMesh.set_assume_quads<differt.geometry.triangle_mesh.TriangleMesh.set_assume_quads>`.
+
+        Agrs:
+            flag: The new flag value.
+
+        Returns:
+            A new scene.
+        """
+        return eqx.tree_at(lambda s: s.mesh, self, self.mesh.set_assume_quads(flag))
+
     @eqx.filter_jit
     @jaxtyped(
         typechecker=None
