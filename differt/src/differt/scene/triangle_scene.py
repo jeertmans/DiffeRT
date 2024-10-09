@@ -285,7 +285,7 @@ class TriangleScene(eqx.Module):
 
         This is simply a convenient wrapper around :meth:`TriangleMesh.set_assume_quads<differt.geometry.triangle_mesh.TriangleMesh.set_assume_quads>`.
 
-        Agrs:
+        Args:
             flag: The new flag value.
 
         Returns:
