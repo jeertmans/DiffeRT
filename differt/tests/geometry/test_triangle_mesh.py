@@ -109,6 +109,14 @@ class TestTriangleMesh:
                 assume_quads=True,
             )
 
+        _ = non_quad_mesh.set_assume_quads(flag=False)
+
+        with pytest.raises(
+            ValueError,
+            match="You cannot set 'assume_quads' to 'True' if the number of triangles is not even!",
+        ):
+            _ = non_quad_mesh.set_assume_quads(flag=True)
+
         # 'tree_at' bypasses '__check_init__', so this will not raise an error
         _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
 

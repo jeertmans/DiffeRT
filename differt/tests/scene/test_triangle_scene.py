@@ -90,8 +90,7 @@ class TestTriangleScene:
         assume_quads: bool,
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
-        scene = advanced_path_tracing_example_scene
-        scene = eqx.tree_at(lambda s: s.mesh.assume_quads, scene, assume_quads)
+        scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
             scene.transmitters[None, :],
             expected_path_vertices,
@@ -161,8 +160,7 @@ class TestTriangleScene:
         assume_quads: bool,
         simple_street_canyon_scene: TriangleScene,
     ) -> None:
-        scene = simple_street_canyon_scene
-        scene = eqx.tree_at(lambda s: s.mesh.assume_quads, scene, assume_quads)
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
             scene.transmitters[None, :],
             expected_path_vertices,

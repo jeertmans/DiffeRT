@@ -192,14 +192,28 @@ class TriangleMesh(eqx.Module):
     @jax.jit
     @jaxtyped(typechecker=typechecker)
     def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
-        """The array of indexed triangle vertices.
-
-        TODO: improve description.
-        """
+        """The array of indexed triangle vertices."""
         if self.triangles.size == 0:
             return jnp.empty_like(self.vertices, shape=(0, 3, 3))
 
         return jnp.take(self.vertices, self.triangles, axis=0)
+
+    def set_assume_quads(self, flag: bool = True) -> Self:
+        """
+        Return a copy of this mesh with :attr:`assume_quads` set to ``flag``.
+
+        Unlike with using :func:`equinox.tree_at`, this function will also
+        perform runtime checks.
+
+        Args:
+            flag: The new flag value.
+
+        Returns:
+            A new mesh.
+        """
+        mesh = eqx.tree_at(lambda m: m.assume_quads, self, flag)
+        mesh.__check_init__()
+        return mesh
 
     @classmethod
     def from_core(
