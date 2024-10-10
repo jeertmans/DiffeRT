@@ -1,11 +1,10 @@
 """Utilities for working with 3D geometries."""
 
-from functools import partial
-
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int, jaxtyped
 
 
 @jax.jit
@@ -66,7 +65,7 @@ def normalize(
     return vector / length, jnp.squeeze(length, axis=-1)
 
 
-@partial(jax.jit, static_argnames=("normalize",))
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
     u: Float[Array, "*batch 3"],
@@ -318,3 +317,132 @@ def rotation_matrix_along_axis(
     o = jnp.outer(axis, axis)
 
     return co * i + si * x + (1 - co) * o
+
+
+@jaxtyped(typechecker=typechecker)
+def fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None = None,
+) -> Float[Array, "{n} 3"]:
+    """
+    Return a lattice of vertices on the unit sphere.
+
+    This function uses the Fibonacci lattice method :cite:`fibonacci-lattice`
+    to generate an almost uniformly distributed set of points on the unit sphere.
+
+    Args:
+        n: The size of the lattice.
+        dtype: The float dtype of the vertices.
+
+    Returns:
+        The array of vertices.
+
+    Raises:
+        ValueError: If the provided dtype is not a floating dtype.
+
+    Examples:
+        The following example shows how to generate and plot
+        a fibonacci lattice.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import (
+            ...     fibonacci_lattice,
+            ... )
+            >>> from differt.plotting import draw_markers
+            >>>
+            >>> xyz = np.asarray(fibonacci_lattice(100))
+            >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
+            >>> fig  # doctest: +SKIP
+    """
+    if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
+        msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
+        raise ValueError(msg)
+
+    phi = 1.618033988749895  # golden ratio
+    i = jnp.arange(0.0, n)  # '0.0' forces floating point values
+
+    lat = jnp.arccos(1 - 2 * i / n)
+    lon = 2 * jnp.pi * i / phi
+
+    co_lat = jnp.cos(lat)
+    si_lat = jnp.sin(lat)
+    co_lon = jnp.cos(lon)
+    si_lon = jnp.sin(lon)
+
+    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def assemble_paths(
+    *path_segments: Float[Array, "*#batch _num_vertices 3"],
+) -> Float[Array, "*#batch path_length 3"]:
+    """
+    Assemble paths by concatenating path vertices along the second to last axis.
+
+    Arrays broadcasting is automatically performed, and the total
+    path length is simply is sum of all the number of vertices.
+
+    Args:
+        path_segments: The path segments to assemble together.
+
+            Usually, this will be a 3-tuple of transmitter positions,
+            interaction points, and receiver positions.
+
+    Returns:
+        The assembled paths.
+    """
+    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in path_segments))
+
+    return jnp.concatenate(
+        tuple(
+            jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in path_segments
+        ),
+        axis=-2,
+    )
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def min_distance_between_clusters(
+    cluster_vertices: Float[Array, "*batch 3"],
+    cluster_ids: Int[Array, "*batch"],
+) -> Float[Array, "*batch"]:
+    """
+    Compute the minimal (Euclidean) distance between vertices in different clusters.
+
+    For every vertex, the minimum distance to another vertex that is not is the same
+    cluster is computed.
+
+    Args:
+        cluster_vertices: The array of vertex coordinates.
+        cluster_ids: The array of corresponding cluster indices.
+
+    Returns:
+        The array of minimal distances.
+    """
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        _: None, vertex_and_cluster_id: tuple[Float[Array, "3"], Int[Array, " "]]
+    ) -> tuple[None, Float[Array, " "]]:
+        vertex, cluster_id = vertex_and_cluster_id
+        min_dist = jnp.min(
+            jnp.linalg.norm(
+                cluster_vertices - vertex,
+                axis=-1,
+            ),
+            initial=jnp.inf,
+            where=(cluster_id != cluster_ids),
+        )
+        return None, min_dist
+
+    return jax.lax.scan(
+        scan_fun,
+        init=None,
+        xs=(
+            cluster_vertices.reshape(-1, 3),
+            cluster_ids.reshape(-1),
+        ),
+    )[1].reshape(cluster_ids.shape)

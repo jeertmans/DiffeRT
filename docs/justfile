@@ -9,7 +9,7 @@ clean:
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":
-  rye run sphinx-build -M {{builder}} source build {{OPTIONS}}
+  uv run sphinx-build -M {{builder}} source build {{OPTIONS}}
 
 # Build docs in "draft" mode
 draft *ARGS:

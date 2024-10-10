@@ -22,8 +22,6 @@ jobs:
 
     - name: Install Python
       uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
 
     - name: Install pre-commit
       run: pip install pre-commit
@@ -32,7 +30,7 @@ jobs:
       run: pre-commit autoupdate
 
     - name: Create a pull request with updated versions
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       with:
         branch: update/pre-commit-hooks
         title: 'chore(deps): update pre-commit hooks'
@@ -40,6 +38,7 @@ jobs:
         labels: |
           ci
           dependencies
+
   pre-commit:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }}
@@ -47,17 +46,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Rye
-      if: matrix.os != 'windows-latest'
-      env:
-        RYE_INSTALL_OPTION: --yes
-      run: |
-        curl -sSf https://rye.astral.sh/get | bash
-        echo "$HOME/.rye/shims" >> $GITHUB_PATH
-
-    - name: Configure Rye
-      shell: bash
-      run: rye config --set-bool behavior.use-uv=true
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
 
     - name: Install Rust nightly
       uses: dtolnay/rust-toolchain@nightly
@@ -65,13 +57,13 @@ jobs:
         components: clippy,rustfmt
 
     - name: Install dependencies
-      run: rye sync
+      run: uv sync
 
     - name: Run pre-commit hooks
-      run: rye run pre-commit run --all-files
+      run: uv run pre-commit run --all-files
 
     - name: Apply fixes when present
-      uses: pre-commit-ci/lite-action@v1.0.2
+      uses: pre-commit-ci/lite-action@v1.0.3
       if: always()
       with:
         msg: 'chore(fmt): auto fixes from pre-commit hooks'

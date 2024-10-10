@@ -1,7 +1,8 @@
 """Core plotting implementations."""
 
+import warnings
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from jaxtyping import Float, Int, Num
@@ -40,7 +41,7 @@ def draw_mesh(
     vertices: Float[np.ndarray, "num_vertices 3"],
     triangles: Int[np.ndarray, "num_triangles 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 3D mesh made of triangles.
 
@@ -48,10 +49,19 @@ def draw_mesh(
         vertices: The array of triangle vertices.
         triangles: The array of triangle indices.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Mesh>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Mesh>`,
+            :meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Mesh3d>`, depending on the
             backend.
+
+            .. important::
+
+                If you pass some ``face_colors`` keyword argument,
+                it will be passed to Plotly as ``facecolor`` unless
+                they were manually passed, in which case
+                the ``face_colors`` argument is ignored.
+                Matplotlib does not currently support individual
+                face colors, so this argument is ignored.
 
     Returns:
         The resulting plot output.
@@ -108,6 +118,8 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
+    kwargs.pop("face_colors", None)
+
     x, y, z = vertices.T
     ax.plot_trisurf(x, y, z, triangles=triangles, **kwargs)
 
@@ -122,6 +134,11 @@ def _(
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
+    if (
+        face_colors := kwargs.pop("face_colors", None)
+    ) is not None and "facecolor" not in kwargs:
+        kwargs["facecolor"] = face_colors
+
     x, y, z = vertices.T
     i, j, k = triangles.T
 
@@ -130,18 +147,18 @@ def _(
 
 @dispatch
 def draw_paths(
-    paths: Float[np.ndarray, r"\*batch path_length 3"],
+    paths: Float[np.ndarray, "batch path_length 3"],
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a batch of paths of the same length.
 
     Args:
         paths: The array of path vertices.
         kwargs: Keyword arguments passed to
-            :py:class:`LinePlot<vispy.scene.visuals.LinePlot>`,
-            :py:meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`LinePlot<vispy.scene.visuals.LinePlot>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.plot>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
@@ -197,8 +214,9 @@ def _(
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        view.add(LinePlot(data=paths[i], **kwargs))
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
+        view.add(LinePlot(data=(x, y, z), **kwargs))
 
     view.camera.set_range()
 
@@ -212,8 +230,8 @@ def _(
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        ax.plot(*paths[i].T, **kwargs)
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        ax.plot(*path.T, **kwargs)
 
     return fig
 
@@ -225,20 +243,106 @@ def _(
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
-    for i in np.ndindex(paths.shape[:-2]):
-        x, y, z = paths[i].T
+    for path in paths.reshape(-1, *paths.shape[-2:]):
+        x, y, z = path.T
         fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
     return fig
 
 
 @dispatch
+def draw_rays(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a batch of rays.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray directions. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        kwargs: Keyword arguments passed to
+            :class:`LinePlot<vispy.scene.visuals.Arrow>`,
+            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
+            or :func:`draw_paths` (because VisPy and Plotly don't have a nice quiver plot),
+            depending on the backend.
+
+    Returns:
+        The resulting plot output.
+
+    Examples:
+        The following example shows how to plot rays.
+
+        .. plotly::
+
+            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.plotting import draw_rays
+            >>>
+            >>> ray_origins = np.zeros(3)
+            >>> ray_directions = np.asarray(
+            ...     fibonacci_lattice(50)
+            ... )  # From JAX to NumPy array
+            >>> ray_origins, ray_directions = np.broadcast_arrays(
+            ...     ray_origins, ray_directions
+            ... )
+            >>> fig = draw_rays(
+            ...     ray_origins,
+            ...     ray_directions,
+            ...     backend="plotly",
+            ... )
+            >>> fig  # doctest: +SKIP
+    """
+
+
+@draw_rays.register("vispy")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="vispy", **kwargs)
+
+
+@draw_rays.register("matplotlib")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    ray_origins = ray_origins.reshape(-1, 3)
+    ray_directions = ray_directions.reshape(-1, 3)
+
+    ax.quiver(*ray_origins.T, *ray_directions.T, **kwargs)
+
+    return fig
+
+
+@draw_rays.register("plotly")
+def _(
+    ray_origins: Float[np.ndarray, "*batch 3"],
+    ray_directions: Float[np.ndarray, "*batch 3"],
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    ray_ends = ray_origins + ray_directions
+    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+
+    return draw_paths(paths, backend="plotly", **kwargs)
+
+
+@dispatch
 def draw_markers(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot markers and, optionally, their label.
 
@@ -246,20 +350,21 @@ def draw_markers(
         markers: The array of marker vertices.
         labels: The marker labels.
         text_kwargs: A mapping of keyword arguments
-            passed to :py:class:`Text<vispy.scene.visuals.Text>`
+            passed to :class:`Text<vispy.scene.visuals.Text>`
             if VisPy backend is used.
 
             By default, ``font_size=1000`` is used.
         kwargs: Keyword arguments passed to
-            :py:class:`Markers<vispy.scene.visuals.Markers>`,
-            or :py:class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
+            :class:`Markers<vispy.scene.visuals.Markers>`,
+            :meth:`scatter<mpl_toolkits.mplot3d.axes3d.Axes3D.scatter>`,
+            or :class:`Scatter3d<plotly.graph_objects.Scatter3d>`, depending on the
             backend.
 
     Returns:
         The resulting plot output.
 
     Warning:
-        Unsupported backend(s): Matplotlib.
+        Matplotlib does not support labels.
 
     Examples:
         The following example shows how to plot several annotated markers.
@@ -283,8 +388,8 @@ def draw_markers(
 @draw_markers.register("vispy")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
@@ -307,24 +412,37 @@ def _(
 @draw_markers.register("matplotlib")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
-    raise NotImplementedError  # TODO: implement this
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    if labels is not None:
+        msg = "Matplotlib does not currently support adding labels to markers, this option is ignored."
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        del labels, text_kwargs
+
+    xs, ys, zs = markers.T
+
+    ax.scatter(xs, ys, zs=zs, **kwargs)
+
+    return fig
 
 
 @draw_markers.register("plotly")
 def _(
     markers: Float[np.ndarray, "num_markers 3"],
-    labels: Optional[Sequence[str]] = None,
-    text_kwargs: Optional[Mapping[str, Any]] = None,  # noqa: ARG001
+    labels: Sequence[str] | None = None,
+    text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}
+    else:
+        kwargs = {"mode": "markers", **kwargs}
 
     x, y, z = markers.T
     return fig.add_scatter3d(
@@ -338,16 +456,14 @@ def _(
 
 @dispatch
 def draw_image(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Union[Canvas, MplFigure, Figure]:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
     Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
 
@@ -364,9 +480,9 @@ def draw_image(
             the image.
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
-            :py:class:`Mesh<vispy.scene.visuals.Image>`,
-            :py:meth:`plot_trisurf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
-            or :py:class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
+            :class:`Mesh<vispy.scene.visuals.Image>`,
+            :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
+            or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
 
     Returns:
@@ -399,13 +515,11 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
@@ -413,9 +527,6 @@ def _(
     from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
-
-    if np.issubdtype(data.dtype, np.floating):
-        data = data.astype(np.float32)
 
     image = Image(data, **kwargs)
 
@@ -451,13 +562,11 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
@@ -478,13 +587,11 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Union[
-        Num[np.ndarray, "rows cols"],
-        Num[np.ndarray, "rows cols 3"],
-        Num[np.ndarray, "rows cols 4"],
-    ],
-    x: Optional[Float[np.ndarray, " cols"]] = None,
-    y: Optional[Float[np.ndarray, " rows"]] = None,
+    data: Num[np.ndarray, "rows cols"]
+    | Num[np.ndarray, "rows cols 3"]
+    | Num[np.ndarray, "rows cols 4"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
@@ -495,5 +602,196 @@ def _(
         y=y,
         z=np.full_like(data, z0),
         surfacecolor=data,
+        **kwargs,
+    )
+
+
+@dispatch
+def draw_contour(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a 2D contour on a 3D canvas, at using a fixed z-coordinate.
+
+    Args:
+        data: The values over which the contour is drawn.
+        x: The x-coordinates corresponding to first dimension
+            of the image. Those coordinates will be used to scale and translate
+            the contour.
+        y: The y-coordinates corresponding to second dimension
+            of the image. Those coordinates will be used to scale and translate
+            the contour.
+        z0: The z-coordinate at which the contour is placed.
+        levels: The levels at which the contour is drawn.
+        fill: Whether to fill the contour.
+        kwargs: Keyword arguments passed to
+            :class:`Mesh<vispy.scene.visuals.Isorcurve>`,
+            :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.contour>`,
+            (or :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`
+            if ``fill`` is :data:`True`),
+            or :class:`Contour<plotly.graph_objects.Contour>`, depending on the
+            backend.
+
+    Returns:
+        The resulting plot output.
+
+    Warning:
+        VisPy does not support filling the contour.
+        Plotly does not support 3D contours, and will draw the coontour on
+        a 2D figure instead.
+
+    Examples:
+        The following example shows how plot a 2-D contour,
+        without and with axis scaling, and filling.
+
+        .. plotly::
+            :fig-vars: fig1, fig2
+
+            >>> from differt.plotting import draw_contour
+            >>>
+            >>> x = np.linspace(-1.0, +1.0, 10)
+            >>> y = np.linspace(-4.0, +4.0, 20)
+            >>> X, Y = np.meshgrid(x, y)
+            >>> Z = np.cos(X) * np.sin(Y)
+            >>> fig1 = draw_contour(Z, backend="plotly")
+            >>> fig1  # doctest: +SKIP
+            >>>
+            >>> fig2 = draw_contour(Z, x=x, y=y, fill=True, backend="plotly")
+            >>> fig2  # doctest: +SKIP
+
+    """
+
+
+@draw_contour.register("vispy")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    from vispy.scene.visuals import Isocurve  # noqa: PLC0415
+    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+
+    if isinstance(levels, int):
+        msg = (
+            f"VisPy does not support using {type(levels)} as parameters for `levels`. "
+            f"A range of {levels + 1 = } values from {data.min() = } to {data.max() = } is used instead."
+        )
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        levels = np.linspace(data.min(), data.max(), levels + 1)
+
+    if fill:
+        msg = "VisPy does not support filling contour, this option is ignored."
+        warnings.warn(msg, UserWarning, stacklevel=2)
+
+    canvas, view = process_vispy_kwargs(kwargs)
+
+    iso = Isocurve(data, levels=levels, **kwargs)
+
+    m, n = data.shape[:2]
+
+    if x is not None:
+        xmin = np.min(x)
+        xmax = np.max(x)
+        xshift = xmin
+        xscale = abs(xmax - xmin) / m
+    else:
+        xshift = 0.0
+        xscale = 1.0
+
+    if y is not None:
+        ymin = np.min(y)
+        ymax = np.max(y)
+        yshift = ymin
+        yscale = abs(ymax - ymin) / n
+    else:
+        yshift = 0.0
+        yscale = 1.0
+
+    # TODO: fix me, this does work
+
+    iso.transform = STTransform(
+        scale=(xscale, yscale),
+        translate=(xshift, yshift, z0),
+    )
+
+    view.add(iso)
+
+    return canvas
+
+
+@draw_contour.register("matplotlib")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    m, n = data.shape[:2]
+
+    if x is None:
+        x = np.arange(n)
+
+    if y is None:
+        y = np.arange(m)
+
+    if fill:
+        ax.contourf(x, y, data, offset=z0, levels=levels, **kwargs)
+    else:
+        ax.contour(x, y, data, offset=z0, levels=levels, **kwargs)
+
+    return fig
+
+
+@draw_contour.register("plotly")
+def _(  # noqa: PLR0917
+    data: Num[np.ndarray, "rows cols"],
+    x: Float[np.ndarray, " cols"] | None = None,
+    y: Float[np.ndarray, " rows"] | None = None,
+    z0: float = 0.0,
+    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    fill: bool = False,
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    fig = process_plotly_kwargs(kwargs)
+
+    del z0
+
+    if "contours_coloring" not in kwargs and not fill:
+        kwargs["contours_coloring"] = "lines"
+
+    if isinstance(levels, int):
+        kwargs.setdefault("autocontour", True)
+        kwargs.setdefault("ncontours", levels)
+    elif isinstance(levels, np.ndarray):
+        msg = (
+            "Plotly does not support arbitrary level values, but only linearly spaced levels. "
+            f"A range of values from {levels.min() = } to {levels.max() = } with step "
+            f"{(levels.max() - levels.min()) / max(1, levels.size - 1) = :.2f} is used instead."
+        )
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        contours = kwargs.setdefault("contours", {})
+        contours["start"] = levels.min()
+        contours["end"] = levels.max()
+        contours["size"] = (levels.max() - levels.min()) / max(1, levels.size - 1)
+
+    return fig.add_contour(
+        x=x,
+        y=y,
+        z=data,
         **kwargs,
     )

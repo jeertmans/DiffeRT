@@ -1,7 +1,7 @@
 import inspect
-from collections.abc import Sequence
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 import jax
 from jaxtyping import Array, PRNGKeyArray
@@ -9,8 +9,8 @@ from jaxtyping import Array, PRNGKeyArray
 
 def random_inputs(
     *arg_names: str,
-    sampler: Callable[[PRNGKeyArray, Sequence[int]], Array] = jax.random.uniform,
-    seed: int = 0,
+    sampler: Callable[[PRNGKeyArray, tuple[int, ...]], Array] = jax.random.uniform,
+    seed: int = 1234,
 ) -> Callable[..., Any]:
     """
     Wrap a function so that specified input arguments are
@@ -29,8 +29,8 @@ def random_inputs(
         @wraps(fun)
         def _wrapper_(*args: Any, **kwargs: Any) -> Any:
             bound_args = sig.bind(*args, **kwargs)
-            key = jax.random.PRNGKey(seed)
-            for arg_name in arg_names:
+            keys = jax.random.split(jax.random.key(seed), len(arg_names))
+            for key, arg_name in zip(keys, arg_names, strict=False):
                 shape = bound_args.arguments[arg_name]
                 bound_args.arguments[arg_name] = sampler(key, shape)
 

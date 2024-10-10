@@ -1,10 +1,10 @@
 from functools import partial
 from pathlib import Path
+from timeit import timeit
 
 import pytest
 
 from differt.scene.sionna import (
-    SIONNA_SCENES_FOLDER,
     download_sionna_scenes,
     get_sionna_scene,
     list_sionna_scenes,
@@ -16,50 +16,53 @@ download_sionna_scenes = partial(download_sionna_scenes, timeout=600)
 
 
 @pytest.fixture
-def folder() -> Path:
-    return SIONNA_SCENES_FOLDER
-
-
-@pytest.fixture
 def empty_folder(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp("scenes")
 
 
-def test_download_sionna_scenes(folder: Path) -> None:
-    download_sionna_scenes(folder=folder)
-    download_sionna_scenes(folder=str(folder))
+def test_download_sionna_scenes_cached(sionna_folder: Path) -> None:
+    # Downloading should be pretty fast, because we use cached folder
+    assert timeit(lambda: download_sionna_scenes(folder=sionna_folder), number=1) < 1
+    assert (
+        timeit(lambda: download_sionna_scenes(folder=str(sionna_folder)), number=1) < 1
+    )
 
 
+@pytest.mark.slow
 def test_download_sionna_scenes_existing_empty_folder(empty_folder: Path) -> None:
     download_sionna_scenes(folder=empty_folder, cached=False)
 
 
-def test_download_sionna_scenes_existing_non_empty_folder(folder: Path) -> None:
+def test_download_sionna_scenes_existing_non_empty_folder(sionna_folder: Path) -> None:
     with pytest.raises(OSError, match="[Dd]irectory (is )?not empty"):
-        download_sionna_scenes(folder=folder, cached=False)
+        download_sionna_scenes(folder=sionna_folder, cached=False)
 
 
-def test_list_sionna_scenes(folder: Path) -> None:
-    list_sionna_scenes(folder=folder)
-    list_sionna_scenes(folder=str(folder))
+def test_list_sionna_scenes(sionna_folder: Path) -> None:
+    l_a = list_sionna_scenes(folder=sionna_folder)
+    assert len(l_a) > 0
+    l_b = list_sionna_scenes(folder=str(sionna_folder))
+
+    for s_a, s_b in zip(l_a, l_b, strict=False):
+        assert s_a == s_b
 
 
 @pytest.mark.parametrize("scene_name", ["foo", "bar"])
-def test_get_unexisting_sionna_scene(scene_name: str, folder: Path) -> None:
+def test_get_unexisting_sionna_scene(scene_name: str, sionna_folder: Path) -> None:
     with pytest.raises(ValueError, match="Cannot find scene_name"):
-        _ = get_sionna_scene(scene_name, folder=folder)
+        _ = get_sionna_scene(scene_name, folder=sionna_folder)
 
 
 @pytest.mark.parametrize("scene_name", ["box", "etoile", "munich"])
-def test_get_existing_sionna_scene(scene_name: str, folder: Path) -> None:
-    assert Path(get_sionna_scene(scene_name, folder=folder)).exists()
-    assert Path(get_sionna_scene(scene_name, folder=str(folder))).exists()
+def test_get_existing_sionna_scene(scene_name: str, sionna_folder: Path) -> None:
+    assert Path(get_sionna_scene(scene_name, folder=sionna_folder)).exists()
+    assert Path(get_sionna_scene(scene_name, folder=str(sionna_folder))).exists()
 
 
 class TestSionnaScene:
-    def test_load_xml(self, folder: Path) -> None:
-        for scene_name in list_sionna_scenes(folder=folder):
-            file = get_sionna_scene(scene_name, folder=folder)
+    def test_load_xml(self, sionna_folder: Path) -> None:
+        for scene_name in list_sionna_scenes(folder=sionna_folder):
+            file = get_sionna_scene(scene_name, folder=sionna_folder)
             scene = SionnaScene.load_xml(file)
 
             assert len(scene.shapes) > 0

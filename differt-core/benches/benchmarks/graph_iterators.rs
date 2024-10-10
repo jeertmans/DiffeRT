@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group};
 use differt_core::rt::graph::{complete::CompleteGraph, directed::DiGraph};
 
 const NUM_NODES: usize = 1000;

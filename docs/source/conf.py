@@ -15,6 +15,7 @@ from typing import Any
 from sphinx.application import Sphinx
 
 from differt import __version__
+from differt.scene.sionna import download_sionna_scenes
 
 project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
@@ -95,7 +96,8 @@ ogp_use_first_image = True
 
 # -- Sphinx autodoc typehints settings
 
-always_document_param_types = True
+always_document_param_types = False
+autodoc_member_order = "bysource"  # We force class variables to appear first
 
 # -- MyST-nb settings
 myst_heading_anchors = 3
@@ -108,6 +110,9 @@ myst_enable_extensions = [
 ]
 
 nb_execution_mode = "off" if os.environ.get("NB_OFF") else "auto"
+nb_execution_timeout = (
+    600  # So cells can take a long time, especially when downloading sionna scenes
+)
 nb_merge_streams = True
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
@@ -203,4 +208,6 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
 
 def setup(app: Sphinx) -> None:
+    download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
+
     app.connect("autodoc-before-process-signature", fix_sionna_folder)

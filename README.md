@@ -51,11 +51,12 @@ but performant program. It also heavily uses the capabilities brought by
 
 To run build this package locally, you need:
 
-- [Python 3.9](https://www.python.org/) or above;
+- [Python 3.10](https://www.python.org/) or above;
 - [Rust](https://www.rust-lang.org/) stable toolchain;
+- any modern C compiler;
 - [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
 - [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [Rye](https://rye.astral.sh/) to manage this project.
+- and [uv](https://docs.astral.sh/uv/) to manage this project.
 
 This project contains `justfile`s with recipes[^1] for most common
 use cases, so feel free to use them instead of the commands listed below/
@@ -69,7 +70,7 @@ The following commands assume that you installed
 the project locally with:
 
 ```bash
-rye sync
+uv sync
 ```
 
 and that you activated the corresponding Python virtual environment:
@@ -119,15 +120,20 @@ pytest
 or benchmark it:
 
 ```bash
-pytest --benchmark-only
+pytest --benchmark-enable differt/tests/benchmarks
 ```
+
+## Citing
+
+If you use this software, please cite it as
+[detailed here](https://differt.readthedocs.io/latest/citing.html).
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT/
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.11386432.svg
-[doi-url]: https://doi.org/10.5281/zenodo.11386432
+[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.13895021.svg
+[doi-url]: https://doi.org/10.5281/zenodo.13895021
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=v63alnTWzu
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT

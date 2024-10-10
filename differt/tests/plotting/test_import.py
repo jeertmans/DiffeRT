@@ -4,6 +4,8 @@ import pytest
 from pytest_missing_modules.plugin import MissingModulesContextGenerator
 
 import differt.plotting
+import differt.plotting._core
+import differt.plotting._utils
 
 
 @pytest.mark.parametrize(
@@ -16,3 +18,5 @@ def test_import_with_missing_backends(
 ) -> None:
     with missing_modules(*backends):
         importlib.reload(differt.plotting)
+        importlib.reload(differt.plotting._core)  # noqa: SLF001
+        importlib.reload(differt.plotting._utils)  # noqa: SLF001

@@ -77,8 +77,7 @@ def test_minimize() -> None:
 
 def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:
     def assert_in_bounds(a: Array, bounds: Array) -> None:
-        if a.ndim == 1:
-            a = jnp.reshape(a, (1, a.size))
+        a = a.reshape(-1, a.shape[-1])
 
         assert bounds.shape[0] == 2
         assert a.shape[1] == bounds.shape[1]
@@ -94,10 +93,15 @@ def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:
     assert_in_bounds(got, bounding_box)
     assert got.shape == (3,)
 
-    got = sample_points_in_bounding_box(bounding_box, size=100, key=key)
+    got = sample_points_in_bounding_box(bounding_box, shape=(100,), key=key)
 
     assert_in_bounds(got, bounding_box)
     assert got.shape == (100, 3)
+
+    got = sample_points_in_bounding_box(bounding_box, shape=(4, 5), key=key)
+
+    assert_in_bounds(got, bounding_box)
+    assert got.shape == (4, 5, 3)
 
 
 def test_safe_divide(key: PRNGKeyArray) -> None:

@@ -4,20 +4,53 @@ requires = ["hatchling"]
 
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+dependencies = [
+  "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
+]
 name = "differt-dev"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "1.0.0"
 
 [project.optional-dependencies]
 cuda = [
   "jax[cuda]>=0.4.32",
 ]
+docs = [
+  "differt[all]",
+  "myst-nb>=0.17.2",
+  "pillow>=10.1.0",
+  "sphinx-autodoc-typehints>=1.23",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton>=0.5.2",
+  "sphinx-design>=0.5.0",
+  "sphinx-remove-toctrees>=0.0.3",
+  "sphinxext-opengraph>=0.9.0",
+  "sphinxcontrib-apidoc>=0.4.0",
+  "sphinxcontrib-bibtex>=2.6.0",
+  "sphinx-plotly-directive>=0.1.3",
+]
+prof = [
+  "line-profiler[ipython]>=4.1.3",
+]
+tests = [
+  "differt[all]",
+  "chex>=0.1.84",
+  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
+  "pytest>=7.4.3",
+  "pytest-benchmark>=4.0.0",
+  "pytest-codspeed>=2.2.0",
+  "pytest-cov>=4.1.0",
+  "pytest-env>=1.1.3",
+  "pytest-missing-modules>=0.2.0",
+  "pytest-xdist>=3.3.1",
+  "scipy>=1.12.0",
+]
 
 [tool.bumpversion]
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.0.17"
+current_version = "0.0.21"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -47,11 +80,16 @@ version = "{new_version}"'''
 search = '''name = "differt-core"
 version = "{current_version}"'''
 
+[[tool.bumpversion.files]]
+filename = "CITATION.cff"
+replace = "version: v{new_version}"
+search = "version: v{current_version}"
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,ue"
-skip = "docs/source/conf.py,pyproject.toml"
+skip = "docs/source/conf.py,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -64,9 +102,6 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/differt_dev"]  # See https://github.com/astral-sh/rye/issues/515
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -88,10 +123,10 @@ addopts = [
   "--doctest-ignore-import-errors",
   "--doctest-glob=*.md",
   "--doctest-glob=*.rst",
-  "--benchmark-columns=mean,stddev,ops",
+  "--benchmark-columns=mean,stddev,ops,iterations",
   "--benchmark-group-by=group",
   "--benchmark-warmup=on",
-  "--benchmark-skip",
+  "--benchmark-disable",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
@@ -101,6 +136,11 @@ env = [
 filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
+]
+log_level = "INFO"
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "serial",
 ]
 
 [tool.ruff]
@@ -132,6 +172,7 @@ extend-ignore = [
   "FIX002",  # line-contains-todo, comment this to find where TODOs are
   "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
   "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "PD",  # pandas-vet
   "PLR0913",  # too-many-arguments
   "PLR0914",  # too-many-local-variables
   "PLR6104",  # non-augmented-assignment
@@ -173,37 +214,15 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.rye]
+[tool.uv]
 dev-dependencies = [
-  "differt[all]",
-  # dev
+  "differt_dev[docs,tests]",
   "bump-my-version>=0.20.3",
   "pre-commit>=3.5.0",
-  # docs
-  "myst-nb>=0.17.2",
-  "pillow>=10.1.0",
-  "sphinx>=6",
-  "sphinx-autodoc-typehints>=1.23",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx-copybutton>=0.5.2",
-  "sphinx-design>=0.5.0",
-  "sphinx-remove-toctrees>=0.0.3",
-  "sphinxext-opengraph>=0.9.0",
-  "sphinxcontrib-apidoc>=0.4.0",
-  "sphinxcontrib-bibtex>=2.6.0",
-  "sphinx-plotly-directive>=0.1.3",
-  # tests
-  "chex>=0.1.84",
-  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
-  "pytest>=7.4.3",
-  "pytest-benchmark>=4.0.0",
-  "pytest-cov>=4.1.0",
-  "pytest-env>=1.1.3",
-  "pytest-missing-modules>=0.2.0",
-  "pytest-xdist>=3.3.1",
-  "scipy>=1.12.0",
 ]
-managed = true
 
-[tool.rye.workspace]
+[tool.uv.sources]
+differt = {workspace = true}
+
+[tool.uv.workspace]
 members = ["differt", "differt-core"]

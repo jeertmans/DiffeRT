@@ -1,8 +1,9 @@
+import logging
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from pathlib import Path
 
 import chex
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jaxtyping
@@ -17,46 +18,11 @@ from differt.geometry.triangle_mesh import (
 from ..utils import random_inputs
 
 
-@pytest.fixture(scope="module")
-def two_buildings_obj_file() -> str:
-    return (
-        Path(__file__)
-        .parent.joinpath("two_buildings.obj")
-        .resolve(strict=True)
-        .as_posix()
-    )
-
-
-@pytest.fixture(scope="module")
-def two_buildings_ply_file() -> str:
-    return (
-        Path(__file__)
-        .parent.joinpath("two_buildings.ply")
-        .resolve(strict=True)
-        .as_posix()
-    )
-
-
-@pytest.fixture(scope="module")
-def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
-    return TriangleMesh.load_obj(two_buildings_obj_file)
-
-
-@pytest.fixture(scope="module")
-def sphere() -> TriangleMesh:
-    from vispy.geometry import create_sphere  # noqa: PLC0415
-
-    mesh = create_sphere()
-
-    vertices = jnp.asarray(mesh.get_vertices())
-    triangles = jnp.asarray(mesh.get_faces(), dtype=int)
-    return TriangleMesh(vertices=vertices, triangles=triangles)
-
-
 @pytest.mark.parametrize(
     ("triangle_vertices", "vertices", "expectation"),
     [
         ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
+        ((1, 10, 3, 3), (20, 1, 3), does_not_raise()),
         ((10, 3, 3), (10, 3), does_not_raise()),
         ((3, 3), (3,), does_not_raise()),
         (
@@ -115,6 +81,62 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
+    def test_num_triangles(self, two_buildings_mesh: TriangleMesh) -> None:
+        assert two_buildings_mesh.num_triangles == 24
+
+    def test_num_quads(self, two_buildings_mesh: TriangleMesh) -> None:
+        with pytest.raises(
+            ValueError,
+            match="Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'.",
+        ):
+            _ = two_buildings_mesh.num_quads
+
+        quad_mesh = eqx.tree_at(
+            lambda m: m.assume_quads, two_buildings_mesh, replace=True
+        )
+
+        assert quad_mesh.num_quads == 12
+
+        non_quad_mesh = two_buildings_mesh[1:]
+
+        with pytest.raises(
+            ValueError,
+            match="You cannot set 'assume_quads' to 'True' if the number of triangles is not even!",
+        ):
+            _ = TriangleMesh(
+                vertices=non_quad_mesh.vertices,
+                triangles=non_quad_mesh.triangles,
+                assume_quads=True,
+            )
+
+        _ = non_quad_mesh.set_assume_quads(flag=False)
+
+        with pytest.raises(
+            ValueError,
+            match="You cannot set 'assume_quads' to 'True' if the number of triangles is not even!",
+        ):
+            _ = non_quad_mesh.set_assume_quads(flag=True)
+
+        # 'tree_at' bypasses '__check_init__', so this will not raise an error
+        _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
+
+    def test_get_item(self, two_buildings_mesh: TriangleMesh) -> None:
+        got = two_buildings_mesh[:]
+
+        chex.assert_trees_all_equal(got, two_buildings_mesh)
+
+        indices = jnp.arange(two_buildings_mesh.num_triangles)
+
+        got = two_buildings_mesh[indices]
+
+        chex.assert_trees_all_equal(got, two_buildings_mesh)
+
+        got = two_buildings_mesh[::2]
+
+        assert got.num_triangles == two_buildings_mesh.num_triangles // 2
+
+        # TODO: test that other attributes are set correctly.
+
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2))
         triangles = jnp.ones((20, 3))
@@ -147,7 +169,7 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of `other_vertices` or `normal`, not both.",
+            match="You must specify one of 'other_vertices' or 'normal', not both.",
         ):
             _ = TriangleMesh.plane(*vertices, normal=normal)
 
@@ -158,7 +180,7 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of `other_vertices` or `normal`, not both.",
+            match="You must specify one of 'other_vertices' or 'normal', not both.",
         ):
             _ = TriangleMesh.plane(center)
 
@@ -168,13 +190,77 @@ class TestTriangleMesh:
     def test_not_empty(self, two_buildings_mesh: TriangleMesh) -> None:
         assert not two_buildings_mesh.is_empty
 
+    @pytest.mark.parametrize(
+        ("shape", "expectation"),
+        [
+            ((3,), does_not_raise()),
+            ((1, 3), does_not_raise()),
+            ((24, 3), does_not_raise()),
+            pytest.param(
+                (30, 3),
+                pytest.raises(TypeError),
+                marks=pytest.mark.xfail(
+                    reason="Unsupported type checking of typing.Self"
+                ),
+            ),
+            pytest.param(
+                (1, 24, 3),
+                pytest.raises(TypeError),
+                marks=pytest.mark.xfail(
+                    reason="Unsupported type checking of typing.Self"
+                ),
+            ),
+        ],
+    )
+    def test_set_face_colors(
+        self,
+        shape: tuple[int, ...],
+        expectation: AbstractContextManager[Exception],
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+    ) -> None:
+        colors = jax.random.uniform(key, shape)
+        assert two_buildings_mesh.face_colors is None
+        with expectation:
+            mesh = two_buildings_mesh.set_face_colors(colors)
+            assert mesh.face_colors is not None
+
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
 
+    def test_load_obj_with_mat(self, two_buildings_obj_with_mat_file: str) -> None:
+        mesh = TriangleMesh.load_obj(two_buildings_obj_with_mat_file)
+        assert mesh.triangles.shape == (24, 3)
+        assert len(mesh.material_names) == 2
+        assert {material_name.lower() for material_name in mesh.material_names} == {
+            "concrete",
+            "glass",
+        }
+        assert mesh.face_colors is not None
+        assert mesh.face_materials is not None
+
     def test_load_ply(self, two_buildings_ply_file: str) -> None:
         mesh = TriangleMesh.load_ply(two_buildings_ply_file)
         assert mesh.triangles.shape == (24, 3)
+
+    def test_load_ply_with_colors(
+        self, cube_ply_file: str, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.clear()
+
+        with caplog.at_level(logging.INFO):
+            mesh = TriangleMesh.load_ply(cube_ply_file)
+
+            assert mesh.triangles.shape == (2, 3)
+            assert (
+                len([
+                    record
+                    for record in caplog.records
+                    if "because it is not a triangle" in record.msg
+                ])
+                == 5
+            )
 
     def test_compare_with_open3d(
         self,
@@ -214,5 +300,5 @@ class TestTriangleMesh:
         expected = jnp.ones_like(got)
         chex.assert_trees_all_close(got, expected)
 
-    def test_plot(self, sphere: TriangleMesh) -> None:
-        sphere.plot()
+    def test_plot(self, sphere_mesh: TriangleMesh) -> None:
+        sphere_mesh.plot()

@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pytest
 
@@ -86,12 +88,33 @@ class TestDiGraph:
     @pytest.mark.parametrize(
         ("num_nodes", "depth"),
         [
+            (15, 2),
+            (25, 3),
+            (11, 4),
+        ],
+    )
+    def test_all_paths_count_from_complete_graph(
+        self,
+        num_nodes: int,
+        depth: int,
+    ) -> None:
+        graph = CompleteGraph(num_nodes)
+        from_, to = num_nodes, num_nodes + 1
+        paths = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
+        num_paths = sum(1 for _ in paths)
+        assert num_paths == num_nodes * (num_nodes - 1) ** (depth - 1)
+        array = graph.all_paths_array(from_, to, depth + 2, include_from_and_to=False)
+        assert array.shape == (num_paths, depth)
+
+    @pytest.mark.parametrize(
+        ("num_nodes", "depth"),
+        [
             (10, 1),
             (50, 2),
             (10, 3),
         ],
     )
-    def test_all_paths_count_from_complete_graph(
+    def test_all_paths_count_from_di_graph(
         self,
         num_nodes: int,
         depth: int,
@@ -103,3 +126,29 @@ class TestDiGraph:
         assert num_paths == num_nodes * (num_nodes - 1) ** (depth - 1)
         array = graph.all_paths_array(from_, to, depth + 2, include_from_and_to=False)
         assert array.shape == (num_paths, depth)
+
+    @pytest.mark.parametrize(
+        ("num_nodes", "depth"),
+        [
+            (10, 100),
+            (50_000, 10),
+        ],
+    )
+    def test_all_paths_count_from_complete_graph_overflow(
+        self,
+        num_nodes: int,
+        depth: int,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        graph = CompleteGraph(num_nodes)
+        from_, to = num_nodes, num_nodes + 1
+
+        caplog.clear()
+
+        with caplog.at_level(logging.WARNING):
+            _ = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
+
+            assert (
+                "OverflowError: overflow occurred when computing the total number of paths"
+                in caplog.text
+            )

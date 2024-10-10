@@ -19,7 +19,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["numpy>=1.20"]
+dependencies = ["numpy>=1.20,<2"]  # https://github.com/PyO3/rust-numpy/issues/409
 description = "Core backend of DifffeRT implemented in Rust"
 dynamic = ["license", "readme", "version"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
@@ -31,6 +31,3 @@ bindings = "pyo3"
 features = ["pyo3/extension-module"]
 module-name = "differt_core._lowlevel"
 python-source = "python"
-
-[tool.rye]
-managed = true

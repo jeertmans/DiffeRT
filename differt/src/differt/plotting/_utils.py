@@ -3,21 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 import types
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
-from threading import Lock
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
+from threading import RLock
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, MutableMapping
+    from collections.abc import Callable, Iterator, MutableMapping
     from typing import Literal
 
     from matplotlib.figure import Figure as MplFigure
@@ -42,7 +36,7 @@ class _Defaults:
 
 @dataclass
 class _Config:
-    lock: Lock = field(default_factory=Lock)
+    lock: RLock = field(default_factory=RLock)
     defaults: _Defaults = field(default_factory=_Defaults)
 
     def set_defaults(self, /, **defaults: Any) -> None:
@@ -75,13 +69,13 @@ def get_backend(backend: str | None = None) -> BackendName:
     """
     Return the name of the backend to use.
 
-    If data:`None` is provided, then the default
+    If :data:`None` is provided, then the default
     backend is returned. Otherwise, the backend corresponding to
     value of :data:`backend`.
 
     Args:
         backend: The name of the backend to use, or
-            :py:data:`None` to use the current default.
+            :data:`None` to use the current default.
 
             The name is case insensitive.
 
@@ -159,9 +153,13 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
         'matplotlib'
         >>> my_plot()  # So that now it defaults to 'matplotlib' and color='red'
         Using matplotlib backend with args = (), kwargs = {'color': 'red'}
-        >>> my_plot(backend="vispy")  # Of course, the 'vispy' backend is still available
+        >>> my_plot(
+        ...     backend="vispy"
+        ... )  # Of course, the 'vispy' backend is still available
         Using vispy backend with args = (), kwargs = {'color': 'red'}
-        >>> my_plot(backend="vispy", color="green")  # And we can also override any default
+        >>> my_plot(
+        ...     backend="vispy", color="green"
+        ... )  # And we can also override any default
         Using vispy backend with args = (), kwargs = {'color': 'green'}
         >>> dplt.set_defaults("vispy")  # Reset all defaults
         'vispy'
@@ -184,7 +182,7 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         backend: The name of the backend to be passed to
             :func:`get_backend`.
         kwargs: Keywords arguments passed to
-            :py:func:`set_defaults`.
+            :func:`set_defaults`.
 
     Yields:
         The name of the default backend used in this context.
@@ -210,7 +208,9 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         >>>
         >>> my_plot()  # When not specified, use default backend
         Using vispy backend with args = (), kwargs = {}
-        >>> with dplt.use():  # No parameters = reset defaults (except the default backend)
+        >>> with (
+        ...     dplt.use()
+        ... ):  # No parameters = reset defaults (except the default backend)
         ...     my_plot()
         Using vispy backend with args = (), kwargs = {}
         >>> with dplt.use("plotly"):  # We can change the default backend
@@ -408,7 +408,7 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     If the canvas does not have any view, create one and
     return it.
 
-    This utility is used by :py:func:`process_vispy_kwargs`.
+    This utility is used by :func:`process_vispy_kwargs`.
 
     Args:
         canvas: The canvas that draws the contents of the scene.
@@ -451,10 +451,10 @@ def process_vispy_kwargs(
                 The keys specified below will be removed from the mapping.
 
     Keyword Args:
-        canvas (:py:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
+        canvas (:class:`SceneCanvas<vispy.scene.canvas.SceneCanvas>`):
             The canvas that draws contents of the scene. If not provided,
             will try to access canvas from ``view`` (if supplied).
-        view (:py:class:`Viewbox<vispy.scene.widgets.viewbox.ViewBox>`):
+        view (:class:`Viewbox<vispy.scene.widgets.viewbox.ViewBox>`):
             The view on which contents are displayed. If not provided,
             will try to get a view from ``canvas``
             (if supplied and has at least one view in its children).
@@ -462,7 +462,7 @@ def process_vispy_kwargs(
     Warning:
         When supplying both ``canvas`` and ``view``, user
         must ensure that ``view in canvas.central_widget.children``
-        evaluates to :py:data:`True`.
+        evaluates to :data:`True`.
 
     Returns:
         The canvas and view used to display contents.
@@ -499,10 +499,10 @@ def process_matplotlib_kwargs(
                 The keys specified below will be removed from the mapping.
 
     Keyword Args:
-        figure (:py:class:`Figure<matplotlib.figure.Figure>`):
+        figure (:class:`Figure<matplotlib.figure.Figure>`):
             The figure that draws contents of the scene. If not provided,
             will try to access figure from ``ax`` (if supplied).
-        ax (:py:class:`Axes3D<mpl_toolkits.mplot3d.axes3d.Axes3D>`):
+        ax (:class:`Axes3D<mpl_toolkits.mplot3d.axes3d.Axes3D>`):
             The view on which contents are displayed. If not provided,
             will try to get axes from ``figure``
             (if supplied). The default axes will use a 3D projection.
@@ -510,7 +510,7 @@ def process_matplotlib_kwargs(
     Warning:
         When supplying both ``figure`` and ``ax``, user
         must ensure that ``ax in figure.axes``
-        evaluates to :py:data:`True`.
+        evaluates to :data:`True`.
 
     Returns:
         The figure and axes used to display contents.
@@ -558,7 +558,7 @@ def process_plotly_kwargs(
                 The keys specified below will be removed from the mapping.
 
     Keyword Args:
-        figure (:py:class:`Figure<plotly.graph_objects.Figure>`):
+        figure (:class:`Figure<plotly.graph_objects.Figure>`):
             The figure that draws contents of the scene.
 
     Returns:
@@ -582,7 +582,7 @@ def reuse(
         backend: The name of the backend to be passed to
             :func:`get_backend`.
         kwargs: Keywords arguments passed to
-            :py:func:`set_defaults`.
+            :func:`set_defaults`.
 
     Yields:
         The canvas or figure that is reused for this context.

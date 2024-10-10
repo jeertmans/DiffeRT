@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    ndarray::{parallel::prelude::*, Array2, ArrayView2, Axis},
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
+    ndarray::{Array2, ArrayView2, Axis, parallel::prelude::*},
 };
 use pyo3::{prelude::*, types::PyType};
 
@@ -140,7 +140,7 @@ pub mod complete {
         ///
         /// .. note::
         ///
-        ///     Unlike for :py:class:`DiGraph`'s iterators, ``from_`` and
+        ///     Unlike for :class:`DiGraph`'s iterators, ``from_`` and
         ///     ``to`` nodes do not need to be part of the graph
         ///     (i.e., ``node_id >= num_nodes``).
         ///     This is especially useful to generate all
@@ -170,8 +170,8 @@ pub mod complete {
         ///     ...     )
         ///     ... )
         ///
-        ///     This note also applies to :py:meth:`all_paths_array` and
-        ///     :py:meth:`all_paths_array_chunks`.
+        ///     This note also applies to :meth:`all_paths_array` and
+        ///     :meth:`all_paths_array_chunks`.
         ///
         /// Args:
         ///     from\_ (int): The node index to find the paths from.
@@ -179,7 +179,7 @@ pub mod complete {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
         /// Returns:
@@ -205,7 +205,7 @@ pub mod complete {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
         /// Returns:
@@ -236,7 +236,7 @@ pub mod complete {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///     chunk_size (int): The size of each chunk.
         ///
@@ -317,7 +317,7 @@ pub mod complete {
                     let from_in_graph = from < num_nodes;
                     let to_in_graph = to < num_nodes;
 
-                    match (from_in_graph, to_in_graph) {
+                    (match (from_in_graph, to_in_graph) {
                         (true, true) => {
                             //This solution was obtained thanks to user @ronno, see:
                             // https://math.stackexchange.com/a/4874894/1297520.
@@ -326,38 +326,48 @@ pub mod complete {
                             let num_nodes_minus_1 = num_nodes.saturating_sub(1);
                             if from != to {
                                 num_nodes_minus_1
-                                    .saturating_pow(depth_minus_1)
-                                    .saturating_add_signed(if depth_minus_1 % 2 == 0 {
-                                        -1
-                                    } else {
-                                        1
+                                    .checked_pow(depth_minus_1)
+                                    .and_then(|num| {
+                                        num.checked_add_signed(if depth_minus_1 % 2 == 0 {
+                                            -1
+                                        } else {
+                                            1
+                                        })
                                     })
-                                    / num_nodes
+                                    .map(|num| num / num_nodes)
                             } else {
                                 num_nodes_minus_1
-                                    .saturating_pow(depth_minus_2)
-                                    .saturating_add_signed(if depth_minus_2 % 2 == 0 {
-                                        -1
-                                    } else {
-                                        1
+                                    .checked_pow(depth_minus_2)
+                                    .and_then(|num| {
+                                        num.checked_add_signed(if depth_minus_2 % 2 == 0 {
+                                            -1
+                                        } else {
+                                            1
+                                        })
                                     })
-                                    * num_nodes_minus_1
-                                    / num_nodes
+                                    .map(|num| (num / num_nodes) * num_nodes_minus_1)
                             }
                         },
                         (false, false) => {
                             // (num_nodes) * (num_nodes - 1)^(num_intermediate_nodes - 1)
-                            (num_nodes).saturating_mul(
-                                num_nodes
-                                    .saturating_sub(1)
-                                    .saturating_pow(num_intermediate_nodes.saturating_sub(1)),
-                            )
+                            num_nodes
+                                .saturating_sub(1)
+                                .checked_pow(num_intermediate_nodes.saturating_sub(1))
+                                .and_then(|num| num_nodes.checked_mul(num))
                         },
                         _ => {
                             // (num_nodes - 1)^num_intermediate_nodes
-                            (num_nodes.saturating_sub(1)).saturating_pow(num_intermediate_nodes)
+                            (num_nodes.saturating_sub(1)).checked_pow(num_intermediate_nodes)
                         },
-                    }
+                    })
+                    .unwrap_or_else(|| {
+                        log::warn!(
+                            "OverflowError: overflow occurred when computing the total number of \
+                             paths, defaulting to maximum value {}.",
+                            usize::MAX
+                        );
+                        usize::MAX
+                    })
                 },
             };
 
@@ -586,7 +596,7 @@ pub mod directed {
         /// Create an edgeless directed graph with ``num_nodes`` nodes.
         ///
         /// This is equivalent to creating a directed graph from
-        /// an adjacency matrix will all entries equal to :py:data:`False`.
+        /// an adjacency matrix will all entries equal to :data:`False`.
         ///
         /// Args:
         ///     num\_nodes (int): The number of nodes.
@@ -603,7 +613,7 @@ pub mod directed {
         /// Create a directed graph from an adjacency matrix.
         ///
         /// Each row of the adjacency matrix ``M`` contains boolean
-        /// entries: if ``M[i, j]`` is :py:data:`True`, then node ``i`` is
+        /// entries: if ``M[i, j]`` is :data:`True`, then node ``i`` is
         /// connected to node ``j``.
         ///
         /// Args:
@@ -625,7 +635,7 @@ pub mod directed {
         /// Create a directed graph from a complete graph.
         ///
         /// This is equivalent to creating a directed graph from
-        /// an adjacency matrix will all entries equal to :py:data:`True`,
+        /// an adjacency matrix will all entries equal to :data:`True`,
         /// except on the main diagonal (i.e., no loop).
         ///
         /// Args:
@@ -648,7 +658,7 @@ pub mod directed {
         /// - and ``to`` is an `endpoint`, where every other node is connected
         ///   to this node.
         ///
-        /// If ``direct_path`` is :py:data:`True`, then the ``from_`` node is
+        /// If ``direct_path`` is :data:`True`, then the ``from_`` node is
         /// also connected to the ``to`` node.
         ///
         /// Args:
@@ -724,7 +734,7 @@ pub mod directed {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
         /// Returns:
@@ -750,7 +760,7 @@ pub mod directed {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///
         /// Returns:
@@ -781,7 +791,7 @@ pub mod directed {
         ///     depth (int): The number of nodes to include in each path.
         ///     include_from_and_to (bool): Whether to include or not ``from_``
         ///         and ``to`` nodes in the output paths. If set to
-        ///         :py:data:`False`, the output paths will include
+        ///         :data:`False`, the output paths will include
         ///         ``depth - 2`` nodes.
         ///     chunk_size (int): The size of each chunk.
         ///
@@ -971,6 +981,7 @@ pub mod directed {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymodule]
 pub(crate) fn graph(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<complete::CompleteGraph>()?;
