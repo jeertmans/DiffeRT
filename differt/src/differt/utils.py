@@ -265,10 +265,11 @@ def sample_points_in_bounding_box(
 
     return r * scale + amin
 
-@partial(jax.jit, inline=True)
+
+@jax.jit
 @jaxtyped(typechecker=typechecker)
 def safe_divide(
-    num: Num[Array, " *batch"], den: Num[Array, " *batch"]
+    num: Num[Array, " *#batch"], den: Num[Array, " *#batch"]
 ) -> Num[Array, " *batch"]:
     """
     Compute the elementwise division, but returns 0 when ``den`` is zero.
@@ -277,7 +278,7 @@ def safe_divide(
         num: The numerator.
         den: The denominator.
 
-    Return:
+    Returns:
         The result of ``num / dev``, except that division by zero returns 0.
 
     Examples:

@@ -18,8 +18,6 @@ where :math:`P` is the observation point and :math:`Q_r` is the reflection point
 where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficients.
 """
 
-from typing import Optional
-
 import equinox as eqx
 import jax.numpy as jnp
 from beartype import beartype as typechecker
@@ -33,7 +31,7 @@ from ..utils import safe_divide
 def reflection_coefficients(
     epsilon_r: Complex[Array, " *batch"],
     cos_theta_i: Float[Array, " *batch"],
-    mu_r: Optional[Complex[Array, " *batch"]] = None,
+    mu_r: Complex[Array, " *batch"] | None = None,
 ) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
     r"""
     Compute the Fresnel reflection coefficients for air-to-dielectric interface.
@@ -78,7 +76,7 @@ def reflection_coefficients(
         mu_r: The relative permeabilities. If not provided,
             a value of 1 is used.
 
-    Return:
+    Returns:
         The reflection coefficients for s and p polarizations.
     """
     if mu_r is None:
