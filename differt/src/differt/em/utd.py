@@ -75,14 +75,28 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
 
 
 @jax.jit
+def rays_to_sin_angles(incident_rays, diffracted_rays, edge_vectors):
+    """
+    Compute the sin of angles...
+    """
+    incident_rays, _ = normalize(incident_rays)
+    diffracted_rays, _ = normalize(diffracted_rays)
+
+
+@jax.jit
 def diffraction_coefficients(
     incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
 ):
     """
     Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
 
-    The implementation closely follows was is described
+    The implementation closely follows what is described
     in :cite:`utd-mcnamara{p. 268}`.
+
+    Args:
+        sin_beta_0: ...
+        sin_beta: ...
+        sin_phi: 
     """
     # Ensure input vectors are normalized
     incident_ray = incident_ray / jnp.linalg.norm(incident_ray)
@@ -153,4 +167,12 @@ def diffraction_coefficients(
         [[D_s, 0, 0], [0, D_h, 0], [0, 0, 0]], dtype=jnp.complex64
     )
 
-    return diffraction_matrix
+    #s_p
+
+    d_12 = d_1 + d_2
+    d_34 = d_3 + d_4
+
+    d_s = d_12 - d_34
+    d_h = d_12 + d_34
+
+    return d_h, d_s

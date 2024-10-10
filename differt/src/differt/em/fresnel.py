@@ -16,6 +16,47 @@ where :math:`P` is the observation point and :math:`Q_r` is the reflection point
     \boldsymbol{E}^r(Q_r) = \boldsymbol{E}^r(Q_r) \cdot R
 
 where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficients.
+
+
+Examples:
+    .. plot::
+
+        The following example show how to compute interfence
+        patterns from line of sight and reflection on a metal
+        ground.
+
+        >>> from differt.em.fresnel import reflection_coefficients
+        >>> from differt.em.constants import *
+        >>> from differt.geometry.utils import assemble_paths, normalize, path_lengths
+        >>> from differt.rt.image_method import image_method
+        >>>
+        >>> def field(r):
+        ...     theta = jnp.arctan2(r[..., 1], r[..., 0])[..., None]
+        ...     k_dir, r = normalize(r, keepdims=True)
+        ...     e_dir = k_dir.at[..., 0].multiply(-1)[..., [1, 0, 2]]
+        ...     return e_dir * jnp.sin(theta) * jnp.sin(r) / r
+        ...     
+        >>> tx_position = jnp.array([0.0, 2.0, 0.0])
+        >>> rx_position = jnp.array([0.0, 1.0, 0.0])
+        >>> n = 1000
+        >>> x = jnp.linspace(1, 10, n)
+        >>> rx_positions = jnp.tile(rx_position, (n, 1)).at[..., 0].add(x)
+        >>> E_los = field(rx_positions - tx_position)
+        >>> plt.plot(x, 20 * jnp.log10(jnp.linalg.norm(E_los, axis=-1)), label=r"$E_\text{los}$")  # doctest: +SKIP
+        >>>
+        >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])
+        >>> ground_normal = jnp.normal([0.0, 1.0, 0.0])
+        >>> reflection_points = image_method(tx_position, rx_positions, ground_vertex, groun_normal)
+        >>> E_at_rp = field(reflection_points - tx_position)
+        >>> incident_vectors = normalize(reflection_points - tx_position)[0]
+        >>> cos_theta = jnp.dot(ground_normal, -incident_vectors)
+        >>> epsilon_r = 1.0
+        >>> r_s, r_p = reflection_coefficients(epsilon_r, cos_theta)
+        >>> #theta_d = jnp.rad2deg(theta)
+        >>> plt.xlabel("Distance to transmitter on x-axis")  # doctest: +SKIP
+        >>> plt.ylabel("Received power")  # doctest: +SKIP
+        >>> plt.legend()  # doctest: +SKIP
+        >>> plt.tight_layout()  # doctest: +SKIP
 """
 
 import equinox as eqx
