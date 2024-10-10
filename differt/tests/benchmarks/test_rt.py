@@ -61,13 +61,15 @@ def test_transmitter_visibility_in_simple_street_canyon_scene(
 @pytest.mark.benchmark(group="compute_paths")
 @pytest.mark.parametrize("order", [0, 1, 2])
 @pytest.mark.parametrize("chunk_size", [None, 20_000])
+@pytest.mark.parametrize("assume_quads", [False, True])
 def test_compute_paths_in_simple_street_canyon_scene(
     order: int,
     chunk_size: int | None,
+    assume_quads: bool,
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
-    scene = simple_street_canyon_scene
+    scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
     if chunk_size:
 
         @jax.debug_nans(False)  # noqa: FBT003
