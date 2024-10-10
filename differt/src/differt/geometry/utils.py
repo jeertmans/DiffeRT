@@ -26,11 +26,15 @@ def pairwise_cross(
     return jnp.cross(u[:, None, :], v[None, :, :])
 
 
-@jax.jit
+@eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def normalize(
     vector: Float[Array, "*batch 3"],
-) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]:
+    keepdims: bool = False,
+) -> (
+    tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]
+    | tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]
+):
     """
     Normalize vectors and also return their length.
 
@@ -39,6 +43,8 @@ def normalize(
 
     Args:
         vector: An array of vectors.
+        keepdims: If set to :data:`True`, the array of lengths
+            will have the same number of dimensions are the input.
 
     Returns:
         The normalized vector and their length.
@@ -62,7 +68,7 @@ def normalize(
     length: Array = jnp.linalg.norm(vector, axis=-1, keepdims=True)
     length = jnp.where(length == 0.0, jnp.ones_like(length), length)
 
-    return vector / length, jnp.squeeze(length, axis=-1)
+    return vector / length, (length if keepdims else jnp.squeeze(length, axis=-1))
 
 
 @eqx.filter_jit

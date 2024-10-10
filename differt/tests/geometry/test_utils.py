@@ -63,15 +63,20 @@ def test_pairwise_cross_random_inputs(
         ((10, 4), pytest.raises(TypeError)),
     ],
 )
+@pytest.mark.parametrize("keepdims", [False, True])
 @random_inputs("u")
 def test_normalize_random_inputs(
     u: Array,
+    keepdims: bool,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        nu, lu = normalize(u)
+        nu, lu = normalize(u, keepdims=keepdims)
 
-        chex.assert_trees_all_close(u, nu * lu[..., None])
+        if keepdims:
+            chex.assert_trees_all_close(u, nu * lu)
+        else:
+            chex.assert_trees_all_close(u, nu * lu[..., None])
 
 
 @pytest.mark.parametrize(
