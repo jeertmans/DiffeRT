@@ -21,7 +21,7 @@ where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficien
 import equinox as eqx
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, Complex, Float, jaxtyped
+from jaxtyping import Array, Float, Inexact, jaxtyped
 
 from ..utils import safe_divide
 
@@ -29,10 +29,10 @@ from ..utils import safe_divide
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def reflection_coefficients(
-    epsilon_r: Complex[Array, " *batch"],
-    cos_theta_i: Float[Array, " *batch"],
-    mu_r: Complex[Array, " *batch"] | None = None,
-) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
+    epsilon_r: Inexact[Array, " *#batch"],
+    cos_theta_i: Float[Array, " *#batch"],
+    mu_r: Inexact[Array, " *#batch"] | None = None,
+) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
     r"""
     Compute the Fresnel reflection coefficients for air-to-dielectric interface.
 
@@ -42,7 +42,7 @@ def reflection_coefficients(
     .. math::
         n_i\sin\theta_i = n_t\sin\theta_t,
 
-    where :math:`n` is the refraction index, :math:`theta` is the angle of between the ray path
+    where :math:`n` is the refraction index, :math:`\theta` is the angle of between the ray path
     and the normal to the interface, and :math:`i` and :math:`t` indicate,
     respectively, the first (i.e., incidence) and the second (i.e., transmission)
     media.
@@ -50,12 +50,12 @@ def reflection_coefficients(
     The s and p reflection coefficients are:
 
     .. math::
-        \frac{r_s} = \frac{n_i\cos\theta_i - n_t\cos\theta_t}{n_i\cos\theta_i + n_t\cos\theta_t},
+        r_s = \frac{n_i\cos\theta_i - n_t\cos\theta_t}{n_i\cos\theta_i + n_t\cos\theta_t},
 
     and
 
     .. math::
-        \frac{r_p} = \frac{n_t\cos\theta_i - n_i\cos\theta_t}{n_t\cos\theta_i + n_i\cos\theta_t}.
+        r_p = \frac{n_t\cos\theta_i - n_i\cos\theta_t}{n_t\cos\theta_i + n_i\cos\theta_t}.
 
     Because we assume the first medium is always air, we have that
     :math:`n_i = 1`, which simplifies the Snell's formula to:
@@ -72,12 +72,36 @@ def reflection_coefficients(
 
     Args:
         epsilon_r: The relative permittivities.
-        cos_theta: The (cosine of the) angles of reflection.
+        cos_theta_i: The (cosine of the) angles of incidence (or reflection).
         mu_r: The relative permeabilities. If not provided,
             a value of 1 is used.
 
     Returns:
         The reflection coefficients for s and p polarizations.
+
+        The output dtype will only be complex if any of the provided arguments
+        has a complex dtype.
+
+    Examples:
+        .. plot::
+
+            The following example reproduces the air-to-glass reflectance
+            power coefficient.
+
+            >>> from differt.em.fresnel import reflection_coefficients
+            >>>
+            >>> n = 1.5  # Air to glass
+            >>> epsilon_r = jnp.sqrt(n)
+            >>> theta = jnp.linspace(0, jnp.pi / 2)
+            >>> cos_theta = jnp.cos(theta)
+            >>> r_s, r_p = reflection_coefficients(epsilon_r, cos_theta)
+            >>> theta_d = jnp.rad2deg(theta)
+            >>> plt.plot(theta_d, r_s, label=r"$r_s$")  # doctest: +SKIP
+            >>> plt.plot(theta_d, r_p, label=r"$r_p$")  # doctest: +SKIP
+            >>> plt.xlabel("Angle of incidence (°)")  # doctest: +SKIP
+            >>> plt.ylabel("Power intensity coefficient")  # doctest: +SKIP
+            >>> plt.legend()  # doctest: +SKIP
+            >>> plt.tight_layout()  # doctest: +SKIP
     """
     if mu_r is None:
         sqrt_n_t = epsilon_r
@@ -87,7 +111,10 @@ def reflection_coefficients(
     n_t_cos_theta_t = jnp.sqrt(sqrt_n_t + cos_theta_i**2 - 1)
     n_t_squared_cos_theta_i = sqrt_n_t * cos_theta_i
 
-    r_s = safe_divide(cos_theta_i - n_t_cos_theta_t, cos_theta_i + n_t_cos_theta_t)
+    r_s = safe_divide(
+        cos_theta_i - n_t_cos_theta_t,
+        cos_theta_i + n_t_cos_theta_t,
+    )
     r_p = safe_divide(
         n_t_squared_cos_theta_i - n_t_cos_theta_t,
         n_t_squared_cos_theta_i + n_t_cos_theta_t,
