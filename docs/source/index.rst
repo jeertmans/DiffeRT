@@ -10,7 +10,7 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
    notebooks/plotting_backend
    notebooks/diffraction
    notebooks/ray_tracing_at_city_scale
-   notebooks/coherence
+   notebooks/multipath
 
 .. toctree::
    :maxdepth: 1
