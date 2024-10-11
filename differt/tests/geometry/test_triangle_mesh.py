@@ -120,6 +120,10 @@ class TestTriangleMesh:
         # 'tree_at' bypasses '__check_init__', so this will not raise an error
         _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
 
+    def test_num_objects(self, two_buildings_mesh: TriangleMesh) -> None:
+        assert two_buildings_mesh.num_objects == 24
+        assert two_buildings_mesh.set_assume_quads().num_objects == 12
+
     def test_get_item(self, two_buildings_mesh: TriangleMesh) -> None:
         got = two_buildings_mesh[:]
 
@@ -302,3 +306,26 @@ class TestTriangleMesh:
 
     def test_plot(self, sphere_mesh: TriangleMesh) -> None:
         sphere_mesh.plot()
+
+    def test_sample(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
+        assert two_buildings_mesh.sample(10, key=key).num_triangles == 10
+
+        with pytest.raises(
+            ValueError, match="Cannot take a larger sample than population"
+        ):
+            assert two_buildings_mesh.sample(30, key=key)
+
+        assert two_buildings_mesh.sample(30, replace=True, key=key).num_triangles == 30
+
+        assert two_buildings_mesh.set_assume_quads().sample(5, key=key).num_quads == 5
+
+        two_buildings_mesh = eqx.tree_at(
+            lambda m: m.object_bounds,
+            two_buildings_mesh,
+            jnp.array([[0, 12], [12, 24]]),
+            is_leaf=lambda x: x is None,
+        )
+
+        assert two_buildings_mesh.sample(
+            13, key=key, preserve=True
+        ).object_bounds.shape == (2, 2)
