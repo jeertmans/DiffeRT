@@ -482,6 +482,9 @@ class TriangleMesh(eqx.Module):
             replace=replace,
         )
 
+        if self.assume_quads:
+            indices *= 2
+
         if preserve and self.object_bounds is not None:
             indices = jnp.sort(indices)
             object_bounds = jnp.stack(
