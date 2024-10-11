@@ -328,4 +328,4 @@ class TestTriangleMesh:
 
         assert two_buildings_mesh.sample(
             13, key=key, preserve=True
-        ).object_bounds.shape == (2, 2)
+        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
