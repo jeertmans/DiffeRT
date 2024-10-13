@@ -103,7 +103,7 @@ the size of some dimensions can rapidly become so large than they
 cannot fit inside your memory.
 This is also why we propose chunked iterators
 (e.g.,
-{class}`AllPathsFromCompleteGraphChunksIter<differt.rt.graph.AllPathsFromCompleteGraphChunksIter>`)
+{class}`AllPathsFromCompleteGraphChunksIter<differt_core.rt.graph.AllPathsFromCompleteGraphChunksIter>`)
 as an alternative.
 
 Likewise, when a dimension is getting too big,

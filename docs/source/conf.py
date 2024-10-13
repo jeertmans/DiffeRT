@@ -56,7 +56,7 @@ add_module_names = False
 add_function_parentheses = False
 
 nitpicky = True
-nitpicky_ignore_regex = ((r"py:.*", r"jaxtyping\..*"))
+nitpick_ignore_regex = ((r"py:.*", r"jaxtyping\..*"))
 
 # -- Intersphinx mapping
 

@@ -480,7 +480,7 @@ def draw_image(
             the image.
         z0: The z-coordinate at which the image is placed.
         kwargs: Keyword arguments passed to
-            :class:`Mesh<vispy.scene.visuals.Image>`,
+            :class:`Image<vispy.scene.visuals.Image>`,
             :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
             or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
             backend.
@@ -631,7 +631,7 @@ def draw_contour(  # noqa: PLR0917
         levels: The levels at which the contour is drawn.
         fill: Whether to fill the contour.
         kwargs: Keyword arguments passed to
-            :class:`Mesh<vispy.scene.visuals.Isorcurve>`,
+            :class:`Isocurve<vispy.scene.visuals.Isocurve>`,
             :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.contour>`,
             (or :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`
             if ``fill`` is :data:`True`),
