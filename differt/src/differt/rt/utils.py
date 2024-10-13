@@ -45,11 +45,11 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 
 
 @typechecker
-class SizedIterator(Iterator, Sized, Generic[T]):
+class SizedIterator(Iterator, Sized, Generic[_T]):
     """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
     The main purpose of this class is to be able to use
@@ -76,14 +76,14 @@ class SizedIterator(Iterator, Sized, Generic[T]):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[T], size: int | Callable[[], int]) -> None:  # noqa: A002,D107
+    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # noqa: A002,D107
         self._iter = iter
         self._size = size
 
     def __iter__(self) -> Self:  # noqa: D105
         return self
 
-    def __next__(self) -> T:  # noqa: D105
+    def __next__(self) -> _T:  # noqa: D105
         return next(self._iter)
 
     def __len__(self) -> int:  # noqa: D105

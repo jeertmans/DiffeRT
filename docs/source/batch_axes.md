@@ -103,7 +103,7 @@ the size of some dimensions can rapidly become so large than they
 cannot fit inside your memory.
 This is also why we propose chunked iterators
 (e.g.,
-{class}`AllPathsFromCompleteGraphChunksIter<differt.rt.graph.AllPathsFromCompleteGraphChunksIter>`)
+{class}`AllPathsFromCompleteGraphChunksIter<differt_core.rt.graph.AllPathsFromCompleteGraphChunksIter>`)
 as an alternative.
 
 Likewise, when a dimension is getting too big,
@@ -115,7 +115,7 @@ bottleneck in your pipeline. In some cases,
 if you are only interested in a *reduced* result,
 JAX may be able to optimize the computation such that some batch
 dimensions are never allocated.
-See [jax#1929](https://github.com/google/jax/issues/1923) for reference.
+See [jax#1929](https://github.com/jax-ml/jax/issues/1923) for reference.
 
 In general, finding the optimum is a trial-and-error process,
 where the solution will highly depend on your problem parameters.
