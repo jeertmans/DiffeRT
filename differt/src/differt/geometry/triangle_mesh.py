@@ -105,7 +105,7 @@ class TriangleMesh(eqx.Module):
     """The array of face materials.
 
     The array contains the material indices,
-    with a special placeholder value of :data:`-1`.
+    with a special placeholder value of ``-1``.
     The obtain the name of the material, see :attr:`material_names`.
     This attribute is :data:`None` if all face materials are unset.
     """

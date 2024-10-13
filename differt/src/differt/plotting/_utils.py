@@ -71,7 +71,7 @@ def get_backend(backend: str | None = None) -> BackendName:
 
     If :data:`None` is provided, then the default
     backend is returned. Otherwise, the backend corresponding to
-    value of :data:`backend`.
+    value of ``backend``.
 
     Args:
         backend: The name of the backend to use, or
@@ -259,7 +259,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
 
     Notes:
         Only the functions registered with ``register`` will be called.
-        The :data:`fun` argument wrapped inside :func:`dispatch` is
+        The ``fun`` argument wrapped inside :func:`dispatch` is
         only used for documentation, but never called.
 
     Examples:
