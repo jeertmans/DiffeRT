@@ -55,6 +55,10 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 add_module_names = False
 add_function_parentheses = False
 
+# -- Linkcheck build
+
+linkcheck_report_timeouts_as_broken  = False  # Default value in Sphinx >= 8
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
