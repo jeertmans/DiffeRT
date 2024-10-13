@@ -76,7 +76,7 @@ nitpick_ignore_regex = (
     (r"py:.*", r"jaxtyping\..*"),
 )
 
-linkcheck_report_timeouts_as_broken  = False  # Default value in Sphinx >= 8
+linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
 # -- Intersphinx mapping
 
