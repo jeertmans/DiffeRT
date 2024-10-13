@@ -19,8 +19,8 @@ else:
 
 # Redefined here, because chex uses deprecated type hints
 # TODO: fixme when google/chex#361 is resolved.
-OptState = chex.Array | Iterable["OptState"] | Mapping[Any, "OptState"]
-Ts = TypeVarTuple("Ts")
+_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+_Ts = TypeVarTuple("_Ts")
 
 
 @jax.jit
@@ -93,9 +93,9 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 @eqx.filter_jit
 @jaxtyped(typechecker=None)
 def minimize(
-    fun: Callable[[Num[Array, "*batch n"], *Ts], Num[Array, " *batch"]],
+    fun: Callable[[Num[Array, "*batch n"], *_Ts], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
-    args: tuple[Unpack[Ts]] = (),
+    args: tuple[Unpack[_Ts]] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
@@ -216,9 +216,9 @@ def minimize(
 
     @jaxtyped(typechecker=typechecker)
     def f(
-        carry: tuple[Num[Array, "*batch n"], OptState],
+        carry: tuple[Num[Array, "*batch n"], _OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
+    ) -> tuple[tuple[Num[Array, "*batch n"], _OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)
