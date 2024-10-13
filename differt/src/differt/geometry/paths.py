@@ -134,7 +134,7 @@ class Paths(eqx.Module):
     @property
     @jax.jit
     @jaxtyped(typechecker=typechecker)
-    def num_valid_paths(self) -> Int[ArrayLike, ""]:
+    def num_valid_paths(self) -> Int[ArrayLike, " "]:
         """The number of paths kept by :attr:`mask`.
 
         If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.

@@ -4,8 +4,7 @@ use indexmap::IndexMap;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use serde::{Deserialize, de};
 
-/// A scene as loaded from a Sionna-compatible
-/// XML file.
+/// A scene as loaded from a Sionna-compatible XML file.
 ///
 /// Only a subset of the XML file is actually used.
 ///
@@ -19,14 +18,12 @@ use serde::{Deserialize, de};
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct SionnaScene {
-    /// dict[str, Material]: A mapping between material IDs and actual
-    /// materials.
+    /// dict[str, Material]: A mapping between material IDs and actual materials.
     ///
     /// Currently, only BSDF materials are used.
     #[serde(rename = "bsdf", deserialize_with = "deserialize_materials")]
     pub(crate) materials: IndexMap<String, Material>,
-    /// dict[str, Shape]: A mapping between shape IDs and actual
-    /// shapes.
+    /// dict[str, Shape]: A mapping between shape IDs and actual shapes.
     ///
     /// Currently, only shapes from files are supported.
     ///
