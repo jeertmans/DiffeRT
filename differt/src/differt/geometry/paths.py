@@ -134,7 +134,7 @@ class Paths(eqx.Module):
     @property
     @jax.jit
     @jaxtyped(typechecker=typechecker)
-    def num_valid_paths(self) -> Int[ArrayLike, ""]:
+    def num_valid_paths(self) -> Int[ArrayLike, " "]:
         """The number of paths kept by :attr:`mask`.
 
         If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
@@ -210,7 +210,7 @@ class Paths(eqx.Module):
 
                 By default, the last axis is used to match the
                 ``num_path_candidates`` axis as returned by
-                :meth:`TriangleScene.compute_paths<differt.scene.triangle_scene.TriangleScene.compute_paths`.
+                :meth:`TriangleScene.compute_paths<differt.scene.triangle_scene.TriangleScene.compute_paths>`.
 
         Returns:
             The array of group indices.

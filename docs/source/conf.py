@@ -12,7 +12,11 @@ import os
 from datetime import date
 from typing import Any
 
+from docutils import nodes
+from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
+from sphinx.ext.intersphinx import missing_reference
 
 from differt import __version__
 from differt.scene.sionna import download_sionna_scenes
@@ -54,6 +58,17 @@ suppress_warnings = ["mystnb.unknown_mime_type"]
 
 add_module_names = False
 add_function_parentheses = False
+
+nitpicky = True
+nitpick_ignore = (
+    ("py:class", "Array"),
+    ("py:class", "differt.plotting._utils._Dispatcher"),
+    ("py:class", "differt.utils.TypeVarTuple"),
+    ("py:class", "jax._src.typing.SupportsDType"),
+    ("py:class", "ndarray"),  # From ArrayLike
+    ("py:obj", "differt.utils._T"),
+    ("py:obj", "differt.rt.utils._T"),
+)
 
 # -- MathJax settings
 
@@ -186,9 +201,6 @@ napolean_use_rtype = False
 
 # Patches
 
-# TODO: fix Plotly's Figure not linking to docs with intersphinx,
-#   reported here https://github.com/sphinx-doc/sphinx/issues/12360.
-
 
 def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
     """
@@ -207,7 +219,60 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
         obj.__signature__ = sig.replace(parameters=parameters)
 
 
+def fix_reference(
+    app: Sphinx, env: BuildEnvironment, node: pending_xref, contnode: nodes.TextElement
+) -> nodes.reference | None:
+    """
+    Fix some intersphinx references that are broken.
+    """
+    if node["refdomain"] == "py":
+        if node["reftarget"].startswith(
+            "equinox"
+        ):  # Sphinx fails to find them in the inventory
+            if node["reftarget"].endswith("Module"):
+                uri = (
+                    "https://docs.kidger.site/equinox/api/module/module/#equinox.Module"
+                )
+            elif node["reftarget"].endswith("tree_at"):
+                uri = (
+                    "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
+                )
+            elif node["reftype"] == "mod":
+                uri = "https://docs.kidger.site/equinox/"
+            else:
+                return None
+
+            newnode = nodes.reference(
+                "", "", internal=False, refuri=uri, reftitle="(in equinox)"
+            )
+            newnode.append(contnode)
+
+            return newnode
+        if node["reftarget"].startswith(
+            "jaxtyping"
+        ):  # Sphinx fails to find them in the inventory
+            if node["reftype"] == "class":
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+            elif node["reftype"] == "mod":
+                uri = "https://docs.kidger.site/jaxtyping/"
+            else:
+                return None
+
+            newnode = nodes.reference(
+                "", "", internal=False, refuri=uri, reftitle="(in jaxtyping)"
+            )
+            newnode.append(contnode)
+
+            return newnode
+        if node["reftarget"] == "plotly.graph_objs._figure.Figure":
+            node["reftarget"] = "plotly.graph_objects.Figure"
+            return missing_reference(app, env, node, contnode)
+
+    return None
+
+
 def setup(app: Sphinx) -> None:
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
+    app.connect("missing-reference", fix_reference)

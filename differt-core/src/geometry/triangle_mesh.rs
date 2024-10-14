@@ -119,24 +119,21 @@ impl TriangleMesh {
 
 #[pymethods]
 impl TriangleMesh {
-    /// jaxtyping.Float[np.ndarray, 'num_vertices 3']: The array of triangle
-    /// vertices.
+    /// :class:`Float[np.ndarray, 'num_vertices 3']<jaxtyping.Float>`: The array of triangle vertices.
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         let array = arr2(&self.vertices);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// jaxtyping.Int[np.ndarray, 'num_triangles 3']: The array of triangle
-    /// indices.
+    /// :class:`Int[np.ndarray, 'num_triangles 3']<jaxtyping.Int>`: The array of triangle indices.
     #[getter]
     fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         let array = arr2(&self.triangles);
         PyArray2::from_owned_array_bound(py, array)
     }
 
-    /// jaxtyping.Float[numpy.ndarray, 'num_vertices 3'] | None: The array of
-    /// face colors.
+    /// :class:`Float[np.ndarray, 'num_vertices 3']<jaxtyping.Float>` | :data:`None`: The array of face colors.
     ///
     /// The array contains the face colors, as RGB triplets,
     /// with a black color used as defaults (if some faces have a color).
@@ -150,11 +147,10 @@ impl TriangleMesh {
         None
     }
 
-    /// jaxtyping.Int[numpy.ndarray, 'num_vertices'] | None: The array of face
-    /// materials.
+    /// :class:`Int[np.ndarray, 'num_vertices']<jaxtyping.Int>` | :data:`None`: The array of face materials.
     ///
     /// The array contains the material indices,
-    /// with a special placeholder value of :data:`-1`.
+    /// with a special placeholder value of ``-1``.
     /// The obtain the name of the material, see :attr:`material_names`.
     /// This attribute is :data:`None` if all face materials are unset.
     #[getter]
@@ -165,8 +161,7 @@ impl TriangleMesh {
         None
     }
 
-    /// jaxtyping.Int[numpy.ndarray, 'num_objects 2'] | None: The array of
-    /// object indices.
+    /// :class:`Int[np.ndarray, 'num_objects 2']<jaxtyping.Int>` | :data:`None`: The array of object indices.
     ///
     /// If the present mesh contains multiple objects, usually as a result of
     /// appending multiple meshes together, this array contain start end end
@@ -180,8 +175,7 @@ impl TriangleMesh {
         None
     }
 
-    /// Move all the elements of ``other`` into ``self`` and update
-    /// :attr:`object_bounds`.
+    /// Move all the elements of ``other`` into ``self`` and update :attr:`object_bounds`.
     ///
     /// After calling this method, ``other`` will be empty.
     ///
