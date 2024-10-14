@@ -548,10 +548,10 @@ class TriangleScene(eqx.Module):
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
-                draw_markers(self.transmitters.reshape((-1, 3)), **tx_kwargs)
+                draw_markers(self.transmitters, **tx_kwargs)
 
             if self.receivers.size > 0:
-                draw_markers(self.receivers.reshape((-1, 3)), **rx_kwargs)
+                draw_markers(self.receivers, **rx_kwargs)
 
             self.mesh.plot(**mesh_kwargs)
 

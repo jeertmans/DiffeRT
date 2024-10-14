@@ -162,8 +162,8 @@ def test_draw_surface(
 
     with use(backend):
         _ = draw_surface(
-            x=x if pass_xy else None,
-            y=y if pass_xy else None,
-            z=z,
+            x=X if pass_xy else None,
+            y=Y if pass_xy else None,
+            z=Z,
             colors=X * X + Y * Y + Z * Z if pass_colors else None,
         )
