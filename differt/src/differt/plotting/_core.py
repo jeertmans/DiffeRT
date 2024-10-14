@@ -770,7 +770,8 @@ def _(  # noqa: PLR0917
 
     y = np.arange(m) if y is None else np.asarray(y)
 
-    levels = levels if isinstance(levels, int) else np.asarray(levels)
+    if not isinstance(levels, int) and isinstance(levels, ArrayLike):
+        levels = np.asarray(levels)
 
     if fill:
         ax.contourf(x, y, data, offset=z0, levels=levels, **kwargs)
@@ -856,6 +857,10 @@ def draw_surface(
     Returns:
         The resulting plot output.
 
+    Warning:
+        Matplotlib requires ``colors`` to be RGB or RGBA values.
+        VisPy currently does not support colors.
+
     Examples:
         The following example shows how plot a 3-D surface,
         without and with custom coloring.
@@ -881,6 +886,75 @@ def draw_surface(
     """
 
 
+@draw_surface.register("vispy")
+def _(
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
+    *,
+    z: Real[ArrayLike, "rows cols"],
+    colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    **kwargs: Any,
+) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    from vispy.scene.visuals import SurfacePlot  # noqa: PLC0415
+
+    canvas, view = process_vispy_kwargs(kwargs)
+
+    x = None if x is None else np.asarray(x)
+    y = None if y is None else np.asarray(y)
+    z = np.asarray(z)
+
+    if colors is not None:
+        msg = "VisPy does not currently support coloring like we would like."
+        warnings.warn(msg, UserWarning, stacklevel=2)
+        colors = None
+
+    view.add(SurfacePlot(x=x, y=y, z=z, color=colors, **kwargs))
+
+    return canvas
+
+
+@draw_surface.register("matplotlib")
+def _(
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
+    *,
+    z: Real[ArrayLike, "rows cols"],
+    colors: Real[ArrayLike, "rows cols"]
+    | Real[ArrayLike, "rows cols 3"]
+    | Real[ArrayLike, "rows cols 4"]
+    | None = None,
+    **kwargs: Any,
+) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+    fig, ax = process_matplotlib_kwargs(kwargs)
+
+    z = np.asarray(z)
+
+    x = np.arange(z.shape[1]) if x is None else np.asarray(x)
+
+    if x.ndim == 1:
+        x = np.broadcast_to(x[None, :], z.shape)
+
+    y = np.arange(z.shape[0]) if y is None else np.asarray(y)
+
+    if y.ndim == 1:
+        y = np.broadcast_to(y[:, None], z.shape)
+
+    if colors is not None and "facecolors" not in kwargs:
+        colors = np.asarray(colors)
+        if colors.ndim != 3:  # noqa: PLR2004
+            msg = "Matplotlib requires 'colors' to be RGB or RGBA values."
+            warnings.warn(msg, UserWarning, stacklevel=2)
+            c_min = colors.min()
+            c_max = colors.max()
+            colors = np.broadcast_to(colors[..., None], (*colors.shape, 3))
+            colors = (colors - c_min) / (c_max - c_min)
+        kwargs["facecolors"] = colors
+
+    ax.plot_surface(x, y, z, **kwargs)
+
+    return fig
+
+
 @draw_surface.register("plotly")
 def _(
     x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
@@ -895,8 +969,10 @@ def _(
     x = None if x is None else np.asarray(x)
     y = None if y is None else np.asarray(y)
     z = np.asarray(z)
-    colors = None if colors is None else np.asarray(colors)
 
-    fig.add_surface(x=x, y=y, z=z, surfacecolor=colors, **kwargs)
+    if colors is not None and "surfacecolor" not in kwargs:
+        kwargs["surfacecolor"] = np.asarray(colors)
+
+    fig.add_surface(x=x, y=y, z=z, **kwargs)
 
     return fig

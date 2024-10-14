@@ -158,9 +158,14 @@ def test_draw_surface(
     x = np.linspace(0, 1, 10)
     y = np.linspace(0, 1, 20)
     X, Y = np.meshgrid(x, y)  # noqa: N806
-    Z = X * Y
+    Z = X * Y  # noqa: N806
 
-    with use(backend):
+    if backend in {"vispy", "matplotlib"} and pass_colors:
+        expectation = pytest.warns(UserWarning)
+    else:
+        expectation = does_not_raise()
+
+    with use(backend), expectation:
         _ = draw_surface(
             x=X if pass_xy else None,
             y=Y if pass_xy else None,
