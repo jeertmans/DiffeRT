@@ -231,9 +231,7 @@ def fix_reference(
                     "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
                 )
             elif node["reftype"] == "mod":
-                uri = (
-                    "https://docs.kidger.site/equinox/"
-                )
+                uri = "https://docs.kidger.site/equinox/"
             else:
                 return None
 
@@ -243,17 +241,13 @@ def fix_reference(
             newnode.append(contnode)
 
             return newnode
-        elif node["reftarget"].startswith(
+        if node["reftarget"].startswith(
             "jaxtyping"
         ):  # Sphinx fails to find them in the inventory
             if node["reftype"] == "class":
-                uri = (
-                    "https://docs.kidger.site/jaxtyping/api/array/#dtype"
-                )
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
             elif node["reftype"] == "mod":
-                uri = (
-                    "https://docs.kidger.site/jaxtyping/"
-                )
+                uri = "https://docs.kidger.site/jaxtyping/"
             else:
                 return None
 
