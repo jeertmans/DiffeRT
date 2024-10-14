@@ -12,7 +12,7 @@ import os
 from datetime import date
 from typing import Any
 
-from docutils.nodes import Element, TextElement
+from docutils import nodes
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
 from sphinx.environment import BuildEnvironment
@@ -66,14 +66,8 @@ nitpick_ignore = (
     ("py:class", "differt.utils.TypeVarTuple"),
     ("py:class", "jax._src.typing.SupportsDType"),
     ("py:class", "ndarray"),  # From ArrayLike
-    ("py:mod", "equinox"),
-    ("py:mod", "jaxtyping"),
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
-)
-nitpick_ignore_regex = (
-    (r"py:.*", r"equinox\..*"),
-    (r"py:.*", r"jaxtyping\..*"),
 )
 
 # -- Intersphinx mapping
@@ -219,18 +213,53 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
 
 def fix_reference(
-    app: Sphinx, env: BuildEnvironment, node: pending_xref, contnode: TextElement
-) -> Element | None:
+    app: Sphinx, env: BuildEnvironment, node: pending_xref, contnode: nodes.TextElement
+) -> nodes.reference | None:
     """
     Fix some intersphinx references that are broken.
     """
     if node["refdomain"] == "py":
+        if node["reftarget"].startswith(
+            "equinox"
+        ):  # Sphinx fails to find them in the inventory
+            if node["reftarget"].endswith("Module"):
+                uri = (
+                    "https://docs.kidger.site/equinox/api/module/module/#equinox.Module"
+                )
+            elif node["reftarget"].endswith("tree_at"):
+                uri = (
+                    "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
+                )
+            elif node["reftype"] == "mod":
+                uri = "https://docs.kidger.site/equinox/"
+            else:
+                return None
+
+            newnode = nodes.reference(
+                "", "", internal=False, refuri=uri, reftitle="(in equinox)"
+            )
+            newnode.append(contnode)
+
+            return newnode
+        if node["reftarget"].startswith(
+            "jaxtyping"
+        ):  # Sphinx fails to find them in the inventory
+            if node["reftype"] == "class":
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+            elif node["reftype"] == "mod":
+                uri = "https://docs.kidger.site/jaxtyping/"
+            else:
+                return None
+
+            newnode = nodes.reference(
+                "", "", internal=False, refuri=uri, reftitle="(in jaxtyping)"
+            )
+            newnode.append(contnode)
+
+            return newnode
         if node["reftarget"] == "plotly.graph_objs._figure.Figure":
             node["reftarget"] = "plotly.graph_objects.Figure"
-        else:
-            return None
-
-        return missing_reference(app, env, node, contnode)
+            return missing_reference(app, env, node, contnode)
 
     return None
 
