@@ -1,14 +1,10 @@
 """
 Plotting utilities for DiffeRT objects.
 
-.. warning::
+.. tip::
 
-    Unlike in other modules, plotting utilities work
+    Unlike in other modules, plotting utilities also work
     with NumPy arrays (:class:`np.ndarray<numpy.ndarray>`)
-    instead of JAX arrays. Therefore, it is important to first
-    convert any JAX array into its NumPy equivalent with
-    :func:`np.asarray<numpy.asarray>` before using it as an
-    argument to any of the functions defined here.
 
 
 .. note::
@@ -88,6 +84,7 @@ the Matplotlib backend.
 """
 
 __all__ = (
+    "PlotOutput",
     "dispatch",
     "draw_contour",
     "draw_image",
@@ -95,6 +92,7 @@ __all__ = (
     "draw_mesh",
     "draw_paths",
     "draw_rays",
+    "draw_surface",
     "get_backend",
     "process_matplotlib_kwargs",
     "process_plotly_kwargs",
@@ -106,12 +104,14 @@ __all__ = (
 )
 
 from ._core import (
+    PlotOutput,
     draw_contour,
     draw_image,
     draw_markers,
     draw_mesh,
     draw_paths,
     draw_rays,
+    draw_surface,
 )
 from ._utils import (
     dispatch,

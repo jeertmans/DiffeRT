@@ -7,11 +7,10 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped, jaxtyped
 
-from differt.plotting import draw_paths
+from differt.plotting import PlotOutput, draw_paths
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -311,7 +310,7 @@ class Paths(eqx.Module):
         """
         return jnp.sum(fun(self.vertices), where=self.mask)
 
-    def plot(self, **kwargs: Any) -> Any:
+    def plot(self, **kwargs: Any) -> PlotOutput:
         """
         Plot the (masked) paths on a 3D scene.
 
@@ -322,4 +321,4 @@ class Paths(eqx.Module):
         Returns:
             The resulting plot output.
         """
-        return draw_paths(np.asarray(self.masked_vertices), **kwargs)
+        return draw_paths(self.masked_vertices, **kwargs)

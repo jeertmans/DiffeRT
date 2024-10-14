@@ -34,13 +34,13 @@ We can identify two specific cases:
 
 1. For plotting, we rely on third-party libraries that
    may not support JAX arrays, e.g., Vispy. As a result,
-   {mod}`differt.plotting` only works with NumPy arrays.
+   {mod}`differt.plotting` automatically convert NumPy arrays.
 2. In the Rust code, there is no way of directly creating JAX
    arrays, but well for NumPy. Therefore, directly calling the functions
    declared with Rust code will return NumPy arrays.
 
 Similarly, NumPy arrays use the following type annotations:
-`Dtype[ndarray, 'Shape']`.
+`Dtype[np.ndarray, 'Shape']`.
 
 ## From JAX to NumPy and vice-versa
 
