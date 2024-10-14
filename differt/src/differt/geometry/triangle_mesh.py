@@ -7,12 +7,11 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry.triangle_mesh
-from differt.plotting import draw_mesh
+from differt.plotting import PlotOutput, draw_mesh
 
 from .utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
@@ -420,7 +419,7 @@ class TriangleMesh(eqx.Module):
         core_mesh = differt_core.geometry.triangle_mesh.TriangleMesh.load_ply(file)
         return cls.from_core(core_mesh)
 
-    def plot(self, **kwargs: Any) -> Any:
+    def plot(self, **kwargs: Any) -> PlotOutput:
         """
         Plot this mesh on a 3D scene.
 
@@ -432,11 +431,11 @@ class TriangleMesh(eqx.Module):
             The resulting plot output.
         """
         if "face_colors" not in kwargs and self.face_colors is not None:
-            kwargs["face_colors"] = np.asarray(self.face_colors)
+            kwargs["face_colors"] = self.face_colors
 
         return draw_mesh(
-            vertices=np.asarray(self.vertices),
-            triangles=np.asarray(self.triangles),
+            vertices=self.vertices,
+            triangles=self.triangles,
             **kwargs,
         )
 

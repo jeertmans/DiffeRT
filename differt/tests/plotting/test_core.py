@@ -10,6 +10,7 @@ from differt.plotting import (
     draw_mesh,
     draw_paths,
     draw_rays,
+    draw_surface,
     use,
 )
 
@@ -21,8 +22,8 @@ from differt.plotting import (
 def test_draw_mesh(
     backend: str,
 ) -> None:
-    vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
-    triangles = np.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+    vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
+    triangles = np.array([[0, 1, 2], [0, 2, 3]])
     with use(backend):
         _ = draw_mesh(vertices, triangles)
 
@@ -134,4 +135,35 @@ def test_draw_contour(
             y=y if pass_xy else None,
             levels=levels,
             fill=fill,
+        )
+
+
+@pytest.mark.parametrize(
+    "backend",
+    ["vispy", "matplotlib", "plotly"],
+)
+@pytest.mark.parametrize(
+    "pass_xy",
+    [True, False],
+)
+@pytest.mark.parametrize(
+    "pass_colors",
+    [True, False],
+)
+def test_draw_surface(
+    backend: str,
+    pass_xy: bool,
+    pass_colors: bool,
+) -> None:
+    x = np.linspace(0, 1, 10)
+    y = np.linspace(0, 1, 20)
+    X, Y = np.meshgrid(x, y)  # noqa: N806
+    Z = X * Y
+
+    with use(backend):
+        _ = draw_surface(
+            x=x if pass_xy else None,
+            y=y if pass_xy else None,
+            z=z,
+            colors=X * X + Y * Y + Z * Z if pass_colors else None,
         )

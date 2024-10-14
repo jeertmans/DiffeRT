@@ -9,7 +9,6 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 from beartype import beartype as typechecker
 from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
@@ -23,7 +22,7 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
 )
 from differt.geometry.utils import assemble_paths
-from differt.plotting import draw_markers, reuse
+from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
@@ -526,7 +525,7 @@ class TriangleScene(eqx.Module):
         rx_kwargs: Mapping[str, Any] | None = None,
         mesh_kwargs: Mapping[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Any:  # TODO: change output type
+    ) -> PlotOutput:
         """
         Plot this scene on a 3D scene.
 
@@ -549,12 +548,10 @@ class TriangleScene(eqx.Module):
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
-                draw_markers(
-                    np.asarray(self.transmitters).reshape((-1, 3)), **tx_kwargs
-                )
+                draw_markers(self.transmitters.reshape((-1, 3)), **tx_kwargs)
 
             if self.receivers.size > 0:
-                draw_markers(np.asarray(self.receivers).reshape((-1, 3)), **rx_kwargs)
+                draw_markers(self.receivers.reshape((-1, 3)), **rx_kwargs)
 
             self.mesh.plot(**mesh_kwargs)
 

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import numpy as np
-from jaxtyping import Float, Int, Num
+from jaxtyping import ArrayLike, Int, Real
 
 from ._utils import (
     dispatch,
@@ -35,11 +35,14 @@ try:
 except ImportError:
     Canvas = Any
 
+PlotOutput = Canvas | MplFigure | Figure
+"""The output of any plotting function."""
+
 
 @dispatch
 def draw_mesh(
-    vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: Int[np.ndarray, "num_triangles 3"],
+    vertices: Real[ArrayLike, "num_vertices 3"],
+    triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -96,14 +99,16 @@ def draw_mesh(
 
 @draw_mesh.register("vispy")
 def _(
-    vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: Int[np.ndarray, "num_triangles 3"],
+    vertices: Real[ArrayLike, "num_vertices 3"],
+    triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Mesh  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    vertices = np.asarray(vertices)
+    triangles = np.asarray(triangles)
     view.add(Mesh(vertices=vertices, faces=triangles, shading="flat", **kwargs))
     view.camera.set_range()
 
@@ -112,15 +117,16 @@ def _(
 
 @draw_mesh.register("matplotlib")
 def _(
-    vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: Int[np.ndarray, "num_triangles 3"],
+    vertices: Real[ArrayLike, "num_vertices 3"],
+    triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     kwargs.pop("face_colors", None)
 
-    x, y, z = vertices.T
+    x, y, z = np.asarray(vertices).T
+    triangles = np.asarray(triangles)
     ax.plot_trisurf(x, y, z, triangles=triangles, **kwargs)
 
     return fig
@@ -128,8 +134,8 @@ def _(
 
 @draw_mesh.register("plotly")
 def _(
-    vertices: Float[np.ndarray, "num_vertices 3"],
-    triangles: Int[np.ndarray, "num_triangles 3"],
+    vertices: Real[ArrayLike, "num_vertices 3"],
+    triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
@@ -139,15 +145,15 @@ def _(
     ) is not None and "facecolor" not in kwargs:
         kwargs["facecolor"] = face_colors
 
-    x, y, z = vertices.T
-    i, j, k = triangles.T
+    x, y, z = np.asarray(vertices).T
+    i, j, k = np.asarray(triangles).T
 
     return fig.add_mesh3d(x=x, y=y, z=z, i=i, j=j, k=k, **kwargs)
 
 
 @dispatch
 def draw_paths(
-    paths: Float[np.ndarray, "batch path_length 3"],
+    paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -204,7 +210,7 @@ def draw_paths(
 
 @draw_paths.register("vispy")
 def _(
-    paths: Float[np.ndarray, "*batch path_length 3"],
+    paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import LinePlot  # noqa: PLC0415
@@ -213,6 +219,7 @@ def _(
 
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
+    paths = np.asarray(paths)
 
     for path in paths.reshape(-1, *paths.shape[-2:]):
         x, y, z = path.T
@@ -225,10 +232,12 @@ def _(
 
 @draw_paths.register("matplotlib")
 def _(
-    paths: Float[np.ndarray, "*batch path_length 3"],
+    paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
+
+    paths = np.asarray(paths)
 
     for path in paths.reshape(-1, *paths.shape[-2:]):
         ax.plot(*path.T, **kwargs)
@@ -238,10 +247,12 @@ def _(
 
 @draw_paths.register("plotly")
 def _(
-    paths: Float[np.ndarray, "*batch path_length 3"],
+    paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
+
+    paths = np.asarray(paths)
 
     for path in paths.reshape(-1, *paths.shape[-2:]):
         x, y, z = path.T
@@ -252,8 +263,8 @@ def _(
 
 @dispatch
 def draw_rays(
-    ray_origins: Float[np.ndarray, "*batch 3"],
-    ray_directions: Float[np.ndarray, "*batch 3"],
+    ray_origins: Real[ArrayLike, "*batch 3"],
+    ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -280,11 +291,9 @@ def draw_rays(
             >>> from differt.geometry.utils import fibonacci_lattice
             >>> from differt.plotting import draw_rays
             >>>
-            >>> ray_origins = np.zeros(3)
-            >>> ray_directions = np.asarray(
-            ...     fibonacci_lattice(50)
-            ... )  # From JAX to NumPy array
-            >>> ray_origins, ray_directions = np.broadcast_arrays(
+            >>> ray_origins = jnp.zeros(3)
+            >>> ray_directions = fibonacci_lattice(50)
+            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
             ...     ray_origins, ray_directions
             ... )
             >>> fig = draw_rays(
@@ -298,10 +307,12 @@ def draw_rays(
 
 @draw_rays.register("vispy")
 def _(
-    ray_origins: Float[np.ndarray, "*batch 3"],
-    ray_directions: Float[np.ndarray, "*batch 3"],
+    ray_origins: Real[ArrayLike, "*batch 3"],
+    ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+    ray_origins = np.asarray(ray_origins)
+    ray_directions = np.asarray(ray_directions)
     ray_ends = ray_origins + ray_directions
     paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
 
@@ -310,14 +321,14 @@ def _(
 
 @draw_rays.register("matplotlib")
 def _(
-    ray_origins: Float[np.ndarray, "*batch 3"],
-    ray_directions: Float[np.ndarray, "*batch 3"],
+    ray_origins: Real[ArrayLike, "*batch 3"],
+    ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    ray_origins = ray_origins.reshape(-1, 3)
-    ray_directions = ray_directions.reshape(-1, 3)
+    ray_origins = np.asarray(ray_origins).reshape(-1, 3)
+    ray_directions = np.asarray(ray_directions).reshape(-1, 3)
 
     ax.quiver(*ray_origins.T, *ray_directions.T, **kwargs)
 
@@ -326,10 +337,12 @@ def _(
 
 @draw_rays.register("plotly")
 def _(
-    ray_origins: Float[np.ndarray, "*batch 3"],
-    ray_directions: Float[np.ndarray, "*batch 3"],
+    ray_origins: Real[ArrayLike, "*batch 3"],
+    ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    ray_origins = np.asarray(ray_origins)
+    ray_directions = np.asarray(ray_directions)
     ray_ends = ray_origins + ray_directions
     paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
 
@@ -338,7 +351,7 @@ def _(
 
 @dispatch
 def draw_markers(
-    markers: Float[np.ndarray, "num_markers 3"],
+    markers: Real[ArrayLike, "*batch 3"],
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
@@ -387,7 +400,7 @@ def draw_markers(
 
 @draw_markers.register("vispy")
 def _(
-    markers: Float[np.ndarray, "num_markers 3"],
+    markers: Real[ArrayLike, "*batch 3"],
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
@@ -398,6 +411,7 @@ def _(
     kwargs.setdefault("size", 1)
     kwargs.setdefault("edge_width_rel", 0.05)
     kwargs.setdefault("scaling", "scene")
+    markers = np.asarray(markers).reshape(-1, 3)
     view.add(Markers(pos=markers, **kwargs))
 
     if labels:
@@ -411,7 +425,7 @@ def _(
 
 @draw_markers.register("matplotlib")
 def _(
-    markers: Float[np.ndarray, "num_markers 3"],
+    markers: Real[ArrayLike, "*batch 3"],
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
@@ -423,7 +437,7 @@ def _(
         warnings.warn(msg, UserWarning, stacklevel=2)
         del labels, text_kwargs
 
-    xs, ys, zs = markers.T
+    xs, ys, zs = np.asarray(markers).reshape(-1, 3).T
 
     ax.scatter(xs, ys, zs=zs, **kwargs)
 
@@ -432,7 +446,7 @@ def _(
 
 @draw_markers.register("plotly")
 def _(
-    markers: Float[np.ndarray, "num_markers 3"],
+    markers: Real[ArrayLike, "*batch 3"],
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
     **kwargs: Any,
@@ -444,7 +458,7 @@ def _(
     else:
         kwargs = {"mode": "markers", **kwargs}
 
-    x, y, z = markers.T
+    x, y, z = np.asarray(markers).reshape(-1, 3).T
     return fig.add_scatter3d(
         x=x,
         y=y,
@@ -456,11 +470,11 @@ def _(
 
 @dispatch
 def draw_image(
-    data: Num[np.ndarray, "rows cols"]
-    | Num[np.ndarray, "rows cols 3"]
-    | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"]
+    | Real[ArrayLike, "rows cols 3"]
+    | Real[ArrayLike, "rows cols 4"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
@@ -515,11 +529,11 @@ def draw_image(
 
 @draw_image.register("vispy")
 def _(
-    data: Num[np.ndarray, "rows cols"]
-    | Num[np.ndarray, "rows cols 3"]
-    | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"]
+    | Real[ArrayLike, "rows cols 3"]
+    | Real[ArrayLike, "rows cols 4"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
@@ -528,6 +542,7 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    data = np.asarray(data)
     image = Image(data, **kwargs)
 
     m, n = data.shape[:2]
@@ -562,23 +577,22 @@ def _(
 
 @draw_image.register("matplotlib")
 def _(
-    data: Num[np.ndarray, "rows cols"]
-    | Num[np.ndarray, "rows cols 3"]
-    | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"]
+    | Real[ArrayLike, "rows cols 3"]
+    | Real[ArrayLike, "rows cols 4"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
+    data = np.asarray(data)
     m, n = data.shape[:2]
 
-    if x is None:
-        x = np.arange(n)
+    x = np.arange(n) if x is None else np.asarray(x)
 
-    if y is None:
-        y = np.arange(m)
+    y = np.arange(m) if y is None else np.asarray(y)
 
     ax.contourf(x, y, data, offset=z0, **kwargs)
 
@@ -587,15 +601,19 @@ def _(
 
 @draw_image.register("plotly")
 def _(
-    data: Num[np.ndarray, "rows cols"]
-    | Num[np.ndarray, "rows cols 3"]
-    | Num[np.ndarray, "rows cols 4"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"]
+    | Real[ArrayLike, "rows cols 3"]
+    | Real[ArrayLike, "rows cols 4"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
     fig = process_plotly_kwargs(kwargs)
+
+    data = np.asarray(data)
+    x = None if x is None else np.asarray(x)
+    y = None if y is None else np.asarray(y)
 
     return fig.add_surface(
         x=x,
@@ -608,11 +626,11 @@ def _(
 
 @dispatch
 def draw_contour(  # noqa: PLR0917
-    data: Num[np.ndarray, "rows cols"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
-    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
@@ -622,10 +640,10 @@ def draw_contour(  # noqa: PLR0917
     Args:
         data: The values over which the contour is drawn.
         x: The x-coordinates corresponding to first dimension
-            of the image. Those coordinates will be used to scale and translate
+            of the contour. Those coordinates will be used to scale and translate
             the contour.
         y: The y-coordinates corresponding to second dimension
-            of the image. Those coordinates will be used to scale and translate
+            of the contour. Those coordinates will be used to scale and translate
             the contour.
         z0: The z-coordinate at which the contour is placed.
         levels: The levels at which the contour is drawn.
@@ -670,16 +688,18 @@ def draw_contour(  # noqa: PLR0917
 
 @draw_contour.register("vispy")
 def _(  # noqa: PLR0917
-    data: Num[np.ndarray, "rows cols"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
-    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
 ) -> Canvas:  # type: ignore[reportInvalidTypeForm]
     from vispy.scene.visuals import Isocurve  # noqa: PLC0415
     from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+
+    data = np.asarray(data)
 
     if isinstance(levels, int):
         msg = (
@@ -688,6 +708,8 @@ def _(  # noqa: PLR0917
         )
         warnings.warn(msg, UserWarning, stacklevel=2)
         levels = np.linspace(data.min(), data.max(), levels + 1)
+    else:
+        levels = np.asarray(levels)
 
     if fill:
         msg = "VisPy does not support filling contour, this option is ignored."
@@ -731,23 +753,24 @@ def _(  # noqa: PLR0917
 
 @draw_contour.register("matplotlib")
 def _(  # noqa: PLR0917
-    data: Num[np.ndarray, "rows cols"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
-    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
 ) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
     fig, ax = process_matplotlib_kwargs(kwargs)
 
+    data = np.asarray(data)
     m, n = data.shape[:2]
 
-    if x is None:
-        x = np.arange(n)
+    x = np.arange(n) if x is None else np.asarray(x)
 
-    if y is None:
-        y = np.arange(m)
+    y = np.arange(m) if y is None else np.asarray(y)
+
+    levels = levels if isinstance(levels, int) else np.asarray(levels)
 
     if fill:
         ax.contourf(x, y, data, offset=z0, levels=levels, **kwargs)
@@ -759,11 +782,11 @@ def _(  # noqa: PLR0917
 
 @draw_contour.register("plotly")
 def _(  # noqa: PLR0917
-    data: Num[np.ndarray, "rows cols"],
-    x: Float[np.ndarray, " cols"] | None = None,
-    y: Float[np.ndarray, " rows"] | None = None,
+    data: Real[ArrayLike, "rows cols"],
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
-    levels: int | Float[np.ndarray, " num_levels"] | None = None,
+    levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
 ) -> Figure:  # type: ignore[reportInvalidTypeForm]
@@ -777,7 +800,8 @@ def _(  # noqa: PLR0917
     if isinstance(levels, int):
         kwargs.setdefault("autocontour", True)
         kwargs.setdefault("ncontours", levels)
-    elif isinstance(levels, np.ndarray):
+    elif isinstance(levels, ArrayLike):
+        levels = np.asarray(levels)
         msg = (
             "Plotly does not support arbitrary level values, but only linearly spaced levels. "
             f"A range of values from {levels.min() = } to {levels.max() = } with step "
@@ -789,9 +813,90 @@ def _(  # noqa: PLR0917
         contours["end"] = levels.max()
         contours["size"] = (levels.max() - levels.min()) / max(1, levels.size - 1)
 
+    data = np.asarray(data)
+    x = None if x is None else np.asarray(x)
+    y = None if y is None else np.asarray(y)
+
     return fig.add_contour(
         x=x,
         y=y,
         z=data,
         **kwargs,
     )
+
+
+@dispatch
+def draw_surface(
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
+    *,
+    z: Real[ArrayLike, "rows cols"],
+    colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    **kwargs: Any,
+) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+    """
+    Plot a 3D surface.
+
+    Args:
+        x: The x-coordinates corresponding to first dimension
+            of the surface.
+        y: The y-coordinates corresponding to second dimension
+            of the surface.
+        z: The z-coordinates corresponding to third dimension
+            of the surface.
+        colors: The color of values to use.
+
+            In the Plotly backend, the default is to use the values in ``z``.
+        kwargs: Keyword arguments passed to
+            :class:`Isocurve<vispy.scene.visuals.SurfacePlot>`,
+            :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface>`,
+            or :class:`Surface<plotly.graph_objects.Surface>`, depending on the
+            backend.
+
+    Returns:
+        The resulting plot output.
+
+    Examples:
+        The following example shows how plot a 3-D surface,
+        without and with custom coloring.
+
+        .. plotly::
+            :fig-vars: fig1, fig2
+
+            >>> from differt.plotting import draw_surface
+            >>>
+            >>> u = np.linspace(0, 2 * np.pi, 100)
+            >>> v = np.linspace(0, np.pi, 100)
+            >>> x = np.outer(np.cos(u), np.sin(v))
+            >>> y = np.outer(np.sin(u), np.sin(v))
+            >>> z = np.outer(np.cos(u), np.cos(v))
+            >>> fig1 = draw_surface(x, y, z=z, backend="plotly")
+            >>> fig1  # doctest: +SKIP
+            >>>
+            >>> fig2 = draw_surface(
+            ...     x, y, z=z, colors=x * x + y * y + z * z, backend="plotly"
+            ... )
+            >>> fig2  # doctest: +SKIP
+
+    """
+
+
+@draw_surface.register("plotly")
+def _(
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
+    *,
+    z: Real[ArrayLike, "rows cols"],
+    colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    **kwargs: Any,
+) -> Figure:  # type: ignore[reportInvalidTypeForm]
+    fig = process_plotly_kwargs(kwargs)
+
+    x = None if x is None else np.asarray(x)
+    y = None if y is None else np.asarray(y)
+    z = np.asarray(z)
+    colors = None if colors is None else np.asarray(colors)
+
+    fig.add_surface(x=x, y=y, z=z, surfacecolor=colors, **kwargs)
+
+    return fig
