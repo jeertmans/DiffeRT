@@ -192,7 +192,7 @@ select = ["ALL"]
 extend-allowed-calls = ["jax.numpy.array"]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["equinox.field"]
+extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
 
 [tool.ruff.lint.pep8-naming]
 extend-ignore-names = ["T"]

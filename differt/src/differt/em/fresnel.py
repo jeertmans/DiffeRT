@@ -35,24 +35,29 @@ Examples:
         ...     k_dir, r = normalize(r, keepdims=True)
         ...     e_dir = k_dir.at[..., 0].multiply(-1)[..., [1, 0, 2]]
         ...     return e_dir * jnp.sin(theta) * jnp.sin(r) / r
-        ...     
         >>> tx_position = jnp.array([0.0, 2.0, 0.0])
         >>> rx_position = jnp.array([0.0, 1.0, 0.0])
         >>> n = 1000
         >>> x = jnp.linspace(1, 10, n)
         >>> rx_positions = jnp.tile(rx_position, (n, 1)).at[..., 0].add(x)
         >>> E_los = field(rx_positions - tx_position)
-        >>> plt.plot(x, 20 * jnp.log10(jnp.linalg.norm(E_los, axis=-1)), label=r"$E_\text{los}$")  # doctest: +SKIP
+        >>> plt.plot(
+        ...     x,
+        ...     20 * jnp.log10(jnp.linalg.norm(E_los, axis=-1)),
+        ...     label=r"$E_\text{los}$",
+        ... )  # doctest: +SKIP
         >>>
         >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])
-        >>> ground_normal = jnp.normal([0.0, 1.0, 0.0])
-        >>> reflection_points = image_method(tx_position, rx_positions, ground_vertex, groun_normal)
+        >>> ground_normal = jnp.array([0.0, 1.0, 0.0])
+        >>> reflection_points = image_method(
+        ...     tx_position, rx_positions, ground_vertex, groun_normal
+        ... )
         >>> E_at_rp = field(reflection_points - tx_position)
         >>> incident_vectors = normalize(reflection_points - tx_position)[0]
         >>> cos_theta = jnp.dot(ground_normal, -incident_vectors)
         >>> epsilon_r = 1.0
         >>> r_s, r_p = reflection_coefficients(epsilon_r, cos_theta)
-        >>> #theta_d = jnp.rad2deg(theta)
+        >>> # theta_d = jnp.rad2deg(theta)
         >>> plt.xlabel("Distance to transmitter on x-axis")  # doctest: +SKIP
         >>> plt.ylabel("Received power")  # doctest: +SKIP
         >>> plt.legend()  # doctest: +SKIP
@@ -64,7 +69,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Inexact, jaxtyped
 
-from ..utils import safe_divide
+from differt.utils import safe_divide
 
 
 @eqx.filter_jit
@@ -144,10 +149,7 @@ def reflection_coefficients(
             >>> plt.legend()  # doctest: +SKIP
             >>> plt.tight_layout()  # doctest: +SKIP
     """
-    if mu_r is None:
-        sqrt_n_t = epsilon_r
-    else:
-        sqrt_n_t = epsilon_r * mu_r
+    sqrt_n_t = epsilon_r if mu_r is None else epsilon_r * mu_r
 
     n_t_cos_theta_t = jnp.sqrt(sqrt_n_t + cos_theta_i**2 - 1)
     n_t_squared_cos_theta_i = sqrt_n_t * cos_theta_i

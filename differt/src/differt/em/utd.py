@@ -75,10 +75,8 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
 
 
 @jax.jit
-def rays_to_sin_angles(incident_rays, diffracted_rays, edge_vectors):
-    """
-    Compute the sin of angles...
-    """
+def rays_to_sin_angles(incident_rays, diffracted_rays, edge_vectors) -> None:
+    """Compute the sin of angles..."""
     incident_rays, _ = normalize(incident_rays)
     diffracted_rays, _ = normalize(diffracted_rays)
 
@@ -96,7 +94,7 @@ def diffraction_coefficients(
     Args:
         sin_beta_0: ...
         sin_beta: ...
-        sin_phi: 
+        sin_phi:
     """
     # Ensure input vectors are normalized
     incident_ray = incident_ray / jnp.linalg.norm(incident_ray)
@@ -123,8 +121,8 @@ def diffraction_coefficients(
         return 1.0 / jnp.tan(x)
 
     # Compute the a± coefficients
-    a_plus = 1 + jnp.cos(2 * n * jnp.pi - (phi + beta - beta_0))
-    a_minus = 1 + jnp.cos(2 * n * jnp.pi - (phi - beta + beta_0))
+    1 + jnp.cos(2 * n * jnp.pi - (phi + beta - beta_0))
+    1 + jnp.cos(2 * n * jnp.pi - (phi - beta + beta_0))
 
     # Compute the D_s and D_h functions
     def D_soft(L, cot_arg):
@@ -163,11 +161,9 @@ def diffraction_coefficients(
     D_h = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_h, 0)
 
     # Construct the dyadic diffraction coefficient matrix
-    diffraction_matrix = jnp.array(
-        [[D_s, 0, 0], [0, D_h, 0], [0, 0, 0]], dtype=jnp.complex64
-    )
+    jnp.array([[D_s, 0, 0], [0, D_h, 0], [0, 0, 0]], dtype=jnp.complex64)
 
-    #s_p
+    # s_p
 
     d_12 = d_1 + d_2
     d_34 = d_3 + d_4

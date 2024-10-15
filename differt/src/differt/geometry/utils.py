@@ -31,10 +31,9 @@ def pairwise_cross(
 def normalize(
     vector: Float[Array, "*batch 3"],
     keepdims: bool = False,
-) -> (
-    tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]
-    | tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]
-):
+) -> tuple[
+    Float[Array, "*batch 3"], Float[Array, " *batch"] | Float[Array, " *batch 1"]
+]:
     """
     Normalize vectors and also return their length.
 
@@ -44,7 +43,7 @@ def normalize(
     Args:
         vector: An array of vectors.
         keepdims: If set to :data:`True`, the array of lengths
-            will have the same number of dimensions are the input.
+            will have the same number of dimensions as the input.
 
     Returns:
         The normalized vector and their length.
@@ -329,7 +328,9 @@ def rotation_matrix_along_axis(
 def fibonacci_lattice(
     n: int,
     dtype: DTypeLike | None = None,
-) -> Float[Array, "{n} 3"]:
+    *,
+    grid: bool = False,
+) -> Float[Array, "{n} 3"] | Float[Array, "{n} {n} 3"]:
     """
     Return a lattice of vertices on the unit sphere.
 
@@ -339,6 +340,13 @@ def fibonacci_lattice(
     Args:
         n: The size of the lattice.
         dtype: The float dtype of the vertices.
+        grid: Whether to return a grid of shape ``{n} {n} 3``
+            instead. This is mainly useful if you need to plot
+            a surface that is generated from a lattice.
+
+            See
+            :class:`Dipole<differt.em.antenna.Dipole>`
+            for an example.
 
     Returns:
         The array of vertices.
@@ -370,6 +378,9 @@ def fibonacci_lattice(
 
     lat = jnp.arccos(1 - 2 * i / n)
     lon = 2 * jnp.pi * i / phi
+
+    if grid:
+        lat, lon = jnp.meshgrid(lat, lon)
 
     co_lat = jnp.cos(lat)
     si_lat = jnp.sin(lat)

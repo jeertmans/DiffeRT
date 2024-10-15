@@ -39,7 +39,7 @@ def test_F() -> None:  # noqa: N802
     chex.assert_trees_all_close(mag, 1.0, atol=1e-4)
 
 
-def test_diffraction_coefficients():
+def test_diffraction_coefficients() -> None:
     # Test case 1: Normal diffraction
     incident_ray = jnp.array([1.0, 0.0, 0.0])
     diffracted_ray = jnp.array([0.0, 1.0, 0.0])
