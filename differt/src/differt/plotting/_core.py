@@ -293,9 +293,7 @@ def draw_rays(
             >>>
             >>> ray_origins = jnp.zeros(3)
             >>> ray_directions = fibonacci_lattice(50)
-            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
-            ...     ray_origins, ray_directions
-            ... )
+            >>> ray_origins, ray_directions = jnp.broadcast_arrays(ray_origins, ray_directions)
             >>> fig = draw_rays(
             ...     ray_origins,
             ...     ray_directions,
@@ -878,9 +876,7 @@ def draw_surface(
             >>> fig1 = draw_surface(x, y, z=z, backend="plotly")
             >>> fig1  # doctest: +SKIP
             >>>
-            >>> fig2 = draw_surface(
-            ...     x, y, z=z, colors=x * x + y * y + z * z, backend="plotly"
-            ... )
+            >>> fig2 = draw_surface(x, y, z=z, colors=x * x + y * y + z * z, backend="plotly")
             >>> fig2  # doctest: +SKIP
 
     """

@@ -20,7 +20,7 @@ else:
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def _cluster_ids(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
+def _cell_ids(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         indices: Int[Array, " batch"],
@@ -40,15 +40,15 @@ def _cluster_ids(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def merge_cluster_ids(
-    cluster_ids_a: Int[Array, " *batch"],
-    cluster_ids_b: Int[Array, " *batch"],
+def merge_cell_ids(
+    cell_ids_a: Int[Array, " *batch"],
+    cell_ids_b: Int[Array, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
-    Merge two arrays of cluster indices as returned by :meth:`Paths.multipath_clusters`.
+    Merge two arrays of cell indices as returned by :meth:`Paths.multipath_cells`.
 
-    Let the returned array be ``cluster_ids``,
-    then ``cluster_ids[i] == cluster_ids[j]`` for all ``i``,
+    Let the returned array be ``cell_ids``,
+    then ``cell_ids[i] == cell_ids[j]`` for all ``i``,
     ``j`` indices if
     ``(groups_a[i], groups_b[i]) == (groups_a[j], groups_b[j])``,
     granted that arrays have been reshaped to uni-dimensional
@@ -60,15 +60,15 @@ def merge_cluster_ids(
         do with the ones used in individual arrays.
 
     Args:
-        cluster_ids_a: The first array of cluster indices.
-        cluster_ids_b: The second array of cluster indices.
+        cell_ids_a: The first array of cell indices.
+        cell_ids_b: The second array of cell indices.
 
     Returns:
         The new array group indices.
     """
-    batch = cluster_ids_a.shape
-    return _cluster_ids(
-        jnp.stack((cluster_ids_a, cluster_ids_b), axis=-1).reshape(-1, 2),
+    batch = cell_ids_a.shape
+    return _cell_ids(
+        jnp.stack((cell_ids_a, cell_ids_b), axis=-1).reshape(-1, 2),
     ).reshape(batch)
 
 
@@ -175,15 +175,15 @@ class Paths(eqx.Module):
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
-    def multipath_clusters(
+    def multipath_cells(
         self,
         axis: int = -1,
     ) -> Int[Array, " *partial_batch"]:
         """
-        Return an array of same multipath cluster indices.
+        Return an array of same multipath cell indices.
 
-        Let the returned array be ``cluster_ids``,
-        then ``cluster_ids[i] == cluster_ids[j]`` for all ``i``,
+        Let the returned array be ``cell_ids``,
+        then ``cell_ids[i] == cell_ids[j]`` for all ``i``,
         ``j`` indices if ``self.mask[i, :] == self.mask[j, :]``,
         granted that each array has been reshaped to a two-dimensional
         array and that ``axis`` is the last dimension. Of course, this
@@ -218,13 +218,13 @@ class Paths(eqx.Module):
             ValueError: If :attr:`mask` is None.
         """
         if self.mask is None:
-            msg = "Cannot create multiplath clusters from non-existing mask!"
+            msg = "Cannot create multiplath cells from non-existing mask!"
             raise ValueError(msg)
 
         mask = jnp.moveaxis(self.mask, axis, -1)
         *partial_batch, last_axis = mask.shape
 
-        return _cluster_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
+        return _cell_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
 
     @jax.jit
     @jaxtyped(typechecker=typechecker)
@@ -236,7 +236,7 @@ class Paths(eqx.Module):
         undergo the same types of interactions.
 
         Internally, it uses the same logic as
-        :meth:`multipath_clusters`, but applied to object indices
+        :meth:`multipath_cells`, but applied to object indices
         rather than on mask.
 
         Returns:
@@ -277,7 +277,7 @@ class Paths(eqx.Module):
         *batch, path_length = self.objects.shape
 
         objects = self.objects.reshape((-1, path_length))
-        return _cluster_ids(objects).reshape(batch)
+        return _cell_ids(objects).reshape(batch)
 
     def __iter__(self) -> Iterator[Self]:
         """Return an iterator over masked paths.
