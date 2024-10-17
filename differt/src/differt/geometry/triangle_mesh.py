@@ -385,11 +385,12 @@ class TriangleMesh(eqx.Module):
         if (vertex_b is None) == (normal is None):
             msg = "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             raise ValueError(msg)
-        if vertex_a is not None and vertex_c is None:
+
+        if vertex_b is not None:
             u = vertex_b - vertex_a
             v = vertex_c - vertex_a
             w = jnp.cross(u, v)
-            (normal, _) = normalize(w)
+            normal = normalize(w)[0]
 
         u, v = orthogonal_basis(
             normal,  # type: ignore[reportArgumentType]
