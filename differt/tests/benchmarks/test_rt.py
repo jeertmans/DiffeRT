@@ -86,7 +86,7 @@ def test_compute_paths_in_simple_street_canyon_scene(
         def bench_fun() -> None:
             scene.compute_paths(
                 order,
-                chunk_size=chunk_size,
-            ).vertices.block_until_ready()  # type: ignore[reportAttributeAccessIssue]
+                chunk_size=None,
+            ).vertices.block_until_ready()
 
     _ = benchmark(bench_fun)

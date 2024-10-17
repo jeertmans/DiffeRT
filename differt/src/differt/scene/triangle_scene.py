@@ -1,15 +1,15 @@
 """Scene made of triangles and utilities."""
 # ruff: noqa: ERA001
 
+import math
 import sys
 import warnings
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 from beartype import beartype as typechecker
 from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
@@ -23,7 +23,7 @@ from differt.geometry.triangle_mesh import (
     TriangleMesh,
 )
 from differt.geometry.utils import assemble_paths
-from differt.plotting import draw_markers, reuse
+from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt.image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
@@ -189,25 +189,25 @@ def _compute_paths(
     if parallel:
         num_devices = jax.device_count()
 
-        # TODO: allow also to have i,i mesh if product of both is a multiple of 'num_devices'
-        if from_vertices.shape[0] % num_devices == 0:
-            in_specs = (P("i", None), P(None, None))
-            out_specs = (P("i", None, None, None, None), P("i", None, None))
-        elif to_vertices.shape[0] % num_devices == 0:
-            in_specs = (P(None, None), P("i", None))
-            out_specs = (P(None, "i", None, None, None), P(None, "i", None))
+        if (from_vertices.shape[0] * to_vertices.shape[0]) % num_devices == 0:
+            tx_mesh = math.gcd(from_vertices.shape[0], num_devices)
+            rx_mesh = num_devices // tx_mesh
+            in_specs = (P("i", None), P("j", None))
+            out_specs = (P("i", "j", None, None, None), P("i", "j", None))
         else:
             msg = (
                 f"Found {num_devices} devices available, "
                 "but could not find any input with a size that is a multiple of that value. "
-                "Please user a number of transmitter or receiver points that is a "
+                "Please user a number of transmitter and receiver points that is a "
                 f"multiple of {num_devices}."
             )
             raise ValueError(msg)
 
         fun = shard_map(  # type: ignore[reportAssigmentType]
             fun,
-            Mesh(mesh_utils.create_device_mesh((num_devices,)), axis_names=("i",)),
+            Mesh(
+                mesh_utils.create_device_mesh((tx_mesh, rx_mesh)), axis_names=("i", "j")
+            ),
             in_specs=in_specs,
             out_specs=out_specs,
         )
@@ -402,6 +402,45 @@ class TriangleScene(eqx.Module):
         core_scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
 
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: Literal[None] = None,
+        path_candidates: Int[Array, "num_path_candidates order"] | None = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> Paths: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: int,
+        path_candidates: Literal[None] = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> SizedIterator[Paths]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: int,
+        path_candidates: Int[Array, "num_path_candidates order"],
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> Paths: ...
+
     def compute_paths(
         self,
         order: int | None = None,
@@ -436,7 +475,7 @@ class TriangleScene(eqx.Module):
                 If ``self.mesh.assume_quads`` is :data:`True`, then path candidates are
                 rounded down toward the nearest even value.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
-                devices. Either the number of transmitters or the number of receivers
+                devices. The number of transmitters times the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
             epsilon: Tolelance for checking ray / objects intersection, see
                 :func:`rays_intersect_triangles<differt.rt.utils.rays_intersect_triangles>`.
@@ -526,7 +565,7 @@ class TriangleScene(eqx.Module):
         rx_kwargs: Mapping[str, Any] | None = None,
         mesh_kwargs: Mapping[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Any:  # TODO: change output type
+    ) -> PlotOutput:
         """
         Plot this scene on a 3D scene.
 
@@ -549,12 +588,10 @@ class TriangleScene(eqx.Module):
 
         with reuse(**kwargs) as result:
             if self.transmitters.size > 0:
-                draw_markers(
-                    np.asarray(self.transmitters).reshape((-1, 3)), **tx_kwargs
-                )
+                draw_markers(self.transmitters, **tx_kwargs)
 
             if self.receivers.size > 0:
-                draw_markers(np.asarray(self.receivers).reshape((-1, 3)), **rx_kwargs)
+                draw_markers(self.receivers, **rx_kwargs)
 
             self.mesh.plot(**mesh_kwargs)
 
