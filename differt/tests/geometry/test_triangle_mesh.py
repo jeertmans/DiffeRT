@@ -1,4 +1,5 @@
 import logging
+import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -179,25 +180,33 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
+            match=re.escape(
+                "You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
+            ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[reportCallIssue]
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both.",
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both.",
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both.",
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
         ):
             _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
 
