@@ -70,6 +70,13 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
 )
 
+# -- MathJax settings
+
+mathjax3_config = {
+    "loader": {"load": ["[tex]/boldsymbol"]},
+    "tex": {"packages": {"[+]": ["boldsymbol"]}},
+}
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
