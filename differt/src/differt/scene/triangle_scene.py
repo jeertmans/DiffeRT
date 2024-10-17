@@ -475,7 +475,7 @@ class TriangleScene(eqx.Module):
                 If ``self.mesh.assume_quads`` is :data:`True`, then path candidates are
                 rounded down toward the nearest even value.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
-                devices. Either the number of transmitters times the number of receivers
+                devices. The number of transmitters times the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
             epsilon: Tolelance for checking ray / objects intersection, see
                 :func:`rays_intersect_triangles<differt.rt.utils.rays_intersect_triangles>`.
