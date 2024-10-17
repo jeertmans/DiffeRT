@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
-    ndarray::{Array2, ArrayView2, Axis, parallel::prelude::*},
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    ndarray::{Array2, ArrayView1, ArrayView2, Axis, parallel::prelude::*},
 };
 use pyo3::{prelude::*, types::PyType};
 
@@ -123,7 +123,8 @@ pub mod complete {
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct CompleteGraph {
-        /// Number of nodes.
+        #[pyo3(get)]
+        /// The number of nodes.
         pub(crate) num_nodes: usize,
     }
 
@@ -589,10 +590,65 @@ pub mod directed {
 
             Self { edges_list }
         }
+
+        #[inline]
+        pub fn insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<&ArrayView1<bool>>,
+            to_adjacency: Option<&ArrayView1<bool>>,
+        ) -> (NodeId, NodeId) {
+            let from = self.num_nodes();
+            let to = from + 1;
+
+            if let Some(to_adjacency) = to_adjacency {
+                self.edges_list
+                    .iter_mut()
+                    .zip(to_adjacency.into_iter())
+                    .for_each(|(edges, &is_adjacent)| {
+                        if is_adjacent {
+                            edges.push(to)
+                        }
+                    });
+            } else {
+                // Every node is connected to `to`.
+                self.edges_list.iter_mut().for_each(|edges| edges.push(to));
+            }
+
+            let mut from_edges: Vec<NodeId> = if let Some(from_adjacency) = from_adjacency {
+                (0..from)
+                    .into_iter()
+                    .zip(from_adjacency.into_iter())
+                    .filter_map(
+                        |(node_id, &is_adjacent)| if is_adjacent { Some(node_id) } else { None },
+                    )
+                    .collect()
+            } else {
+                // `from` is connected to every node except itself
+                (0..from).collect()
+            };
+
+            if direct_path {
+                from_edges.push(to);
+            }
+
+            self.edges_list.push(from_edges);
+
+            // `to` is not connected to any node
+            self.edges_list.push(vec![]);
+
+            (from, to)
+        }
     }
 
     #[pymethods]
     impl DiGraph {
+        /// int: The number of nodes.
+        #[getter]
+        fn num_nodes(&self) -> usize {
+            self.edges_list.len()
+        }
+
         /// Create an edgeless directed graph with ``num_nodes`` nodes.
         ///
         /// This is equivalent to creating a directed graph from
@@ -617,7 +673,7 @@ pub mod directed {
         /// connected to node ``j``.
         ///
         /// Args:
-        ///     adjacency_matrix (``Bool[ndarray, "num_nodes num_nodes"]``):
+        ///     adjacency_matrix (:class:`Bool[ndarray, "num_nodes num_nodes"]<jaxtyping.Bool>`):
         ///         The adjacency matrix.
         ///
         /// Returns:
@@ -652,7 +708,8 @@ pub mod directed {
 
         /// Insert two additional nodes in the graph: ``from_`` and ``to``.
         ///
-        /// The nodes satisfy the following conditions:
+        /// Unless specific adjacency information is provided,
+        /// the nodes satisfy the following conditions:
         ///
         /// - ``from_`` is connected to every other node in the graph;
         /// - and ``to`` is an `endpoint`, where every other node is connected
@@ -664,35 +721,42 @@ pub mod directed {
         /// Args:
         ///     direct_path (bool): Whether to create a direction connection
         ///         between ``from_`` and ``to`` nodes.
+        ///     from_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected from ``from_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
+        ///     to_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected to ``to_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
         ///
         /// Returns:
         ///     tuple[int, int]:
         ///         The indices of the two added nodes in the graph.
-        #[pyo3(signature = (*, direct_path=true))]
-        #[pyo3(text_signature = "(self, *, direct_path=True)")]
-        pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
-            let from = self.edges_list.len();
-            let to = from + 1;
-
-            // Every node is connected to `to`.
-            self.edges_list.iter_mut().for_each(|edges| edges.push(to));
-
-            // `from` is connected to every node except itself
-            let mut from_edges: Vec<NodeId> = (0..from).collect();
-
-            if direct_path {
-                from_edges.push(to);
-            }
-
-            self.edges_list.push(from_edges);
-
-            // `to` is not connected to any node
-            self.edges_list.push(vec![]);
-
-            self.get_adjacent_nodes(from);
-            self.get_adjacent_nodes(to);
-
-            (from, to)
+        #[pyo3(signature = (*, direct_path=true, from_adjacency=None, to_adjacency=None))]
+        #[pyo3(name = "insert_from_and_to_nodes")]
+        #[pyo3(
+            text_signature = "(self, *, direct_path=True, from_adjacency=None, to_adjacency=None)"
+        )]
+        pub fn py_insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+            to_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+        ) -> (NodeId, NodeId) {
+            self.insert_from_and_to_nodes(
+                direct_path,
+                from_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+                to_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+            )
         }
 
         /// Disconnect one or more nodes from the graph.
