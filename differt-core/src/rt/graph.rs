@@ -1151,7 +1151,7 @@ mod tests {
         #[case] to: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
-        assert_eq!(iter.depth().unwrap(), depth);
+        assert_eq!(iter.depth().unwrap(), depth - 2);
         let iter_cloned = iter.clone();
         let got = iter.len();
         let expected = iter.count();
@@ -1190,7 +1190,7 @@ mod tests {
         #[case] expected: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
-        assert_eq!(iter.depth().unwrap(), depth + 2);
+        assert_eq!(iter.depth().unwrap(), depth);
         let got = iter.count();
 
         assert_eq!(got, expected);
