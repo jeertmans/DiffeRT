@@ -2,7 +2,7 @@
 # ruff: noqa: ERA001
 
 import sys
-from typing import Any
+from typing import Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -312,14 +312,42 @@ class TriangleMesh(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
+    @overload
+    @classmethod
+    def plane(
+        cls,
+        vertex_a: Float[Array, "3"],
+        vertex_b: Float[Array, "3"],
+        vertex_c: Float[Array, "3"],
+        *,
+        normal: Literal[None] = None,
+        side_length: Float[ArrayLike, " "] = 1.0,
+        rotate: Float[ArrayLike, " "] | None = None,
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def plane(
+        cls,
+        vertex_a: Float[Array, "3"],
+        vertex_b: Literal[None] = None,
+        vertex_c: Literal[None] = None,
+        *,
+        normal: Float[Array, "3"],
+        side_length: Float[ArrayLike, " "] = 1.0,
+        rotate: Float[ArrayLike, " "] | None = None,
+    ) -> Self: ...
+
     @classmethod
     @jaxtyped(
         typechecker=None
     )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def plane(
         cls,
-        vertex: Float[Array, "3"],
-        *other_vertices: Float[Array, "3"],
+        vertex_a: Float[Array, "3"],
+        vertex_b: Float[Array, "3"] | None = None,
+        vertex_c: Float[Array, "3"] | None = None,
+        *,
         normal: Float[Array, "3"] | None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
@@ -328,10 +356,13 @@ class TriangleMesh(eqx.Module):
         Create an plane mesh, made of two triangles.
 
         Args:
-            vertex: The center of the plane.
-            other_vertices: Two other vertices that define the plane.
+            vertex_a: The center of the plane.
+            vertex_b: Any second vertex on the plane.
 
-                This or ``normal`` is required.
+                This and ``vertex_c``, or ``normal`` is required.
+            vertex_c: Any third vertex on the plane.
+
+                This and ``vertex_b``, or ``normal`` is required.
             normal: The plane normal.
 
                 Must be of unit length.
@@ -344,21 +375,19 @@ class TriangleMesh(eqx.Module):
             A new plane mesh.
 
         Raises:
-            ValueError: If neither ``other_vertices`` nor ``normal`` has been provided,
+            ValueError: If neither ``vertex_b`` and ``vertex_c``, nor ``normal`` have been provided,
                 or if both have been provided simultaneously.
         """
-        if (other_vertices == ()) == (normal is None):
-            msg = "You must specify one of 'other_vertices' or 'normal', not both."
+        if (vertex_b is None) != (vertex_c is None):
+            msg = "You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
             raise ValueError(msg)
-        if other_vertices:
-            if len(other_vertices) != 2:  # noqa: PLR2004
-                msg = (
-                    "You must provide exactly 3 vertices to create a new plane, "
-                    f"but you provided {len(other_vertices) + 1}."
-                )
-                raise ValueError(msg)
-            u = other_vertices[0] - vertex
-            v = other_vertices[1] - vertex
+
+        if (vertex_b is None) == (normal is None):
+            msg = "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            raise ValueError(msg)
+        if vertex_a is not None and vertex_c is None:
+            u = vertex_b - vertex_a
+            v = vertex_c - vertex_a
             w = jnp.cross(u, v)
             (normal, _) = normalize(w)
 
@@ -375,7 +404,7 @@ class TriangleMesh(eqx.Module):
             rotation_matrix = rotation_matrix_along_axis(rotate, normal)
             vertices = (rotation_matrix @ vertices.T).T
 
-        vertices += vertex
+        vertices += vertex_a
 
         triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
         return cls(vertices=vertices, triangles=triangles)

@@ -1,5 +1,7 @@
 """Utilities for working with 3D geometries."""
 
+from typing import Literal, overload
+
 import equinox as eqx
 import jax
 import jax.numpy as jnp
@@ -24,6 +26,32 @@ def pairwise_cross(
         A 3D tensor with all cross products.
     """
     return jnp.cross(u[:, None, :], v[None, :, :])
+
+
+@overload
+def normalize(
+    vector: Float[Array, "*batch 3"],
+    keepdims: Literal[False] = False,
+) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]: ...
+
+
+@overload
+def normalize(
+    vector: Float[Array, "*batch 3"],
+    keepdims: Literal[True],
+) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]: ...
+
+
+# Workaround currently needed,
+# see: https://github.com/microsoft/pyright/issues/9149
+@overload
+def normalize(
+    vector: Float[Array, "*batch 3"],
+    keepdims: bool,
+) -> (
+    tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]
+    | tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]
+): ...
 
 
 @eqx.filter_jit
