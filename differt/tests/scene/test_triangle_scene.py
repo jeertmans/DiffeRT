@@ -10,7 +10,6 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
-from differt.geometry.paths import Paths
 from differt.geometry.utils import assemble_paths, normalize
 from differt.scene.sionna import (
     get_sionna_scene,
@@ -103,8 +102,6 @@ class TestTriangleScene:
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
 
-        assert isinstance(got, Paths)  # Hint to Pyright
-
         chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
         chex.assert_trees_all_equal(got.masked_objects, expected_objects)
 
@@ -172,8 +169,6 @@ class TestTriangleScene:
 
         with jax.debug_nans(False):  # noqa: FBT003
             got = scene.compute_paths(order)
-
-        assert isinstance(got, Paths)  # Hint to Pyright
 
         chex.assert_trees_all_close(
             got.masked_vertices, expected_path_vertices, atol=1e-5
@@ -277,7 +272,7 @@ class TestTriangleScene:
         num_path_candidates = scene.mesh.triangles.shape[0]
 
         chex.assert_shape(
-            paths.vertices,  # type: ignore[reportAttributeAccessIssue]
+            paths.vertices,
             (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
         )
 
@@ -326,7 +321,7 @@ class TestTriangleScene:
             num_path_candidates = scene.mesh.triangles.shape[0]
 
             chex.assert_shape(
-                paths.vertices,  # type: ignore[reportAttributeAccessIssue]
+                paths.vertices,
                 (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
             )
 

@@ -5,7 +5,7 @@ import math
 import sys
 import warnings
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -401,6 +401,45 @@ class TriangleScene(eqx.Module):
         """
         core_scene = differt_core.scene.triangle_scene.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: Literal[None] = None,
+        path_candidates: Int[Array, "num_path_candidates order"] | None = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> Paths: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: int,
+        path_candidates: Literal[None] = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> SizedIterator[Paths]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        chunk_size: int,
+        path_candidates: Int[Array, "num_path_candidates order"],
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+    ) -> Paths: ...
 
     def compute_paths(
         self,
