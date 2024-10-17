@@ -128,6 +128,7 @@ pub mod complete {
         pub(crate) num_nodes: usize,
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl CompleteGraph {
         #[new]
@@ -486,6 +487,7 @@ pub mod complete {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -528,6 +530,7 @@ pub mod complete {
 
     impl ExactSizeIterator for AllPathsFromCompleteGraphChunksIter {}
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -641,6 +644,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl DiGraph {
         /// int: The number of nodes.
@@ -999,6 +1003,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -1030,6 +1035,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -1145,6 +1151,7 @@ mod tests {
         #[case] to: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        assert_eq!(iter.depth().unwrap(), depth);
         let iter_cloned = iter.clone();
         let got = iter.len();
         let expected = iter.count();
@@ -1182,10 +1189,29 @@ mod tests {
         #[case] to: usize,
         #[case] expected: usize,
     ) {
-        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
+        assert_eq!(iter.depth().unwrap(), depth + 2);
         let got = iter.count();
 
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_complete_graph_overflow() {
+        testing_logger::setup();
+        CompleteGraph::new(1_000_000_000).all_paths(0, 1, 10, true);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(
+                captured_logs[0].body,
+                format!(
+                    "OverflowError: overflow occurred when computing the total number of paths, \
+                     defaulting to maximum value {}.",
+                    usize::MAX
+                )
+            );
+            assert_eq!(captured_logs[0].level, log::Level::Warn);
+        });
     }
 
     #[test]
@@ -1236,7 +1262,7 @@ mod tests {
         #[case] expected: Array2<NodeId>,
     ) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got = graph.all_paths(from, to, depth + 2, false).collect_array();
 
         assert_eq!(got, expected);
@@ -1247,7 +1273,7 @@ mod tests {
     #[case(3, 3)]
     fn test_empty_di_graph_returns_all_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph = DiGraph::empty(num_nodes);
-        let (from, to) = graph.insert_from_and_to_nodes(false);
+        let (from, to) = graph.insert_from_and_to_nodes(false, None, None);
 
         assert_eq!(graph.all_paths(from, to, depth + 2, true).count(), 0);
     }
@@ -1257,7 +1283,7 @@ mod tests {
     #[case(3, 3)]
     fn test_di_graph_returns_sorted_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got: Vec<_> = graph.all_paths(from, to, depth + 2, true).collect();
 
         let mut expected = got.clone();
@@ -1272,7 +1298,7 @@ mod tests {
     #[case(8, 3)]
     fn test_di_graph_array_chunks_is_iter(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let iter = graph.all_paths(from, to, depth + 2, true);
         let chunks_iter = graph.all_paths_array_chunks(from, to, depth + 2, true, 1);
 
@@ -1288,7 +1314,7 @@ mod tests {
     ) {
         let complete_graph = CompleteGraph::new(num_nodes);
         let mut di_graph: DiGraph = complete_graph.clone().into();
-        let (from, to) = di_graph.insert_from_and_to_nodes(true);
+        let (from, to) = di_graph.insert_from_and_to_nodes(true, None, None);
         let complete_iter = complete_graph.all_paths(from, to, depth + 2, true);
         let di_iter = di_graph.all_paths(from, to, depth + 2, true);
 
