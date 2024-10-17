@@ -55,6 +55,8 @@ jobs:
     strategy:
       matrix:
         target: [x64, x86]
+        exclude:
+        - target: x86  # See: https://github.com/PyO3/rust-numpy/issues/448
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
