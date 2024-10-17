@@ -1,4 +1,5 @@
 import logging
+import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -168,25 +169,46 @@ class TestTriangleMesh:
 
         chex.assert_trees_all_equal(got, expected)
 
-        vertices = jax.random.uniform(key, (3, 3))
-        _ = TriangleMesh.plane(*vertices)
+        vertex_a, vertex_b, vertex_c = jax.random.uniform(key, (3, 3)).T
+        _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c)
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of 'other_vertices' or 'normal', not both.",
+            match="You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
         ):
-            _ = TriangleMesh.plane(*vertices, normal=normal)
-
-        vertices = jax.random.uniform(key, (4, 3))
-
-        with pytest.raises(ValueError, match="You must provide exactly 3 vertices"):
-            _ = TriangleMesh.plane(*vertices)
+            _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[reportCallIssue]
 
         with pytest.raises(
             ValueError,
-            match="You must specify one of 'other_vertices' or 'normal', not both.",
+            match=re.escape(
+                "You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
+            ),
         ):
-            _ = TriangleMesh.plane(center)
+            _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[reportCallIssue]
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
+        ):
+            _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
+        ):
+            _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+            ),
+        ):
+            _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
 
     def test_empty(self) -> None:
         assert TriangleMesh.empty().is_empty
