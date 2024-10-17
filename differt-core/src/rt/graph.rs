@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
-    ndarray::{Array2, ArrayView2, Axis, parallel::prelude::*},
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    ndarray::{Array2, ArrayView1, ArrayView2, Axis, parallel::prelude::*},
 };
 use pyo3::{prelude::*, types::PyType};
 
@@ -123,10 +123,12 @@ pub mod complete {
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct CompleteGraph {
-        /// Number of nodes.
+        #[pyo3(get)]
+        /// The number of nodes.
         pub(crate) num_nodes: usize,
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl CompleteGraph {
         #[new]
@@ -485,6 +487,7 @@ pub mod complete {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -527,6 +530,7 @@ pub mod complete {
 
     impl ExactSizeIterator for AllPathsFromCompleteGraphChunksIter {}
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -589,10 +593,66 @@ pub mod directed {
 
             Self { edges_list }
         }
+
+        #[inline]
+        pub fn insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<&ArrayView1<bool>>,
+            to_adjacency: Option<&ArrayView1<bool>>,
+        ) -> (NodeId, NodeId) {
+            let from = self.num_nodes();
+            let to = from + 1;
+
+            if let Some(to_adjacency) = to_adjacency {
+                self.edges_list
+                    .iter_mut()
+                    .zip(to_adjacency.into_iter())
+                    .for_each(|(edges, &is_adjacent)| {
+                        if is_adjacent {
+                            edges.push(to)
+                        }
+                    });
+            } else {
+                // Every node is connected to `to`.
+                self.edges_list.iter_mut().for_each(|edges| edges.push(to));
+            }
+
+            let mut from_edges: Vec<NodeId> = if let Some(from_adjacency) = from_adjacency {
+                (0..from)
+                    .into_iter()
+                    .zip(from_adjacency.into_iter())
+                    .filter_map(
+                        |(node_id, &is_adjacent)| if is_adjacent { Some(node_id) } else { None },
+                    )
+                    .collect()
+            } else {
+                // `from` is connected to every node except itself
+                (0..from).collect()
+            };
+
+            if direct_path {
+                from_edges.push(to);
+            }
+
+            self.edges_list.push(from_edges);
+
+            // `to` is not connected to any node
+            self.edges_list.push(vec![]);
+
+            (from, to)
+        }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl DiGraph {
+        /// int: The number of nodes.
+        #[getter]
+        fn num_nodes(&self) -> usize {
+            self.edges_list.len()
+        }
+
         /// Create an edgeless directed graph with ``num_nodes`` nodes.
         ///
         /// This is equivalent to creating a directed graph from
@@ -617,7 +677,7 @@ pub mod directed {
         /// connected to node ``j``.
         ///
         /// Args:
-        ///     adjacency_matrix (``Bool[ndarray, "num_nodes num_nodes"]``):
+        ///     adjacency_matrix (:class:`Bool[ndarray, "num_nodes num_nodes"]<jaxtyping.Bool>`):
         ///         The adjacency matrix.
         ///
         /// Returns:
@@ -652,7 +712,8 @@ pub mod directed {
 
         /// Insert two additional nodes in the graph: ``from_`` and ``to``.
         ///
-        /// The nodes satisfy the following conditions:
+        /// Unless specific adjacency information is provided,
+        /// the nodes satisfy the following conditions:
         ///
         /// - ``from_`` is connected to every other node in the graph;
         /// - and ``to`` is an `endpoint`, where every other node is connected
@@ -664,35 +725,42 @@ pub mod directed {
         /// Args:
         ///     direct_path (bool): Whether to create a direction connection
         ///         between ``from_`` and ``to`` nodes.
+        ///     from_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected from ``from_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
+        ///     to_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected to ``to_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
         ///
         /// Returns:
         ///     tuple[int, int]:
         ///         The indices of the two added nodes in the graph.
-        #[pyo3(signature = (*, direct_path=true))]
-        #[pyo3(text_signature = "(self, *, direct_path=True)")]
-        pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
-            let from = self.edges_list.len();
-            let to = from + 1;
-
-            // Every node is connected to `to`.
-            self.edges_list.iter_mut().for_each(|edges| edges.push(to));
-
-            // `from` is connected to every node except itself
-            let mut from_edges: Vec<NodeId> = (0..from).collect();
-
-            if direct_path {
-                from_edges.push(to);
-            }
-
-            self.edges_list.push(from_edges);
-
-            // `to` is not connected to any node
-            self.edges_list.push(vec![]);
-
-            self.get_adjacent_nodes(from);
-            self.get_adjacent_nodes(to);
-
-            (from, to)
+        #[pyo3(signature = (*, direct_path=true, from_adjacency=None, to_adjacency=None))]
+        #[pyo3(name = "insert_from_and_to_nodes")]
+        #[pyo3(
+            text_signature = "(self, *, direct_path=True, from_adjacency=None, to_adjacency=None)"
+        )]
+        pub fn py_insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+            to_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+        ) -> (NodeId, NodeId) {
+            self.insert_from_and_to_nodes(
+                direct_path,
+                from_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+                to_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+            )
         }
 
         /// Disconnect one or more nodes from the graph.
@@ -935,6 +1003,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -966,6 +1035,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -1081,6 +1151,7 @@ mod tests {
         #[case] to: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        assert_eq!(iter.depth().unwrap(), depth - 2);
         let iter_cloned = iter.clone();
         let got = iter.len();
         let expected = iter.count();
@@ -1118,10 +1189,29 @@ mod tests {
         #[case] to: usize,
         #[case] expected: usize,
     ) {
-        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
+        assert_eq!(iter.depth().unwrap(), depth);
         let got = iter.count();
 
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_complete_graph_overflow() {
+        testing_logger::setup();
+        CompleteGraph::new(1_000_000_000).all_paths(0, 1, 10, true);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(
+                captured_logs[0].body,
+                format!(
+                    "OverflowError: overflow occurred when computing the total number of paths, \
+                     defaulting to maximum value {}.",
+                    usize::MAX
+                )
+            );
+            assert_eq!(captured_logs[0].level, log::Level::Warn);
+        });
     }
 
     #[test]
@@ -1172,7 +1262,7 @@ mod tests {
         #[case] expected: Array2<NodeId>,
     ) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got = graph.all_paths(from, to, depth + 2, false).collect_array();
 
         assert_eq!(got, expected);
@@ -1183,7 +1273,7 @@ mod tests {
     #[case(3, 3)]
     fn test_empty_di_graph_returns_all_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph = DiGraph::empty(num_nodes);
-        let (from, to) = graph.insert_from_and_to_nodes(false);
+        let (from, to) = graph.insert_from_and_to_nodes(false, None, None);
 
         assert_eq!(graph.all_paths(from, to, depth + 2, true).count(), 0);
     }
@@ -1193,7 +1283,7 @@ mod tests {
     #[case(3, 3)]
     fn test_di_graph_returns_sorted_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got: Vec<_> = graph.all_paths(from, to, depth + 2, true).collect();
 
         let mut expected = got.clone();
@@ -1208,7 +1298,7 @@ mod tests {
     #[case(8, 3)]
     fn test_di_graph_array_chunks_is_iter(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let iter = graph.all_paths(from, to, depth + 2, true);
         let chunks_iter = graph.all_paths_array_chunks(from, to, depth + 2, true, 1);
 
@@ -1224,7 +1314,7 @@ mod tests {
     ) {
         let complete_graph = CompleteGraph::new(num_nodes);
         let mut di_graph: DiGraph = complete_graph.clone().into();
-        let (from, to) = di_graph.insert_from_and_to_nodes(true);
+        let (from, to) = di_graph.insert_from_and_to_nodes(true, None, None);
         let complete_iter = complete_graph.all_paths(from, to, depth + 2, true);
         let di_iter = di_graph.all_paths(from, to, depth + 2, true);
 

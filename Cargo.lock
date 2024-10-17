@@ -253,6 +253,7 @@ dependencies = [
  "quick-xml",
  "rstest",
  "serde",
+ "testing_logger",
 ]
 
 [[package]]
@@ -1154,6 +1155,15 @@ dependencies = [
  "fastrand",
  "rustix",
  "windows-sys",
+]
+
+[[package]]
+name = "testing_logger"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d92b727cb45d33ae956f7f46b966b25f1bc712092aeef9dba5ac798fc89f720"
+dependencies = [
+ "log",
 ]
 
 [[package]]

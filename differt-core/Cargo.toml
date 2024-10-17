@@ -19,6 +19,7 @@ serde = {version = "1.0.197", features = ["derive"]}
 criterion = "0.5.1"
 pyo3 = {version = "0.21", features = ["auto-initialize"]}
 rstest = "0.18.2"
+testing_logger = "0.1.1"
 
 [features]
 extension-module = ["pyo3/extension-module"]

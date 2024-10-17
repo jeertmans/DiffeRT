@@ -4,6 +4,8 @@ import numpy as np
 from jaxtyping import Bool, UInt
 
 class CompleteGraph:
+    @property
+    def num_nodes(self) -> int: ...
     def __init__(self, num_nodes: int) -> None: ...
     def all_paths(
         self,
@@ -32,6 +34,8 @@ class CompleteGraph:
     ) -> AllPathsFromCompleteGraphChunksIter: ...
 
 class DiGraph:
+    @property
+    def num_nodes(self) -> int: ...
     @classmethod
     def from_adjacency_matrix(
         cls,
@@ -43,6 +47,8 @@ class DiGraph:
         self,
         *,
         direct_path: bool = True,
+        from_adjacency: Bool[np.ndarray, " num_nodes"],
+        to_adjacency: Bool[np.ndarray, " num_nodes"],
     ) -> tuple[int, int]: ...
     def disconnect_nodes(self, *nodes: int, fast_mode: bool = True) -> None: ...
     def all_paths(
