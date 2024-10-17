@@ -2,7 +2,7 @@
 
 import sys
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import Any, Literal, overload
 
 import chex
 import equinox as eqx
@@ -229,6 +229,24 @@ def minimize(
     (x, _), losses = jax.lax.scan(f, init=(x0, opt_state), xs=None, length=steps)
 
     return x, losses[-1]
+
+
+@overload
+def sample_points_in_bounding_box(
+    bounding_box: Float[Array, "2 3"],
+    shape: Literal[None] = None,
+    *,
+    key: PRNGKeyArray,
+) -> Float[Array, "3"]: ...
+
+
+@overload
+def sample_points_in_bounding_box(
+    bounding_box: Float[Array, "2 3"],
+    shape: tuple[int, ...],
+    *,
+    key: PRNGKeyArray,
+) -> Float[Array, "3"]: ...
 
 
 @eqx.filter_jit
