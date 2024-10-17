@@ -289,6 +289,8 @@ class TestTriangleScene:
             (1, 1, 8, 8, does_not_raise()),
             (4, 2, 1, 1, does_not_raise()),
             (1, 1, 2, 4, does_not_raise()),
+            (1, 4, 2, 1, does_not_raise()),
+            (1, 2, 4, 1, does_not_raise()),
             (
                 7,
                 1,
@@ -299,7 +301,7 @@ class TestTriangleScene:
             (
                 1,
                 2,
-                4,
+                3,
                 1,
                 pytest.raises(ValueError, match="Found 8 devices available"),
             ),
