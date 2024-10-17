@@ -165,6 +165,9 @@ jobs:
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
+    - name: Re-run benchmarks
+      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
