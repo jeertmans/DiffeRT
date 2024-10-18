@@ -45,6 +45,8 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools
 
     - name: Install dependencies
       run: uv sync --locked --no-dev --extra tests
@@ -121,10 +123,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - uses: actions/setup-python@v5
+      id: setup-python
+      with:
+        cache: pip
+        cache-dependency-path: uv.lock
+
     - name: Setup uv
       uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
