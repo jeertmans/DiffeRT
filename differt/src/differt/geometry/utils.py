@@ -439,19 +439,19 @@ def assemble_paths(
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def min_distance_between_clusters(
-    cluster_vertices: Float[Array, "*batch 3"],
-    cluster_ids: Int[Array, "*batch"],
+def min_distance_between_cells(
+    cell_vertices: Float[Array, "*batch 3"],
+    cell_ids: Int[Array, "*batch"],
 ) -> Float[Array, "*batch"]:
     """
-    Compute the minimal (Euclidean) distance between vertices in different clusters.
+    Compute the minimal (Euclidean) distance between vertices in different cells.
 
     For every vertex, the minimum distance to another vertex that is not is the same
-    cluster is computed.
+    cell is computed.
 
     Args:
-        cluster_vertices: The array of vertex coordinates.
-        cluster_ids: The array of corresponding cluster indices.
+        cell_vertices: The array of vertex coordinates.
+        cell_ids: The array of corresponding cell indices.
 
     Returns:
         The array of minimal distances.
@@ -459,16 +459,16 @@ def min_distance_between_clusters(
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        _: None, vertex_and_cluster_id: tuple[Float[Array, "3"], Int[Array, " "]]
+        _: None, vertex_and_cell_id: tuple[Float[Array, "3"], Int[Array, " "]]
     ) -> tuple[None, Float[Array, " "]]:
-        vertex, cluster_id = vertex_and_cluster_id
+        vertex, cell_id = vertex_and_cell_id
         min_dist = jnp.min(
             jnp.linalg.norm(
-                cluster_vertices - vertex,
+                cell_vertices - vertex,
                 axis=-1,
             ),
             initial=jnp.inf,
-            where=(cluster_id != cluster_ids),
+            where=(cell_id != cell_ids),
         )
         return None, min_dist
 
@@ -476,7 +476,7 @@ def min_distance_between_clusters(
         scan_fun,
         init=None,
         xs=(
-            cluster_vertices.reshape(-1, 3),
-            cluster_ids.reshape(-1),
+            cell_vertices.reshape(-1, 3),
+            cell_ids.reshape(-1),
         ),
-    )[1].reshape(cluster_ids.shape)
+    )[1].reshape(cell_ids.shape)
