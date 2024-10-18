@@ -46,7 +46,7 @@ fn di_graph_from_complete_graph_all_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("di_graph_from_complete_graph_all_paths");
     group.throughput(Throughput::Elements(1));
     let mut graph: DiGraph = CompleteGraph::new(NUM_NODES).into();
-    let (from, to) = graph.insert_from_and_to_nodes(DIRECT_PATH);
+    let (from, to) = graph.insert_from_and_to_nodes(DIRECT_PATH, None, None);
 
     let mut iter = graph
         .all_paths(from, to, DEPTH, INCLUDE_FROM_AND_TO)
@@ -60,7 +60,7 @@ fn di_graph_from_complete_graph_all_paths(c: &mut Criterion) {
 fn di_graph_from_complete_graph_all_paths_array_chunks(c: &mut Criterion) {
     let mut group = c.benchmark_group("di_graph_from_complete_graph_all_paths_array_chunks");
     let mut graph: DiGraph = CompleteGraph::new(NUM_NODES).into();
-    let (from, to) = graph.insert_from_and_to_nodes(DIRECT_PATH);
+    let (from, to) = graph.insert_from_and_to_nodes(DIRECT_PATH, None, None);
 
     for chunk_size in [1, 10, 100, 1000] {
         group.throughput(Throughput::Elements(chunk_size as u64));
