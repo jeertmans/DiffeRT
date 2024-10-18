@@ -277,9 +277,8 @@ pub mod complete {
     /// Note:
     ///     Even though this iterator is generally sized, this is not true
     ///     when its length is so large that overflow occurred when computing
-    ///     its theoretical length.
-    ///     For lengths close or above ``usize::MAX``, do not rely
-    ///     on the provided size hint nor the length.
+    ///     its theoretical length. A warning will be emitted in such cases,
+    ///     and the lenght will be set to the maximal representable value.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {
