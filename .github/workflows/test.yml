@@ -48,6 +48,8 @@ jobs:
 
     - name: Install dependencies
       run: uv sync --locked --no-dev --extra tests
+      env:
+        RUSTFLAGS: -C=instrument-coverage
 
     - name: Run tests
       run: uv run pytest
@@ -119,14 +121,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
-      id: setup-python
-      with:
-        cache: pip
-        cache-dependency-path: uv.lock
-
     - name: Setup uv
       uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -136,14 +134,11 @@ jobs:
     - name: Cache Rust
       uses: Swatinem/rust-cache@v2
 
-    - name: Install dependencies
-      run: uv pip install -r pyproject.toml --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
+    - name: Install Just
+      uses: taiki-e/install-action@just
 
-    - name: Build differt-core for profiling
-      run: |
-        rm -f python/differt_core/*.so
-        pip install -v -e . --config-settings=build-args='--profile profiling'
-      working-directory: differt-core
+    - name: Install dependencies for profiling
+      run: just install-profiling --locked --no-dev --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -157,11 +152,8 @@ jobs:
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
-    - name: Build differt-core for benchmarking
-      run: |
-        rm -f python/differt_core/*.so
-        pip install -v -e . --config-settings=build-args='--profile profiling'
-      working-directory: differt-core
+    - name: Re-install dependencies
+      run: just install-profiling --locked --no-dev --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
@@ -207,11 +199,11 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Install dependencies
-      run: uv sync --locked --no-dev --extra docs
-
     - name: Install Just
       uses: taiki-e/install-action@just
+
+    - name: Install dependencies
+      run: just install --locked --no-dev --extra docs
 
     - name: Check links in documentation
       run: just docs/linkcheck
