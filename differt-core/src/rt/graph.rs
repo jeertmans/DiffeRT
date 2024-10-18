@@ -646,7 +646,7 @@ pub mod directed {
                 );
                 self.edges_list
                     .iter_mut()
-                    .zip(to_adjacency.into_iter())
+                    .zip(to_adjacency)
                     .for_each(|(edges, &is_adjacent)| {
                         if is_adjacent {
                             edges.push(to)
