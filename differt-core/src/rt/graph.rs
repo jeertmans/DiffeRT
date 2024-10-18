@@ -514,7 +514,7 @@ pub mod complete {
         ///     int: The number of elements that this iterator contains.
         ///
         /// Warning:
-        ///     This iterator provides :meth:`__len__`, which returns the current
+        ///     This iterator provides :func:`len`, which returns the current
         ///     remaining length of this iterator, without consuming it, and will
         ///     also be faster as it does not need to perform any iteration.
         #[pyo3(name = "count")]
@@ -574,7 +574,7 @@ pub mod complete {
         ///     int: The number of elements that this iterator contains.
         ///
         /// Warning:
-        ///     This iterator provides :meth:`__len__`, which returns the current
+        ///     This iterator provides :func:`len`, which returns the current
         ///     remaining length of this iterator, without consuming it, and will
         ///     also be faster as it does not need to perform any iteration.
         #[pyo3(name = "count")]
