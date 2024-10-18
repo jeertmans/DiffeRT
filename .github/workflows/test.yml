@@ -138,6 +138,7 @@ jobs:
 
     - name: Install dependencies for profiling
       run: |
+        rm -rf differt-core/python/differt_core/*.so
         uv pip install -r pyproject.toml --extra tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
@@ -156,6 +157,7 @@ jobs:
 
     - name: Re-install dependencies
       run: |
+        rm -rf differt-core/python/differt_core/*.so
         uv pip install -r pyproject.toml --extra tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
