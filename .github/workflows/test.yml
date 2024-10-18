@@ -142,7 +142,7 @@ jobs:
     - name: Build differt-core for profiling
       run: |
         rm -f python/differt_core/*.so
-        pip install -e . --config-settings=build-args='--profile profiling'
+        pip install -v -e . --config-settings=build-args='--profile profiling'
       working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
@@ -160,7 +160,7 @@ jobs:
     - name: Build differt-core for benchmarking
       run: |
         rm -f python/differt_core/*.so
-        pip install -e . --config-settings=build-args='--profile profiling'
+        pip install -v -e . --config-settings=build-args='--profile profiling'
       working-directory: differt-core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
