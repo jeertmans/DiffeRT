@@ -149,7 +149,7 @@ jobs:
       shell: bash
 
     - name: Generate profile data
-      run: uv run --python '${{ steps.setup-python.outputs.python-path }}' --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+      run: uv run --python '${{ steps.setup-python.outputs.python-path }}' pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
 
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
@@ -162,7 +162,7 @@ jobs:
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: uv run --python '${{ steps.setup-python.outputs.python-path }}' differt/tests/benchmarks --codspeed
+        run: uv run --python '${{ steps.setup-python.outputs.python-path }}' pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
