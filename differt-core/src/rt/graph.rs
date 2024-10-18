@@ -504,6 +504,23 @@ pub mod complete {
         fn __len__(&self) -> usize {
             self.len()
         }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        ///
+        /// Warning:
+        ///     This iterator provides :meth:`__len__`, which returns the current
+        ///     remaining length of this iterator, without consuming it, and will
+        ///     also be faster as it does not need to perform any iteration.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.by_ref().count()
+        }
     }
 
     /// An iterator over all paths in a complete graph,
@@ -546,6 +563,23 @@ pub mod complete {
 
         fn __len__(&self) -> usize {
             self.len()
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        ///
+        /// Warning:
+        ///     This iterator provides :meth:`__len__`, which returns the current
+        ///     remaining length of this iterator, without consuming it, and will
+        ///     also be faster as it does not need to perform any iteration.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.iter.by_ref().count()
         }
     }
 }
@@ -1027,6 +1061,18 @@ pub mod directed {
         ) -> Option<Bound<'py, PyArray1<NodeId>>> {
             slf.next().map(|path| PyArray1::from_vec_bound(py, path))
         }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.by_ref().count()
+        }
     }
 
     /// An iterator over all paths in a directed graph,
@@ -1058,6 +1104,18 @@ pub mod directed {
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray2<NodeId>>> {
             slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.iter.by_ref().count()
         }
     }
 }
