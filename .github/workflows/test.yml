@@ -135,7 +135,7 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        components: llvm-tools
+        components: llvm-tools-preview
 
     - name: Cache Rust
       uses: Swatinem/rust-cache@v2
@@ -153,7 +153,7 @@ jobs:
       shell: bash
 
     - name: Generate profile data
-      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+      run: just test-python --dist=no -n0 --benchmark-enable differt/tests/benchmarks
 
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
@@ -164,12 +164,12 @@ jobs:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
     - name: Re-run benchmarks
-      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+      run: just test-python --dist=no -n0 --benchmark-enable differt/tests/benchmarks
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: pytest differt/tests/benchmarks --codspeed
+        run: just test-python differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
