@@ -136,14 +136,12 @@ jobs:
     - name: Cache Rust
       uses: Swatinem/rust-cache@v2
 
-    - name: Install dependencies
-      run: uv pip install -r pyproject.toml --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
-
-    - name: Build differt-core for profiling
+    - name: Install dependencies for profiling
       run: |
-        rm -f python/differt_core/*.so
-        pip install -e . --config-settings=build-args='--profile profiling'
-      working-directory: differt-core
+        rm -rf differt-core/python/differt_core/*.so
+        uv pip install -r pyproject.toml --extra tests \
+        --python='${{ steps.setup-python.outputs.python-path }}' \
+        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -157,11 +155,12 @@ jobs:
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
-    - name: Build differt-core for benchmarking
+    - name: Re-install dependencies
       run: |
-        rm -f python/differt_core/*.so
-        pip install -e . --config-settings=build-args='--profile profiling'
-      working-directory: differt-core
+        rm -rf differt-core/python/differt_core/*.so
+        uv pip install -r pyproject.toml --extra tests \
+        --python='${{ steps.setup-python.outputs.python-path }}' \
+        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
@@ -182,7 +181,7 @@ jobs:
       uses: actions/setup-python@v5
 
     - name: Install NumPy
-      run: pip install "numpy<2"
+      run: pip install numpy
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -204,11 +203,11 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Install dependencies
-      run: uv sync --locked --no-dev --extra docs
-
     - name: Install Just
       uses: taiki-e/install-action@just
+
+    - name: Install dependencies
+      run: just install --locked --no-dev --extra docs
 
     - name: Check links in documentation
       run: just docs/linkcheck
