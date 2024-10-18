@@ -3,8 +3,8 @@
 use std::collections::VecDeque;
 
 use numpy::{
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2,
-    ndarray::{Array2, ArrayView2, Axis, parallel::prelude::*},
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    ndarray::{Array2, ArrayView1, ArrayView2, Axis, parallel::prelude::*},
 };
 use pyo3::{prelude::*, types::PyType};
 
@@ -123,10 +123,12 @@ pub mod complete {
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct CompleteGraph {
-        /// Number of nodes.
+        #[pyo3(get)]
+        /// The number of nodes.
         pub(crate) num_nodes: usize,
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl CompleteGraph {
         #[new]
@@ -256,7 +258,7 @@ pub mod complete {
             include_from_and_to: bool,
             chunk_size: usize,
         ) -> AllPathsFromCompleteGraphChunksIter {
-            assert!(chunk_size > 0, "chunk size must be strictly positive");
+            assert!(chunk_size > 0, "'chunk_size' must be strictly positive");
             AllPathsFromCompleteGraphChunksIter {
                 iter: AllPathsFromCompleteGraphIter::new(
                     self.clone(),
@@ -275,9 +277,8 @@ pub mod complete {
     /// Note:
     ///     Even though this iterator is generally sized, this is not true
     ///     when its length is so large that overflow occurred when computing
-    ///     its theoretical length.
-    ///     For lengths close or above ``usize::MAX``, do not rely
-    ///     on the provided size hint nor the length.
+    ///     its theoretical length. A warning will be emitted in such cases,
+    ///     and the length will be set to the maximal representable value.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {
@@ -485,6 +486,7 @@ pub mod complete {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -500,6 +502,23 @@ pub mod complete {
 
         fn __len__(&self) -> usize {
             self.len()
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        ///
+        /// Warning:
+        ///     This iterator provides :func:`len`, which returns the current
+        ///     remaining length of this iterator, without consuming it, and will
+        ///     also be faster as it does not need to perform any iteration.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.by_ref().count()
         }
     }
 
@@ -527,6 +546,7 @@ pub mod complete {
 
     impl ExactSizeIterator for AllPathsFromCompleteGraphChunksIter {}
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromCompleteGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -542,6 +562,23 @@ pub mod complete {
 
         fn __len__(&self) -> usize {
             self.len()
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        ///
+        /// Warning:
+        ///     This iterator provides :func:`len`, which returns the current
+        ///     remaining length of this iterator, without consuming it, and will
+        ///     also be faster as it does not need to perform any iteration.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.iter.by_ref().count()
         }
     }
 }
@@ -573,9 +610,10 @@ pub mod directed {
 
         #[inline]
         pub fn from_adjacency_matrix(adjacency_matrix: &ArrayView2<bool>) -> Self {
+            #[cfg(not(tarpaulin_include))]
             debug_assert!(
                 adjacency_matrix.is_square(),
-                "adjacency matrix must be square"
+                "'adjacency_matrix' must be square"
             );
             let edges_list = adjacency_matrix
                 .axis_iter(Axis(0))
@@ -589,10 +627,75 @@ pub mod directed {
 
             Self { edges_list }
         }
+
+        #[inline]
+        pub fn insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<&ArrayView1<bool>>,
+            to_adjacency: Option<&ArrayView1<bool>>,
+        ) -> (NodeId, NodeId) {
+            let from = self.num_nodes();
+            let to = from + 1;
+
+            if let Some(to_adjacency) = to_adjacency {
+                #[cfg(not(tarpaulin_include))]
+                debug_assert!(
+                    to_adjacency.len() == self.num_nodes(),
+                    "'to_adjacency' must have exactly 'num_node' elements"
+                );
+                self.edges_list
+                    .iter_mut()
+                    .zip(to_adjacency)
+                    .for_each(|(edges, &is_adjacent)| {
+                        if is_adjacent {
+                            edges.push(to)
+                        }
+                    });
+            } else {
+                // Every node is connected to `to`.
+                self.edges_list.iter_mut().for_each(|edges| edges.push(to));
+            }
+
+            let mut from_edges: Vec<NodeId> = if let Some(from_adjacency) = from_adjacency {
+                #[cfg(not(tarpaulin_include))]
+                debug_assert!(
+                    from_adjacency.len() == self.num_nodes(),
+                    "'from_adjacency' must have exactly 'num_node' elements"
+                );
+                (0..from)
+                    .zip(from_adjacency)
+                    .filter_map(
+                        |(node_id, &is_adjacent)| if is_adjacent { Some(node_id) } else { None },
+                    )
+                    .collect()
+            } else {
+                // `from` is connected to every node except itself
+                (0..from).collect()
+            };
+
+            if direct_path {
+                from_edges.push(to);
+            }
+
+            self.edges_list.push(from_edges);
+
+            // `to` is not connected to any node
+            self.edges_list.push(vec![]);
+
+            (from, to)
+        }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl DiGraph {
+        /// int: The number of nodes.
+        #[getter]
+        fn num_nodes(&self) -> usize {
+            self.edges_list.len()
+        }
+
         /// Create an edgeless directed graph with ``num_nodes`` nodes.
         ///
         /// This is equivalent to creating a directed graph from
@@ -617,7 +720,7 @@ pub mod directed {
         /// connected to node ``j``.
         ///
         /// Args:
-        ///     adjacency_matrix (``Bool[ndarray, "num_nodes num_nodes"]``):
+        ///     adjacency_matrix (:class:`Bool[ndarray, "num_nodes num_nodes"]<jaxtyping.Bool>`):
         ///         The adjacency matrix.
         ///
         /// Returns:
@@ -652,7 +755,8 @@ pub mod directed {
 
         /// Insert two additional nodes in the graph: ``from_`` and ``to``.
         ///
-        /// The nodes satisfy the following conditions:
+        /// Unless specific adjacency information is provided,
+        /// the nodes satisfy the following conditions:
         ///
         /// - ``from_`` is connected to every other node in the graph;
         /// - and ``to`` is an `endpoint`, where every other node is connected
@@ -664,35 +768,42 @@ pub mod directed {
         /// Args:
         ///     direct_path (bool): Whether to create a direction connection
         ///         between ``from_`` and ``to`` nodes.
+        ///     from_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected from ``from_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
+        ///     to_adjacency (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`):
+        ///         An optional array indicating nodes that should be
+        ///         connected to ``to_`` node.
+        ///
+        ///         If not specified, all nodes are connected.
         ///
         /// Returns:
         ///     tuple[int, int]:
         ///         The indices of the two added nodes in the graph.
-        #[pyo3(signature = (*, direct_path=true))]
-        #[pyo3(text_signature = "(self, *, direct_path=True)")]
-        pub fn insert_from_and_to_nodes(&mut self, direct_path: bool) -> (NodeId, NodeId) {
-            let from = self.edges_list.len();
-            let to = from + 1;
-
-            // Every node is connected to `to`.
-            self.edges_list.iter_mut().for_each(|edges| edges.push(to));
-
-            // `from` is connected to every node except itself
-            let mut from_edges: Vec<NodeId> = (0..from).collect();
-
-            if direct_path {
-                from_edges.push(to);
-            }
-
-            self.edges_list.push(from_edges);
-
-            // `to` is not connected to any node
-            self.edges_list.push(vec![]);
-
-            self.get_adjacent_nodes(from);
-            self.get_adjacent_nodes(to);
-
-            (from, to)
+        #[pyo3(signature = (*, direct_path=true, from_adjacency=None, to_adjacency=None))]
+        #[pyo3(name = "insert_from_and_to_nodes")]
+        #[pyo3(
+            text_signature = "(self, *, direct_path=True, from_adjacency=None, to_adjacency=None)"
+        )]
+        pub fn py_insert_from_and_to_nodes(
+            &mut self,
+            direct_path: bool,
+            from_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+            to_adjacency: Option<PyReadonlyArray1<'_, bool>>,
+        ) -> (NodeId, NodeId) {
+            self.insert_from_and_to_nodes(
+                direct_path,
+                from_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+                to_adjacency
+                    .as_ref()
+                    .map(|py_arr| py_arr.as_array())
+                    .as_ref(),
+            )
         }
 
         /// Disconnect one or more nodes from the graph.
@@ -811,7 +922,7 @@ pub mod directed {
             include_from_and_to: bool,
             chunk_size: usize,
         ) -> AllPathsFromDiGraphChunksIter {
-            assert!(chunk_size > 0, "chunk size must be strictly positive");
+            assert!(chunk_size > 0, "'chunk_size' must be strictly positive");
             AllPathsFromDiGraphChunksIter {
                 iter: AllPathsFromDiGraphIter::new(
                     self.clone(),
@@ -935,6 +1046,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -946,6 +1058,18 @@ pub mod directed {
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray1<NodeId>>> {
             slf.next().map(|path| PyArray1::from_vec_bound(py, path))
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.by_ref().count()
         }
     }
 
@@ -966,6 +1090,7 @@ pub mod directed {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     #[pymethods]
     impl AllPathsFromDiGraphChunksIter {
         fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -977,6 +1102,18 @@ pub mod directed {
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray2<NodeId>>> {
             slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
+        }
+
+        /// Count the number of elements in this iterator by consuming it.
+        ///
+        /// This is much faster that counting the number of elements using Python
+        /// code.
+        ///
+        /// Returns:
+        ///     int: The number of elements that this iterator contains.
+        #[pyo3(name = "count")]
+        fn py_count(mut slf: PyRefMut<'_, Self>) -> usize {
+            slf.iter.by_ref().count()
         }
     }
 }
@@ -1045,6 +1182,57 @@ mod tests {
         assert_eq!(got, expected);
     }
 
+    struct FooPathsIter {
+        num_paths: usize,
+        depth: usize,
+        count: usize,
+    }
+
+    impl FooPathsIter {
+        fn new(num_paths: usize, depth: usize) -> Self {
+            Self {
+                num_paths,
+                depth,
+                count: 0,
+            }
+        }
+    }
+
+    impl Iterator for FooPathsIter {
+        type Item = Vec<NodeId>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.count < self.num_paths {
+                self.count += 1;
+                return Some(vec![0; self.depth]);
+            }
+            None
+        }
+    }
+
+    impl PathsIterator for FooPathsIter {}
+
+    #[test]
+    fn test_default_paths_iter() {
+        let mut iter = FooPathsIter::new(10, 4);
+        assert_eq!(iter.depth(), None);
+
+        let array = iter.collect_array();
+        assert_eq!(array.shape(), &[10, 4]);
+
+        let mut iter = FooPathsIter::new(0, 4);
+
+        let array = iter.collect_array();
+        assert_eq!(array.shape(), &[0, 0]);
+
+        let mut iter = FooPathsIter::new(10, 4).into_array_chunks_iter(3);
+        assert_eq!(iter.next().unwrap().shape(), &[3, 4]);
+        assert_eq!(iter.next().unwrap().shape(), &[3, 4]);
+        assert_eq!(iter.next().unwrap().shape(), &[3, 4]);
+        assert_eq!(iter.next().unwrap().shape(), &[1, 4]);
+        assert!(iter.next().is_none());
+    }
+
     #[rstest]
     #[case(0, 2, 0, 1)] // One path of depth 2 [0, 1]
     #[case(0, 2, 0, 0)] // No path of depth 2 (because can't be [0, 0])
@@ -1081,6 +1269,7 @@ mod tests {
         #[case] to: usize,
     ) {
         let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        assert_eq!(iter.depth().unwrap(), depth - 2);
         let iter_cloned = iter.clone();
         let got = iter.len();
         let expected = iter.count();
@@ -1111,6 +1300,10 @@ mod tests {
     #[case(0, 2, 0, 1, 1)] // One path of depth 2
     #[case(0, 3, 0, 1, 0)] // No path of depth 3
     #[case(0, 4, 0, 1, 0)] // No path of depth 4
+    #[case(1, 3, 0, 0, 0)] // No path of depth 3
+    #[case(2, 3, 0, 0, 1)] // One path of depth 3
+    #[case(2, 3, 0, 2, 1)] // One path of depth 3
+    #[case(1, 3, 1, 1, 1)] // One path of depth 3
     fn test_complete_graph_edge_cases(
         #[case] num_nodes: usize,
         #[case] depth: usize,
@@ -1118,14 +1311,46 @@ mod tests {
         #[case] to: usize,
         #[case] expected: usize,
     ) {
-        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, false);
+        let iter = CompleteGraph::new(num_nodes).all_paths(from, to, depth, true);
+        assert_eq!(iter.depth().unwrap(), depth);
         let got = iter.count();
 
         assert_eq!(got, expected);
     }
 
     #[test]
-    #[should_panic(expected = "adjacency matrix must be square")]
+    fn test_complete_graph_overflow() {
+        testing_logger::setup();
+        let iter = CompleteGraph::new(1_000_000_000).all_paths(0, 1, 10, true);
+        assert_eq!(iter.len(), usize::MAX);
+        testing_logger::validate(|captured_logs| {
+            assert_eq!(captured_logs.len(), 1);
+            assert_eq!(
+                captured_logs[0].body,
+                format!(
+                    "OverflowError: overflow occurred when computing the total number of paths, \
+                     defaulting to maximum value {}.",
+                    usize::MAX
+                )
+            );
+            assert_eq!(captured_logs[0].level, log::Level::Warn);
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "'chunk_size' must be strictly positive")]
+    fn test_complete_graph_zero_chunk_size() {
+        CompleteGraph::new(10).all_paths_array_chunks(0, 1, 2, false, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "'chunk_size' must be strictly positive")]
+    fn test_di_graph_zero_chunk_size() {
+        DiGraph::from(CompleteGraph::new(10)).all_paths_array_chunks(0, 1, 2, false, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "'adjacency_matrix' must be square")]
     fn test_di_graph_from_nonsquare_matrix() {
         let matrix = Array2::default((10, 9));
         let _ = DiGraph::from_adjacency_matrix(&matrix.view());
@@ -1138,6 +1363,53 @@ mod tests {
         let matrix = Array2::default((num_nodes, num_nodes));
         let graph = DiGraph::from_adjacency_matrix(&matrix.view());
         assert!(graph.all_paths(0, 0, 0, true).count() == 0);
+    }
+
+    #[test]
+    fn test_di_graph_insert_with_adjacency() {
+        let graph = DiGraph::from(CompleteGraph::new(5));
+
+        let full_counts = {
+            let mut cloned = graph.clone();
+            let (from, to) = cloned.insert_from_and_to_nodes(false, None, None);
+            cloned.all_paths(from, to, 3, false).count()
+        };
+
+        let from_counts = {
+            let mut cloned = graph.clone();
+            let from_adjacency = ndarray::arr1(&[false, false, false, true, true]);
+            let (from, to) =
+                cloned.insert_from_and_to_nodes(false, Some(&from_adjacency.view()), None);
+            cloned.all_paths(from, to, 3, false).count()
+        };
+
+        assert_eq!(full_counts * 2, from_counts * 5);
+
+        let to_counts = {
+            let mut cloned = graph.clone();
+            let to_adjacency = ndarray::arr1(&[false, true, false, true, true]);
+            let (from, to) =
+                cloned.insert_from_and_to_nodes(false, None, Some(&to_adjacency.view()));
+            cloned.all_paths(from, to, 3, false).count()
+        };
+
+        assert_eq!(full_counts * 3, to_counts * 5);
+    }
+
+    #[test]
+    #[should_panic(expected = "'from_adjacency' must have exactly 'num_node' elements")]
+    fn test_di_graph_insert_with_from_adjacency() {
+        let mut graph = DiGraph::from(CompleteGraph::new(5));
+        let from_adjacency = ndarray::arr1(&[false, false, false, true]);
+        graph.insert_from_and_to_nodes(false, Some(&from_adjacency.view()), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "'to_adjacency' must have exactly 'num_node' elements")]
+    fn test_di_graph_insert_with_to_adjacency() {
+        let mut graph = DiGraph::from(CompleteGraph::new(5));
+        let to_adjacency = ndarray::arr1(&[false, false, false, true, true, false]);
+        graph.insert_from_and_to_nodes(false, None, Some(&to_adjacency.view()));
     }
 
     #[rstest]
@@ -1172,7 +1444,7 @@ mod tests {
         #[case] expected: Array2<NodeId>,
     ) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got = graph.all_paths(from, to, depth + 2, false).collect_array();
 
         assert_eq!(got, expected);
@@ -1183,7 +1455,7 @@ mod tests {
     #[case(3, 3)]
     fn test_empty_di_graph_returns_all_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph = DiGraph::empty(num_nodes);
-        let (from, to) = graph.insert_from_and_to_nodes(false);
+        let (from, to) = graph.insert_from_and_to_nodes(false, None, None);
 
         assert_eq!(graph.all_paths(from, to, depth + 2, true).count(), 0);
     }
@@ -1193,7 +1465,7 @@ mod tests {
     #[case(3, 3)]
     fn test_di_graph_returns_sorted_paths(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let got: Vec<_> = graph.all_paths(from, to, depth + 2, true).collect();
 
         let mut expected = got.clone();
@@ -1208,7 +1480,7 @@ mod tests {
     #[case(8, 3)]
     fn test_di_graph_array_chunks_is_iter(#[case] num_nodes: usize, #[case] depth: usize) {
         let mut graph: DiGraph = CompleteGraph::new(num_nodes).into();
-        let (from, to) = graph.insert_from_and_to_nodes(true);
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
         let iter = graph.all_paths(from, to, depth + 2, true);
         let chunks_iter = graph.all_paths_array_chunks(from, to, depth + 2, true, 1);
 
@@ -1224,7 +1496,7 @@ mod tests {
     ) {
         let complete_graph = CompleteGraph::new(num_nodes);
         let mut di_graph: DiGraph = complete_graph.clone().into();
-        let (from, to) = di_graph.insert_from_and_to_nodes(true);
+        let (from, to) = di_graph.insert_from_and_to_nodes(true, None, None);
         let complete_iter = complete_graph.all_paths(from, to, depth + 2, true);
         let di_iter = di_graph.all_paths(from, to, depth + 2, true);
 
