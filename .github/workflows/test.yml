@@ -137,7 +137,8 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Install dependencies for profiling
-      run: uv pip install -r pyproject.toml --extra tests \
+      run: |
+        uv pip install -r pyproject.toml --extra tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
@@ -154,7 +155,8 @@ jobs:
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
     - name: Re-install dependencies
-      run: uv pip install -r pyproject.toml --extra tests \
+      run: |
+        uv pip install -r pyproject.toml --extra tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
