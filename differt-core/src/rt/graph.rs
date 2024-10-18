@@ -278,7 +278,7 @@ pub mod complete {
     ///     Even though this iterator is generally sized, this is not true
     ///     when its length is so large that overflow occurred when computing
     ///     its theoretical length. A warning will be emitted in such cases,
-    ///     and the lenght will be set to the maximal representable value.
+    ///     and the length will be set to the maximal representable value.
     #[pyclass]
     #[derive(Clone, Debug)]
     pub struct AllPathsFromCompleteGraphIter {
@@ -664,8 +664,7 @@ pub mod directed {
                     "'from_adjacency' must have exactly 'num_node' elements"
                 );
                 (0..from)
-                    .into_iter()
-                    .zip(from_adjacency.into_iter())
+                    .zip(from_adjacency)
                     .filter_map(
                         |(node_id, &is_adjacent)| if is_adjacent { Some(node_id) } else { None },
                     )
