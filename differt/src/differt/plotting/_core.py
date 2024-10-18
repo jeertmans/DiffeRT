@@ -506,7 +506,7 @@ def draw_image(
         Matplotlib backend requires ``data`` to be either RGB or RGBA array.
 
     Examples:
-        The following example shows how plot a 2-D image,
+        The following example shows how to plot a 2-D image,
         without and with axis scaling.
 
         .. plotly::
@@ -665,7 +665,7 @@ def draw_contour(  # noqa: PLR0917
         a 2D figure instead.
 
     Examples:
-        The following example shows how plot a 2-D contour,
+        The following example shows how to plot a 2-D contour,
         without and with axis scaling, and filling.
 
         .. plotly::
@@ -862,7 +862,7 @@ def draw_surface(
         VisPy currently does not support colors.
 
     Examples:
-        The following example shows how plot a 3-D surface,
+        The following example shows how to plot a 3-D surface,
         without and with custom coloring.
 
         .. plotly::
