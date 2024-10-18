@@ -136,11 +136,10 @@ jobs:
     - name: Cache Rust
       uses: Swatinem/rust-cache@v2
 
-    - name: Install Just
-      uses: taiki-e/install-action@just
-
     - name: Install dependencies for profiling
-      run: just install-profiling --locked --no-dev --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
+      run: uv pip install -r pyproject.toml --extra tests \
+        --python='${{ steps.setup-python.outputs.python-path }}' \
+        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
         RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
@@ -149,20 +148,22 @@ jobs:
       shell: bash
 
     - name: Generate profile data
-      run: uv run --python '${{ steps.setup-python.outputs.python-path }}' pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
+      run: pytest --dist=no -n0 --benchmark-enable differt/tests/benchmarks
 
     - name: Merge PGO data
       run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
     - name: Re-install dependencies
-      run: just install-profiling --locked --no-dev --extra tests --python '${{ steps.setup-python.outputs.python-path }}'
+      run: uv pip install -r pyproject.toml --extra tests \
+        --python='${{ steps.setup-python.outputs.python-path }}' \
+        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
         RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: uv run --python '${{ steps.setup-python.outputs.python-path }}' pytest differt/tests/benchmarks --codspeed
+        run: pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
