@@ -544,7 +544,7 @@ class TriangleScene(eqx.Module):
                 candidates, and yield the result as an iterator over paths chunks.
 
                 Unused if ``path_candidates`` is provided.
-            path_candidates: An option array of path candidates, see :ref:`path_candidates`.
+            path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
 
                 This is helpful to only generate paths on a subset of the scene.
 
