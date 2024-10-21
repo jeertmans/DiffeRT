@@ -167,7 +167,7 @@ jobs:
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: pytest differt/tests/benchmarks --codspeed -W="ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning"
+        run: pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest
