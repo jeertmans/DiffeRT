@@ -276,6 +276,66 @@ class TriangleMesh(eqx.Module):
             (jnp.min(vertices, axis=0), jnp.max(vertices, axis=0)),
         )
 
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
+        """
+        Return a new mesh by applying a rotation matrix to all triangle coordinates.
+
+        Args:
+            rotation_matrix: The rotation matrix.
+
+        Returns:
+            The new rotated mesh.
+        """
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self,
+            (rotation_matrix @ self.vertices.T).T,
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
+        """
+        Return a new mesh by applying a scale factor to all triangle coordinates.
+
+        Args:
+            scale_factor: The scate factor.
+
+        Returns:
+            The new scaled mesh.
+        """
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self,
+            self.vertices * scale_factor,
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def translate(self, translation: Float[Array, "3"]) -> Self:
+        """
+        Return a new mesh by applying a translation to all triangle coordinates.
+
+        Args:
+            translation: The translation vector.
+
+        Returns:
+            The new translated mesh.
+        """
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self,
+            self.vertices + translation,
+        )
+
     @classmethod
     def empty(cls) -> Self:
         """

@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
-from differt.geometry.utils import assemble_paths, normalize
+from differt.geometry.utils import assemble_paths, normalize, rotation_matrix_along_x_axis
 from differt.scene.sionna import (
     get_sionna_scene,
     list_sionna_scenes,
@@ -33,6 +33,42 @@ class TestTriangleScene:
 
             assert scene.mesh.object_bounds is not None
             assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
+
+    def test_rotate(self, advanced_path_tracing_example_scene: TriangleScene, key: PRNGKeyArray) -> None:
+        angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
+
+        got = advanced_path_tracing_example_scene.rotate(rotation_matrix_along_x_axis(angle)).rotate(
+            rotation_matrix_along_x_axis(-angle)
+        )
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene, atol=1e-5)
+
+        got = advanced_path_tracing_example_scene.rotate(rotation_matrix_along_x_axis(angle)).rotate(
+            rotation_matrix_along_x_axis(2 * jnp.pi - angle)
+        )
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene, atol=1e-4)
+
+        got = advanced_path_tracing_example_scene.rotate(rotation_matrix_along_x_axis(0.0))
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+    def test_scale(self, advanced_path_tracing_example_scene: TriangleScene, key: PRNGKeyArray) -> None:
+        scale_factor = jax.random.uniform(key, (), minval=1.5, maxval=2)
+
+        got = advanced_path_tracing_example_scene.scale(scale_factor).scale(1 / scale_factor)
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+        got = advanced_path_tracing_example_scene.scale(1.0)
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+    def test_translate(
+        self, advanced_path_tracing_example_scene: TriangleScene, key: PRNGKeyArray
+    ) -> None:
+        translation = jax.random.normal(key, (3,))
+
+        got = advanced_path_tracing_example_scene.translate(translation).translate(-translation)
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+        got = advanced_path_tracing_example_scene.translate(jnp.zeros_like(translation))
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
 
     @pytest.mark.parametrize(
         ("order", "expected_path_vertices", "expected_objects"),

@@ -367,6 +367,82 @@ class TriangleScene(eqx.Module):
 
         return eqx.tree_at(lambda s: s.receivers, self, jnp.stack((x, y, z), axis=-1))
 
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
+        """
+        Return a new scene by applying a rotation matrix to all the objects in the scene.
+
+        Args:
+            rotation_matrix: The rotation matrix.
+
+        Returns:
+            The new rotated scene.
+        """
+        return eqx.tree_at(
+            lambda s: (s.transmitters, s.receivers, s.mesh),
+            self,
+            (
+                (rotation_matrix @ self.transmitters.reshape(-1, 3).T).T.reshape(
+                    self.transmitters.shape
+                ),
+                (rotation_matrix @ self.receivers.reshape(-1, 3).T).T.reshape(
+                    self.receivers.shape
+                ),
+                self.mesh.rotate(rotation_matrix),
+            ),
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
+        """
+        Return a new scene by applying a scale factor to all the objects in the scene.
+
+        Args:
+            scale_factor: The scate factor.
+
+        Returns:
+            The new scaled scene.
+        """
+        return eqx.tree_at(
+            lambda s: (s.transmitters, s.receivers, s.mesh),
+            self,
+            (
+                self.transmitters * scale_factor,
+                self.receivers * scale_factor,
+                self.mesh.scale(scale_factor),
+            ),
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def translate(self, translation: Float[Array, "3"]) -> Self:
+        """
+        Return a new scene by applying a translation to all the objects in the scene.
+
+        Args:
+            translation: The translation vector.
+
+        Returns:
+            The new translated scene.
+        """
+        return eqx.tree_at(
+            lambda s: (s.transmitters, s.receivers, s.mesh),
+            self,
+            (
+                self.transmitters + translation,
+                self.receivers + translation,
+                self.mesh.translate(translation),
+            ),
+        )
+
     @classmethod
     def from_core(
         cls, core_scene: differt_core.scene.triangle_scene.TriangleScene
