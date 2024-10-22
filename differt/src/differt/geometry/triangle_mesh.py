@@ -416,7 +416,7 @@ class TriangleMesh(eqx.Module):
         Create a plane mesh, made of two triangles.
 
         Note:
-            The mesh statisfies the guarantees
+            The mesh satisfies the guarantees
             expected when setting
             :attr:`assume_quads` to :data:`True`.
 
@@ -491,7 +491,7 @@ class TriangleMesh(eqx.Module):
         Create a box mesh, with an optional opening on the top.
 
         Note:
-            The mesh statisfies the guarantees
+            The mesh satisfies the guarantees
             expected when setting
             :attr:`assume_quads` to :data:`True`.
 
