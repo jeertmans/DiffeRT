@@ -413,7 +413,12 @@ class TriangleMesh(eqx.Module):
         rotate: Float[ArrayLike, " "] | None = None,
     ) -> Self:
         """
-        Create an plane mesh, made of two triangles.
+        Create a plane mesh, made of two triangles.
+
+        Note:
+            The mesh satisfies the guarantees
+            expected when setting
+            :attr:`assume_quads` to :data:`True`.
 
         Args:
             vertex_a: The center of the plane.
@@ -468,6 +473,72 @@ class TriangleMesh(eqx.Module):
         vertices += vertex_a
 
         triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+        return cls(vertices=vertices, triangles=triangles)
+
+    @classmethod
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def box(
+        cls,
+        length: Float[ArrayLike, " "] = 1.0,
+        width: Float[ArrayLike, " "] = 1.0,
+        height: Float[ArrayLike, " "] = 1.0,
+        *,
+        with_top: bool = False,
+    ) -> Self:
+        """
+        Create a box mesh, with an optional opening on the top.
+
+        Note:
+            The mesh satisfies the guarantees
+            expected when setting
+            :attr:`assume_quads` to :data:`True`.
+
+        Args:
+            length: The length of the box (along x-axis).
+            width: The width of the box (along y-axis).
+            height: The height of the box (along z-axis).
+            with_top: Whether the top of part
+                of the box is included or not.
+
+        Returns:
+            A new box mesh.
+        """
+        dx = jnp.array([length * 0.5, 0.0, 0.0])
+        dy = jnp.array([0.0, width * 0.5, 0.0])
+        dz = jnp.array([0.0, 0.0, height * 0.5])
+
+        vertices = jnp.stack((
+            +dx + dy + dz,
+            +dx + dy - dz,
+            -dx + dy - dz,
+            -dx + dy + dz,
+            -dx - dy - dz,
+            -dx - dy + dz,
+            +dx - dy - dz,
+            +dx - dy + dz,
+        ))
+        triangles = jnp.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],
+                [3, 2, 4],
+                [3, 4, 5],
+                [5, 4, 6],
+                [5, 6, 7],
+                [7, 6, 1],
+                [7, 1, 0],
+                [1, 4, 2],  # Bottom
+                [1, 6, 4],
+            ],
+            dtype=int,
+        )
+        if with_top:
+            triangles = jnp.concatenate(
+                (triangles, jnp.asarray([[0, 3, 5], [0, 5, 7]])),
+                axis=0,
+            )
         return cls(vertices=vertices, triangles=triangles)
 
     @property

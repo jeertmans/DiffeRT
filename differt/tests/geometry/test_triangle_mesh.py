@@ -211,6 +211,27 @@ class TestTriangleMesh:
         ):
             _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
 
+    @pytest.mark.parametrize(
+        ("length", "width", "height"),
+        [(10.0, 5.0, 4.0)],
+    )
+    @pytest.mark.parametrize("with_top", [False, True])
+    def test_box(
+        self, length: float, width: float, height: float, with_top: bool
+    ) -> None:
+        mesh = TriangleMesh.box(length, width, height, with_top=with_top)
+
+        if with_top:
+            assert mesh.num_triangles == 12
+        else:
+            assert mesh.num_triangles == 10
+
+        dx = length * 0.5
+        dy = width * 0.5
+        dz = height * 0.5
+
+        assert mesh.bounding_box.tolist() == [[-dx, -dy, -dz], [+dx, +dy, +dz]]
+
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
 
