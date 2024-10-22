@@ -51,7 +51,7 @@ tests = [
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.0.21"
+current_version = "0.0.23"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -137,6 +137,7 @@ env = [
 filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
+  '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
 ]
 log_level = "INFO"
 markers = [

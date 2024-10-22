@@ -70,6 +70,8 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
 )
 
+linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
