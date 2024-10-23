@@ -1,5 +1,5 @@
 # Check for common grammar and spelling mistakes
-name: LanguageTool
+name: Spelling
 
 on:
   pull_request:
@@ -23,3 +23,19 @@ jobs:
         reporter: github-pr-review
         patterns: '*.md src/**.rs python/differt/**.py docs/source/**.md docs/source/**.ipynb'
         level: warning
+
+  codespell-jupyer:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Strip cell output
+      run: |
+        pip install nbstripout
+        find . -name '*.ipynb' -exec nbstripout {} +
+
+    - name: Run codespell
+      run: |
+        pip install codespell tomli
+        find . -name '*.ipynb' -exec codespell {} +
