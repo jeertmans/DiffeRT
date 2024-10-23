@@ -1,27 +1,28 @@
 DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
 =================================================================
 
+DiffeRT is a Python module that aims to make *Differentiable Ray Tracing* accessible
+to researchers in radio propagation!
+
+It is currenty developed as part of a PhD, but a lot of work is put into documentating and
+testing the tool, so any researcher should be able to understand how to use this tool for
+their own research.
+
+As mentioned on the GitHub page, the current state of the project is still considered to
+be under *high-development*, and we welcome any contribution!
+
 .. toctree::
-   :maxdepth: 1
-   :caption: Tutorials
+   :hidden:
+   :maxdepth: 2
 
-   notebooks/quickstart
-   notebooks/advanced_path_tracing
-   notebooks/plotting_backend
-   notebooks/diffraction
-   notebooks/ray_tracing_at_city_scale
-   notebooks/multipath
+   installation
+   tutorials
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
-   :caption: Reference
 
-   reference/differt
-   reference/differt_core
-   numpy_vs_jax.md
-   batch_axes.md
-   notebooks/type_checking
-   notebooks/performance_tips
-   notebooks/path_candidates
+   reference
    citing
    references
+   Report an issue <https://github.com/jeertmans/DiffeRT/issues>

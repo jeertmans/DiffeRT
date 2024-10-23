@@ -1,5 +1,5 @@
 """
-Provide a compatibility layer with Sionna's scenes.
+Provide a compatibility layer with Sionna's scenes :cite:`sionna`.
 
 Sionna uses the simple XML-based format from Mitsuba 3.
 """
