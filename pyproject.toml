@@ -204,6 +204,7 @@ extend-ignore-names = ["T"]
 "**.ipynb" = [
   "B018",
   "ERA001",  # TODO: remove commented code in notebook
+  "N806",
   "PLR2004",  # TODO: remove this
   "PLW2901",  # TODO: remove this
 ]
