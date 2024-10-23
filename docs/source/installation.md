@@ -27,7 +27,7 @@ please report it as
 ### About JAX
 
 If you want to leverage the power of your GPU(s) or TPU(s), you may want
-to look at [JAX's installation guide](https://github.com/jax-ml/jax?tab=readme-ov-file#installation),
+to look at [JAX's installation guide](https://jax.readthedocs.io/en/latest/installation.html),
 as they provide the necessary information about how to install JAX with support for your target device.
 
 DiffeRT works seamlessly with JAX regardless of the active devices (i.e, CPU, GPU, or TPU).
