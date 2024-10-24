@@ -35,6 +35,7 @@ Contents
    :maxdepth: 1
 
    notebooks/multipath
+   notebooks/sampling_paths
 
 .. toctree::
    :caption: Reference
