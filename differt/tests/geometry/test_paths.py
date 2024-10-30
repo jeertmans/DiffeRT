@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry.paths import Paths
+from differt.geometry._paths import Paths
 
 
 def random_paths(

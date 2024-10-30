@@ -19,7 +19,7 @@ from sphinx.environment import BuildEnvironment
 from sphinx.ext.intersphinx import missing_reference
 
 from differt import __version__
-from differt.scene.sionna import download_sionna_scenes
+from differt.scene import download_sionna_scenes
 
 project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
@@ -39,7 +39,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     # Additional
-    "differt_dev.sphinxext.apidoc",
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
     "sphinxcontrib.bibtex",
@@ -86,18 +85,6 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "vispy": ("https://vispy.org", None),
 }
-
-# -- API docs settings
-apidoc_module_dirs = [
-    "../../differt/src/differt",
-    "../../differt-core/python/differt_core",
-]
-apidoc_output_dirs = "reference"
-apidoc_exclude_patterns = ["conftest.py", "scene/scenes/**"]
-apidoc_separate = True
-apidoc_no_toc = True
-apidoc_max_depth = 1
-apidoc_templatedir = "source/_templates"
 
 # -- OpenGraph settings
 

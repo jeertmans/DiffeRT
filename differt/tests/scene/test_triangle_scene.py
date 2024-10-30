@@ -10,16 +10,16 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
-from differt.geometry.utils import (
+from differt.geometry._utils import (
     assemble_paths,
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.scene.sionna import (
+from differt.scene._sionna import (
     get_sionna_scene,
     list_sionna_scenes,
 )
-from differt.scene.triangle_scene import TriangleScene
+from differt.scene._triangle_scene import TriangleScene
 from differt_core.scene.sionna import SionnaScene
 
 skip_if_not_8_devices = pytest.mark.skipif(

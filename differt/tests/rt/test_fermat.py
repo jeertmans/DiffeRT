@@ -2,7 +2,7 @@ import chex
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.rt.fermat import fermat_path_on_planar_mirrors
+from differt.rt._fermat import fermat_path_on_planar_mirrors
 
 from .utils import PlanarMirrorsSetup
 

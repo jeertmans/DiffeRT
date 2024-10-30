@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.rt.utils import (
+from differt.rt._utils import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,

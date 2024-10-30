@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
-from differt.geometry.utils import (
+from differt.geometry._utils import (
     assemble_paths,
     fibonacci_lattice,
     normalize,

@@ -5,7 +5,6 @@ default:
 # Clean build artifacts
 clean:
   rm -rf build
-  rm -f source/reference/*.rst
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":

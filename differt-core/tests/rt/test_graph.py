@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pytest
 
-from differt_core.rt.graph import (
+from differt_core.rt._graph import (
     CompleteGraph,
     DiGraph,
 )

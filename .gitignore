@@ -11,7 +11,7 @@ target/
 
 docs/build/
 docs/jupyter_execute/
-docs/source/reference/*.rst
+docs/source/reference/_autosummary/
 
 # Sionna data
 

@@ -4,7 +4,7 @@ from timeit import timeit
 
 import pytest
 
-from differt.scene.sionna import (
+from differt.scene._sionna import (
     download_sionna_scenes,
     get_sionna_scene,
     list_sionna_scenes,

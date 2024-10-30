@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.special as sp
 
-from differt.em.utd import F
+from differt.em._utd import F
 
 
 def scipy_F(x: np.ndarray) -> np.ndarray:  # noqa: N802

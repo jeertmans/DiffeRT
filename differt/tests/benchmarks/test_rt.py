@@ -2,12 +2,12 @@ import jax
 import pytest
 from pytest_codspeed import BenchmarkFixture
 
-from differt.rt.fermat import fermat_path_on_planar_mirrors
-from differt.rt.image_method import (
+from differt.rt._fermat import fermat_path_on_planar_mirrors
+from differt.rt._image_method import (
     image_method,
 )
-from differt.rt.utils import triangles_visible_from_vertices
-from differt.scene.triangle_scene import TriangleScene
+from differt.rt._utils import triangles_visible_from_vertices
+from differt.scene._triangle_scene import TriangleScene
 
 from ..rt.utils import PlanarMirrorsSetup
 

@@ -5,14 +5,14 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use super::sionna::SionnaScene;
 use crate::geometry::triangle_mesh::TriangleMesh;
 
-/// A scene that contains one mesh, usually begin the results of multiple call to :meth:`TriangleMesh.append<differt_core.geometry.triangle_mesh.TriangleMesh.append>`.
+/// A scene that contains one mesh, usually being the results of multiple call to :meth:`TriangleMesh.append<differt_core.geometry.TriangleMesh.append>`.
 ///
 /// This class is only useful to provide a fast constructor for scenes
 /// created using the Sionna file format.
 #[derive(Clone)]
 #[pyclass]
 struct TriangleScene {
-    /// differt_core.geometry.triangle_mesh.TriangleMesh: The scene mesh.
+    /// differt_core.geometry.TriangleMesh: The scene mesh.
     #[pyo3(get)]
     mesh: TriangleMesh,
 }
