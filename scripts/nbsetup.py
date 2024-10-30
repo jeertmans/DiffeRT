@@ -33,6 +33,9 @@ if __name__ == "__main__":
         if len(cells) > 1 and TAG in cells[0].get("metadata", {}).get("tags", []):
             cell = cells[0]
 
+            if "nbsetup-skip" in cell["metadata"]["tags"]:
+                continue  # Skip this cell, we don't to overwrite it
+
             for field, value in CELL.items():
                 cell[field] = value
         else:
