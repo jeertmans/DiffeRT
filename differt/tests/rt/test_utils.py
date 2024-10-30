@@ -307,6 +307,6 @@ def test_triangles_visible_from_vertices(
     )
 
     with expectation:
-        assert (
-            visible_triangles.sum() == expected_number
-        ), "Number of visible triangles did not match expectation."
+        assert visible_triangles.sum() == expected_number, (
+            "Number of visible triangles did not match expectation."
+        )

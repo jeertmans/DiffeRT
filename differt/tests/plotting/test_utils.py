@@ -104,7 +104,7 @@ def test_missing_default_backend_module(
         missing_modules(backend),
         pytest.raises(
             ImportError,
-            match=f"Could not find backend '{backend}', " "did you install it?",
+            match=f"Could not find backend '{backend}', did you install it?",
         ),
     ):
         with use(backend=backend):
