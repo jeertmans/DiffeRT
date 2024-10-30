@@ -34,7 +34,7 @@ if __name__ == "__main__":
             cell = cells[0]
 
             if "nbsetup-skip" in cell["metadata"]["tags"]:
-                continue  # Skip this cell, we don't to overwrite it
+                continue  # Skip this cell, we don't want to overwrite it
 
             for field, value in CELL.items():
                 cell[field] = value
