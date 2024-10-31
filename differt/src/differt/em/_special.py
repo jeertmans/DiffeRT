@@ -200,7 +200,7 @@ def fresnel(
     Evaluate the two Fresnel integrals at the given points.
 
     This current implementation is written using
-    the error function :func:`erf<differt.em.special.erf>`
+    the error function :func:`erf<differt.em.erf>`
     see :cite:`fresnel-integrals`.
 
     The output type (real or complex) is determined by the

@@ -166,7 +166,7 @@ def image_method(
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`assemble_paths<differt.geometry.utils.assemble_paths>`:
+        :func:`assemble_paths<differt.geometry.assemble_paths>`:
 
         .. code-block:: python
 

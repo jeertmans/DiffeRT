@@ -1,13 +1,4 @@
-"""
-Path tracing utilities that utilize Fermat's principle.
-
-Fermat's principle states that the path taken by a ray between two
-given points is the path that can be traveled in the least time
-:cite:`fermat-principle`. In a homogeneous medium,
-this means that the path of least time is also the path of last distance.
-
-As a result, this module offers minimization methods for finding ray paths.
-"""
+"""Path tracing utilities that utilize Fermat's principle."""
 
 from typing import Any
 
@@ -61,7 +52,7 @@ def fermat_path_on_planar_mirrors(
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`assemble_paths<differt.geometry.utils.assemble_paths>`:
+        :func:`assemble_paths<differt.geometry.assemble_paths>`:
 
         .. code-block:: python
 

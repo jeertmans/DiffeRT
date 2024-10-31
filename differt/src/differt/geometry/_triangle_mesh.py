@@ -31,7 +31,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
 
     This is especially useful when combined with the
-    :func:`image_method<differt.rt.image_method.image_method>`, as the paths returned
+    :func:`image_method<differt.rt.image_method>`, as the paths returned
     will also lie in the same plane as the mirrors, but may be outside of the actual reflector,
     e.g., a triangular surface.
 

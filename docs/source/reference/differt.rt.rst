@@ -7,7 +7,7 @@
 
 .. rubric:: Image method
 
-.. automodule:: differt.rt._image_method
+Image-based path tracing.
 
 .. autosummary::
    :toctree: _autosummary
@@ -18,14 +18,19 @@
 
 .. rubric:: Fermat path tracing
 
-.. automodule:: differt.rt._fermat
+Path tracing utilities that utilize Fermat's principle.
+
+Fermat's principle states that the path taken by a ray between two
+given points is the path that can be traveled in the least time
+:cite:`fermat-principle`. In a homogeneous medium,
+this means that the path of least time is also the path of last distance.
+
+As a result, this module offers minimization methods for finding ray paths.
 
 .. autosummary::
    :toctree: _autosummary
 
    fermat_path_on_planar_mirrors
-
-.. currentmodule:: differt.rt
 
 .. rubric:: Path candidates iterators
 

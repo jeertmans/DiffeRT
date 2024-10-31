@@ -398,7 +398,7 @@ def triangles_visible_from_vertices(
     Return whether triangles are visible from vertex positions.
 
     This function uses ray launching and
-    :func:`fibonacci_lattice<differt.geometry.utils.fibonacci_lattice>` to estimate
+    :func:`fibonacci_lattice<differt.geometry.fibonacci_lattice>` to estimate
     whether a given triangle can be reached from a specific vertex, i.e., with a ray path,
     without interacting with any other triangle facet.
 

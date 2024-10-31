@@ -7,8 +7,6 @@
 
 .. rubric:: Triangle scene
 
-.. automodule:: differt.scene._triangle_scene
-
 .. autosummary::
    :toctree: _autosummary
 
@@ -16,7 +14,9 @@
 
 .. rubric:: Reusing scene from Sionna
 
-.. automodule:: differt.scene._sionna
+Provide a compatibility layer with Sionna's scenes :cite:`sionna`.
+
+Sionna uses the simple XML-based format from Mitsuba 3.
 
 .. autosummary::
    :toctree: _autosummary

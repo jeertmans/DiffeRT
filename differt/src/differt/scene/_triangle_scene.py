@@ -529,7 +529,7 @@ class TriangleScene(eqx.Module):
 
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.rt.image_method.image_method>`. More types of interactions
+            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
@@ -550,9 +550,9 @@ class TriangleScene(eqx.Module):
                 devices. The number of transmitters times the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
             epsilon: Tolelance for checking ray / objects intersection, see
-                :func:`rays_intersect_triangles<differt.rt.utils.rays_intersect_triangles>`.
+                :func:`rays_intersect_triangles<differt.rt.rays_intersect_triangles>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
-                :func:`rays_intersect_any_triangle<differt.rt.utils.rays_intersect_any_triangle>`.
+                :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`.
             min_len: Minimal (squared) length that each path segment must have for a path to be valid.
 
                 If not specified, the default is ten times the epsilon value
@@ -647,7 +647,7 @@ class TriangleScene(eqx.Module):
             rx_kwargs: A mapping of keyword arguments passed to
                 :func:`draw_markers<differt.plotting.draw_markers>`.
             mesh_kwargs: A mapping of keyword arguments passed to
-                :meth:`TriangleMesh.plot<differt.geometry.triangle_mesh.TriangleMesh.plot>`.
+                :meth:`TriangleMesh.plot<differt.geometry.TriangleMesh.plot>`.
             kwargs: Keyword arguments passed to
                 :func:`reuse<differt.plotting.reuse>`.
 
