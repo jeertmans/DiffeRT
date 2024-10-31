@@ -76,6 +76,20 @@ search = '''name = "differt-core"
 version = "{current_version}"'''
 
 [[tool.bumpversion.files]]
+filename = "uv.lock"
+replace = '''name = "differt"
+version = "{new_version}"'''
+search = '''name = "differt"
+version = "{current_version}"'''
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+replace = '''name = "differt-core"
+version = "{new_version}"'''
+search = '''name = "differt-core"
+version = "{current_version}"'''
+
+[[tool.bumpversion.files]]
 filename = "CITATION.cff"
 replace = "version: v{new_version}"
 search = "version: v{current_version}"
