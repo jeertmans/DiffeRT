@@ -58,7 +58,7 @@ def F(z: Inexact[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
             The following example reproduces the same plot as in
             :cite:`utd-mcnamara{fig. 4.16}`.
 
-            >>> from differt.em.utd import F
+            >>> from differt.em import F
             >>>
             >>> x = jnp.logspace(-3, 1, 100)
             >>> y = F(x)

@@ -9,4 +9,11 @@ __all__ = (
     "DiGraph",
 )
 
-from ._graph import AllPathsFromCompleteGraphChunksIter, AllPathsFromCompleteGraphIter, AllPathsFromDiGraphChunksIter, AllPathsFromDiGraphIter, CompleteGraph, DiGraph
+from ._graph import (
+    AllPathsFromCompleteGraphChunksIter,
+    AllPathsFromCompleteGraphIter,
+    AllPathsFromDiGraphChunksIter,
+    AllPathsFromDiGraphIter,
+    CompleteGraph,
+    DiGraph,
+)

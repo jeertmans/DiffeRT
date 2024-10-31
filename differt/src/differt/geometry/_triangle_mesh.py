@@ -128,7 +128,7 @@ class TriangleMesh(eqx.Module):
     triangles are assumed to represent a quadrilateral surface.
     """
 
-    def __check_init__(self) -> None:  # noqa: D105,PLW3201
+    def __check_init__(self) -> None:  # noqa: PLW3201
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
             raise ValueError(msg)
@@ -224,9 +224,7 @@ class TriangleMesh(eqx.Module):
         return mesh
 
     @classmethod
-    def from_core(
-        cls, core_mesh: differt_core.geometry.TriangleMesh
-    ) -> Self:
+    def from_core(cls, core_mesh: differt_core.geometry.TriangleMesh) -> Self:
         """
         Return a triangle mesh from a mesh created by the :mod:`differt_core` module.
 

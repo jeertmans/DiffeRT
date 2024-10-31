@@ -9,7 +9,7 @@ from differt.scene._sionna import (
     get_sionna_scene,
     list_sionna_scenes,
 )
-from differt_core.scene.sionna import SionnaScene
+from differt_core.scene import SionnaScene
 
 # Let's put a timeout on downloading the scenes.
 download_sionna_scenes = partial(download_sionna_scenes, timeout=600)

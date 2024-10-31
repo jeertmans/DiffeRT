@@ -64,7 +64,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
 
         .. plot::
 
-            >>> from differt.em.special import erf
+            >>> from differt.em import erf
             >>>
             >>> x = jnp.linspace(-3.0, +3.0)
             >>> y = erf(x)
@@ -76,7 +76,7 @@ def erf(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
 
         .. plotly::
 
-            >>> from differt.em.special import erf
+            >>> from differt.em import erf
             >>> from scipy.special import erf
             >>>
             >>> x = y = jnp.linspace(-2.0, +2.0, 200)
@@ -180,7 +180,7 @@ def erfc(z: Inexact[Array, " *batch"]) -> Inexact[Array, " *batch"]:
 
         .. plot::
 
-            >>> from differt.em.special import erfc
+            >>> from differt.em import erfc
             >>>
             >>> x = jnp.linspace(-3.0, +3.0)
             >>> y = erfc(x)
@@ -217,7 +217,7 @@ def fresnel(
 
         .. plot::
 
-            >>> from differt.em.special import fresnel
+            >>> from differt.em import fresnel
             >>>
             >>> t = jnp.linspace(0.0, 5.0, 200)
             >>> s, c = fresnel(t)

@@ -16,7 +16,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, jaxtyped
 
-from differt.geometry._utils import orthogonal_basis
+from differt.geometry import orthogonal_basis
 from differt.utils import minimize
 
 

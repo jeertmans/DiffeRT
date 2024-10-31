@@ -7,7 +7,7 @@ use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 /// A lower-level mesh made of triangles.
-/// 
+///
 /// This class should not be used directly, prefer its higher-level version
 /// :class:`differt.geometry.TriangleMesh` instead.
 #[derive(Clone, Debug, Default)]

@@ -63,7 +63,7 @@ class SizedIterator(Iterator, Sized, Generic[_T]):
     Examples:
         The following example shows how to create a sized iterator.
 
-        >>> from differt.rt.utils import SizedIterator
+        >>> from differt.rt import SizedIterator
         >>> l = [1, 2, 3, 4, 5]
         >>> it = SizedIterator(iter=iter(l), size=5)
         >>> len(it)
@@ -76,17 +76,17 @@ class SizedIterator(Iterator, Sized, Generic[_T]):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # noqa: A002,D107
+    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # noqa: A002
         self._iter = iter
         self._size = size
 
-    def __iter__(self) -> Self:  # noqa: D105
+    def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> _T:  # noqa: D105
+    def __next__(self) -> _T:
         return next(self._iter)
 
-    def __len__(self) -> int:  # noqa: D105
+    def __len__(self) -> int:
         if isinstance(self._size, int):
             return self._size
         return self._size()
@@ -225,16 +225,16 @@ def rays_intersect_triangles(
         .. plotly::
 
             >>> import equinox as eqx
-            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.geometry import fibonacci_lattice
             >>> from differt.plotting import draw_rays
-            >>> from differt.rt.utils import (
+            >>> from differt.rt import (
             ...     rays_intersect_triangles,
             ... )
-            >>> from differt.scene.sionna import (
+            >>> from differt.scene import (
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene.triangle_scene import TriangleScene
+            >>> from differt.scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -423,14 +423,14 @@ def triangles_visible_from_vertices(
         .. plotly::
 
             >>> import equinox as eqx
-            >>> from differt.rt.utils import (
+            >>> from differt.rt import (
             ...     triangles_visible_from_vertices,
             ... )
-            >>> from differt.scene.sionna import (
+            >>> from differt.scene import (
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene.triangle_scene import TriangleScene
+            >>> from differt.scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")

@@ -248,7 +248,7 @@ class Paths(eqx.Module):
             denoted by indices ``0`` and ``1``, and each path is made
             of three vertices.
 
-            >>> from differt.geometry.paths import Paths
+            >>> from differt.geometry import Paths
             >>>
             >>> key = jax.random.key(1234)
             >>> key_v, key_o = jax.random.split(key, 2)

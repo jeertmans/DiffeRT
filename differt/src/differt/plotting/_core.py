@@ -288,7 +288,7 @@ def draw_rays(
 
         .. plotly::
 
-            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.geometry import fibonacci_lattice
             >>> from differt.plotting import draw_rays
             >>>
             >>> ray_origins = jnp.zeros(3)

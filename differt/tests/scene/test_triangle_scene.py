@@ -20,7 +20,7 @@ from differt.scene._sionna import (
     list_sionna_scenes,
 )
 from differt.scene._triangle_scene import TriangleScene
-from differt_core.scene.sionna import SionnaScene
+from differt_core.scene import SionnaScene
 
 skip_if_not_8_devices = pytest.mark.skipif(
     jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."

@@ -81,7 +81,7 @@ def normalize(
         The following examples shows how normalization works and
         its special behavior at zero.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     normalize,
         ... )
         >>>
@@ -124,7 +124,7 @@ def orthogonal_basis(
     Examples:
         The following example shows how this function works on basic input vectors.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     normalize,
         ...     orthogonal_basis,
         ... )
@@ -167,7 +167,7 @@ def path_lengths(
     Examples:
         The following example shows how to compute the length of a very simple path.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     path_lengths,
         ... )
         >>>
@@ -201,7 +201,7 @@ def rotation_matrix_along_x_axis(
         The following example shows how to rotate xyz coordinates
         along the x axis.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     rotation_matrix_along_x_axis,
         ... )
         >>>
@@ -237,7 +237,7 @@ def rotation_matrix_along_y_axis(
         The following example shows how to rotate xyz coordinates
         along the y axis.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     rotation_matrix_along_y_axis,
         ... )
         >>>
@@ -273,7 +273,7 @@ def rotation_matrix_along_z_axis(
         The following example shows how to rotate xyz coordinates
         along the z axis.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     rotation_matrix_along_z_axis,
         ... )
         >>>
@@ -311,7 +311,7 @@ def rotation_matrix_along_axis(
         The following example shows how to rotate xyz coordinates
         along a given axis.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     normalize,
         ...     rotation_matrix_along_axis,
         ... )
@@ -324,7 +324,7 @@ def rotation_matrix_along_axis(
         In the following example, we show the importance of using a unit
         vector.
 
-        >>> from differt.geometry.utils import (
+        >>> from differt.geometry import (
         ...     rotation_matrix_along_axis,
         ... )
         >>>
@@ -380,7 +380,7 @@ def fibonacci_lattice(
 
         .. plotly::
 
-            >>> from differt.geometry.utils import (
+            >>> from differt.geometry import (
             ...     fibonacci_lattice,
             ... )
             >>> from differt.plotting import draw_markers

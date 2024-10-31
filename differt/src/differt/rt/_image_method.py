@@ -1,6 +1,4 @@
-"""
-Path tracing utilities that utilize the Image Method.
-"""
+"""Path tracing utilities that utilize the Image Method."""
 # ruff: noqa: ERA001
 
 import chex
@@ -36,7 +34,7 @@ def image_of_vertices_with_respect_to_mirrors(
         a batch of random vertices. Here, normal vectors do not have a unit length,
         but they should have if you want an interpretable result.
 
-        >>> from differt.rt.image_method import (
+        >>> from differt.rt import (
         ...     image_of_vertices_with_respect_to_mirrors,
         ... )
         >>>
@@ -232,9 +230,9 @@ def image_method(
             ...     TriangleMesh.plane(
             ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
             ...     ).plot(color="red")
-            ...     TriangleMesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
-            ...         color="red"
-            ...     )
+            ...     TriangleMesh.plane(
+            ...         mirror_vertices[1], normal=mirror_normals[1]
+            ...     ).plot(color="red")
             ...
             ...     full_path = jnp.concatenate(
             ...         (

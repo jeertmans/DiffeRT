@@ -18,20 +18,18 @@ from jax.sharding import PartitionSpec as P  # noqa: N814
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 import differt_core.scene
-from differt.geometry._paths import Paths
-from differt.geometry._triangle_mesh import (
+from differt.geometry import (
+    Paths,
     TriangleMesh,
+    assemble_paths,
 )
-from differt.geometry._utils import assemble_paths
 from differt.plotting import PlotOutput, draw_markers, reuse
-from differt.rt._image_method import (
-    consecutive_vertices_are_on_same_side_of_mirrors,
-    image_method,
-)
-from differt.rt._utils import (
+from differt.rt import (
     SizedIterator,
+    consecutive_vertices_are_on_same_side_of_mirrors,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
+    image_method,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
 )
@@ -444,9 +442,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_core(
-        cls, core_scene: differt_core.scene.TriangleScene
-    ) -> Self:
+    def from_core(cls, core_scene: differt_core.scene.TriangleScene) -> Self:
         """
         Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
