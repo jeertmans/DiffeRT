@@ -3,8 +3,12 @@ default:
   @just --list
 
 # Clean build artifacts
-clean:
+clean: clean-autosummary
   rm -rf build
+
+# Clean autosummary build artifacts.
+clean-autosummary:
+  rm -f source/reference/_autosummary/*.rst
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":

@@ -1,6 +1,10 @@
 ``differt`` package
 ===================
 
+.. currentmodule:: differt
+
+.. automodule:: differt
+
 Submodules
 ----------
 
@@ -13,12 +17,3 @@ Submodules
    differt.rt
    differt.scene
    differt.utils
-
-.. currentmodule:: differt
-
-.. automodule:: differt
-
-.. autosummary::
-   :toctree: _autosummary
-
-   __version__

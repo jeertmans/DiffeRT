@@ -5,21 +5,52 @@
 
 .. automodule:: differt.plotting
 
-.. rubric:: Utils
+.. rubric:: Common utils
+
+The following utilities allow you to modify the default behavior
+of plotting functions, either permanently or inside a given scope.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   reuse
+   set_defaults
+   use
+
+.. rubric:: Drawing functions
+
+List of all drawings functions provided by this module.
+
+.. note::
+   Some functions might not support all three backends. In such cases, it is indicated in their documentation.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   draw_contour
+   draw_image
+   draw_markers
+   draw_mesh
+   draw_paths
+   draw_rays
+   draw_surface
+
+.. rubric:: Extending this module
+
+If you want to add new drawing functions, either locally or by contributing to this package,
+the following utilities might become handy.
 
 .. autosummary::
    :toctree: _autosummary
 
    dispatch
-   reuse
-   set_defaults
+   get_backend
+   process_matplotlib_kwargs
+   process_plotly_kwargs
+   process_vispy_kwargs
+   view_from_canvas
 
-.. rubric:: Drawing utilities
+Note that all higher-level plotting functions, i.e., created outside of this module,
+should have the following return type.
 
-.. autosummary::
-   :toctree: _autosummary
-
-   draw_image
-   draw_markers
-   draw_mesh
-   draw_paths
+.. autoclass:: PlotOutput
