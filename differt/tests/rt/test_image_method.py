@@ -6,8 +6,8 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.geometry.utils import normalize
-from differt.rt.image_method import (
+from differt.geometry._utils import normalize
+from differt.rt._image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
     image_of_vertices_with_respect_to_mirrors,

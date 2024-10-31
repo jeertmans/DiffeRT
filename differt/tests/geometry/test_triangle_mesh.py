@@ -11,11 +11,11 @@ import jaxtyping
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.geometry.triangle_mesh import (
+from differt.geometry._triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
-from differt.geometry.utils import rotation_matrix_along_x_axis
+from differt.geometry._utils import rotation_matrix_along_x_axis
 
 from ..utils import random_inputs
 

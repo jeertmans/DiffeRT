@@ -9,7 +9,7 @@ import pytest
 import scipy.special as sp
 from chex import Array
 
-from differt.em.special import erf, erfc, fresnel
+from differt.em._special import erf, erfc, fresnel
 
 
 @contextmanager

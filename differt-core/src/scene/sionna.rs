@@ -10,7 +10,7 @@ use serde::{Deserialize, de};
 ///
 /// This class is useless unless converted
 /// to another scene type, like
-/// :class:`TriangleScene<differt.scene.triangle_scene.TriangleScene>`.
+/// :class:`TriangleScene<differt.scene.TriangleScene>`.
 ///
 /// Warning:
 ///     We are still open to better ways to parse those XML files,

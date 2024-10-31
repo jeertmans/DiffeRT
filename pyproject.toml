@@ -1,12 +1,6 @@
-[build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
-
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
-dependencies = [
-  "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
-]
+dependencies = []
 name = "differt-dev"
 requires-python = ">=3.10"
 version = "1.0.0"
@@ -103,9 +97,6 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.pyright]
 deprecateTypingAliases = true
@@ -209,12 +200,10 @@ extend-ignore-names = ["T"]
   "PLW2901",  # TODO: remove this
   "RUF027",
 ]
-"**/tests/*" = ["PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
-"**/{docs,differt_dev,tests}/*" = ["D", "DOC"]
-"**/{docs,tests}/*" = ["S101"]
+"**/tests/*" = ["PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
+"**/{docs,tests}/*" = ["D", "DOC", "S101"]
 "differt/src/differt/conftest.py" = ["D", "DOC"]
 "scripts/*" = ["INP001"]
-"src/differt_dev/sphinxext/apidoc.py" = ["FBT003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
