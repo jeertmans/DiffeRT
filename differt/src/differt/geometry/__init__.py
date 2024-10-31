@@ -3,6 +3,7 @@
 __all__ = (
     "Paths",
     "TriangleMesh",
+    "assemble_paths",
     "fibonacci_lattice",
     "normalize",
     "orthogonal_basis",
@@ -21,6 +22,7 @@ from ._triangle_mesh import (
     triangles_contain_vertices_assuming_inside_same_plane,
 )
 from ._utils import (
+    assemble_paths,
     fibonacci_lattice,
     normalize,
     orthogonal_basis,

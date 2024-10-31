@@ -33,8 +33,8 @@ def lengths_to_delays(
     Examples:
         The following example shows how to compute a delay from a length.
 
-        >>> from differt.em.constants import c
-        >>> from differt.em.utils import (
+        >>> from differt.em import c
+        >>> from differt.em import (
         ...     lengths_to_delays,
         ... )
         >>>
@@ -69,8 +69,8 @@ def path_delays(
     Examples:
         The following example shows how to compute the delay of a very simple path.
 
-        >>> from differt.em.constants import c
-        >>> from differt.em.utils import (
+        >>> from differt.em import c
+        >>> from differt.em import (
         ...     path_delays,
         ... )
         >>>
