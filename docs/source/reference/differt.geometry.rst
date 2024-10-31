@@ -29,7 +29,7 @@ Utilities to transform 3D coordinates.
 
 .. rubric:: Misc
 
-Miscallenous utilities.
+Miscellaneous utilities.
 
 .. autosummary::
    :toctree: _autosummary
