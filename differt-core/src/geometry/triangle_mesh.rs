@@ -268,7 +268,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.TriangleMesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///
@@ -299,7 +299,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.TriangleMesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///

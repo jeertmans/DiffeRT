@@ -187,7 +187,7 @@ def image_method(
         The following image shows how the Image Method (IM) can be applied
         to find a path between two nodes (i.e., BS and UE).
 
-        .. figure:: ../_static/image-method.svg
+        .. figure:: ../../_static/image-method.svg
             :width: 70%
             :align: center
             :alt: Image Method example.

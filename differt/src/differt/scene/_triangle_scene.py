@@ -279,9 +279,9 @@ class TriangleScene(eqx.Module):
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
-        Return a copy of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.triangle_mesh.TriangleMesh.assume_quads>` set to ``flag``.
+        Return a copy of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
 
-        This is simply a convenient wrapper around :meth:`TriangleMesh.set_assume_quads<differt.geometry.triangle_mesh.TriangleMesh.set_assume_quads>`.
+        This is simply a convenient wrapper around :meth:`TriangleMesh.set_assume_quads<differt.geometry.TriangleMesh.set_assume_quads>`.
 
         Args:
             flag: The new flag value.

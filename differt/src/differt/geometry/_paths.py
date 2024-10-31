@@ -209,7 +209,7 @@ class Paths(eqx.Module):
 
                 By default, the last axis is used to match the
                 ``num_path_candidates`` axis as returned by
-                :meth:`TriangleScene.compute_paths<differt.scene.triangle_scene.TriangleScene.compute_paths>`.
+                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
 
         Returns:
             The array of group indices.

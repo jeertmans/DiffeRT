@@ -1,4 +1,4 @@
-"""Triangle scene utilities used by :mod:`differt.scene.triangle_scene`."""
+"""Triangle scene utilities used by :mod:`differt.scene`."""
 
 __all__ = ("TriangleScene",)
 

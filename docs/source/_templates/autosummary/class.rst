@@ -3,6 +3,7 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
+   :members:
 
    {% block attributes %}
    {% if attributes %}
@@ -20,8 +21,10 @@
    .. rubric:: {{ _('Methods') }}
 
    .. autosummary::
-   {% for item in methods %}
+   {% for item in methods  if item != '__init__' %}
       ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
    {% endblock %}
+
+   .. rubric:: Detailed documentation
