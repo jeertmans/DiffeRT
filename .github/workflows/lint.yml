@@ -63,7 +63,7 @@ jobs:
       run: uv run pre-commit run --all-files
 
     - name: Apply fixes when present
-      uses: pre-commit-ci/lite-action@v1.0.3
+      uses: pre-commit-ci/lite-action@v1.1.0
       if: always()
       with:
         msg: 'chore(fmt): auto fixes from pre-commit hooks'
