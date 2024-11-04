@@ -19,7 +19,7 @@ from sphinx.environment import BuildEnvironment
 from sphinx.ext.intersphinx import missing_reference
 
 from differt import __version__
-from differt.scene.sionna import download_sionna_scenes
+from differt.scene import download_sionna_scenes
 
 project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
@@ -39,7 +39,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     # Additional
-    "differt_dev.sphinxext.apidoc",
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
     "sphinxcontrib.bibtex",
@@ -70,6 +69,8 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
 )
 
+linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
+
 # -- MathJax settings
 
 mathjax3_config = {
@@ -80,6 +81,8 @@ mathjax3_config = {
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
+    "e3x": ("https://e3x.readthedocs.io/stable/", None),
+    "flax": ("https://flax-linen.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
     "matplotlib": ("https://matplotlib.org/stable", None),
@@ -92,18 +95,6 @@ intersphinx_mapping = {
     "vispy": ("https://vispy.org", None),
 }
 
-# -- API docs settings
-apidoc_module_dirs = [
-    "../../differt/src/differt",
-    "../../differt-core/python/differt_core",
-]
-apidoc_output_dirs = "reference"
-apidoc_exclude_patterns = ["conftest.py", "scene/scenes/**"]
-apidoc_separate = True
-apidoc_no_toc = True
-apidoc_max_depth = 1
-apidoc_templatedir = "source/_templates"
-
 # -- OpenGraph settings
 
 ogp_site_url = "https://eertmans.be/DiffeRT/"
@@ -113,7 +104,6 @@ ogp_use_first_image = True
 
 always_document_param_types = False
 always_use_bars_union = True
-autodoc_member_order = "bysource"  # We force class variables to appear first
 
 # -- MyST-nb settings
 myst_heading_anchors = 3

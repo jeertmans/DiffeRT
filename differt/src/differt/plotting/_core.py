@@ -288,7 +288,7 @@ def draw_rays(
 
         .. plotly::
 
-            >>> from differt.geometry.utils import fibonacci_lattice
+            >>> from differt.geometry import fibonacci_lattice
             >>> from differt.plotting import draw_rays
             >>>
             >>> ray_origins = jnp.zeros(3)
@@ -479,7 +479,7 @@ def draw_image(
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
-    Plot a 2D image on a 3D canvas, at using a fixed z-coordinate.
+    Plot a 2D image on a 3D canvas, at a fixed z-coordinate.
 
     Args:
         data: The image data array. Can be grayscale, RGB or RGBA.
@@ -635,7 +635,7 @@ def draw_contour(  # noqa: PLR0917
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
-    Plot a 2D contour on a 3D canvas, at using a fixed z-coordinate.
+    Plot a 2D contour on a 3D canvas, at a fixed z-coordinate.
 
     Args:
         data: The values over which the contour is drawn.

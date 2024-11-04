@@ -4,13 +4,13 @@ import equinox as eqx
 import jax.numpy as jnp
 import pytest
 
-from differt.geometry.triangle_mesh import TriangleMesh
-from differt.scene.sionna import (
+from differt.geometry._triangle_mesh import TriangleMesh
+from differt.scene._sionna import (
     SIONNA_SCENES_FOLDER,
     download_sionna_scenes,
     get_sionna_scene,
 )
-from differt.scene.triangle_scene import TriangleScene
+from differt.scene._triangle_scene import TriangleScene
 
 
 @pytest.fixture(scope="session")

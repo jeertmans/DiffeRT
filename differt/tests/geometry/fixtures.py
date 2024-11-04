@@ -3,7 +3,7 @@ from pathlib import Path
 import jax.numpy as jnp
 import pytest
 
-from differt.geometry.triangle_mesh import TriangleMesh
+from differt.geometry._triangle_mesh import TriangleMesh
 
 
 @pytest.fixture(scope="session")

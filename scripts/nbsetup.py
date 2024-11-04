@@ -9,7 +9,7 @@ TAG = "differt-install-preamble"
 CELL = nbf.NotebookNode(
     cell_type="code",
     execution_count=None,
-    id="e90f3c19",
+    id="0",
     metadata={"tags": [TAG, "remove-cell", "skip-execution"]},
     outputs=[],
     source=[
@@ -32,6 +32,9 @@ if __name__ == "__main__":
 
         if len(cells) > 1 and TAG in cells[0].get("metadata", {}).get("tags", []):
             cell = cells[0]
+
+            if "nbsetup-skip" in cell["metadata"]["tags"]:
+                continue  # Skip this cell, we don't want to overwrite it
 
             for field, value in CELL.items():
                 cell[field] = value

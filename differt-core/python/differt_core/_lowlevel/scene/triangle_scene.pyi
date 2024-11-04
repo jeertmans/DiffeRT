@@ -1,4 +1,4 @@
-from differt_core.geometry.triangle_mesh import TriangleMesh
+from differt_core.geometry import TriangleMesh
 
 class TriangleScene:
     mesh: list[TriangleMesh]

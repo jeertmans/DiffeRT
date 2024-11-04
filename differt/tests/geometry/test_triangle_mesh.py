@@ -11,10 +11,11 @@ import jaxtyping
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.geometry.triangle_mesh import (
+from differt.geometry._triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
 )
+from differt.geometry._utils import rotation_matrix_along_x_axis
 
 from ..utils import random_inputs
 
@@ -209,6 +210,63 @@ class TestTriangleMesh:
             ),
         ):
             _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
+
+    @pytest.mark.parametrize(
+        ("length", "width", "height"),
+        [(10.0, 5.0, 4.0)],
+    )
+    @pytest.mark.parametrize("with_top", [False, True])
+    def test_box(
+        self, length: float, width: float, height: float, with_top: bool
+    ) -> None:
+        mesh = TriangleMesh.box(length, width, height, with_top=with_top)
+
+        if with_top:
+            assert mesh.num_triangles == 12
+        else:
+            assert mesh.num_triangles == 10
+
+        dx = length * 0.5
+        dy = width * 0.5
+        dz = height * 0.5
+
+        assert mesh.bounding_box.tolist() == [[-dx, -dy, -dz], [+dx, +dy, +dz]]
+
+    def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
+        angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
+
+        got = two_buildings_mesh.rotate(rotation_matrix_along_x_axis(angle)).rotate(
+            rotation_matrix_along_x_axis(-angle)
+        )
+        chex.assert_trees_all_close(got, two_buildings_mesh, atol=1e-5)
+
+        got = two_buildings_mesh.rotate(rotation_matrix_along_x_axis(angle)).rotate(
+            rotation_matrix_along_x_axis(2 * jnp.pi - angle)
+        )
+        chex.assert_trees_all_close(got, two_buildings_mesh, atol=1e-4)
+
+        got = two_buildings_mesh.rotate(rotation_matrix_along_x_axis(0.0))
+        chex.assert_trees_all_close(got, two_buildings_mesh)
+
+    def test_scale(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
+        scale_factor = jax.random.uniform(key, (), minval=1.5, maxval=2)
+
+        got = two_buildings_mesh.scale(scale_factor).scale(1 / scale_factor)
+        chex.assert_trees_all_close(got, two_buildings_mesh)
+
+        got = two_buildings_mesh.scale(1.0)
+        chex.assert_trees_all_close(got, two_buildings_mesh)
+
+    def test_translate(
+        self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray
+    ) -> None:
+        translation = jax.random.normal(key, (3,))
+
+        got = two_buildings_mesh.translate(translation).translate(-translation)
+        chex.assert_trees_all_close(got, two_buildings_mesh)
+
+        got = two_buildings_mesh.translate(jnp.zeros_like(translation))
+        chex.assert_trees_all_close(got, two_buildings_mesh)
 
     def test_empty(self) -> None:
         assert TriangleMesh.empty().is_empty

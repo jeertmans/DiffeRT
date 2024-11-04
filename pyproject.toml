@@ -1,12 +1,6 @@
-[build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling"]
-
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
-dependencies = [
-  "sphinx>=6,<8",  # TODO: remove <8 constraint when myst-nb>1.1.1 is available
-]
+dependencies = []
 name = "differt-dev"
 requires-python = ">=3.10"
 version = "1.0.0"
@@ -20,7 +14,7 @@ docs = [
   "myst-nb>=0.17.2",
   "pillow>=10.1.0",
   "sphinx-autodoc-typehints>=1.23",
-  "sphinx-book-theme>=1.0.1",
+  "sphinx-book-theme>=1.1.3",
   "sphinx-copybutton>=0.5.2",
   "sphinx-design>=0.5.0",
   "sphinx-remove-toctrees>=0.0.3",
@@ -29,6 +23,7 @@ docs = [
   "sphinxcontrib-bibtex>=2.6.0",
   "sphinx-plotly-directive>=0.1.3",
 ]
+e3x = ["e3x>=1.0.2"]
 prof = [
   "line-profiler[ipython]>=4.1.3",
 ]
@@ -50,7 +45,7 @@ tests = [
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.0.21"
+current_version = "0.0.24"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -81,6 +76,20 @@ search = '''name = "differt-core"
 version = "{current_version}"'''
 
 [[tool.bumpversion.files]]
+filename = "uv.lock"
+replace = '''name = "differt"
+version = "{new_version}"'''
+search = '''name = "differt"
+version = "{current_version}"'''
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+replace = '''name = "differt-core"
+version = "{new_version}"'''
+search = '''name = "differt-core"
+version = "{current_version}"'''
+
+[[tool.bumpversion.files]]
 filename = "CITATION.cff"
 replace = "version: v{new_version}"
 search = "version: v{current_version}"
@@ -89,7 +98,7 @@ search = "version: v{current_version}"
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,ue"
-skip = "docs/source/conf.py,docs/source/notebooks/multipath.ipynb,pyproject.toml,uv.lock"
+skip = "docs/source/conf.py,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -102,9 +111,6 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.pyright]
 deprecateTypingAliases = true
@@ -136,6 +142,7 @@ env = [
 filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
+  '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
 ]
 log_level = "INFO"
 markers = [
@@ -202,15 +209,15 @@ extend-ignore-names = ["T"]
 "**.ipynb" = [
   "B018",
   "ERA001",  # TODO: remove commented code in notebook
+  "N806",
   "PLR2004",  # TODO: remove this
   "PLW2901",  # TODO: remove this
+  "RUF027",
 ]
-"**/tests/*" = ["PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
-"**/{docs,differt_dev,tests}/*" = ["D", "DOC"]
-"**/{docs,tests}/*" = ["S101"]
+"**/tests/*" = ["PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
+"**/{docs,tests}/*" = ["D", "DOC", "S101"]
 "differt/src/differt/conftest.py" = ["D", "DOC"]
 "scripts/*" = ["INP001"]
-"src/differt_dev/sphinxext/apidoc.py" = ["FBT003"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

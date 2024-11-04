@@ -54,8 +54,13 @@ devices:
 
 # Build and install Python packages
 [group: 'dev']
-install:
-  uv sync
+install *ARGS:
+  uv sync {{ARGS}}
+
+# Build and install Python package(s) using 'profiling' profile
+[group: 'dev']
+install-profiling *ARGS:
+  uv sync --config-settings=build-args='--profile profiling' --reinstall-package differt_core {{ARGS}}
 
 # Run code linters and formatters
 [group: 'dev']

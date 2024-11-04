@@ -16,7 +16,7 @@ classifiers = [
 dependencies = [
   "beartype>=0.17.2",
   "chex>=0.1.86",
-  "differt-core==0.0.21",
+  "differt-core==0.0.24",
   "equinox>=0.11.5",
   "filelock>=3.15.4",
   "jax>=0.4.32",
@@ -52,7 +52,7 @@ vispy = [
 vispy-backend = ["PyQt6>=6.6.1"]
 
 [project.scripts]
-"download-sionna-scenes" = "differt.scene.sionna:download_sionna_scenes"
+"download-sionna-scenes" = "differt.scene._sionna:download_sionna_scenes"
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"

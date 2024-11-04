@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.rt.utils import (
+from differt.rt._utils import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
@@ -307,6 +307,6 @@ def test_triangles_visible_from_vertices(
     )
 
     with expectation:
-        assert (
-            visible_triangles.sum() == expected_number
-        ), "Number of visible triangles did not match expectation."
+        assert visible_triangles.sum() == expected_number, (
+            "Number of visible triangles did not match expectation."
+        )

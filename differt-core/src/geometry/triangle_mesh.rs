@@ -6,6 +6,10 @@ use obj::raw::object::{RawObj, parse_obj};
 use ply_rs::{parser, ply};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
+/// A lower-level mesh made of triangles.
+///
+/// This class should not be used directly, prefer its higher-level version
+/// :class:`differt.geometry.TriangleMesh` instead.
 #[derive(Clone, Debug, Default)]
 #[pyclass]
 pub(crate) struct TriangleMesh {
@@ -264,7 +268,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.TriangleMesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///
@@ -295,7 +299,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :meth:`differt.geometry.triangle_mesh.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.TriangleMesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///
