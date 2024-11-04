@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.special as sp
 
-from differt.em.utd import F, diffraction_coefficients
+from differt.em._utd import F, diffraction_coefficients
 
 
 def scipy_F(x: np.ndarray) -> np.ndarray:  # noqa: N802
@@ -75,7 +75,7 @@ def test_diffraction_coefficients() -> None:
         r_prime = random.uniform(key, (), minval=1, maxval=20)
         r = random.uniform(key, (), minval=1, maxval=20)
         r0 = random.uniform(key, (), minval=1, maxval=10)
-        result = compute_utd_diffraction_coefficient(
+        result = diffraction_coefficients(
             incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
         )
         assert result.shape == (3, 3)

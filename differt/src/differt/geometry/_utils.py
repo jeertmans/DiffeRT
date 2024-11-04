@@ -373,7 +373,7 @@ def fibonacci_lattice(
             a surface that is generated from a lattice.
 
             See
-            :class:`Dipole<differt.em.antenna.Dipole>`
+            :class:`Dipole<differt.em.Dipole>`
             for an example.
 
     Returns:

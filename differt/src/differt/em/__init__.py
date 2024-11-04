@@ -1,18 +1,29 @@
 """Electromagnetic fields utilities."""
 
 __all__ = (
+    "Antenna",
+    "Dipole",
     "F",
     "c",
+    "diffraction_coefficients",
     "epsilon_0",
-    "erf",
-    "erfc",
-    "fresnel",
+    "fresnel_coefficients",
     "lengths_to_delays",
     "mu_0",
     "path_delays",
+    "pointing_vector",
+    "reflection_coefficients",
+    "refraction_coefficients",
+    "refractive_indices",
 )
 
+from ._antenna import Antenna, Dipole, pointing_vector
 from ._constants import c, epsilon_0, mu_0
-from ._special import erf, erfc, fresnel
-from ._utd import F
+from ._fresnel import (
+    fresnel_coefficients,
+    reflection_coefficients,
+    refraction_coefficients,
+    refractive_indices,
+)
+from ._utd import F, diffraction_coefficients
 from ._utils import lengths_to_delays, path_delays

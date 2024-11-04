@@ -1,8 +1,4 @@
-"""
-Common antenna utilities.
-
-All utilities currently assume propagation in vacuum.
-"""
+"""Common antenna utilities."""
 
 from abc import abstractmethod
 from dataclasses import KW_ONLY
@@ -13,10 +9,34 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
 
-from differt.geometry.utils import normalize
+from differt.geometry import normalize
 from differt.plotting import PlotOutput, draw_surface
 
-from .constants import c, epsilon_0, mu_0
+from ._constants import c, epsilon_0, mu_0
+
+
+@eqx.filter_jit
+def pointing_vector(e: Inexact[Array, "*#batch 3"],
+                    b: Inexact[Array, "*#batch 3"],
+        mu_r: Inexact[ArrayLike, " *#batch"] | None = None,
+                    ) -> Inexact[Array, "*batch"]:
+    r"""
+    Compute the pointing vector in an homogeneous medium at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
+
+    Args:
+        e: The electrical field.
+        b: The magnetical field.
+        mu_r: The relative permeabilities. If not provided,
+            a value of 1 is used.
+
+    Returns:
+        The pointing vector :math:`\vec{S}`.
+
+        It can be either real of complex-valued.
+    """
+    h = b / (mu_0 * mu_r) if mu_r is not None else b / mu_0
+
+    return jnp.cross(e, h)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -35,7 +55,6 @@ class Antenna(eqx.Module):
     """
 
     @property
-    @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def period(self) -> Float[Array, " "]:
         """The period :math:`T = 1/f`."""
@@ -59,12 +78,17 @@ class Antenna(eqx.Module):
         r"""The wavenumber :math:`k = \omega / c`."""
         return self.angular_frequency / c
 
+    @property
+    @abstractmethod
+    def average_power(self) -> Float[Array, " "]:
+        """The time-average power radiated by this antenna."""
+
     @abstractmethod
     def fields(
         self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         r"""
-        Compute electrical and magnetical fields in vacuum at given position and (optional) time.
+        Compute electric and magnetic fields in an homogeneous medium at given position and (optional) time.
 
         Args:
             r: The array of positions.
@@ -74,18 +98,21 @@ class Antenna(eqx.Module):
                 is assumed.
 
         Returns:
-            The electrical :math:`\vec{E}` and magnetical :math:`\vec{B}` fields.
+            The electric :math:`\vec{E}` and magnetical :math:`\vec{B}` fields.
 
-            Fields can be either real of complex-valued.
+            Fields can be either real or complex-valued.
         """
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def pointing_vector(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
+        self,
+        r: Float[Array, "*#batch 3"],
+        t: Float[Array, "*#batch 3"] | None = None,
+        mu_r: Inexact[ArrayLike, " *#batch"] | None = None,
     ) -> Inexact[Array, "*batch 3"]:
         r"""
-        Compute the pointing vector in vacuum at given position and (optional) time.
+        Compute the pointing vector in an homogeneous medium at given position and (optional) time.
 
         Args:
             r: The array of positions.
@@ -93,6 +120,8 @@ class Antenna(eqx.Module):
 
                 If not provided, initial time instant
                 is assumed.
+            mu_r: The relative permeabilities. If not provided,
+                a value of 1 is used.
 
         Returns:
             The pointing vector :math:`\vec{S}`.
@@ -100,10 +129,7 @@ class Antenna(eqx.Module):
             It can be either real of complex-valued.
         """
         e, b = self.fields(r, t)
-
-        h = b / mu_0
-
-        return jnp.cross(e, h)
+        return pointing_vector(e, b, mu_r=mu_r)
 
     def plot_radiation_pattern(
         self,
@@ -182,7 +208,7 @@ class Dipole(Antenna):
         .. plotly::
             :fig-vars: fig
 
-            >>> from differt.em.antenna import Dipole
+            >>> from differt.em import Dipole
             >>>
             >>> ant = Dipole(frequency=1e9)
             >>> fig = ant.plot_radiation_pattern(backend="plotly")
@@ -194,19 +220,28 @@ class Dipole(Antenna):
 
         .. plot::
 
-            >>> from differt.em.antenna import Dipole
+            >>> from differt.em import Dipole
             >>>
-            >>> theta = jnp.linspace(0, 2 * jnp.pi)
+            >>> theta = jnp.linspace(0, 2 * jnp.pi, 200)
             >>> r = jnp.stack(
             ...     (jnp.cos(theta), jnp.zeros_like(theta), jnp.sin(theta)), axis=-1
             ... )
-            >>> for ratio in [0.25, 0.5, 0.75, 1.0, 2.0]:
+            >>> fig = plt.figure()
+            >>> ax = fig.add_subplot(
+            ...     projection="polar", facecolor="lightgoldenrodyellow"
+            ... )
+            >>> for ratio in [0.5, 1.0, 1.25, 1.5, 2.0]:
             >>>     ant = Dipole(1e9, ratio)
             >>>     power = jnp.linalg.norm(ant.pointing_vector(r), axis=-1)
-            >>>     plt.polar(theta, power, label=fr"$\ell/\lambda = {ratio:1.2f}$")
-
-            >>> plt.gca().set_rscale("log")
-            >>> plt.legend()
+            >>>     ax.plot(theta, power, label=fr"$\ell/\lambda = {ratio:1.2f}$")
+            >>>
+            >>> ax.tick_params(grid_color="palegoldenrod")
+            >>> ax.set_rscale("log")
+            >>> angle = jnp.deg2rad(-10)
+            >>> ax.legend(
+            ...     loc="upper left",
+            ...     bbox_to_anchor=(0.5 + jnp.cos(angle) / 2, 0.5 + jnp.sin(angle) / 2),
+            ... )
             >>> plt.show()
     """
 
@@ -247,11 +282,18 @@ class Dipole(Antenna):
 
         self.moment = moment  # type: ignore[reportAttributeAccessIssue]
 
+    @property
+    def average_power(self) -> Float[Array, " "]:
+        p_0 = jnp.linalg.norm(self.moment)
+        return mu_0 * self.angular_frequency**4 * p_0**2 / (12 * jnp.pi * c)
+
+
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def fields(
         self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
+        # TODO: use something else than 'c' if inhomogeneous medium
         r_hat, r = normalize(r - self.center, keepdims=True)
         p = self.moment
         w = self.angular_frequency
@@ -275,7 +317,7 @@ class Dipole(Antenna):
         )
         b = (factor * k_k / c) * r_x_p * (1 - 1 / j_k_r) * r_inv
 
-        exp = jnp.exp(j_k_r - 1j * w * t) if t else jnp.exp(j_k_r)
+        exp = jnp.exp(j_k_r - 1j * w * t) if t is not None else jnp.exp(j_k_r)
 
         e *= exp
         b *= exp

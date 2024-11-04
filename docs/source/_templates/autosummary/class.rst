@@ -4,6 +4,8 @@
 
 .. autoclass:: {{ objname }}
    :members:
+   :inherited-members:
+   :show-inheritance:
 
    {% block attributes %}
    {% if attributes %}
@@ -21,7 +23,7 @@
    .. rubric:: {{ _('Methods') }}
 
    .. autosummary::
-   {% for item in methods  if item != '__init__' %}
+   {% for item in methods if item != '__init__' %}
       ~{{ name }}.{{ item }}
    {%- endfor %}
    {% endif %}
