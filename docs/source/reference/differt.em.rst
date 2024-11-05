@@ -52,12 +52,12 @@
 
 .. rubric:: Constants
 
-Eletrical constants (re-exported to this module).
+Electrical constants (re-exported to this module).
 
 .. currentmodule:: differt.em.constants
 
 .. autosummary::
-   :toctree:
+   :toctree: _autosummary
 
    c
    epsilon_0
