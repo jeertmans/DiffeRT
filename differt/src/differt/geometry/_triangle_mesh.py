@@ -124,7 +124,7 @@ class TriangleMesh(eqx.Module):
     """Flag indicating whether triangles can be paired into quadrilaterals.
 
     Setting this to :data:`True` will not check anything, except that
-    :attr:`num_triangles` should is even, but each two consecutive
+    :attr:`num_triangles` is even, but each two consecutive
     triangles are assumed to represent a quadrilateral surface.
     """
 
