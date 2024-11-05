@@ -8,7 +8,7 @@ from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
 from differt.geometry import path_lengths
 
-from ._constants import c
+from .constants import c
 
 
 @jax.jit

@@ -1,7 +1,7 @@
 import pytest
 import scipy.constants
 
-from differt.em import _constants
+from differt.em import constants
 
 
 @pytest.mark.parametrize(
@@ -14,7 +14,7 @@ from differt.em import _constants
     ],
 )
 def test_constants(constant_name: str, scipy_name: str | None) -> None:
-    got = getattr(_constants, constant_name)
+    got = getattr(constants, constant_name)
     if scipy_name:
         expected = getattr(scipy.constants, scipy_name)
     else:

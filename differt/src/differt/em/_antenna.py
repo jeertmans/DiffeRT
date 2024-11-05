@@ -13,7 +13,7 @@ from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
 from differt.geometry import normalize
 from differt.plotting import PlotOutput, draw_surface
 
-from ._constants import c, epsilon_0, mu_0
+from .constants import c, epsilon_0, mu_0
 
 
 @eqx.filter_jit
@@ -259,13 +259,16 @@ class Dipole(Antenna):
     r"""
     A simple electrical (or Hertzian) dipole.
 
-    Equations were obtained from :cite:`dipole,dipole-moment,dipole-antenna,directivity`.
+    Equations were obtained from :cite:`dipole,dipole-moment,dipole-antenna,directivity`, and assume
+    a constant current across the dipole length.
 
     Args:
         frequency: The frequency at which the antenna is operating.
         num_wavelengths: The length of the dipole, relative to the wavelength.
         length: The absolute length of the dipole, supersedes ``num_wavelengths``.
         moment: The dipole moment.
+
+            By default, the dipole is aligned with the z-axis.
         current: The current (in A) flowing in the dipole.
 
             If this is provided, which is the default, the only the direction of the moment
@@ -445,6 +448,9 @@ class ShortDipole(Dipole):
     which leads to more realistic results.
 
     However, fields are only derived for far field.
+
+    Warning:
+        Not implemented yed.
     """
 
     @eqx.filter_jit

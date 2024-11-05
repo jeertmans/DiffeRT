@@ -52,13 +52,19 @@
 
 .. rubric:: Constants
 
+Eletrical constants (re-exported to this module).
+
+.. currentmodule:: differt.em.constants
+
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    c
    epsilon_0
    mu_0
    z_0
+
+.. currentmodule:: differt.em
 
 .. rubric:: Fields coefficients
 

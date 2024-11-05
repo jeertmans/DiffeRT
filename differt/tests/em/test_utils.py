@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.em._constants import c
+from differt.em.constants import c
 from differt.em._utils import lengths_to_delays, path_delays
 
 from ..utils import random_inputs
