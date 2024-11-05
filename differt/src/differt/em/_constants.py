@@ -8,3 +8,6 @@ r"""The vacuum permeability :math:`\mu_0`."""
 
 epsilon_0 = 8.8541878128e-12
 r"""The vacuum permittivity :math:`\epsilon_0`."""
+
+z_0 = 376.73031341259
+r"""The impedance of the of free space :math:`Z_0`."""

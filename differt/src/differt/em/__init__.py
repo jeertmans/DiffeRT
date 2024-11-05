@@ -4,6 +4,7 @@ __all__ = (
     "Antenna",
     "Dipole",
     "F",
+    "ShortDipole",
     "c",
     "diffraction_coefficients",
     "epsilon_0",
@@ -15,10 +16,11 @@ __all__ = (
     "reflection_coefficients",
     "refraction_coefficients",
     "refractive_indices",
+    "z_0",
 )
 
-from ._antenna import Antenna, Dipole, pointing_vector
-from ._constants import c, epsilon_0, mu_0
+from ._antenna import Antenna, Dipole, ShortDipole, pointing_vector
+from ._constants import c, epsilon_0, mu_0, z_0
 from ._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,

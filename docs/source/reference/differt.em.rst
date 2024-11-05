@@ -58,6 +58,7 @@
    c
    epsilon_0
    mu_0
+   z_0
 
 .. rubric:: Fields coefficients
 
@@ -91,11 +92,17 @@ where Chapter 6 (p. 263) covers three-dimension wedge diffraction.
 
 .. rubric:: Antennas
 
+The following antenna classes are defined to work in vacuum.
+If you want to use those classes in another media, you can do so
+by multiplying the output fields by relative permeabilities and permittivities,
+when relevant.
+
 .. autosummary::
    :toctree: _autosummary
 
    Antenna
    Dipole
+   ShortDipole
 
 .. rubric:: Utilities
 

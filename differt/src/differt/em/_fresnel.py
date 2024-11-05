@@ -1,9 +1,4 @@
-r"""
-Fresnel coefficients utilities.
-
-"""
-
-from typing import ParamSpec, TypeVar
+"""Fresnel coefficients utilities."""
 
 import equinox as eqx
 import jax
@@ -12,9 +7,6 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
 
 from differt.utils import safe_divide
-
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
 
 
 @eqx.filter_jit
