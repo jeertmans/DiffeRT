@@ -1,6 +1,7 @@
 import sys
 from typing import Any
 
+import chex
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -12,6 +13,10 @@ if sys.platform.startswith("darwin"):
     # Seems like VisPy cannot be imported inside a doctest
     # module on macOS runners...
     collect_ignore_glob = ["*", "**/*"]
+
+
+def pytest_configure() -> None:
+    chex.set_n_cpu_devices(8)
 
 
 @pytest.fixture(autouse=True)

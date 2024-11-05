@@ -309,18 +309,18 @@ class Dipole(Antenna):
             ...     projection="polar", facecolor="lightgoldenrodyellow"
             ... )
             >>> for ratio in [0.5, 1.0, 1.25, 1.5, 2.0]:
-            >>>     ant = Dipole(1e9, ratio)
-            >>>     power = jnp.linalg.norm(ant.pointing_vector(r), axis=-1)
-            >>>     ax.plot(theta, power, label=fr"$\ell/\lambda = {ratio:1.2f}$")
+            ...     ant = Dipole(1e9, ratio)
+            ...     power = jnp.linalg.norm(ant.pointing_vector(r), axis=-1)
+            ...     _ = ax.plot(theta, power, label=rf"$\ell/\lambda = {ratio:1.2f}$")
             >>>
             >>> ax.tick_params(grid_color="palegoldenrod")
             >>> ax.set_rscale("log")
             >>> angle = jnp.deg2rad(-10)
-            >>> ax.legend(
+            >>> ax.legend(  # doctest: +SKIP
             ...     loc="upper left",
             ...     bbox_to_anchor=(0.5 + jnp.cos(angle) / 2, 0.5 + jnp.sin(angle) / 2),
             ... )
-            >>> plt.show()
+            >>> plt.show()  # doctest: +SKIP
     """
 
     length: Float[Array, " "]
