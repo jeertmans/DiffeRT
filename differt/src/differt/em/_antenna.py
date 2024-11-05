@@ -139,7 +139,7 @@ class Antenna(eqx.Module):
         """
         Compute an estimate of the antenna directivity for azimutal and elevation angles.
 
-        .. notes::
+        .. note::
 
             Subclasses may provide a more accurate or exact
             implementation.
@@ -184,7 +184,7 @@ class Antenna(eqx.Module):
         """
         Compute an estimate of the antenna directive gain.
 
-        .. notes::
+        .. note::
 
             Subclasses may provide a more accurate or exact
             implementation.
