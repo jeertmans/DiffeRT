@@ -542,7 +542,9 @@ class TriangleScene(eqx.Module):
                 Unused if ``path_candidates`` is provided.
             path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
 
-                This is helpful to only generate paths on a subset of the scene.
+                This is helpful to only generate paths on a subset of the scene. E.g., this
+                is used in :ref:`sampling-paths` to test a specific set of path candidates
+                generated from a Machine Learning model.
 
                 If ``self.mesh.assume_quads`` is :data:`True`, then path candidates are
                 rounded down toward the nearest even value.

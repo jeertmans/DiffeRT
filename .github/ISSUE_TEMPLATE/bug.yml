@@ -59,12 +59,12 @@ body:
     placeholder: |
       # Examples of expected commands
       python file.py
-      # or inside a Jupyter notebook 
+      # or inside a Jupyter notebook
       jupyter lab
       # or installing from pip
       pip install differt
       # or building from source
-      uv sync 
+      uv sync
       # ...
     render: shell
   validations:
