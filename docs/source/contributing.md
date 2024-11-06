@@ -52,7 +52,7 @@ Other recipes are available, and you can list them with `just docs/`.
 
 Both Rust and Python codebases have their own tests and benchmarks.
 
-The following commands assumes that you execute them from the root folder.
+The following commands assume that you execute them from the root folder.
 
 #### Testing Rust code
 
@@ -90,9 +90,9 @@ and wait for a reviewer to check your work!
 
 Many thanks to you!
 
-:::{tips}
+:::{tip}
 If you are not familiar with GitHub pull requests, please
-checkout their
+check out their
 [Hello World tutorial](https://docs.github.com/en/get-started/quickstart/hello-world)
 or [Fireship's 100 seconds introduction video](https://www.youtube.com/watch?v=8lGpZkjnkt4&ab_channel=Fireship).
 :::
