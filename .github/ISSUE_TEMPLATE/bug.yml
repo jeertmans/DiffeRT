@@ -77,8 +77,8 @@ body:
     description: >
       Please select the option in the drop-down.
     options:
-    - Installation issuea (from pip)
-    - Installation issuea (from source)
+    - Installation issue (from pip)
+    - Installation issue (from source)
     - Incorrect values (e.g., EM fields are not correct)
     - Error or warning when executing the code
     - Performance issue
