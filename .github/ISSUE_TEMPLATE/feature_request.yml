@@ -1,0 +1,46 @@
+name: Feature request
+description: Have a new idea/feature? Please suggest!
+title: '[FEATURE] <short-description-here>'
+labels: [enhancement, needs-triage]
+
+body:
+- type: markdown
+  id: preamble
+  attributes:
+    value: |
+      **Thank you for suggesting a new feature!**
+
+      If you know how to implement it, feel free to submit a PR too!
+
+- type: checkboxes
+  id: terms
+  attributes:
+    label: Terms
+    description: 'By submitting this issue, I have:'
+    options:
+    - label: Checked the [existing issues](https://github.com/jeertmans/DiffeRT/issues?q=is%3Aissue+label%3Aenhancement) to see if my suggestion has not already been suggested;
+      required: true
+
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: A brief description of the enhancement you propose, also include what you tried and what worked.
+  validations:
+    required: true
+
+- type: textarea
+  id: screenshots
+  attributes:
+    label: Screenshots
+    description: Please add screenshots if applicable
+  validations:
+    required: false
+
+- type: textarea
+  id: extrainfo
+  attributes:
+    label: Additional information
+    description: Is there anything else we should know about this idea?
+  validations:
+    required: false
