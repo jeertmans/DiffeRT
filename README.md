@@ -17,9 +17,11 @@
 ## Usage
 
 > [!WARNING]
-> Until this package reaches version `0.1.x`, breaking changes
-> should be expected. Checkout the [ROADMAP](./ROADMAP.md) for
-> future features.
+> Until this package reaches version `v0.1.0`, breaking changes
+> should be expected.
+> Checkout the [v0.1.0](https://github.com/jeertmans/DiffeRT/milestone/1)
+> and [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestones for future
+> features.
 >
 > If you have any suggestion regarding the development of this package,
 > please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
@@ -37,10 +39,10 @@ requirements below.
 ## Contributing
 
 > [!IMPORTANT]
-> The current documentation is very light and a more complete guide for
+> The current documentation is still incomplete and a more complete guide for
 > new contributors will be written in the near future.
 >
-> Until then, do not hesitate to reach me for help with
+> Until then, do not hesitate to reach for help through
 > [GitHub issues](https://github.com/jeertmans/DiffeRT/issues)!
 
 This project is built using both Python and Rust code, to provide an easy-to-use
