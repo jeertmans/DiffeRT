@@ -14,6 +14,7 @@ __all__ = (
     "rotation_matrix_along_y_axis",
     "rotation_matrix_along_z_axis",
     "triangles_contain_vertices_assuming_inside_same_plane",
+    "viewing_frustum",
 )
 
 from ._paths import Paths
@@ -31,4 +32,5 @@ from ._utils import (
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
+    viewing_frustum,
 )

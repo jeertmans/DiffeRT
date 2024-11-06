@@ -10,7 +10,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
-from differt.geometry import fibonacci_lattice
+from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt_core.rt import CompleteGraph
 
 if sys.version_info >= (3, 11):
@@ -365,6 +365,8 @@ def triangles_visible_from_vertices(
     vertices: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
+    *,
+    optimize_frustum: bool = False,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
     """
@@ -375,6 +377,10 @@ def triangles_visible_from_vertices(
     whether a given triangle can be reached from a specific vertex, i.e., with a ray path,
     without interacting with any other triangle facet.
 
+    It also uses
+    :func:`viewing_frustum<differt.geometry.viewing_frustum>` to only
+    launch rays in a spatial region that contains triangles.
+
     Args:
         vertices: An array of vertices, used as origins of the rays.
 
@@ -383,6 +389,10 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
+        optimize_frustum: Whether to optimize to frustum by minimizing its size.
+
+            See :func:`viewing_frustum<differt.geometry.viewing_frustum>`
+            for details.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -400,10 +410,10 @@ def triangles_visible_from_vertices(
             ...     triangles_visible_from_vertices,
             ... )
             >>> from differt.scene import (
+            ...     TriangleScene,
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -427,8 +437,17 @@ def triangles_visible_from_vertices(
     # [*batch 3]
     ray_origins = vertices
 
+    # [2 3]
+    # note: currently we don't handle batches and generate one frustum for everything
+    frustum = viewing_frustum(
+        ray_origins,
+        triangle_vertices.reshape(*triangle_vertices.shape[:-3], -1, 3),
+        optimize=optimize_frustum,
+        reduce=True,
+    )
+
     # [num_rays 3]
-    ray_directions = fibonacci_lattice(num_rays)
+    ray_directions = fibonacci_lattice(num_rays, frustum=frustum)
 
     batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
 

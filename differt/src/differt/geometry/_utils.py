@@ -351,10 +351,30 @@ def rotation_matrix_along_axis(
     return co * i + si * x + (1 - co) * o
 
 
+@overload
+def fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None = None,
+    *,
+    frustum: None = None,
+) -> Float[Array, "{n} 3"]: ...
+
+
+@overload
+def fibonacci_lattice(
+    n: int,
+    dtype: None = None,
+    *,
+    frustum: Float[Array, "2 2"] | Float[Array, "2 3"],
+) -> Float[Array, "{n} 3"]: ...
+
+
 @jaxtyped(typechecker=typechecker)
 def fibonacci_lattice(
     n: int,
     dtype: DTypeLike | None = None,
+    *,
+    frustum: Float[Array, "2 2"] | Float[Array, "2 3"] | None = None,
 ) -> Float[Array, "{n} 3"]:
     """
     Return a lattice of vertices on the unit sphere.
@@ -362,9 +382,21 @@ def fibonacci_lattice(
     This function uses the Fibonacci lattice method :cite:`fibonacci-lattice`
     to generate an almost uniformly distributed set of points on the unit sphere.
 
+    If ``frustum`` is passed, points are distributed in the region defined by the
+    frustum's limits.
+
     Args:
         n: The size of the lattice.
         dtype: The float dtype of the vertices.
+
+            Unused if ``frustum`` is passed.
+        frustum: The spatial region where to sample points.
+
+            The frustum in an array of min. and max. values for
+            azimutal and elevation angles, see :func:`viewing_frustum` for example.
+
+            It is allowed to pass a frustum with distance values, but it will be ignored
+            as the distance of from sampled points to origin is always 1.
 
     Returns:
         The array of vertices.
@@ -387,6 +419,8 @@ def fibonacci_lattice(
             >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
             >>> fig  # doctest: +SKIP
     """
+    if frustum is not None:
+        dtype = frustum.dtype
     if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
         msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
         raise ValueError(msg)
@@ -396,6 +430,14 @@ def fibonacci_lattice(
 
     lat = jnp.arccos(1 - 2 * i / n)
     lon = 2 * jnp.pi * i / phi
+
+    if frustum is not None:
+        start_lon, start_lat = frustum[0, -2:]
+        scale_lon, scale_lat = frustum[1, -2:] - frustum[0, -2:]
+        scale_lon /= 2 * jnp.pi
+        scale_lat /= jnp.pi
+        lat = (lat - start_lat) * scale_lat + start_lat
+        lon = (lon - start_lon) * scale_lon + start_lon
 
     co_lat = jnp.cos(lat)
     si_lat = jnp.sin(lat)
@@ -478,3 +520,144 @@ def min_distance_between_cells(
             cell_ids.reshape(-1),
         ),
     )[1].reshape(cell_ids.shape)
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: Literal[False] = False,
+) -> Float[Array, "*batch 2 3"]: ...
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: Literal[True] = True,
+) -> Float[Array, "2 3"]: ...
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: bool,
+) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: bool = False,
+) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
+    r"""
+    Compute the viewing frustum as seen by one viewer.
+
+    The frustum is a region, espressed in spherical coordinates
+    :math:`(r, \phi, \theta)`, where :math:`r` is the distance,
+    :math:`\phi` is the azimutal angle, and :math:`\theta` is the
+    elevation angle, that fully contains the scene.
+
+    Args:
+        viewing_vertex: The coordinates of the viewer (i.e., camera).
+        world_vertices: The array of world coordinates.
+        optimize: Whether to minimize the frustrum's angle width
+            so that the frustum has a maximual opening of 180°
+            for both azimutal and elevation angles.
+
+            This only makes sense if the world vertices can all
+            fit in the same hemisphere centered around the
+            corresponding viewing vertex.
+        reduce: Whether to reduce batch dimensions.
+
+    Returns:
+        The extents (min. and max. values) of the viewing frustum.
+
+    Examples:
+        The following example shows how to *launch* rays in a limited
+        region of space, to avoid launching rays where no triangles
+        would be hit.
+
+        .. plotly::
+
+            >>> import equinox as eqx
+            >>> from differt.geometry import fibonacci_lattice, viewing_frustum
+            >>> from differt.plotting import draw_rays
+            >>> from differt.rt import (
+            ...     rays_intersect_triangles,
+            ... )
+            >>> from differt.scene import (
+            ...     get_sionna_scene,
+            ...     download_sionna_scenes,
+            ... )
+            >>> from differt.scene import TriangleScene
+            >>>
+            >>> download_sionna_scenes()
+            >>> file = get_sionna_scene("simple_street_canyon")
+            >>> scene = TriangleScene.load_xml(file)
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 100.0])
+            ... )
+            >>> frustum = viewing_frustum(
+            ...     scene.transmitters, scene.mesh.vertices, optimize=True
+            ... )
+            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...     scene.transmitters, fibonacci_lattice(300, frustum=frustum)
+            ... )
+            >>> ray_directions *= 40.0  # Scale rays length before plotting
+            >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
+            ...     np.asarray(ray_origins),
+            ...     np.asarray(ray_directions),
+            ...     backend="plotly",
+            ...     line={"color": "red"},
+            ...     showlegend=False,
+            ... )
+            >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
+            >>> fig  # doctest: +SKIP
+    """
+    r_dir = viewing_vertex[..., None, :] - world_vertices
+    dist = jnp.linalg.norm(r_dir, axis=-1)
+    azim = jnp.arctan2(r_dir[..., 0], r_dir[..., 1])
+    elev = jnp.arctan2(r_dir[..., 2], r_dir[..., 1])
+
+    if reduce:
+        dist = dist.ravel()
+        azim = azim.ravel()
+        elev = elev.ravel()
+
+    frustum = jnp.stack((
+        jnp.min(dist, axis=-1),
+        jnp.max(dist, axis=-1),
+        jnp.min(azim, axis=-1),
+        jnp.max(azim, axis=-1),
+        jnp.min(elev, axis=-1),
+        jnp.max(elev, axis=-1),
+    )).reshape(*dist.shape[:-1], 2, 3)
+
+    if optimize:
+        # We minimize the width of the frustum transforming
+        # angle a -> (a + 360) % 360.
+
+        angle_width = jnp.diff(frustum[..., :, 1:], axis=-2)
+        two_pi = 2 * jnp.pi
+
+        return frustum.at[..., :, 1:].set(
+            jnp.where(
+                angle_width > jnp.pi,
+                (frustum[..., :, 1:] + two_pi) % two_pi,
+                frustum[..., :, 1:],
+            )
+        )
+
+    return frustum

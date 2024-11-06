@@ -40,3 +40,4 @@ Miscellaneous utilities.
    orthogonal_basis
    path_lengths
    triangles_contain_vertices_assuming_inside_same_plane
+   viewing_frustum
