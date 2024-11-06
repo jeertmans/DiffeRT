@@ -389,7 +389,7 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
-        optimize_frustum: Whether to optimize to frustum by minimizing its size.
+        optimize_frustum: Whether to optimize the frustum by minimizing its size.
 
             See :func:`viewing_frustum<differt.geometry.viewing_frustum>`
             for details.

@@ -567,7 +567,7 @@ def viewing_frustum(
     The frustum is a region, espressed in spherical coordinates
     :math:`(r, \phi, \theta)`, where :math:`r` is the distance,
     :math:`\phi` is the azimutal angle, and :math:`\theta` is the
-    elevation angle, that fully contains the scene.
+    elevation angle, that fully contains the world vertices.
 
     Args:
         viewing_vertex: The coordinates of the viewer (i.e., camera).
@@ -590,6 +590,7 @@ def viewing_frustum(
         would be hit.
 
         .. plotly::
+            :context: reset
 
             >>> import equinox as eqx
             >>> from differt.geometry import fibonacci_lattice, viewing_frustum
@@ -607,10 +608,33 @@ def viewing_frustum(
             >>> file = get_sionna_scene("simple_street_canyon")
             >>> scene = TriangleScene.load_xml(file)
             >>> scene = eqx.tree_at(
-            ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 100.0])
+            ...     lambda s: s.transmitters, scene, jnp.array([-120, 0, 30.0])
             ... )
             >>> frustum = viewing_frustum(
             ...     scene.transmitters, scene.mesh.vertices, optimize=True
+            ... )
+            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...     scene.transmitters, fibonacci_lattice(300, frustum=frustum)
+            ... )
+            >>> ray_directions *= 40.0  # Scale rays length before plotting
+            >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
+            ...     np.asarray(ray_origins),
+            ...     np.asarray(ray_directions),
+            ...     backend="plotly",
+            ...     line={"color": "red"},
+            ...     showlegend=False,
+            ... )
+            >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
+            >>> fig  # doctest: +SKIP
+
+        This second examples shows what happens when ``optimize`` is set to
+        :data:`False` (the default).
+
+        .. plotly::
+            :context:
+
+            >>> frustum = viewing_frustum(
+            ...     scene.transmitters, scene.mesh.vertices, optimize=False
             ... )
             >>> ray_origins, ray_directions = jnp.broadcast_arrays(
             ...     scene.transmitters, fibonacci_lattice(300, frustum=frustum)
