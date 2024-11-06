@@ -97,7 +97,7 @@ search = "version: v{current_version}"
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
-ignore-words-list = "crate,ue"
+ignore-words-list = "crate,serialisation,ue"
 skip = "docs/source/conf.py,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
