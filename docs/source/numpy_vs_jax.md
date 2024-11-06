@@ -8,7 +8,7 @@ and many other Python modules are built on top, like
 
 However, it lacks one keep component we need for differentiability:
 automatic differentiation (autodiff). And this is where
-[JAX](https://github.com/google/jax) comes into play. While providing
+[JAX](https://github.com/jax-ml/jax) comes into play. While providing
 an almost identical syntax to NumPy, JAX offers autodiff everywhere
 JAX arrays are used.
 

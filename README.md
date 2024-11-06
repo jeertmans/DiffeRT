@@ -33,97 +33,44 @@ pip install differt
 ```
 
 We provide pre-built binaries for most platforms. If you want (or need)
-to build the package from the source distribution, check out the
-requirements below.
+to build the package from the source distribution,
+or want to customize the installation (e.g., with GPU support), check out the
+[installation guide](https://differt.readthedocs.io/latest/installation.html).
+
+### Reporting an issue
+
+<!-- start reporting-an-issue -->
+
+If you think you found a bug,
+an error in the documentation,
+or wish there was some feature that is currently missing,
+we would love to hear from you!
+
+The best way to reach us is via the
+[GitHub issues](https://github.com/jeertmans/DiffeRT/issues?q=is%3Aissue).
+If your problem is not covered by an already existing (closed or open) issue,
+then we suggest you create a
+[new issue](https://github.com/jeertmans/DiffeRT/issues/new/choose).
+You can choose from a list of templates, or open a
+[blank issue](https://github.com/jeertmans/DiffeRT/issues/new)
+if your issue does not fit one of the proposed topics.
+
+The more precise you are in the description of your problem, the faster we will
+be able to help you!
+
+If you rather have question than a problem,
+then it is probably best suited to ask it in the
+[Q&A category of the discussions](https://github.com/jeertmans/DiffeRT/discussions/categories/q-a).
+
+<!-- end reporting-an-issue -->
 
 ## Contributing
 
-> [!IMPORTANT]
-> The current documentation is still incomplete and a more complete guide for
-> new contributors will be written in the near future.
->
-> Until then, do not hesitate to reach for help through
-> [GitHub issues](https://github.com/jeertmans/DiffeRT/issues)!
+All types of contributions are more than welcome!
 
-This project is built using both Python and Rust code, to provide an easy-to-use
-but performant program. It also heavily uses the capabilities brought by
-[JAX](https://github.com/google/jax) for numerical arrays.
-
-### Requirements
-
-To run build this package locally, you need:
-
-- [Python 3.10](https://www.python.org/) or above;
-- [Rust](https://www.rust-lang.org/) stable toolchain;
-- any modern C compiler;
-- [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
-- [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [uv](https://docs.astral.sh/uv/) to manage this project.
-
-This project contains `justfile`s with recipes[^1] for most common
-use cases, so feel free to use them instead of the commands listed below/
-
-[^1]: `just` is as alternative tool to Make, that provides more modern
-  user experience. Enter `just` to list all available recipes.
-
-## Local development
-
-The following commands assume that you installed
-the project locally with:
-
-```bash
-uv sync
-```
-
-and that you activated the corresponding Python virtual environment:
-
-```bash
-. .venv/bin/activate  # or .venv\Scripts\activate on Windows
-```
-
-### Documentation
-
-To generate the documentation, please run the following:
-
-```bash
-just docs/build
-```
-
-Finally, you can open `docs/build/html/index.html` to see the generated docs.
-
-Other recipes are available, and you can list them with `just docs/`.
-
-### Testing
-
-Both Rust and Python codebases have their own tests and benchmarks.
-
-#### Testing Rust code
-
-You can test Rust code using Cargo:
-
-```bash
-cargo test
-```
-
-or benchmark it:
-
-```bash
-cargo bench
-```
-
-#### Testing Python code
-
-Similarly, you can test Python code with Pytest:
-
-```bash
-pytest
-```
-
-or benchmark it:
-
-```bash
-pytest --benchmark-enable differt/tests/benchmarks
-```
+Please follow the
+[contributing guide](https://differt.readthedocs.io/latest/contributing.html)
+for a detailed step-by-step procedure.
 
 ## Citing
 
