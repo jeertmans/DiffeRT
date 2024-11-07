@@ -609,13 +609,13 @@ def viewing_frustum(
             ...         )
             ...         ray_origins += 0.5 * ray_directions
             ...         ray_directions *= 2.5  # Scale rays length before plotting
-            ...         fig = draw_rays(
+            ...         draw_rays(
             ...             jnp.asarray(ray_origins),
             ...             jnp.asarray(ray_directions),
             ...             line={"color": f"rgb({float(r)},{float(g)},{float(b)})"},
             ...             mode="lines",
             ...             showlegend=False,
-            ...         )
+            ...         )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
     """
     xyz = world_vertices - viewing_vertex[..., None, :]
@@ -739,6 +739,6 @@ def spherical_to_cartesian(
     xyz = jnp.stack((sp * ca, sp * sa, cp), axis=-1)
 
     if rpa.shape[-1] == 3:  # noqa: PLR2004
-        xyz *= rpa[..., 0]
+        xyz *= rpa[..., 0, None]
 
     return xyz
