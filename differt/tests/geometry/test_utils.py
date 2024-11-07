@@ -10,6 +10,7 @@ from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry._utils import (
     assemble_paths,
+    cartesian_to_spherical,
     fibonacci_lattice,
     normalize,
     orthogonal_basis,
@@ -19,6 +20,7 @@ from differt.geometry._utils import (
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
+    spherical_to_cartesian,
 )
 
 from ..utils import random_inputs
@@ -251,3 +253,24 @@ def test_assemble_paths_random_inputs(
         expected_path_length = sum(shape[-2] for shape in shapes)
 
         assert got.shape[-2] == expected_path_length
+
+
+def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
+    key_xyz, key_sph = jax.random.split(key, 2)
+
+    xyz = 10 * jax.random.normal(key_xyz, (100, 3))
+    sph = cartesian_to_spherical(xyz)
+    got = spherical_to_cartesian(sph)
+
+    chex.assert_trees_all_close(got, xyz)
+
+    key_r, key_polar, key_azim = jax.random.split(key_sph, 3)
+
+    r = 10 * jax.random.normal(key_r, (100,))
+    p = jax.random.uniform(key_polar, (100,), minval=0, maxval=jnp.pi)
+    a = jax.random.uniform(key_azim, (100,), minval=0, maxval=2 * jnp.pi)
+    sph = jnp.column_stack((r, p, a))
+    xyz = spherical_to_cartesian(sph)
+    got = cartesian_to_spherical(xyz)
+
+    chex.assert_trees_all_close(got, sph)

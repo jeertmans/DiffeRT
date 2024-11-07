@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created on 2018-04-27 by Robin Green with the script make-coord-system-figure -->
+<!-- This file is declared PUBLIC DOMAIN by its creator -->
+
+<svg
+  id="fig"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+
+  fill="none"
+  fill-opacity="1"
+  fill-rule="evenodd"
+
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-dasharray="none"
+  stroke-opacity="1"
+  stroke-width="1.5px"
+
+  font-style="normal"
+  font-weight="normal"
+  font-size="30px"
+  font-family="Bitstream Vera"
+
+  width="620.0"
+  height="600.0"
+>
+
+
+  <g
+    transform="scale(1.0)"
+  >
+
+  <defs>
+  </defs>
+
+    <!-- The reference planes: -->
+    <g stroke="rgb(185, 205, 170)" fill="rgb(215, 235, 200)" fill-opacity="0.5">
+      <polygon points="+421.4,+222.7 +320.0,+300.0 +320.0,+482.9 +415.4,+392.2"/>
+      <polygon points="+143.7,+251.6 +320.0,+300.0 +320.0,+482.9 +154.5,+426.2"/>
+      <polygon points="+191.9,+397.7 +320.0,+300.0 +320.0,+482.9 +201.3,+595.7"/>
+      <polygon points="+522.8,+355.7 +320.0,+300.0 +320.0,+482.9 +508.6,+547.4"/>
+
+      <polygon points="+003.4,+336.2 +412.7,+469.7 +608.4,+267.0 +256.4,+183.6"/>
+
+      <polygon points="+421.4,+222.7 +320.0,+300.0 +320.0,+089.7 +428.2,+030.6"/>
+      <polygon points="+143.7,+251.6 +320.0,+300.0 +320.0,+089.7 +131.4,+052.6"/>
+      <polygon points="+191.9,+397.7 +320.0,+300.0 +320.0,+089.7 +180.9,+165.7"/>
+      <polygon points="+522.8,+355.7 +320.0,+300.0 +320.0,+089.7 +539.2,+132.8"/>
+    </g>
+    <!-- The X axis: -->
+    <path d="M +320.0,+300.0 L +162.1,+420.4" stroke="rgb(0,0,0)"/>
+    <g stroke="rgb(0,0,0)" fill="rgb(0,0,0)">
+      <circle cx="+296.8" cy="+317.7" r="1px"/>
+      <circle cx="+272.5" cy="+336.2" r="1px"/>
+      <circle cx="+247.0" cy="+355.7" r="1px"/>
+      <circle cx="+220.2" cy="+376.1" r="1px"/>
+      <circle cx="+191.9" cy="+397.7" r="1px"/>
+    </g>
+    <path d="M +174.5,+415.4 L +170.1,+409.8 L +174.0,+406.8 L +178.4,+412.5" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +162.1,+420.4 L +170.1,+409.8 L +178.4,+412.5" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +162.1,+420.4 L +174.5,+415.4 L +174.0,+406.8" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <text x="+152.1" y="+443.4" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="end"><tspan font-style="italic">X</tspan></text>
+    <text x="+152.1" y="+443.4" stroke="none" fill="rgb(0,0,0)" text-anchor="end"><tspan font-style="italic">X</tspan></text>
+
+    <!-- The Y axis: -->
+    <path d="M +320.0,+300.0 L +567.1,+367.8" stroke="rgb(0,0,0)"/>
+    <g stroke="rgb(0,0,0)" fill="rgb(0,0,0)">
+      <circle cx="+358.3" cy="+310.5" r="1px"/>
+      <circle cx="+397.6" cy="+321.3" r="1px"/>
+      <circle cx="+438.1" cy="+332.4" r="1px"/>
+      <circle cx="+479.8" cy="+343.9" r="1px"/>
+      <circle cx="+522.8" cy="+355.7" r="1px"/>
+    </g>
+    <path d="M +551.1,+360.9 L +548.8,+367.1 L +547.3,+364.9 L +549.5,+358.8" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +567.1,+367.8 L +548.8,+367.1 L +549.5,+358.8" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +567.1,+367.8 L +551.1,+360.9 L +547.3,+364.9" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <text x="+572.1" y="+362.8" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="start"><tspan font-style="italic">Y</tspan></text>
+    <text x="+572.1" y="+362.8" stroke="none" fill="rgb(0,0,0)" text-anchor="start"><tspan font-style="italic">Y</tspan></text>
+
+    <!-- The Z axis: -->
+    <path d="M +320.0,+300.0 L +320.0,+043.8" stroke="rgb(0,0,0)"/>
+    <g stroke="rgb(0,0,0)" fill="rgb(0,0,0)">
+      <circle cx="+320.0" cy="+260.3" r="1px"/>
+      <circle cx="+320.0" cy="+219.5" r="1px"/>
+      <circle cx="+320.0" cy="+177.5" r="1px"/>
+      <circle cx="+320.0" cy="+134.2" r="1px"/>
+      <circle cx="+320.0" cy="+089.7" r="1px"/>
+    </g>
+    <path d="M +315.9,+061.6 L +322.4,+061.1 L +324.1,+063.1 L +317.5,+063.6" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +320.0,+043.8 L +322.4,+061.1 L +317.5,+063.6" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <path d="M +320.0,+043.8 L +315.9,+061.6 L +324.1,+063.1" stroke="rgb(0,0,0)" fill="rgb(0,0,0)" />
+    <text x="+313.0" y="+066.8" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="end"><tspan font-style="italic">Z</tspan></text>
+    <text x="+313.0" y="+066.8" stroke="none" fill="rgb(0,0,0)" text-anchor="end"><tspan font-style="italic">Z</tspan></text>
+
+
+    <text x="+315.0" y="+295.0" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="end"><tspan font-style="italic">O</tspan></text>
+    <text x="+315.0" y="+295.0" stroke="none" fill="rgb(0,0,0)" text-anchor="end"><tspan font-style="italic">O</tspan></text>
+    <path d="M +320.0,+300.0 L +272.5,+336.2" stroke="rgb(200,0,100)"/>
+    <text x="+299.3" y="+340.1" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="start"><tspan font-style="italic">x</tspan></text>
+    <text x="+299.3" y="+340.1" stroke="none" fill="rgb(0,0,0)" text-anchor="start"><tspan font-style="italic">x</tspan></text>
+    <path d="M +272.5,+336.2 L +394.5,+372.0" stroke="rgb(200,0,100)"/>
+    <text x="+332.1" y="+376.9" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="end"><tspan font-style="italic">y</tspan></text>
+    <text x="+332.1" y="+376.9" stroke="none" fill="rgb(0,0,0)" text-anchor="end"><tspan font-style="italic">y</tspan></text>
+    <path d="M +272.5,+336.2 L +269.6,+164.1" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +438.1,+332.4 L +394.5,+372.0" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +438.1,+332.4 L +445.4,+161.0" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +320.0,+134.2 L +269.6,+164.1" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +320.0,+134.2 L +445.4,+161.0" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +445.4,+161.0 L +399.4,+193.8" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +269.6,+164.1 L +399.4,+193.8" stroke="rgb(0,0,0)" stroke-dasharray="3,4" stroke-dashoffset="9"/>
+    <path d="M +394.5,+372.0 L +399.4,+193.8" stroke="rgb(200,0,100)"/>
+    <text x="+401.9" y="+301.0" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="start"><tspan font-style="italic">z</tspan></text>
+    <text x="+401.9" y="+301.0" stroke="none" fill="rgb(0,0,0)" text-anchor="start"><tspan font-style="italic">z</tspan></text>
+    <circle cx="+399.4" cy="+193.8" r="5.266267891469811" stroke="rgb(0,0,0)" fill="rgb(0,0,0)"/>
+    <text x="+419.4" y="+202.8" stroke="rgb(255,255,255)" stroke-width="3px" fill="none" text-anchor="start"><tspan>(</tspan><tspan font-style="italic">x</tspan><tspan>,</tspan><tspan font-style="italic">y</tspan><tspan>,</tspan><tspan font-style="italic">z</tspan><tspan>)</tspan></text>
+    <text x="+419.4" y="+202.8" stroke="none" fill="rgb(0,0,0)" text-anchor="start"><tspan>(</tspan><tspan font-style="italic">x</tspan><tspan>,</tspan><tspan font-style="italic">y</tspan><tspan>,</tspan><tspan font-style="italic">z</tspan><tspan>)</tspan></text>
+
+  </g>
+</svg>

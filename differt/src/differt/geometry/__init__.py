@@ -4,6 +4,7 @@ __all__ = (
     "Paths",
     "TriangleMesh",
     "assemble_paths",
+    "cartesian_to_spherical",
     "fibonacci_lattice",
     "normalize",
     "orthogonal_basis",
@@ -13,6 +14,7 @@ __all__ = (
     "rotation_matrix_along_x_axis",
     "rotation_matrix_along_y_axis",
     "rotation_matrix_along_z_axis",
+    "spherical_to_cartesian",
     "triangles_contain_vertices_assuming_inside_same_plane",
     "viewing_frustum",
 )
@@ -24,6 +26,7 @@ from ._triangle_mesh import (
 )
 from ._utils import (
     assemble_paths,
+    cartesian_to_spherical,
     fibonacci_lattice,
     normalize,
     orthogonal_basis,
@@ -32,5 +35,6 @@ from ._utils import (
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
+    spherical_to_cartesian,
     viewing_frustum,
 )

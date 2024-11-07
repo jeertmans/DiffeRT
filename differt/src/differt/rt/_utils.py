@@ -226,12 +226,12 @@ def rays_intersect_triangles(
             ... )
             >>> rays_hit = hit.any(axis=1)  # True if rays hit any triangle
             >>> triangles_hit = hit.any(axis=0)  # True if triangles hit by any ray
-            >>> ray_directions *= np.max(
+            >>> ray_directions *= jnp.max(
             ...     t, axis=1, keepdims=True, initial=1.0, where=hit
             ... )  # Scale rays length before plotting
             >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
-            ...     np.asarray(ray_origins[rays_hit, :]),
-            ...     np.asarray(ray_directions[rays_hit, :]),
+            ...     jnp.asarray(ray_origins[rays_hit, :]),
+            ...     jnp.asarray(ray_directions[rays_hit, :]),
             ...     backend="plotly",
             ...     line={"color": "red"},
             ...     showlegend=False,
@@ -365,8 +365,6 @@ def triangles_visible_from_vertices(
     vertices: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
-    *,
-    optimize_frustum: bool = False,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
     """
@@ -389,10 +387,6 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
-        optimize_frustum: Whether to optimize the frustum by minimizing its size.
-
-            See :func:`viewing_frustum<differt.geometry.viewing_frustum>`
-            for details.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -442,7 +436,6 @@ def triangles_visible_from_vertices(
     frustum = viewing_frustum(
         ray_origins,
         triangle_vertices.reshape(*triangle_vertices.shape[:-3], -1, 3),
-        optimize=optimize_frustum,
         reduce=True,
     )
 

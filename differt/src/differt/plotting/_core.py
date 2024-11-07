@@ -167,16 +167,8 @@ def draw_paths(
 
         .. plotly::
 
+            >>> from differt.geometry import rotation_matrix_along_z_axis as rot
             >>> from differt.plotting import draw_paths
-            >>>
-            >>> def rotation(angle: float) -> np.ndarray:
-            ...     co = np.cos(angle)
-            ...     si = np.sin(angle)
-            ...     return np.array([
-            ...         [+co, -si, 0.0],
-            ...         [+si, +co, 0.0],
-            ...         [0.0, 0.0, 1.0],
-            ...     ])
             >>>
             >>> path = np.array(
             ...     [
@@ -187,7 +179,7 @@ def draw_paths(
             ...     ],
             ... )
             >>> paths = np.stack([
-            ...     path @ rotation(angle) + np.array([0.0, 0.0, 0.1 * dz])
+            ...     path @ rot(angle) + np.array([0.0, 0.0, 0.1 * dz])
             ...     for dz, angle in enumerate(np.linspace(0, 2 * np.pi, 10))
             ... ])
             >>> fig = draw_paths(

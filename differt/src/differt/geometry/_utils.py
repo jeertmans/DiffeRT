@@ -431,20 +431,13 @@ def fibonacci_lattice(
     lat = jnp.arccos(1 - 2 * i / n)
     lon = 2 * jnp.pi * i / phi
 
+    pa = jnp.stack((lat, lon), axis=-1)
+
     if frustum is not None:
-        start_lon, start_lat = frustum[0, -2:]
-        scale_lon, scale_lat = frustum[1, -2:] - frustum[0, -2:]
-        scale_lon /= 2 * jnp.pi
-        scale_lat /= jnp.pi
-        lat = (lat - start_lat) * scale_lat + start_lat
-        lon = (lon - start_lon) * scale_lon + start_lon
+        pa %= frustum[1, -2:] - frustum[0, -2:]
+        pa += frustum[0, -2:]
 
-    co_lat = jnp.cos(lat)
-    si_lat = jnp.sin(lat)
-    co_lon = jnp.cos(lon)
-    si_lon = jnp.sin(lon)
-
-    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)
+    return spherical_to_cartesian(pa).astype(dtype)
 
 
 @jax.jit
@@ -558,27 +551,24 @@ def viewing_frustum(
     viewing_vertex: Float[Array, "*#batch 3"],
     world_vertices: Float[Array, "*#batch num_vertices 3"],
     *,
-    optimize: bool = False,
     reduce: bool = False,
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
     r"""
     Compute the viewing frustum as seen by one viewer.
 
-    The frustum is a region, espressed in spherical coordinates
-    :math:`(r, \phi, \theta)`, where :math:`r` is the distance,
-    :math:`\phi` is the azimutal angle, and :math:`\theta` is the
-    elevation angle, that fully contains the world vertices.
+    The frustum is a region, espressed in spherical coordinates,
+    see :ref:`spherical-coordinates`,
+    that fully contains the world vertices.
+
+    Warning:
+        The frustum may present wrong results along the polar axis.
+
+        We are still looking at a better way to compute the frustum,
+        so feel free to reach out if your have any suggestion.
 
     Args:
         viewing_vertex: The coordinates of the viewer (i.e., camera).
         world_vertices: The array of world coordinates.
-        optimize: Whether to minimize the frustrum's angle width
-            so that the frustum has a maximual opening of 180°
-            for both azimutal and elevation angles.
-
-            This only makes sense if the world vertices can all
-            fit in the same hemisphere centered around the
-            corresponding viewing vertex.
         reduce: Whether to reduce batch dimensions.
 
     Returns:
@@ -590,98 +580,165 @@ def viewing_frustum(
         would be hit.
 
         .. plotly::
-            :context: reset
 
-            >>> import equinox as eqx
-            >>> from differt.geometry import fibonacci_lattice, viewing_frustum
-            >>> from differt.plotting import draw_rays
-            >>> from differt.rt import (
-            ...     rays_intersect_triangles,
+            >>> from differt.geometry import (
+            ...     fibonacci_lattice,
+            ...     viewing_frustum,
+            ...     TriangleMesh,
             ... )
-            >>> from differt.scene import (
-            ...     get_sionna_scene,
-            ...     download_sionna_scenes,
-            ... )
-            >>> from differt.scene import TriangleScene
+            >>> from differt.plotting import draw_rays, reuse, draw_markers
             >>>
-            >>> download_sionna_scenes()
-            >>> file = get_sionna_scene("simple_street_canyon")
-            >>> scene = TriangleScene.load_xml(file)
-            >>> scene = eqx.tree_at(
-            ...     lambda s: s.transmitters, scene, jnp.array([-120, 0, 30.0])
-            ... )
-            >>> frustum = viewing_frustum(
-            ...     scene.transmitters, scene.mesh.vertices, optimize=True
-            ... )
-            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
-            ...     scene.transmitters, fibonacci_lattice(300, frustum=frustum)
-            ... )
-            >>> ray_directions *= 40.0  # Scale rays length before plotting
-            >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
-            ...     np.asarray(ray_origins),
-            ...     np.asarray(ray_directions),
-            ...     backend="plotly",
-            ...     line={"color": "red"},
-            ...     showlegend=False,
-            ... )
-            >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
-            >>> fig  # doctest: +SKIP
-
-        This second examples shows what happens when ``optimize`` is set to
-        :data:`False` (the default).
-
-        .. plotly::
-            :context:
-
-            >>> frustum = viewing_frustum(
-            ...     scene.transmitters, scene.mesh.vertices, optimize=False
-            ... )
-            >>> ray_origins, ray_directions = jnp.broadcast_arrays(
-            ...     scene.transmitters, fibonacci_lattice(300, frustum=frustum)
-            ... )
-            >>> ray_directions *= 40.0  # Scale rays length before plotting
-            >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
-            ...     np.asarray(ray_origins),
-            ...     np.asarray(ray_directions),
-            ...     backend="plotly",
-            ...     line={"color": "red"},
-            ...     showlegend=False,
-            ... )
-            >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([0.0, 0.0, 0.0])
+            ...     key = jax.random.key(1234)
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     for mesh in (
+            ...         TriangleMesh.box(with_top=True).translate(tx).iter_objects()
+            ...     ):
+            ...         key, key_color = jax.random.split(key, 2)
+            ...         color = r, g, b = jax.random.randint(key_color, (3,), 0, 256)
+            ...         center = mesh.bounding_box.mean(axis=0)
+            ...         mesh = mesh.translate(5 * (center - tx)).set_face_colors(color)
+            ...         mesh.plot()
+            ...
+            ...         frustum = viewing_frustum(
+            ...             tx, mesh.triangle_vertices.reshape(-1, 3)
+            ...         )
+            ...         ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...             tx, fibonacci_lattice(20, frustum=frustum)
+            ...         )
+            ...         ray_origins += 0.5 * ray_directions
+            ...         ray_directions *= 2.5  # Scale rays length before plotting
+            ...         fig = draw_rays(
+            ...             jnp.asarray(ray_origins),
+            ...             jnp.asarray(ray_directions),
+            ...             line={"color": f"rgb({float(r)},{float(g)},{float(b)})"},
+            ...             mode="lines",
+            ...             showlegend=False,
+            ...         )
             >>> fig  # doctest: +SKIP
     """
-    r_dir = viewing_vertex[..., None, :] - world_vertices
-    dist = jnp.linalg.norm(r_dir, axis=-1)
-    azim = jnp.arctan2(r_dir[..., 0], r_dir[..., 1])
-    elev = jnp.arctan2(r_dir[..., 2], r_dir[..., 1])
+    xyz = world_vertices - viewing_vertex[..., None, :]
+    rpa = cartesian_to_spherical(xyz)
+
+    r, p, a = rpa[..., 0], rpa[..., 1], rpa[..., 2]
 
     if reduce:
-        dist = dist.ravel()
-        azim = azim.ravel()
-        elev = elev.ravel()
+        r = r.ravel()
+        p = p.ravel()
+        a = a.ravel()
 
-    frustum = jnp.stack((
-        jnp.min(dist, axis=-1),
-        jnp.max(dist, axis=-1),
-        jnp.min(azim, axis=-1),
-        jnp.max(azim, axis=-1),
-        jnp.min(elev, axis=-1),
-        jnp.max(elev, axis=-1),
-    )).reshape(*dist.shape[:-1], 2, 3)
+    r_min = jnp.min(r, axis=-1)
+    r_max = jnp.max(r, axis=-1)
+    p_min = jnp.min(p, axis=-1)
+    p_max = jnp.max(p, axis=-1)
+    a_min = jnp.min(a, axis=-1)
+    a_max = jnp.max(a, axis=-1)
 
-    if optimize:
-        # We minimize the width of the frustum transforming
-        # angle a -> (a + 360) % 360.
+    # The discontinuity for azimutal angles near -pi;pi can create
+    # issues, leading to a larger angular sector that expected.
 
-        angle_width = jnp.diff(frustum[..., :, 1:], axis=-2)
-        two_pi = 2 * jnp.pi
+    # We map azimutal angles from [-pi;pi[ to [0;2pi[.
+    two_pi = 2 * jnp.pi
 
-        return frustum.at[..., :, 1:].set(
-            jnp.where(
-                angle_width > jnp.pi,
-                (frustum[..., :, 1:] + two_pi) % two_pi,
-                frustum[..., :, 1:],
-            )
-        )
+    a_0 = (a + two_pi) % two_pi
+    a_0_min = jnp.min(a_0, axis=-1)
+    a_0_max = jnp.max(a_0, axis=-1)
 
-    return frustum
+    a_width = a_max - a_min
+    a_0_width = a_0_max - a_0_min
+
+    a_min, a_max = jnp.where(
+        a_width > a_0_width,
+        jnp.stack((a_0_min, a_0_max)),
+        jnp.stack((a_min, a_max)),
+    )
+
+    # For polar angle, we 'try' to fix a similar issue.
+    # TODO: improve this.
+    p_0_min = p_max
+    p_0_max = p_min
+
+    p_min = jnp.where(p_min == p_max, 0.0, p_min)
+    p_0_max = jnp.where(p_0_min == p_0_max, jnp.pi, p_0_max)
+
+    p_width = p_max - p_min
+    p_0_width = p_0_max - p_0_min
+
+    p_min, p_max = jnp.where(
+        p_width > p_0_width,
+        jnp.stack((p_0_min, p_0_max)),
+        jnp.stack((p_min, p_max)),
+    )
+
+    return jnp.stack((
+        r_min,
+        p_min,
+        a_min,
+        r_max,
+        p_max,
+        a_max,
+    )).reshape(*r.shape[:-1], 2, 3)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
+    """
+    Transform cartesian coordinates to spherical coordinates.
+
+    See :ref:`conventions` for details.
+
+    Args:
+        xyz: The array of cartesian coordinates.
+
+    Returns:
+        The array of corresponding spherical coordinates.
+
+    .. seealso::
+
+        :func:`spherical_to_cartesian`
+    """
+    r = jnp.linalg.norm(xyz, axis=-1)
+    p = jnp.arccos(xyz[..., -1] / r)
+    a = jnp.arctan2(xyz[..., 1], xyz[..., 0])
+
+    return jnp.stack((r, p, a), axis=-1)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def spherical_to_cartesian(
+    rpa: Float[Array, "*batch 3"] | Float[Array, "*batch 2"],
+) -> Float[Array, "*batch 3"]:
+    """
+    Transform spherical coordinates to cartisian coordinates.
+
+    See :ref:`conventions` for details.
+
+    Args:
+        rpa: The array of spherical coordinates.
+
+            If the radial component is missing, a radius of 1 is assumed.
+
+    Returns:
+        The array of corresponding cartesian coordinates.
+
+    .. seealso::
+
+        :func:`cartesian_to_spherical`
+    """
+    p = rpa[..., -2]
+    a = rpa[..., -1]
+
+    cp = jnp.cos(p)
+    sp = jnp.sin(p)
+    ca = jnp.cos(a)
+    sa = jnp.sin(a)
+
+    xyz = jnp.stack((sp * ca, sp * sa, cp), axis=-1)
+
+    if rpa.shape[-1] == 3:  # noqa: PLR2004
+        xyz *= rpa[..., 0]
+
+    return xyz
