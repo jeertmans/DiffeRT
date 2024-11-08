@@ -288,7 +288,7 @@ def test_rays_intersect_any_triangle(
         pytest.param(
             1_000_000,
             does_not_raise(),
-            marks=pytest.mark.skipif(
+            marks=pytest.mark.xfail(
                 sys.platform == "win32",
                 reason="For some unknown reason, this fails on Windows",
             ),
