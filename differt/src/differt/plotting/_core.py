@@ -224,8 +224,9 @@ def _(
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     paths = np.asarray(paths)
+    xs, ys, zs = paths.reshape(-1, *paths.shape[-2:]).T
 
-    ax.plot(paths.reshape(-1, *paths.shape[-2:]), **kwargs)
+    ax.plot(xs=xs, ys=ys, zs=zs, **kwargs)
 
     return fig
 
@@ -239,7 +240,7 @@ def _(
 
     paths = np.asarray(paths)
     paths = paths.reshape(-1, *paths.shape[-2:])
-    paths = np.stack((paths, np.full(paths.shape[0], np.nan, dtype=paths.dtype)), axis=-1)
+    paths = np.concatenate((paths, np.full((paths.shape[0], 1, 3), np.nan, dtype=paths.dtype)), axis=-2)
     x, y, z = paths.reshape(-1, 3).T
     fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
