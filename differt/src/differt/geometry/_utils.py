@@ -611,8 +611,8 @@ def viewing_frustum(
             ...         ray_origins += 0.5 * ray_directions
             ...         ray_directions *= 2.5  # Scale rays length before plotting
             ...         draw_rays(
-            ...             jnp.asarray(ray_origins),
-            ...             jnp.asarray(ray_directions),
+            ...             ray_origins,
+            ...             ray_directions,
             ...             line={"color": f"rgb({float(r)},{float(g)},{float(b)})"},
             ...             mode="lines",
             ...             showlegend=False,
@@ -651,8 +651,8 @@ def viewing_frustum(
             ...     ray_origins += 0.5 * ray_directions
             ...     ray_directions *= 2.5  # Scale rays length before plotting
             ...     draw_rays(
-            ...         jnp.asarray(ray_origins),
-            ...         jnp.asarray(ray_directions),
+            ...         ray_origins,
+            ...         ray_directions,
             ...         line={"color": "red"},
             ...         mode="lines",
             ...         showlegend=False,
@@ -683,8 +683,8 @@ def viewing_frustum(
             ...     ray_origins += 0.5 * ray_directions
             ...     ray_directions *= 40.0  # Scale rays length before plotting
             ...     draw_rays(
-            ...         jnp.asarray(ray_origins),
-            ...         jnp.asarray(ray_directions),
+            ...         ray_origins,
+            ...         ray_directions,
             ...         line={"color": "red"},
             ...         mode="lines",
             ...         showlegend=False,
