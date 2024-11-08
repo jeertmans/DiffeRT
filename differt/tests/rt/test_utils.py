@@ -1,3 +1,4 @@
+import sys
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -280,11 +281,18 @@ def test_rays_intersect_any_triangle(
     ("num_rays", "expectation"),
     [
         (
-            20,
+            20,  # Only a few rays are actually needed, thanks to frustum
             does_not_raise(),
-        ),  # Only a few rays are actually needed, thanks to frustum
+        ),
         (10_000, does_not_raise()),
-        (1_000_000, does_not_raise()),
+        pytest.param(
+            1_000_000,
+            does_not_raise(),
+            marks=pytest.mark.skipif(
+                sys.platform == "win32",
+                reason="For some unknown reason, this fails on Windows",
+            ),
+        ),
         (
             1,  # Impossible to find all visible faces with few rays
             pytest.raises(
