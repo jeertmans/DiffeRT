@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
+from differt.geometry import TriangleMesh
 from differt.rt._utils import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
@@ -21,12 +22,8 @@ from ..utils import random_inputs
 
 @pytest.fixture(scope="session")
 def cube_vertices() -> Array:
-    o3d = pytest.importorskip("open3d")
-    cube = o3d.geometry.TriangleMesh.create_box()
-
-    triangles_vertices = jnp.take(
-        jnp.asarray(cube.vertices), jnp.asarray(cube.triangles), axis=0
-    )
+    cube = TriangleMesh.box(with_top=True)
+    triangles_vertices = cube.triangle_vertices
 
     assert triangles_vertices.shape == (12, 3, 3)
 
@@ -282,10 +279,11 @@ def test_rays_intersect_any_triangle(
 @pytest.mark.parametrize(
     ("num_rays", "expectation"),
     [
+        (20, does_not_raise()),  # Only a few rays are actually needed, thanks to frustum
         (10_000, does_not_raise()),
         (1_000_000, does_not_raise()),
         (
-            4,  # Impossible to find all visible faces with few rays
+            1,  # Impossible to find all visible faces with few rays
             pytest.raises(
                 AssertionError,
                 match="Number of visible triangles did not match expectation.",

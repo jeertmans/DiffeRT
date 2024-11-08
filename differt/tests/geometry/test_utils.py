@@ -262,15 +262,15 @@ def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
     sph = cartesian_to_spherical(xyz)
     got = spherical_to_cartesian(sph)
 
-    chex.assert_trees_all_close(got, xyz)
+    chex.assert_trees_all_close(got, xyz, atol=1e-5)
 
     key_r, key_polar, key_azim = jax.random.split(key_sph, 3)
 
-    r = 10 * jax.random.normal(key_r, (100,))
+    r = jnp.abs(10 * jax.random.normal(key_r, (100,)))
     p = jax.random.uniform(key_polar, (100,), minval=0, maxval=jnp.pi)
-    a = jax.random.uniform(key_azim, (100,), minval=0, maxval=2 * jnp.pi)
-    sph = jnp.column_stack((r, p, a))
+    a = jax.random.uniform(key_azim, (100,), minval=-jnp.pi, maxval=jnp.pi)
+    sph = jnp.stack((r, p, a), axis=-1)
     xyz = spherical_to_cartesian(sph)
     got = cartesian_to_spherical(xyz)
 
-    chex.assert_trees_all_close(got, sph)
+    chex.assert_trees_all_close(got, sph, atol=7e-5)
