@@ -580,6 +580,7 @@ def viewing_frustum(
         would be hit.
 
         .. plotly::
+            :context: reset
 
             >>> from differt.geometry import (
             ...     fibonacci_lattice,
@@ -616,6 +617,78 @@ def viewing_frustum(
             ...             mode="lines",
             ...             showlegend=False,
             ...         )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
+
+        This second example shows what happens if you compute the frustum on all the objects
+        at the same time, instead of computing one frustum per object (i.e., face).
+
+        .. plotly::
+            :context:
+
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([0.0, 0.0, 0.0])
+            ...     world_vertices = jnp.empty((0, 3))
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     for mesh in (
+            ...         TriangleMesh.box(with_top=True)
+            ...         .translate(tx)
+            ...         .set_face_colors(jnp.array([1.0, 0.0, 0.0]))
+            ...         .iter_objects()
+            ...     ):
+            ...         center = mesh.bounding_box.mean(axis=0)
+            ...         mesh = mesh.translate(5 * (center - tx))
+            ...         mesh.plot()
+            ...
+            ...         world_vertices = jnp.concatenate(
+            ...             (world_vertices, mesh.triangle_vertices.reshape(-1, 3)),
+            ...             axis=0,
+            ...         )
+            ...
+            ...     frustum = viewing_frustum(tx, world_vertices)
+            ...     ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...         tx, fibonacci_lattice(20 * 6, frustum=frustum)
+            ...     )
+            ...     ray_origins += 0.5 * ray_directions
+            ...     ray_directions *= 2.5  # Scale rays length before plotting
+            ...     draw_rays(
+            ...         jnp.asarray(ray_origins),
+            ...         jnp.asarray(ray_directions),
+            ...         line={"color": "red"},
+            ...         mode="lines",
+            ...         showlegend=False,
+            ...     )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
+
+        While the rays cover all the objects, many of them are launching in spatial regions where there
+        is not object to hit.
+
+        This third example shows a scenario where TX is far from the mesh,
+        where computing the frustum becomes very suitable.
+
+        .. plotly::
+            :context:
+
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([30.0, 0.0, 20.0])
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     mesh = TriangleMesh.box(
+            ...         width=10.0, length=20.0, height=3.0, with_top=True
+            ...     ).set_face_colors(jnp.array([1.0, 0.0, 0.0]))
+            ...     mesh.plot()
+            ...
+            ...     frustum = viewing_frustum(tx, mesh.triangle_vertices.reshape(-1, 3))
+            ...     ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...         tx, fibonacci_lattice(20 * 6, frustum=frustum)
+            ...     )
+            ...     ray_origins += 0.5 * ray_directions
+            ...     ray_directions *= 40.0  # Scale rays length before plotting
+            ...     draw_rays(
+            ...         jnp.asarray(ray_origins),
+            ...         jnp.asarray(ray_directions),
+            ...         line={"color": "red"},
+            ...         mode="lines",
+            ...         showlegend=False,
+            ...     )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
     """
     xyz = world_vertices - viewing_vertex[..., None, :]

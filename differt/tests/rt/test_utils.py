@@ -279,7 +279,10 @@ def test_rays_intersect_any_triangle(
 @pytest.mark.parametrize(
     ("num_rays", "expectation"),
     [
-        (20, does_not_raise()),  # Only a few rays are actually needed, thanks to frustum
+        (
+            20,
+            does_not_raise(),
+        ),  # Only a few rays are actually needed, thanks to frustum
         (10_000, does_not_raise()),
         (1_000_000, does_not_raise()),
         (
