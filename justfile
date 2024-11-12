@@ -88,4 +88,4 @@ test-rust *ARGS:
 # Run jupyter-lab with a server that support reconnecting to running sessions
 [group: 'dev']
 remote-jupyter *ARGS:
-  jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true {{ARGS}}
+  jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true --set auth.mode=noauth {{ARGS}}
