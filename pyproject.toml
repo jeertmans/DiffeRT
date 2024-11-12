@@ -23,9 +23,18 @@ docs = [
   "sphinxcontrib-bibtex>=2.6.0",
   "sphinx-plotly-directive>=0.1.3",
 ]
-e3x = ["e3x>=1.0.2"]
+icmlcn2025 = [
+  # For ICMLCN2025 tag
+  "differt[all]",
+  "e3x>=1.0.2",
+]
 prof = [
   "line-profiler[ipython]>=4.1.3",
+]
+remote-jupyter = [
+  # This makes sure cell outputs and widgets are kept, see https://github.com/jupyterlab/jupyter-collaboration/pull/279
+  "jupyterlab>=4.2",
+  "jupyverse[auth,jupyterlab]>=0.4.2",
 ]
 tests = [
   "differt[all]",

@@ -84,3 +84,8 @@ test-python *ARGS:
 [group: 'test']
 test-rust *ARGS:
   cargo test {{ARGS}}
+
+# Run jupyter-lab with a server that support reconnecting to running sessions
+[group: 'dev']
+remote-jupyter *ARGS:
+  jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true {{ARGS}}
