@@ -1,4 +1,3 @@
-"""Scene made of triangles and utilities."""
 # ruff: noqa: ERA001
 
 import math

@@ -1,30 +1,3 @@
-"""
-Ray Tracing utilities.
-
-To generate a subset of all paths between two vertices, e.g.,
-a transmitter TX and a received RX, methods generate each
-path from a corresponding path candidate.
-
-A path candidate is simply a list of primitive indices
-to indicate with what primitive the path interact, and
-in what order. The latter indicates that any permutation
-of a given path candidate will result in another path.
-
-I.e., the path candidate ``[4, 7]`` indicates that
-the path first interacts with primitive ``4``, then
-primitive ``7``, while the path candidate ``[7, 4]``
-indicates a path interacting first with ``7`` then
-with ``4``.
-
-An empty path candidate indicates a direct path from
-TX or RX, also known as line of sight path.
-
-In general, interaction can be anything of the following:
-reflection, diffraction, refraction, etc. The utilities
-present in this module do not take care of the interaction type.
-
-You can read more about path candidates in :cite:`mpt-eucap2023`.
-"""
 # ruff: noqa: ERA001
 
 import sys

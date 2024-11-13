@@ -1,9 +1,3 @@
-"""
-Uniform Theory of Diffraction (UTD) utilities.
-
-The foundamentals of UTD are described in :cite:`utd-mcnamara`.
-"""
-
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker

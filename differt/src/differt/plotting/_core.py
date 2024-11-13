@@ -1,5 +1,3 @@
-"""Core plotting implementations."""
-
 import warnings
 from collections.abc import Mapping, Sequence
 from typing import Any
