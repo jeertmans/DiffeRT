@@ -1,5 +1,3 @@
-"""Ray paths utilities."""
-
 import sys
 from collections.abc import Callable, Iterator
 from typing import Any

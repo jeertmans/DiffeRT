@@ -1,5 +1,3 @@
-"""Sionna utilities."""
-
 __all__ = ("Material", "Shape", "SionnaScene")
 
 from differt_core import _lowlevel

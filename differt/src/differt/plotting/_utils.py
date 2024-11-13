@@ -1,5 +1,3 @@
-"""Useful decorators for plotting."""
-
 from __future__ import annotations
 
 import importlib.util

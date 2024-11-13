@@ -1,17 +1,3 @@
-"""
-Special functions.
-
-This module extends the :mod:`jax.scipy.special` module
-by adding missing function from :mod:`scipy.special`,
-or by extending already implemented function to the
-complex domain.
-
-Those new implementation are needed to keep the ability
-of differentating code, otherwise we could just
-call the SciPy function and wrap their output
-with :func:`jnp.asarray<jax.numpy.asarray>`.
-"""
-
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker

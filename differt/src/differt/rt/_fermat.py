@@ -1,5 +1,3 @@
-"""Path tracing utilities that utilize Fermat's principle."""
-
 from typing import Any
 
 import equinox as eqx

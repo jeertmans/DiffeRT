@@ -1,6 +1,4 @@
-"""Re-export the version from the core module written in Rust."""
-
-from differt_core import __version__
+from differt_core import __version__  # Re-export version from code module
 
 __all__ = ("VERSION",)
 
