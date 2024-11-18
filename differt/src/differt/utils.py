@@ -1,8 +1,7 @@
 """General purpose utilities."""
 
-import sys
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, Literal, overload
+from typing import Any, Concatenate, Literal, overload
 
 import chex
 import equinox as eqx
@@ -10,17 +9,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
-
-if sys.version_info >= (3, 11):
-    from typing import TypeVarTuple, Unpack
-else:
-    from typing_extensions import TypeVarTuple, Unpack
-
-# Redefined here, because chex uses deprecated type hints
-# TODO: fixme when google/chex#361 is resolved.
-_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
-_Ts = TypeVarTuple("_Ts")
+from jaxtyping import Array, Float, Num, PRNGKeyArray, PyTree, Shaped, jaxtyped
 
 
 @jax.jit
@@ -89,13 +78,17 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
 
 
-# Beartype does not support TypeVarTuple at the moment
+# Redefined here, because chex uses deprecated type hints
+# TODO: fixme when google/chex#361 is resolved.
+_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+
+
 @eqx.filter_jit
-@jaxtyped(typechecker=None)
+@jaxtyped(typechecker=typechecker)
 def minimize(
-    fun: Callable[[Num[Array, "*batch n"], *_Ts], Num[Array, " *batch"]],
+    fun: Callable[Concatenate[Num[Array, " n"], ...], Num[Array, " "]],
     x0: Num[Array, "*batch n"],
-    args: tuple[Unpack[_Ts]] = (),
+    args: tuple[PyTree, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
@@ -111,10 +104,10 @@ def minimize(
         x0: The initial guess.
         args: Positional arguments passed to ``fun``.
 
-            .. note::
+            Those arguments are also expected have
+            batch dimensions similar to ``x0``.
 
-                Those arguments are also expected have
-                batch dimensions similar to ``x0``.
+            .. note::
 
                 If your function has static arguments,
                 please wrap the function with :func:`functools.partial`:
@@ -167,8 +160,6 @@ def minimize(
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
 
         This example shows how you can minimize on a batch of arrays.
-        The signature of the objective function is ``(*batch, n) -> (*batch)``,
-        where each batch is minimized independently.
 
         >>> from differt.utils import minimize
         >>> import chex
@@ -188,14 +179,22 @@ def minimize(
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
         >>>
         >>> # By default, arguments are expected to have batch
-        >>> # dimensions like `x0`, so `offset` cannot be a static
-        >>> # value (i.e., float):
+        >>> # dimensions like 'x0'. So, if 'x0' has more than one dimension,
+        >>> # 'offset' must be an ndarray with the same shape prefix as 'x0':
         >>> offset = 10.0
         >>> x, y = minimize(
         ...     f, x0, args=(offset,), steps=1000
         ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
-        ValueError: vmap was requested to map its arguments along axis 0, ...
+        TypeError: ... Tree leaf '0' is not an ndarray (type=<class 'float'>).
+        >>>
+        >>> # Passing 'offset' as an ndarray instead:
+        >>> x, y = minimize(
+        ...     f, x0, args=(jnp.array(offset),), steps=1000
+        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        TypeError: ... Tree leaf '1' has a shape of length 0 (shape=()) which
+        is smaller than the expected prefix of length 3 (prefix=(1, 2, 3)).
         >>>
         >>> # For static arguments, use functools.partial
         >>> from functools import partial
@@ -205,6 +204,12 @@ def minimize(
         >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
+    if x0.ndim > 1 and args:
+        chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
+        chex.assert_tree_shape_prefix(
+            (x0, *args), x0.shape[:-1], exception_type=TypeError
+        )
+
     optimizer = optimizer or optax.adam(learning_rate=0.1)
 
     f_and_df = jax.value_and_grad(fun)
