@@ -13,14 +13,9 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
 
 if sys.version_info >= (3, 11):
-    from typing import TypeVarTuple, Unpack
+    from typing import TypeVar, TypeVarTuple, Unpack
 else:
-    from typing_extensions import TypeVarTuple, Unpack
-
-# Redefined here, because chex uses deprecated type hints
-# TODO: fixme when google/chex#361 is resolved.
-_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
-_Ts = TypeVarTuple("_Ts")
+    from typing_extensions import TypeVar, TypeVarTuple, Unpack
 
 
 @jax.jit
@@ -89,15 +84,22 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
 
 
+# Redefined here, because chex uses deprecated type hints
+# TODO: fixme when google/chex#361 is resolved.
+_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+_X = TypeVar("_X", bound=Num[Array, "*batch n"])
+_R = TypeVar("_R", bound=Num[Array, "*batch"])
+_Ts = TypeVarTuple("_Ts")
+
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def minimize(
-    fun: Callable[[Num[Array, "*batch n"], *_Ts], Num[Array, " *batch"]],
-    x0: Num[Array, "*batch n"],
+    fun: Callable[[_X, *_Ts], _R],
+    x0: _X,
     args: tuple[Unpack[_Ts]] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
-) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
+) -> tuple[_X, _R]:
     """
     Minimize a scalar function of one or more variables.
 
@@ -215,9 +217,9 @@ def minimize(
 
     @jaxtyped(typechecker=typechecker)
     def f(
-        carry: tuple[Num[Array, "*batch n"], _OptState],
+        carry: tuple[_X, _OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], _OptState], Num[Array, " *batch"]]:
+    ) -> tuple[tuple[_X, _OptState], _R]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)
