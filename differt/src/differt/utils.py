@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
-from jaxtyping import Array, Float, Num, PRNGKeyArray, PyTree, Shaped, jaxtyped
+from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
 
 
 @jax.jit
@@ -88,7 +88,7 @@ _OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
 def minimize(
     fun: Callable[Concatenate[Num[Array, " n"], ...], Num[Array, " "]],
     x0: Num[Array, "*batch n"],
-    args: tuple[PyTree, ...] = (),
+    args: tuple[Any, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
 ) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
