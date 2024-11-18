@@ -68,6 +68,14 @@ def test_minimize() -> None:
     chex.assert_trees_all_close(got_x, expected_x)
     chex.assert_trees_all_close(got_loss, c)
 
+    with pytest.raises(
+        AssertionError, match="Assertion assert_tree_shape_prefix failed"
+    ):
+        _ = minimize(fun, x0, args=(a[0, ...], b, c))
+
+    with pytest.raises(TypeError, match="missing 1 required positional argument"):
+        _ = minimize(fun, x0, args=(a, b))
+
 
 def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:
     def assert_in_bounds(a: Array, bounds: Array) -> None:
