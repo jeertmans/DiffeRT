@@ -73,9 +73,7 @@ def test_minimize() -> None:
     ):
         _ = minimize(fun, x0, args=(0.0, b, c))
 
-    with pytest.raises(
-        TypeError, match="Assertion assert_tree_shape_prefix failed"
-    ):
+    with pytest.raises(TypeError, match="Assertion assert_tree_shape_prefix failed"):
         _ = minimize(fun, x0, args=(a[0, ...], b, c))
 
     with pytest.raises(TypeError, match="missing 1 required positional argument"):
