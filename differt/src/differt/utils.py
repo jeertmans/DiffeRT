@@ -91,7 +91,7 @@ def minimize(
     args: tuple[PyTree, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
-) -> tuple[Num[Array, "*batch n"], Num[Array, "*batch"]]:
+) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
     """
     Minimize a scalar function of one or more variables.
 
@@ -223,7 +223,7 @@ def minimize(
     def f(
         carry: tuple[Num[Array, "*batch n"], _OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], _OptState], Num[Array, "*batch"]]:
+    ) -> tuple[tuple[Num[Array, "*batch n"], _OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)
