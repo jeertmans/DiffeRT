@@ -89,9 +89,8 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
 
 
-# Beartype does not support TypeVarTuple at the moment
 @eqx.filter_jit
-@jaxtyped(typechecker=None)
+@jaxtyped(typechecker=typechecker)
 def minimize(
     fun: Callable[[Num[Array, "*batch n"], *_Ts], Num[Array, " *batch"]],
     x0: Num[Array, "*batch n"],
