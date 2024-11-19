@@ -306,7 +306,7 @@ def _(
     ray_ends = ray_origins + ray_directions
     paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
 
-    return draw_paths(paths, backend="vispy", **kwargs)
+    return draw_paths(paths, backend="vispy", **kwargs)  # type: ignore[reportReturnType]
 
 
 @draw_rays.register("matplotlib")
@@ -336,7 +336,7 @@ def _(
     ray_ends = ray_origins + ray_directions
     paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
 
-    return draw_paths(paths, backend="plotly", **kwargs)
+    return draw_paths(paths, backend="plotly", **kwargs)  # type: ignore[reportReturnType]
 
 
 @dispatch
