@@ -1,12 +1,15 @@
 import jax
 import pytest
+from jaxtyping import Array
 from pytest_codspeed import BenchmarkFixture
 
-from differt.rt._fermat import fermat_path_on_planar_mirrors
-from differt.rt._image_method import (
+from differt.geometry import Paths
+from differt.rt import (
+    fermat_path_on_planar_mirrors,
+    generate_all_path_candidates,
     image_method,
+    triangles_visible_from_vertices,
 )
-from differt.rt._utils import triangles_visible_from_vertices
 from differt.scene._triangle_scene import TriangleScene
 
 from ..rt.utils import PlanarMirrorsSetup
@@ -88,5 +91,23 @@ def test_compute_paths_in_simple_street_canyon_scene(
                 order,
                 chunk_size=None,
             ).vertices.block_until_ready()
+
+    _ = benchmark(bench_fun)
+
+
+def test_compile_compute_paths(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+) -> None:
+    scene = simple_street_canyon_scene
+
+    path_candidates = generate_all_path_candidates(scene.mesh.num_triangles, 2)
+
+    @jax.jit
+    def fun(path_candidates: Array) -> Paths:
+        return scene.compute_paths(path_candidates=path_candidates)
+
+    def bench_fun() -> None:
+        fun.lower(path_candidates).compile()
 
     _ = benchmark(bench_fun)
