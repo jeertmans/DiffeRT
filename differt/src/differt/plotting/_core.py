@@ -14,8 +14,10 @@ from ._utils import (
 )
 
 # We cannot use from __future__ import annotations because
-#   otherwise array annotations do not render correctly.
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+# otherwise array annotations do not render correctly.
+# However, we still import when building docs (online)
+# so return type is correctly documented.
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:  # pragma: no cover
     from matplotlib.figure import Figure as MplFigure
     from plotly.graph_objects import Figure
     from vispy.scene.canvas import SceneCanvas as Canvas
