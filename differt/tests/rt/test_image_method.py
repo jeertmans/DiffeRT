@@ -218,6 +218,12 @@ def test_image_method_return_vertices_on_mirrors(
             (12, 3),
             pytest.raises(TypeError),
         ),
+        (
+            (12, 3),
+            (11, 4),
+            (11, 3),
+            pytest.raises(TypeError),
+        ),
     ],
 )
 @random_inputs("vertices", "mirror_vertices", "mirror_normals")

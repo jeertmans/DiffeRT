@@ -2,6 +2,7 @@
 
 import sys
 from collections.abc import Callable, Iterator, Sized
+from functools import cache
 from typing import Any, Generic, TypeVar
 
 import equinox as eqx
@@ -66,6 +67,7 @@ class SizedIterator(Iterator, Sized, Generic[_T]):
 
 
 @jaxtyped(typechecker=typechecker)
+@cache
 def generate_all_path_candidates(
     num_primitives: int,
     order: int,
