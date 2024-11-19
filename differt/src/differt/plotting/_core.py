@@ -1,6 +1,7 @@
+import os
 import warnings
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from jaxtyping import ArrayLike, Int, Real
@@ -14,24 +15,15 @@ from ._utils import (
 
 # We cannot use from __future__ import annotations because
 #   otherwise array annotations do not render correctly.
-# We cannot rely on TYPE_CHECKING-guarded annotation
-#   because Sphinx will fail to import this NumPy or Jax typing
-# Hence, we prefer to silence pyright instead.
-
-try:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     from matplotlib.figure import Figure as MplFigure
-except ImportError:
-    MplFigure = Any
-
-try:
     from plotly.graph_objects import Figure
-except ImportError:
-    Figure = Any
-
-try:
     from vispy.scene.canvas import SceneCanvas as Canvas
-except ImportError:
+else:
+    MplFigure = Any
+    Figure = Any
     Canvas = Any
+
 
 PlotOutput = Canvas | MplFigure | Figure
 """The output of any plotting function."""
@@ -100,7 +92,7 @@ def _(
     vertices: Real[ArrayLike, "num_vertices 3"],
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import Mesh  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -118,7 +110,7 @@ def _(
     vertices: Real[ArrayLike, "num_vertices 3"],
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     kwargs.pop("face_colors", None)
@@ -135,7 +127,7 @@ def _(
     vertices: Real[ArrayLike, "num_vertices 3"],
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     if (
@@ -210,7 +202,7 @@ def draw_paths(
 def _(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import LinePlot  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -232,7 +224,7 @@ def _(
 def _(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     paths = np.asarray(paths)
@@ -247,7 +239,7 @@ def _(
 def _(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     paths = np.asarray(paths)
@@ -308,7 +300,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     ray_origins = np.asarray(ray_origins)
     ray_directions = np.asarray(ray_directions)
     ray_ends = ray_origins + ray_directions
@@ -322,7 +314,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     ray_origins = np.asarray(ray_origins).reshape(-1, 3)
@@ -338,7 +330,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     ray_origins = np.asarray(ray_origins)
     ray_directions = np.asarray(ray_directions)
     ray_ends = ray_origins + ray_directions
@@ -402,7 +394,7 @@ def _(
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -427,7 +419,7 @@ def _(
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     if labels is not None:
@@ -448,7 +440,7 @@ def _(
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     if labels:
@@ -534,7 +526,7 @@ def _(
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import Image  # noqa: PLC0415
     from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
@@ -582,7 +574,7 @@ def _(
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     data = np.asarray(data)
@@ -606,7 +598,7 @@ def _(
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     data = np.asarray(data)
@@ -693,7 +685,7 @@ def _(  # noqa: PLR0917
     levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import Isocurve  # noqa: PLC0415
     from vispy.visuals.transforms import STTransform  # noqa: PLC0415
 
@@ -758,7 +750,7 @@ def _(  # noqa: PLR0917
     levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     data = np.asarray(data)
@@ -788,7 +780,7 @@ def _(  # noqa: PLR0917
     levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     del z0
@@ -892,7 +884,7 @@ def _(
     z: Real[ArrayLike, "rows cols"],
     colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     **kwargs: Any,
-) -> Canvas:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas:
     from vispy.scene.visuals import SurfacePlot  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
@@ -922,7 +914,7 @@ def _(
     | Real[ArrayLike, "rows cols 4"]
     | None = None,
     **kwargs: Any,
-) -> MplFigure:  # type: ignore[reportInvalidTypeForm]
+) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     z = np.asarray(z)
@@ -961,7 +953,7 @@ def _(
     z: Real[ArrayLike, "rows cols"],
     colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     **kwargs: Any,
-) -> Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     x = None if x is None else np.asarray(x)
