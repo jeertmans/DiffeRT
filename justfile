@@ -10,7 +10,7 @@ bench: bench-python bench-rust
 [group: 'python']
 [group: 'test']
 bench-python *ARGS:
-  uv run pytest -n0 --benchmark-only {{ARGS}}
+  uv run pytest -n0 --benchmark-enable --benchmark-only {{ARGS}}
 
 # Benchmark Rust code
 [group: 'rust']
