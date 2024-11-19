@@ -104,6 +104,7 @@ def test_compile_compute_paths(
     path_candidates = generate_all_path_candidates(scene.mesh.num_triangles, 2)
 
     @jax.jit
+    @jax.debug_nans(False)  # noqa: FBT003
     def fun(path_candidates: Array) -> Paths:
         return scene.compute_paths(path_candidates=path_candidates)
 
