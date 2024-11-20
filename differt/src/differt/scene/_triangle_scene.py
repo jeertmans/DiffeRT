@@ -743,24 +743,22 @@ class TriangleScene(eqx.Module):
                 This or ``path_candidates`` must be specified.
             method: The method used to generate path candidates.
 
-                If ``'exhaustive'``, all possible paths are generated, performing
-                an extaustive search. This is the slowest method, but it is also
-                the most accurate.
-
-                If ``'sbr'``, a fixed number of rays are launched from each transmitter
-                and are allowed to perform a fixed number of bounces. Only rays paths
-                passing in the vicinity of a receiver are considered valid, see
-                ``max_dist`` parameter. This is the fastest method, but may miss
-                some valid paths if the number of rays is too low.
-
-                If ``'hybrid'``, a hybrid method is used, which estimates the objects
-                visible from all transmitters, to reduce the number of path candidates,
-                by launching a fixed number of rays, and then performs an extausive
-                search on those path candidates. This is a faster alternative to
-                ``'exhaustive'``, but still grows exponentially with the number of
-                bounces or the size of the scene. In the future, we plan on allowing
-                the user to explicity pass visibility matrices to further reduce the
-                number of path candidates.
+                * If ``'exhaustive'``, all possible paths are generated, performing
+                  an exhaustive search. This is the slowest method, but it is also
+                  the most accurate.
+                * If ``'sbr'``, a fixed number of rays are launched from each transmitter
+                  and are allowed to perform a fixed number of bounces. Only rays paths
+                  passing in the vicinity of a receiver are considered valid, see
+                  ``max_dist`` parameter. This is the fastest method, but may miss
+                  some valid paths if the number of rays is too low.
+                * If ``'hybrid'``, a hybrid method is used, which estimates the objects
+                  visible from all transmitters, to reduce the number of path candidates,
+                  by launching a fixed number of rays, and then performs an extausive
+                  search on those path candidates. This is a faster alternative to
+                  ``'exhaustive'``, but still grows exponentially with the number of
+                  bounces or the size of the scene. In the future, we plan on allowing
+                  the user to explicity pass visibility matrices to further reduce the
+                  number of path candidates.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
 
