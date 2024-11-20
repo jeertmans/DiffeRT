@@ -207,7 +207,7 @@ def _(
     path_length = paths.shape[-2]
     paths = paths.reshape(-1, 3)
     connect = np.ones(paths.shape[0], dtype=bool)
-    connect[path_length-1::path_length] = False
+    connect[path_length - 1 :: path_length] = False
 
     view.add(LinePlot(data=paths, connect=connect, **kwargs))
 
@@ -240,7 +240,9 @@ def _(
 
     paths = np.asarray(paths)
     paths = paths.reshape(-1, *paths.shape[-2:])
-    paths = np.concatenate((paths, np.full((paths.shape[0], 1, 3), np.nan, dtype=paths.dtype)), axis=-2)
+    paths = np.concatenate(
+        (paths, np.full((paths.shape[0], 1, 3), np.nan, dtype=paths.dtype)), axis=-2
+    )
     x, y, z = paths.reshape(-1, 3).T
     fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 

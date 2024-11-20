@@ -4,6 +4,7 @@ import math
 import sys
 import warnings
 from collections.abc import Mapping
+from functools import partial
 from typing import Any, Literal, overload
 
 import equinox as eqx
@@ -21,6 +22,8 @@ from differt.geometry import (
     Paths,
     TriangleMesh,
     assemble_paths,
+    fibonacci_lattice,
+    viewing_frustum,
 )
 from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt import (
@@ -29,8 +32,10 @@ from differt.rt import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     image_method,
+    image_of_vertices_with_respect_to_mirrors,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
+    triangles_visible_from_vertices,
 )
 
 if sys.version_info >= (3, 11):
@@ -47,10 +52,10 @@ def _compute_paths(
     to_vertices: Float[Array, "num_to_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
-    parallel: bool = False,
-    epsilon: Float[ArrayLike, " "] | None = None,
-    hit_tol: Float[ArrayLike, " "] | None = None,
-    min_len: Float[ArrayLike, " "] | None = None,
+    parallel: bool,
+    epsilon: Float[ArrayLike, " "] | None,
+    hit_tol: Float[ArrayLike, " "] | None,
+    min_len: Float[ArrayLike, " "] | None,
 ) -> Paths:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, from_vertices, to_vertices)
@@ -232,6 +237,178 @@ def _compute_paths(
             from_vertices.shape[0],
             to_vertices.shape[0],
             num_path_candidates,
+            path_candidates.shape[1],
+        ),
+    )
+
+    objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
+
+    return Paths(
+        vertices,
+        objects,
+        mask,
+    )
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def _compute_paths_sbr(
+    mesh: TriangleMesh,
+    from_vertices: Float[Array, "num_from_vertices 3"],
+    to_vertices: Float[Array, "num_to_vertices 3"],
+    *,
+    order: int,
+    num_rays: int,
+    parallel: bool = False,
+    epsilon: Float[ArrayLike, " "] | None,
+    max_dist: Float[ArrayLike, " "] | None,
+) -> Paths:
+    if max_dist is None:
+        dtype = jnp.result_type(mesh.vertices, from_vertices, to_vertices)
+        max_len = 10 * jnp.finfo(dtype).eps
+
+    # 1 - Prepare arrays
+
+    # [num_triangles 3 3]
+    triangle_vertices = mesh.triangle_vertices
+
+    num_from_vertices = from_vertices.shape[0]
+    num_rays_per_tx = num_rays // num_from_vertices
+
+    world_vertices = jnp.concatenate(
+        (triangle_vertices.reshape(-1, 3), to_vertices), axis=0
+    )
+
+    # [num_from_vertices 2 3]
+    frustrums = jax.vmap(partial(viewing_frustum, world_vertices=world_vertices))(
+        from_vertices,
+    )
+
+    # [num_from_vertices num_rays_per_tx 2 3]
+    ray_origins, ray_directions = jax.vmap(
+        partial(fibonacci_lattice, n=num_rays_per_tx)
+    )(frustrums)
+
+    ScanC = tuple[
+        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
+        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
+    ]
+    ScanR = tuple[
+        Int[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
+        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
+        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
+    ]
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        ray_origins_and_directions: ScanC,
+        _: None,
+    ) -> tuple[
+        ScanC,
+        ScanR,
+    ]:
+        # [num_from_vertices num_rays_per_tx 3]
+        ray_origins, ray_directions = ray_origins_and_directions
+
+        # [num_from_vertices num_rays_per_tx num_triangles]
+        hit, t = rays_intersect_triangles(
+            ray_origins[..., None, :],
+            ray_directions[..., None, :],
+            triangle_vertices[None, None, ...],
+            epsilon=epsilon,
+        )
+        t = jnp.where(hit, t, jnp.inf)
+
+        # [num_from_vertices num_rays_per_tx]
+        triangles = jnp.argmin(t, axis=-1)  # Index of first triangle hit
+        t = jnp.take(t, triangles, axis=-1)
+
+        # [num_from_vertices num_to_vertices num_rays_per_tx 3]
+        origins_to_vertices = to_vertices[None, :, None, :] - ray_origins[:, None, ...]
+        cross = jnp.cross(
+            ray_directions[:, None, ...],
+            origins_to_vertices,
+        )
+
+        # [num_from_vertices num_to_vertices num_rays_per_tx]
+        distances = jnp.sum(cross * cross, axis=-1)  # Squared distance from ray to RX
+        distances = jnp.where(
+            jnp.dot(ray_directions[:, None, ...], origins_to_vertices)
+            < (t * jnp.sum(origins_to_vertices * origins_to_vertices, axis=-1)),
+            distances,
+            jnp.inf,
+        )  # If RX is obstructed, we set the distance to +inf
+
+        # [num_from_vertices num_rays_per_tx 3]
+        mirror_vertices = jnp.take(mesh.vertices, triangles, axis=0)[
+            ..., 0, :
+        ]  # Any vertex is good
+        mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
+        images = image_of_vertices_with_respect_to_mirrors(
+            ray_origins, mirror_vertices, mirror_normals
+        )
+
+        ray_origins += t * ray_directions
+        ray_directions = images - ray_origins
+
+        return (ray_origins, ray_directions), (triangles, ray_origins, distances)
+
+    if parallel:
+        num_devices = jax.device_count()
+
+        if (num_from_vertices * num_rays_per_tx) % num_devices == 0:
+            tx_mesh = math.gcd(num_from_vertices, num_devices)
+            ray_mesh = num_devices // tx_mesh
+            in_specs = (P("i", None), P("j", None))
+            out_specs = (P("i", "j", None, None, None), P("i", "j", None))
+        else:
+            msg = (
+                f"Found {num_devices} devices available, "
+                "but could not find any input with a size that is a multiple of that value. "
+                "Please user a number of transmitter and rays that is a "
+                f"multiple of {num_devices}."
+            )
+            raise ValueError(msg)
+
+        scan_fun = shard_map(  # type: ignore[reportAssigmentType]
+            scan_fun,
+            Mesh(
+                mesh_utils.create_device_mesh((tx_mesh, ray_mesh)),
+                axis_names=("i", "j"),
+            ),
+            in_specs=in_specs,
+            out_specs=out_specs,
+        )
+
+    _, (path_candidates, vertices, distances) = jax.lax.scan(
+        scan_fun,
+        (ray_origins, ray_directions),
+        length=order,
+    )
+
+    mask = distances <= max_dist
+
+    # 4 - Generate output paths and reshape
+
+    object_dtype = path_candidates.dtype
+
+    tx_objects = jnp.arange(from_vertices.shape[0], dtype=object_dtype)
+    rx_objects = jnp.arange(to_vertices.shape[0], dtype=object_dtype)
+
+    tx_objects = jnp.broadcast_to(
+        tx_objects[:, None, None, None],
+        (from_vertices.shape[0], to_vertices.shape[0], num_rays_per_tx, 1),
+    )
+    rx_objects = jnp.broadcast_to(
+        rx_objects[None, :, None, None],
+        (from_vertices.shape[0], to_vertices.shape[0], num_rays_per_tx, 1),
+    )
+    path_candidates = jnp.broadcast_to(
+        path_candidates,
+        (
+            from_vertices.shape[0],
+            to_vertices.shape[0],
+            num_rays_per_tx,
             path_candidates.shape[1],
         ),
     )
@@ -478,12 +655,15 @@ class TriangleScene(eqx.Module):
         self,
         order: int | None = None,
         *,
+        method: Literal["exhaustive", "hybrid"] = "exhaustive",
         chunk_size: Literal[None] = None,
+        num_rays: int = int(1e6),
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
     ) -> Paths: ...
 
     @overload
@@ -491,12 +671,15 @@ class TriangleScene(eqx.Module):
         self,
         order: int | None = None,
         *,
+        method: Literal["exhaustive", "hybrid"] = "exhaustive",
         chunk_size: int,
+        num_rays: int = int(1e6),
         path_candidates: Literal[None] = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -504,24 +687,47 @@ class TriangleScene(eqx.Module):
         self,
         order: int | None = None,
         *,
+        method: Literal["exhaustive"] = "exhaustive",
         chunk_size: int,
+        num_rays: int = int(1e6),
         path_candidates: Int[Array, "num_path_candidates order"],
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
     ) -> Paths: ...
 
+    @overload
+    def compute_paths(
+        self,
+        order: int,
+        *,
+        method: Literal["sbr"],
+        chunk_size: None,
+        num_rays: int = int(1e6),
+        path_candidates: None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: None = None,
+        min_len: None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+    ) -> Paths: ...
+
+    @jaxtyped(typechecker=typechecker)
     def compute_paths(
         self,
         order: int | None = None,
         *,
+        method: Literal["exhaustive", "sbr", "hybrid"] = "exhaustive",
         chunk_size: int | None = None,
+        num_rays: int = int(1e6),
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
     ) -> Paths | SizedIterator[Paths]:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -535,10 +741,34 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
 
                 This or ``path_candidates`` must be specified.
+            method: The method used to generate path candidates.
+
+                If ``'exhaustive'``, all possible paths are generated, performing
+                an extaustive search. This is the slowest method, but it is also
+                the most accurate.
+
+                If ``'sbr'``, a fixed number of rays are launched from each transmitter
+                and are allowed to perform a fixed number of bounces. Only rays paths
+                passing in the vicinity of a receiver are considered valid, see
+                ``max_dist`` parameter. This is the fastest method, but may miss
+                some valid paths if the number of rays is too low.
+
+                If ``'hybrid'``, a hybrid method is used, which estimates the objects
+                visible from all transmitters, to reduce the number of path candidates,
+                by launching a fixed number of rays, and then performs an extausive
+                search on those path candidates. This is a faster alternative to
+                ``'exhaustive'``, but still grows exponentially with the number of
+                bounces or the size of the scene. In the future, we plan on allowing
+                the user to explicity pass visibility matrices to further reduce the
+                number of path candidates.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
 
-                Unused if ``path_candidates`` is provided.
+                Unused if ``path_candidates`` is provided or if ``method == 'sbr'``.
+            num_rays: The number of rays launched with ``method == 'sbr'`` or
+                ``method == 'hybrid'``.
+
+                Unused if ``method == 'exhaustive'``.
             path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
 
                 This is helpful to only generate paths on a subset of the scene. E.g., this
@@ -548,17 +778,31 @@ class TriangleScene(eqx.Module):
                 If :attr:`self.mesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>`
                 is :data:`True`, then path candidates are
                 rounded down toward the nearest even value.
+
+                Unused if ``method == 'sbr'``.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. The number of transmitters times the number of receivers
+                **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
+
+                When ``method == 'sbr'``, the number of transmitters times the number of rays
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
             epsilon: Tolelance for checking ray / objects intersection, see
                 :func:`rays_intersect_triangles<differt.rt.rays_intersect_triangles>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
                 :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`.
+
+                Unused if ``method == 'sbr'``.
             min_len: Minimal (squared) length that each path segment must have for a path to be valid.
 
                 If not specified, the default is ten times the epsilon value
                 of the currently used floating point dtype.
+
+                Unused if ``method == 'sbr'``.
+
+            max_dist: Maximal (squared) distance between a receiver and a ray for the receiver
+                to be considered in the vicinity of the ray path.
+
+                Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -567,6 +811,8 @@ class TriangleScene(eqx.Module):
         Raises:
             ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
                 or if both have been provided simultaneously.
+
+                If ``method == 'sbr'``, ``order`` is required.
         """
         if (order is None) == (path_candidates is None):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
@@ -576,12 +822,36 @@ class TriangleScene(eqx.Module):
             warnings.warn(msg, UserWarning, stacklevel=2)
             chunk_size = None
 
+        tx_batch = self.transmitters.shape[:-1]
+        rx_batch = self.receivers.shape[:-1]
+
+        if method == "sbr":
+            if order is None:
+                msg = "Argument 'order' is required when 'method == \"sbr\"'."
+                raise ValueError(msg)
+
+            return _compute_paths_sbr(
+                self.mesh,
+                self.transmitters.reshape(-1, 3),
+                self.receivers.reshape(-1, 3),
+                order=order,
+                num_rays=num_rays,
+                epsilon=epsilon,
+                max_dist=max_dist,
+            ).reshape(*tx_batch, *rx_batch, -1)
+        if method == "hybrid":
+            raise NotImplementedError("Hybrid method not implemented yet.")
+            visibility = triangles_visible_from_vertices(
+                self.transmitters, self.mesh.triangle_vertices
+            )
+
+            if self.mesh.assume_quads:
+                visibility = visibility.reshape(-1, 2).any(axis=-1)
+
         # 0 - Constants arrays of chunks
         num_objects = (
             self.mesh.num_quads if self.mesh.assume_quads else self.mesh.num_triangles
         )
-        tx_batch = self.transmitters.shape[:-1]
-        rx_batch = self.receivers.shape[:-1]
 
         # [tx_batch_flattened 3]
         from_vertices = self.transmitters.reshape(-1, 3)
