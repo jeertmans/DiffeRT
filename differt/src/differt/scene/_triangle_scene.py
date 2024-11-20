@@ -261,12 +261,8 @@ def _compute_paths_sbr(
     num_rays: int,
     parallel: bool = False,
     epsilon: Float[ArrayLike, " "] | None,
-    max_dist: Float[ArrayLike, " "] | None,
+    max_dist: Float[ArrayLike, " "],
 ) -> Paths:
-    if max_dist is None:
-        dtype = jnp.result_type(mesh.vertices, from_vertices, to_vertices)
-        max_len = 10 * jnp.finfo(dtype).eps
-
     # 1 - Prepare arrays
 
     # [num_triangles 3 3]
@@ -280,14 +276,14 @@ def _compute_paths_sbr(
     )
 
     # [num_from_vertices 2 3]
-    frustrums = jax.vmap(partial(viewing_frustum, world_vertices=world_vertices))(
+    frustums = jax.vmap(partial(viewing_frustum, world_vertices=world_vertices))(
         from_vertices,
     )
 
     # [num_from_vertices num_rays_per_tx 2 3]
     ray_origins, ray_directions = jax.vmap(
         partial(fibonacci_lattice, n=num_rays_per_tx)
-    )(frustrums)
+    )(frustums)
 
     ScanC = tuple[
         Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
@@ -715,7 +711,7 @@ class TriangleScene(eqx.Module):
     ) -> Paths: ...
 
     @jaxtyped(typechecker=typechecker)
-    def compute_paths(
+    def compute_paths(  # noqa: C901
         self,
         order: int | None = None,
         *,
@@ -757,7 +753,7 @@ class TriangleScene(eqx.Module):
                   search on those path candidates. This is a faster alternative to
                   ``'exhaustive'``, but still grows exponentially with the number of
                   bounces or the size of the scene. In the future, we plan on allowing
-                  the user to explicity pass visibility matrices to further reduce the
+                  the user to explicitly pass visibility matrices to further reduce the
                   number of path candidates.
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
@@ -777,7 +773,7 @@ class TriangleScene(eqx.Module):
                 is :data:`True`, then path candidates are
                 rounded down toward the nearest even value.
 
-                Unused if ``method == 'sbr'``.
+                **Not compatible with** ``method == 'sbr'``.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. The number of transmitters times the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
@@ -838,7 +834,8 @@ class TriangleScene(eqx.Module):
                 max_dist=max_dist,
             ).reshape(*tx_batch, *rx_batch, -1)
         if method == "hybrid":
-            raise NotImplementedError("Hybrid method not implemented yet.")
+            msg = "Hybrid method not implemented yet."
+            raise NotImplementedError(msg)
             visibility = triangles_visible_from_vertices(
                 self.transmitters, self.mesh.triangle_vertices
             )

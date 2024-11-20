@@ -209,7 +209,7 @@ def _(
     connect = np.ones(paths.shape[0], dtype=bool)
     connect[path_length - 1 :: path_length] = False
 
-    view.add(LinePlot(data=paths, connect=connect, **kwargs))
+    view.add(LinePlot(data=paths, connect=connect, **kwargs))  # type: ignore[reportArgumentType]
 
     view.camera.set_range()
 

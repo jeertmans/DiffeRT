@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
+from typing import Literal
 
 import chex
 import equinox as eqx
@@ -131,12 +132,23 @@ class TestTriangleScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            pytest.param(
+                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
+            ),
+        ],
+    )
     def test_compute_paths_on_advanced_path_tracing_example(
         self,
         order: int,
         expected_path_vertices: Array,
         expected_objects: Array,
         assume_quads: bool,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
         scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
@@ -150,7 +162,7 @@ class TestTriangleScene:
             expected_objects -= expected_objects % 2
 
         with jax.debug_nans(False):  # noqa: FBT003
-            got = scene.compute_paths(order)
+            got = scene.compute_paths(order, method=method)
 
         chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
         chex.assert_trees_all_equal(got.masked_objects, expected_objects)
