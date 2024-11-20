@@ -1,5 +1,3 @@
-"""Uniform Theory of Diffraction (UTD) utilities."""
-
 import jax
 import jax.numpy as jnp
 import jax.scipy.special as jsp

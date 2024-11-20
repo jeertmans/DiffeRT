@@ -1,5 +1,3 @@
-"""Utilities for working with EM fields."""
-
 from typing import Any
 
 import jax

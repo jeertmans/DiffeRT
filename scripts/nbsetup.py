@@ -1,4 +1,4 @@
-"""Read a list of Jupyter Notebook files and append a installation preamble if needed."""
+"""Read a list of Jupyter Notebook files and append some installation preamble if needed."""
 
 import sys
 

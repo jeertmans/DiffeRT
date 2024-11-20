@@ -27,3 +27,5 @@ differt/src/differt/scene/scenes/
 .benchmarks/
 .coverage*
 coverage.xml
+
+.fileid.db

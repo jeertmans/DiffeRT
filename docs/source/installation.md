@@ -54,7 +54,52 @@ You may want to install those optional features by using *extras*[^1]:
 
 ## Install from source
 
-If you consider contributing to DiffeRT (*thanks!*), or you want to on your own
+If you consider contributing to DiffeRT (*thanks!*), or you want to work on your own
 local version, you will probably need to build the project from source.
 
-TODO.
+This project is built using both Python and Rust code, to provide an easy-to-use
+but performant program. It also heavily uses the capabilities brought by
+[JAX](https://github.com/jax-ml/jax) for numerical arrays.
+
+### Requirements
+
+To run build this package locally, you need:
+
+- [Rust](https://www.rust-lang.org/) stable toolchain;
+- any modern C compiler;
+- [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
+- [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
+- and [uv](https://docs.astral.sh/uv/) to manage this project.
+
+This project contains `justfile`s with recipes[^2] for most common
+use cases, so feel free to use them instead of the commands listed below/
+
+[^2]: `just` is as alternative tool to Make, that provides more modern
+  user experience. Enter `just` to list all available recipes.
+
+### Building
+
+Building the packages is pretty simple thanks to uv:
+
+```bash
+uv sync
+```
+
+This will automatically download an appropriate Python version (if not available)
+and install the packages in a virtual environment.
+
+:::{note}
+By default, `uv sync` will also install all the packages
+listed in the `dev-dependencies` list of the `[tool.uv]` section from the main
+`pyproject.toml` file.
+
+You can opt out by specifying the `--no-dev` option.
+:::
+
+Alternatively, you can install specific extras[^3] with `uv sync --extra <EXTRA>`.
+
+[^3]: The extras available for development are not the same as the extras of the {mod}`differt`
+  packages (defined in `differt/pyproject.toml`). E.g., the `cuda` extra installs a GPU-capable
+  JAX dependency (granted that you have a compatible CUDA installation). To specify {mod}`differt`'s
+  extras, the easiest is to add a new extra in the `[project.optional-dependencies]` section of the root
+  `pyproject.toml` file and specify extras there.

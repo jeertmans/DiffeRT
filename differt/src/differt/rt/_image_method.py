@@ -1,4 +1,3 @@
-"""Path tracing utilities that utilize the Image Method."""
 # ruff: noqa: ERA001
 
 import chex

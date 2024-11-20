@@ -1,5 +1,3 @@
-"""Utilities for working with 3D geometries."""
-
 from typing import Literal, overload
 
 import equinox as eqx

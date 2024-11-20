@@ -43,6 +43,7 @@ Contents
 
    API <api_reference>
    guides
+   contributing
    citing
    references
    Report an issue <https://github.com/jeertmans/DiffeRT/issues>

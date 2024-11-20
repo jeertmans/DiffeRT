@@ -1,5 +1,3 @@
-"""Sionna utitilies."""
-
 import tarfile
 import tempfile
 from collections.abc import Iterator
