@@ -244,9 +244,7 @@ def _(
         (paths, np.full((paths.shape[0], 1, 3), np.nan, dtype=paths.dtype)), axis=-2
     )
     x, y, z = paths.reshape(-1, 3).T
-    fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
-
-    return fig
+    return fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
 
 @dispatch

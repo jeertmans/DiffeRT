@@ -3,12 +3,14 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
 from differt.geometry import TriangleMesh
 from differt.rt._utils import (
+    first_triangles_hit_by_rays,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
@@ -319,3 +321,44 @@ def test_triangles_visible_from_vertices(
         assert visible_triangles.sum() == expected_number, (
             "Number of visible triangles did not match expectation."
         )
+
+
+@pytest.mark.parametrize(
+    ("ray_origins", "ray_directions", "triangle_vertices"),
+    [
+        ((10, 3), (1, 3), (30, 3, 3)),
+        ((100, 3), (100, 3), (1, 300, 3, 3)),
+    ],
+)
+@pytest.mark.parametrize("epsilon", [None, 1e-2])
+@random_inputs("ray_origins", "ray_directions", "triangle_vertices")
+@jax.debug_nans(False)  # noqa: FBT003
+def test_first_triangles_hit_by_rays(
+    ray_origins: Array,
+    ray_directions: Array,
+    triangle_vertices: Array,
+    epsilon: float | None,
+) -> None:
+    got_indices, got_t = first_triangles_hit_by_rays(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+        epsilon=epsilon,
+    )
+    expected_t, expected_hit = rays_intersect_triangles(
+        ray_origins[..., None, :],
+        ray_directions[..., None, :],
+        triangle_vertices,
+        epsilon=epsilon,
+    )
+    expected_t = jnp.where(expected_hit, expected_t, jnp.inf)
+    expected_indices = jnp.argmin(expected_t, axis=-1)
+    assert expected_indices.shape == got_indices.shape
+    expected_t = jnp.take_along_axis(
+        expected_t, jnp.expand_dims(expected_indices, axis=-1), axis=-1
+    ).squeeze(axis=-1)
+    assert expected_t.shape == got_t.shape
+    expected_indices = jnp.where(expected_t == jnp.inf, -1, expected_indices)
+
+    chex.assert_trees_all_equal(got_indices, expected_indices)
+    chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5)

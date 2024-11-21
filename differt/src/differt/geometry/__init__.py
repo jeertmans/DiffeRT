@@ -2,6 +2,7 @@
 
 __all__ = (
     "Paths",
+    "SBRPaths",
     "TriangleMesh",
     "assemble_paths",
     "cartesian_to_spherical",
@@ -19,7 +20,7 @@ __all__ = (
     "viewing_frustum",
 )
 
-from ._paths import Paths
+from ._paths import Paths, SBRPaths
 from ._triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,

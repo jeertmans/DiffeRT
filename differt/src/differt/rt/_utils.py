@@ -467,3 +467,67 @@ def triangles_visible_from_vertices(
         init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
         xs=ray_directions,
     )[0]
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def first_triangles_hit_by_rays(
+    ray_origins: Float[Array, "*#batch 3"],
+    ray_directions: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+    **kwargs: Any,
+) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+    """
+    Return the first triangle hit by each ray.
+
+    This function should be used when allocating an array of size
+    ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
+    getting the first triangle hit by the ray.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        kwargs: Keyword arguments passed to
+            :func:`rays_intersect_triangles`.
+
+    Returns:
+        For each ray, return the index and to distance to the first triangle hit.
+
+        If no triangle is hit, the index is set to ``-1`` and
+        the distance is set to :data:`jnp.inf`.
+    """
+    # Put 'num_triangles' axis as leading axis
+    triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+
+    batch = jnp.broadcast_shapes(
+        ray_origins.shape[:-1],
+        ray_directions.shape[:-1],
+        triangle_vertices.shape[1:-2],
+    )
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        carry: tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]],
+        triangle_vertices: Float[Array, "*#batch 3 3"],
+    ) -> tuple[
+        tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]], None
+    ]:
+        indices, t_hit, index = carry
+        t, hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            **kwargs,
+        )
+        t = jnp.where(hit, t, jnp.inf)
+        indices = jnp.where(t < t_hit, index, indices)
+        t_hit = jnp.minimum(t, t_hit)
+        return (indices, t_hit, index + 1), None
+
+    return jax.lax.scan(
+        scan_fun,
+        init=(-jnp.ones(batch, dtype=int), jnp.full(batch, jnp.inf), jnp.array(0)),
+        xs=triangle_vertices,
+    )[0][:2]

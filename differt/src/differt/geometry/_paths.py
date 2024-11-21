@@ -1,5 +1,7 @@
 import sys
+import warnings
 from collections.abc import Callable, Iterator
+from dataclasses import KW_ONLY
 from typing import Any
 
 import equinox as eqx
@@ -8,7 +10,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped, jaxtyped
 
-from differt.plotting import PlotOutput, draw_paths
+from differt.plotting import PlotOutput, draw_paths, reuse
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -127,6 +129,12 @@ class Paths(eqx.Module):
     def path_length(self) -> int:
         """The length (i.e., number of vertices) of each individual path."""
         return self.objects.shape[-1]
+
+    @property
+    @jaxtyped(typechecker=typechecker)
+    def order(self) -> int:
+        """The length (i.e., number of vertices) of each individual path, excluding start and end vertices."""
+        return self.objects.shape[-1] - 2
 
     @property
     @jax.jit
@@ -320,3 +328,77 @@ class Paths(eqx.Module):
             The resulting plot output.
         """
         return draw_paths(self.masked_vertices, **kwargs)
+
+
+@jaxtyped(typechecker=typechecker)
+class SBRPaths(Paths):
+    """
+    Paths method generated with shooting-and-bouncing method.
+
+    Like :class:`Paths`, but holds information of lower-order
+    paths too.
+    """
+
+    _: KW_ONLY
+    masks: Bool[Array, " *batch order"] = eqx.field(converter=lambda x: jnp.asarray(x))
+    """An array of masks.
+
+    Like :attr:`mask`, but one for each path order.
+    """
+
+    def __post_init__(self):
+        if self.mask is not None:
+            msg = (
+                "Setting 'mask' argument is ignored for this class, "
+                "as it is overwritten by 'masks' arguments."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
+
+        self.mask = self.masks[..., -1]
+
+    def get_paths(self, order: int) -> Paths:
+        """
+        Return the :class:`Paths` class instance corresponding to the given path order.
+
+        Args:
+            order: The order of the path to index.
+
+        Returns:
+            The corresponding paths class.
+
+        Raises:
+            ValueError: If the provided order is out-of-bounds.
+        """
+        if order < 0 or order >= self.order:
+            msg = (
+                f"Paths order must be strictly between 0 and {self.order} (excl.), "
+                f"but you provided {order}."
+            )
+            raise ValueError(msg)
+
+        vertices = jnp.concatenate(
+            (self.vertices[..., : order + 1, :], self.vertices[..., [-1], :]),
+            axis=-2,
+        )
+        objects = jnp.concatenate(
+            (self.objects[..., : order + 1, :], self.objects[..., [-1], :]),
+            axis=-2,
+        )
+        return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
+
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def reshape(self, *batch: int) -> Self:
+        return eqx.tree_at(
+            lambda p: p.masks,
+            self.reshape(*batch),
+            self.masks.reshape(*batch, self.masks.shape[-1]),
+        )
+
+    def plot(self, **kwargs: Any) -> PlotOutput:
+        with reuse(**kwargs) as output:  # TODO: check if kwargs may not cause issues
+            for order in range(self.order + 1):
+                self.get_paths(order).plot(**kwargs)
+
+        return output

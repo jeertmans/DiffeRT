@@ -19,6 +19,7 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 import differt_core.scene
 from differt.geometry import (
     Paths,
+    SBRPaths,
     TriangleMesh,
     assemble_paths,
     fibonacci_lattice,
@@ -261,7 +262,7 @@ def _compute_paths_sbr(
     parallel: bool = False,
     epsilon: Float[ArrayLike, " "] | None,
     max_dist: Float[ArrayLike, " "],
-) -> Paths:
+) -> SBRPaths:
     # 1 - Prepare arrays
 
     # [num_triangles 3 3]
@@ -381,7 +382,7 @@ def _compute_paths_sbr(
         length=order,
     )
 
-    mask = distances <= max_dist
+    masks = distances <= max_dist
 
     # 4 - Generate output paths and reshape
 
@@ -410,10 +411,10 @@ def _compute_paths_sbr(
 
     objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
 
-    return Paths(
+    return SBRPaths(
         vertices,
         objects,
-        mask,
+        masks=masks,
     )
 
 
