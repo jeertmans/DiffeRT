@@ -4,7 +4,6 @@ import math
 import sys
 import warnings
 from collections.abc import Mapping
-from functools import partial
 from typing import Any, Literal, overload
 
 import equinox as eqx
@@ -276,14 +275,14 @@ def _compute_paths_sbr(
     )
 
     # [num_from_vertices 2 3]
-    frustums = jax.vmap(partial(viewing_frustum, world_vertices=world_vertices))(
-        from_vertices,
+    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(
+        from_vertices, world_vertices
     )
 
     # [num_from_vertices num_rays_per_tx 2 3]
-    ray_origins, ray_directions = jax.vmap(
-        partial(fibonacci_lattice, n=num_rays_per_tx)
-    )(frustums)
+    ray_origins, ray_directions = jax.vmap(fibonacci_lattice, in_axes=(None, 0))(
+        num_rays_per_tx, frustums
+    )
 
     ScanC = tuple[
         Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
