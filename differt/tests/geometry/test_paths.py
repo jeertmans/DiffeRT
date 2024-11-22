@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry._paths import Paths
+from differt.geometry._paths import Paths, SBRPaths
 
 
 def random_paths(
@@ -28,7 +28,7 @@ def random_paths(
 
 
 class TestPaths:
-    @pytest.mark.parametrize("path_length", [1, 3, 5])
+    @pytest.mark.parametrize("path_length", [3, 5])
     @pytest.mark.parametrize("batch", [(), (1,), (1, 2, 3, 4)])
     @pytest.mark.parametrize("num_objects", [1, 10])
     @pytest.mark.parametrize("with_mask", [False, True])
@@ -45,6 +45,9 @@ class TestPaths:
         )
         got = paths.masked_vertices
 
+        assert paths.path_length == path_length
+        assert paths.order == path_length - 2
+
         num_paths = (
             int(paths.mask.sum()) if paths.mask is not None else math.prod(batch)
         )
@@ -55,7 +58,7 @@ class TestPaths:
 
         assert got.size == num_paths * path_length
 
-    @pytest.mark.parametrize("path_length", [1, 2, 3])
+    @pytest.mark.parametrize("path_length", [2, 3])
     @pytest.mark.parametrize("batch", [(45,), (1, 10, 3, 4)])
     @pytest.mark.parametrize("num_objects", [2, 3])
     def test_group_by_objects(
@@ -105,3 +108,38 @@ class TestPaths:
         paths = random_paths(3, 4, 5, num_objects=30, with_mask=True, key=key)
 
         _ = paths.plot(backend=backend)
+
+
+class TestSBRPaths:
+    def test_init(self, key: PRNGKeyArray) -> None:
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 5
+        batch = (30, 10)
+
+        paths = random_paths(
+            path_length, *batch, num_objects=30, with_mask=True, key=key_paths
+        )
+
+        assert paths.mask is not None
+        mask = paths.mask
+
+        masks = jax.random.uniform(key_masks, (*batch, path_length)) > 0.5
+
+        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+
+        assert sbr_paths.vertices.shape == (*batch, path_length, 3)
+        assert sbr_paths.objects.shape == (*batch, path_length)
+        assert sbr_paths.mask is not None
+        assert sbr_paths.mask.shape == batch
+        assert sbr_paths.masks.shape == (*batch, path_length)
+
+        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
+
+        with pytest.warns(UserWarning, match="LOL"):
+            sbr_paths = SBRPaths(paths.vertices, paths.objects, mask=mask, masks=masks)
+
+        with pytest.raises(AssertionError):  # Check that mask param is not used
+            chex.assert_trees_all_equal(sbr_paths.mask, mask)
+
+        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)

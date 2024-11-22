@@ -337,16 +337,20 @@ class SBRPaths(Paths):
 
     Like :class:`Paths`, but holds information of lower-order
     paths too.
+
+    Warning:
+        The ``mask`` argument is ignored as it will automatically
+        by overwritten with the last array in :attr:`masks`.
     """
 
     _: KW_ONLY
     masks: Bool[Array, " *batch order"] = eqx.field(converter=lambda x: jnp.asarray(x))
     """An array of masks.
 
-    Like :attr:`mask`, but one for each path order.
+    Extends :attr:`Paths.mask`, with one mask for each path order.
     """
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.mask is not None:
             msg = (
                 "Setting 'mask' argument is ignored for this class, "
