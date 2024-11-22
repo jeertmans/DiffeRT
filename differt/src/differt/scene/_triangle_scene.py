@@ -351,16 +351,12 @@ def _compute_paths_sbr(
         # 3 - Update rays
 
         # [num_tx_vertices num_rays_per_tx 3]
-        mirror_vertices = jnp.take(mesh.vertices, triangles, axis=0)[
-            ..., 0, :
-        ]  # Any vertex is good
         mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
-        images = image_of_vertices_with_respect_to_mirrors(
-            ray_origins, mirror_vertices, mirror_normals
-        )
 
         ray_origins += t_hit[..., None] * ray_directions
-        ray_directions = images - ray_origins
+        ray_directions = ray_directions - 2 * jnp.sum(
+            ray_directions * mirror_normals, axis=-1
+        ) * mirror_normals
 
         return (ray_origins, ray_directions), (
             triangles,
