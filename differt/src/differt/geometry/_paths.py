@@ -347,14 +347,14 @@ class SBRPaths(Paths):
     masks: Bool[Array, " *batch order"] = eqx.field(converter=lambda x: jnp.asarray(x))
     """An array of masks.
 
-    Extends :attr:`Paths.mask`, with one mask for each path order.
+    Extends :attr:`mask`, with one mask for each path order.
     """
 
     def __post_init__(self) -> None:
         if self.mask is not None:
             msg = (
                 "Setting 'mask' argument is ignored for this class, "
-                "as it is overwritten by 'masks' arguments."
+                "as it is overwritten by 'masks' argument."
             )
             warnings.warn(msg, UserWarning, stacklevel=2)
 

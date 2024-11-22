@@ -136,10 +136,57 @@ class TestSBRPaths:
 
         chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
 
-        with pytest.warns(UserWarning, match="LOL"):
+        with pytest.warns(
+            UserWarning, match="Setting 'mask' argument is ignored for this class"
+        ):
             sbr_paths = SBRPaths(paths.vertices, paths.objects, mask=mask, masks=masks)
 
         with pytest.raises(AssertionError):  # Check that mask param is not used
             chex.assert_trees_all_equal(sbr_paths.mask, mask)
 
         chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
+
+    def test_get_paths(self, key: PRNGKeyArray) -> None:
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 4
+        batch = (50,)
+
+        paths = random_paths(
+            path_length, *batch, num_objects=30, with_mask=False, key=key_paths
+        )
+
+        masks = jax.random.uniform(key_masks, (*batch, path_length)) > 0.5
+
+        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        del paths
+
+        for i in range(path_length - 2):
+            paths = sbr_paths.get_paths(i)
+            chex.assert_trees_all_equal(paths.mask, sbr_paths.masks[..., i, :])
+
+        for i in [-1, path_length - 2]:
+            with pytest.raises(
+                ValueError,
+                match=f"Paths order must be strictly between 0 and {path_length - 2} (excl.)",
+            ):
+                _ = sbr_paths.get_paths(i)
+
+    @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
+    def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 3
+        batch = (
+            3,
+            50,
+        )
+
+        paths = random_paths(
+            path_length, *batch, num_objects=30, with_mask=False, key=key_paths
+        )
+
+        masks = jax.random.uniform(key_masks, (*batch, path_length)) > 0.5
+
+        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        _ = sbr_paths.plot(backend=backend)

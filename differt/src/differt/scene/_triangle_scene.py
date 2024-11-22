@@ -708,7 +708,7 @@ class TriangleScene(eqx.Module):
         hit_tol: None = None,
         min_len: None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-    ) -> Paths: ...
+    ) -> SBRPaths: ...
 
     @jaxtyped(typechecker=typechecker)
     def compute_paths(  # noqa: C901
@@ -724,7 +724,7 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-    ) -> Paths | SizedIterator[Paths]:
+    ) -> Paths | SizedIterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
