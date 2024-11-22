@@ -496,7 +496,7 @@ def first_triangles_hit_by_rays(
         For each ray, return the index and to distance to the first triangle hit.
 
         If no triangle is hit, the index is set to ``-1`` and
-        the distance is set to :data:`jnp.inf`.
+        the distance is set to :data:`inf<numpy.inf>`.
     """
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)

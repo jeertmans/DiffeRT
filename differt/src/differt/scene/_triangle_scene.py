@@ -29,6 +29,7 @@ from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt import (
     SizedIterator,
     consecutive_vertices_are_on_same_side_of_mirrors,
+    first_triangles_hit_by_rays,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     image_method,
@@ -48,8 +49,8 @@ else:
 @jaxtyped(typechecker=typechecker)
 def _compute_paths(
     mesh: TriangleMesh,
-    from_vertices: Float[Array, "num_from_vertices 3"],
-    to_vertices: Float[Array, "num_to_vertices 3"],
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    rx_vertices: Float[Array, "num_rx_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
     parallel: bool,
@@ -58,11 +59,13 @@ def _compute_paths(
     min_len: Float[ArrayLike, " "] | None,
 ) -> Paths:
     if min_len is None:
-        dtype = jnp.result_type(mesh.vertices, from_vertices, to_vertices)
+        dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
         min_len = 10 * jnp.finfo(dtype).eps
 
     # 1 - Broadcast arrays
 
+    num_tx_vertices = tx_vertices.shape[0]
+    num_rx_vertices = rx_vertices.shape[0]
     num_path_candidates, order = path_candidates.shape
 
     # [num_path_candidates order 3]
@@ -102,41 +105,42 @@ def _compute_paths(
 
     @jaxtyped(typechecker=typechecker)
     def fun(
-        from_vertices: Float[Array, "num_from_vertices 3"],
-        to_vertices: Float[Array, "num_to_vertices 3"],
+        tx_vertices: Float[Array, "num_tx_vertices 3"],
+        rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
         Float[
-            Array, "num_from_vertices num_to_vertices num_path_candidates path_length 3"
+            Array,
+            "num_tx_vertices num_rx_vertices num_path_candidates path_length 3",
         ],
-        Bool[Array, "num_from_vertices num_to_vertices num_path_candidates"],
+        Bool[Array, "num_tx_vertices num_rx_vertices num_path_candidates"],
     ]:
         # 2 - Trace paths
 
-        # [num_from_vertices num_to_vertices num_path_candidates order 3]
+        # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
         paths = image_method(
-            from_vertices[:, None, None, :],
-            to_vertices[None, :, None, :],
+            tx_vertices[:, None, None, :],
+            rx_vertices[None, :, None, :],
             mirror_vertices,
             mirror_normals,
         )
 
-        # [num_from_vertices num_to_vertices num_path_candidates order+2 3]
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
         full_paths = assemble_paths(
-            from_vertices[:, None, None, None, :],
+            tx_vertices[:, None, None, None, :],
             paths,
-            to_vertices[None, :, None, None, :],
+            rx_vertices[None, :, None, None, :],
         )
 
         # 3 - Identify invalid paths
 
-        # [num_from_vertices num_to_vertices num_path_candidates order+1 3]
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
         ray_origins = full_paths[..., :-1, :]
-        # [num_from_vertices num_to_vertices num_path_candidates order+1 3]
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
         ray_directions = jnp.diff(full_paths, axis=-2)
 
         # 3.1 - Check if paths vertices are inside respective triangles
 
-        # [num_from_vertices num_to_vertices num_path_candidates]
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
         if mesh.assume_quads:
             inside_triangles = (
                 rays_intersect_triangles(
@@ -158,7 +162,7 @@ def _compute_paths(
 
         # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
-        # [num_from_vertices num_to_vertices num_path_candidates]
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
         valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
             full_paths,
             mirror_vertices,
@@ -167,7 +171,7 @@ def _compute_paths(
 
         # 3.3 - Identify paths that are blocked by other objects
 
-        # [num_from_vertices num_to_vertices num_path_candidates]
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
         blocked = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
@@ -191,8 +195,8 @@ def _compute_paths(
     if parallel:
         num_devices = jax.device_count()
 
-        if (from_vertices.shape[0] * to_vertices.shape[0]) % num_devices == 0:
-            tx_mesh = math.gcd(from_vertices.shape[0], num_devices)
+        if (num_tx_vertices * num_rx_vertices) % num_devices == 0:
+            tx_mesh = math.gcd(num_tx_vertices, num_devices)
             rx_mesh = num_devices // tx_mesh
             in_specs = (P("i", None), P("j", None))
             out_specs = (P("i", "j", None, None, None), P("i", "j", None))
@@ -214,30 +218,30 @@ def _compute_paths(
             out_specs=out_specs,
         )
 
-    vertices, mask = fun(from_vertices, to_vertices)
+    vertices, mask = fun(tx_vertices, rx_vertices)
 
     # 4 - Generate output paths and reshape
 
     object_dtype = path_candidates.dtype
 
-    tx_objects = jnp.arange(from_vertices.shape[0], dtype=object_dtype)
-    rx_objects = jnp.arange(to_vertices.shape[0], dtype=object_dtype)
+    tx_objects = jnp.arange(num_tx_vertices, dtype=object_dtype)
+    rx_objects = jnp.arange(num_rx_vertices, dtype=object_dtype)
 
     tx_objects = jnp.broadcast_to(
         tx_objects[:, None, None, None],
-        (from_vertices.shape[0], to_vertices.shape[0], num_path_candidates, 1),
+        (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
     )
     rx_objects = jnp.broadcast_to(
         rx_objects[None, :, None, None],
-        (from_vertices.shape[0], to_vertices.shape[0], num_path_candidates, 1),
+        (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
     )
     path_candidates = jnp.broadcast_to(
         path_candidates,
         (
-            from_vertices.shape[0],
-            to_vertices.shape[0],
+            num_tx_vertices,
+            num_rx_vertices,
             num_path_candidates,
-            path_candidates.shape[1],
+            order,
         ),
     )
 
@@ -254,8 +258,8 @@ def _compute_paths(
 @jaxtyped(typechecker=typechecker)
 def _compute_paths_sbr(
     mesh: TriangleMesh,
-    from_vertices: Float[Array, "num_from_vertices 3"],
-    to_vertices: Float[Array, "num_to_vertices 3"],
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    rx_vertices: Float[Array, "num_rx_vertices 3"],
     *,
     order: int,
     num_rays: int,
@@ -268,74 +272,85 @@ def _compute_paths_sbr(
     # [num_triangles 3 3]
     triangle_vertices = mesh.triangle_vertices
 
-    num_from_vertices = from_vertices.shape[0]
-    num_rays_per_tx = num_rays // num_from_vertices
+    num_tx_vertices = tx_vertices.shape[0]
+    num_rx_vertices = rx_vertices.shape[0]
+    num_rays_per_tx = num_rays // num_tx_vertices
 
     world_vertices = jnp.concatenate(
-        (triangle_vertices.reshape(-1, 3), to_vertices), axis=0
+        (triangle_vertices.reshape(-1, 3), rx_vertices), axis=0
     )
 
-    # [num_from_vertices 2 3]
-    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(
-        from_vertices, world_vertices
-    )
+    # [num_tx_vertices 2 3]
+    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
 
-    # [num_from_vertices num_rays_per_tx 2 3]
-    ray_origins, ray_directions = jax.vmap(fibonacci_lattice, in_axes=(None, 0))(
-        num_rays_per_tx, frustums
+    # [num_tx_vertices num_rays_per_tx 2 3]
+    ray_origins = jnp.broadcast_to(
+        tx_vertices[:, None, :], (num_tx_vertices, num_rays, 3)
     )
-
-    ScanC = tuple[
-        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
-        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
-    ]
-    ScanR = tuple[
-        Int[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
-        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
-        Float[Array, f"{num_from_vertices} {num_rays_per_tx} 3"],
-    ]
+    ray_directions = jax.vmap(
+        lambda frustum: fibonacci_lattice(num_rays, frustum=frustum)
+    )(frustums)
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        ray_origins_and_directions: ScanC,
+        ray_origins_and_directions: tuple[
+            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+        ],
         _: None,
     ) -> tuple[
-        ScanC,
-        ScanR,
+        tuple[
+            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
+            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
+        ],
+        tuple[
+            Int[Array, f"num_tx_vertices num_rays_per_tx"],
+            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
+            Bool[Array, f"num_tx_vertices num_rx_vertices num_rays_per_tx"],
+        ],
     ]:
-        # [num_from_vertices num_rays_per_tx 3]
+        # [num_tx_vertices num_rays_per_tx 3]
         ray_origins, ray_directions = ray_origins_and_directions
 
-        # [num_from_vertices num_rays_per_tx num_triangles]
-        hit, t = rays_intersect_triangles(
-            ray_origins[..., None, :],
-            ray_directions[..., None, :],
-            triangle_vertices[None, None, ...],
+        # 1 - Compute next intersection with triangles
+
+        # [num_tx_vertices num_rays_per_tx]
+        triangles, t_hit = first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
             epsilon=epsilon,
         )
-        t = jnp.where(hit, t, jnp.inf)
 
-        # [num_from_vertices num_rays_per_tx]
-        triangles = jnp.argmin(t, axis=-1)  # Index of first triangle hit
-        t = jnp.take(t, triangles, axis=-1)
+        # 2 - Check if the rays pass near RX
 
-        # [num_from_vertices num_to_vertices num_rays_per_tx 3]
-        origins_to_vertices = to_vertices[None, :, None, :] - ray_origins[:, None, ...]
-        cross = jnp.cross(
-            ray_directions[:, None, ...],
-            origins_to_vertices,
+        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        ray_origins_to_rx_vertices = (
+            rx_vertices[None, :, None, :] - ray_origins[:, None, ...]
         )
 
-        # [num_from_vertices num_to_vertices num_rays_per_tx]
-        distances = jnp.sum(cross * cross, axis=-1)  # Squared distance from ray to RX
-        distances = jnp.where(
-            jnp.dot(ray_directions[:, None, ...], origins_to_vertices)
-            < (t * jnp.sum(origins_to_vertices * origins_to_vertices, axis=-1)),
-            distances,
-            jnp.inf,
-        )  # If RX is obstructed, we set the distance to +inf
+        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        ray_distances_to_rx_vertices = jax.lax.integer_pow(
+            jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices), 2
+        ).sum(axis=-1) / jax.lax.integer_pow(ray_origins_to_rx_vertices, 2).sum(
+            axis=-1
+        )  # Squared distance from rays to RXs
 
-        # [num_from_vertices num_rays_per_tx 3]
+        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        t_rxs = (
+            jnp.sum(ray_directions[:, None, ...] * ray_origins_to_rx_vertices, axis=-1)
+            / jax.lax.integer_pow(ray_directions[:, None, ...], 2).sum(axis=-1)
+        )  # Distance (scaled by ray directions) from RXs projected onto rays to ray origins
+
+        masks = jnp.where(
+            t_rxs < t_hit[:, None, :],
+            ray_distances_to_rx_vertices < max_dist,
+            False,  # noqa: FBT003
+        )
+
+        # 3 - Update rays
+
+        # [num_tx_vertices num_rays_per_tx 3]
         mirror_vertices = jnp.take(mesh.vertices, triangles, axis=0)[
             ..., 0, :
         ]  # Any vertex is good
@@ -344,16 +359,20 @@ def _compute_paths_sbr(
             ray_origins, mirror_vertices, mirror_normals
         )
 
-        ray_origins += t * ray_directions
+        ray_origins += t_hit[..., None] * ray_directions
         ray_directions = images - ray_origins
 
-        return (ray_origins, ray_directions), (triangles, ray_origins, distances)
+        return (ray_origins, ray_directions), (
+            triangles,
+            ray_origins,
+            masks,
+        )
 
     if parallel:
         num_devices = jax.device_count()
 
-        if (num_from_vertices * num_rays_per_tx) % num_devices == 0:
-            tx_mesh = math.gcd(num_from_vertices, num_devices)
+        if (num_tx_vertices * num_rays_per_tx) % num_devices == 0:
+            tx_mesh = math.gcd(num_tx_vertices, num_devices)
             ray_mesh = num_devices // tx_mesh
             in_specs = (P("i", None), P("j", None))
             out_specs = (P("i", "j", None, None, None), P("i", "j", None))
@@ -376,36 +395,44 @@ def _compute_paths_sbr(
             out_specs=out_specs,
         )
 
-    _, (path_candidates, vertices, distances) = jax.lax.scan(
+    _, (path_candidates, vertices, masks) = jax.lax.scan(
         scan_fun,
         (ray_origins, ray_directions),
-        length=order,
+        length=order+1,
     )
 
-    masks = distances <= max_dist
+    path_candidates = jnp.moveaxis(path_candidates[:-1, ...], 0, -1)
+    vertices = jnp.moveaxis(vertices[:-1, ...], 0, -2)
+    masks = jnp.moveaxis(masks, 0, -1)
 
     # 4 - Generate output paths and reshape
 
+    vertices = assemble_paths(
+        tx_vertices[:, None, None, None, :],
+        vertices[:, None, ...],  # We already excluded last vertex
+        rx_vertices[None, :, None, None, :],  # And replace it with receiver vertices
+    )
+
     object_dtype = path_candidates.dtype
 
-    tx_objects = jnp.arange(from_vertices.shape[0], dtype=object_dtype)
-    rx_objects = jnp.arange(to_vertices.shape[0], dtype=object_dtype)
+    tx_objects = jnp.arange(num_tx_vertices, dtype=object_dtype)
+    rx_objects = jnp.arange(num_rx_vertices, dtype=object_dtype)
 
     tx_objects = jnp.broadcast_to(
         tx_objects[:, None, None, None],
-        (from_vertices.shape[0], to_vertices.shape[0], num_rays_per_tx, 1),
+        (num_tx_vertices, num_rx_vertices, num_rays_per_tx, 1),
     )
     rx_objects = jnp.broadcast_to(
         rx_objects[None, :, None, None],
-        (from_vertices.shape[0], to_vertices.shape[0], num_rays_per_tx, 1),
+        (num_tx_vertices, num_rx_vertices, num_rays_per_tx, 1),
     )
     path_candidates = jnp.broadcast_to(
-        path_candidates,
+        path_candidates[:, None, ...],
         (
-            from_vertices.shape[0],
-            to_vertices.shape[0],
+            num_tx_vertices,
+            num_rx_vertices,
             num_rays_per_tx,
-            path_candidates.shape[1],
+            order,
         ),
     )
 
@@ -737,7 +764,9 @@ class TriangleScene(eqx.Module):
             order: The number of interaction, i.e., the number of bounces.
 
                 This or ``path_candidates`` must be specified.
-            method: The method used to generate path candidates.
+            method: The method used to generate path candidates and trace paths.
+
+                See :ref:`advanced_path_tracing` for a detailed tutorial.
 
                 * If ``'exhaustive'``, all possible paths are generated, performing
                   an exhaustive search. This is the slowest method, but it is also
@@ -747,6 +776,11 @@ class TriangleScene(eqx.Module):
                   passing in the vicinity of a receiver are considered valid, see
                   ``max_dist`` parameter. This is the fastest method, but may miss
                   some valid paths if the number of rays is too low.
+
+                  .. important::
+
+                    This method is currently unstable and not yet optimized, and
+                    it is likely to changed in future releases. Use with caution.
                 * If ``'hybrid'``, a hybrid method is used, which estimates the objects
                   visible from all transmitters, to reduce the number of path candidates,
                   by launching a fixed number of rays, and then performs an extausive
@@ -755,6 +789,11 @@ class TriangleScene(eqx.Module):
                   bounces or the size of the scene. In the future, we plan on allowing
                   the user to explicitly pass visibility matrices to further reduce the
                   number of path candidates.
+
+                  .. warning::
+
+                    The ``'hybrid'`` method is not yet implemented.
+
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
 
@@ -786,14 +825,14 @@ class TriangleScene(eqx.Module):
                 :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`.
 
                 Unused if ``method == 'sbr'``.
-            min_len: Minimal (squared) length that each path segment must have for a path to be valid.
+            min_len: Minimal (squared [#f1]_) length that each path segment must have for a path to be valid.
 
                 If not specified, the default is ten times the epsilon value
                 of the currently used floating point dtype.
 
                 Unused if ``method == 'sbr'``.
 
-            max_dist: Maximal (squared) distance between a receiver and a ray for the receiver
+            max_dist: Maximal (squared [#f1]_) distance between a receiver and a ray for the receiver
                 to be considered in the vicinity of the ray path.
 
                 Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
@@ -807,6 +846,8 @@ class TriangleScene(eqx.Module):
                 or if both have been provided simultaneously.
 
                 If ``method == 'sbr'``, ``order`` is required.
+
+        .. [#f1] Passing the squared length/distance is useful to avoid computing square root values, which is expensive.
         """
         if (order is None) == (path_candidates is None):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
@@ -849,9 +890,9 @@ class TriangleScene(eqx.Module):
         )
 
         # [tx_batch_flattened 3]
-        from_vertices = self.transmitters.reshape(-1, 3)
+        tx_vertices = self.transmitters.reshape(-1, 3)
         # [rx_batch_flattened 3]
-        to_vertices = self.receivers.reshape(-1, 3)
+        rx_vertices = self.receivers.reshape(-1, 3)
 
         if chunk_size:
             path_candidates_iter = generate_all_path_candidates_chunks_iter(
@@ -863,8 +904,8 @@ class TriangleScene(eqx.Module):
             it = (
                 _compute_paths(
                     self.mesh,
-                    from_vertices,
-                    to_vertices,
+                    tx_vertices,
+                    rx_vertices,
                     2 * path_candidates if self.mesh.assume_quads else path_candidates,
                     parallel=parallel,
                     epsilon=epsilon,
@@ -889,8 +930,8 @@ class TriangleScene(eqx.Module):
 
         return _compute_paths(
             self.mesh,
-            from_vertices,
-            to_vertices,
+            tx_vertices,
+            rx_vertices,
             path_candidates,
             parallel=parallel,
             epsilon=epsilon,

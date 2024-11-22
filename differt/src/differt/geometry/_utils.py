@@ -421,7 +421,7 @@ def fibonacci_lattice(
     """
     if frustum is not None:
         dtype = frustum.dtype
-    if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
+    elif dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
         msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
         raise ValueError(msg)
 

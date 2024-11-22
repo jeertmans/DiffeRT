@@ -124,7 +124,7 @@ class TestSBRPaths:
         assert paths.mask is not None
         mask = paths.mask
 
-        masks = jax.random.uniform(key_masks, (*batch, path_length)) > 0.5
+        masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
         sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
 
@@ -132,7 +132,7 @@ class TestSBRPaths:
         assert sbr_paths.objects.shape == (*batch, path_length)
         assert sbr_paths.mask is not None
         assert sbr_paths.mask.shape == batch
-        assert sbr_paths.masks.shape == (*batch, path_length)
+        assert sbr_paths.masks.shape == (*batch, path_length - 1)
 
         chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
 
@@ -156,19 +156,19 @@ class TestSBRPaths:
             path_length, *batch, num_objects=30, with_mask=False, key=key_paths
         )
 
-        masks = jax.random.uniform(key_masks, (*batch, path_length)) > 0.5
+        masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
         sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
         del paths
 
-        for i in range(path_length - 2):
+        for i in range(path_length - 1):
             paths = sbr_paths.get_paths(i)
             chex.assert_trees_all_equal(paths.mask, sbr_paths.masks[..., i, :])
 
-        for i in [-1, path_length - 2]:
+        for i in [-1, path_length - 1]:
             with pytest.raises(
                 ValueError,
-                match=f"Paths order must be strictly between 0 and {path_length - 2} (excl.)",
+                match=f"Paths order must be strictly between 0 and {path_length - 2} (incl.)",
             ):
                 _ = sbr_paths.get_paths(i)
 

@@ -338,13 +338,16 @@ class SBRPaths(Paths):
     Like :class:`Paths`, but holds information of lower-order
     paths too.
 
+    E.g., second-order paths also contain information for line-of-sight (``order = 0``)
+    and first-order paths.
+
     Warning:
         The ``mask`` argument is ignored as it will automatically
         by overwritten with the last array in :attr:`masks`.
     """
 
     _: KW_ONLY
-    masks: Bool[Array, " *batch order"] = eqx.field(converter=lambda x: jnp.asarray(x))
+    masks: Bool[Array, " *batch path_length-1"] = eqx.field(converter=jnp.asarray)
     """An array of masks.
 
     Extends :attr:`mask`, with one mask for each path order.
@@ -373,19 +376,19 @@ class SBRPaths(Paths):
         Raises:
             ValueError: If the provided order is out-of-bounds.
         """
-        if order < 0 or order >= self.order:
+        if order < 0 or order > self.order:
             msg = (
-                f"Paths order must be strictly between 0 and {self.order} (excl.), "
+                f"Paths order must be strictly between 0 and {self.order} (incl.), "
                 f"but you provided {order}."
             )
             raise ValueError(msg)
 
         vertices = jnp.concatenate(
-            (self.vertices[..., : order + 1, :], self.vertices[..., [-1], :]),
+            (self.vertices[..., : order + 1, :], self.vertices[..., -1:, :]),
             axis=-2,
         )
         objects = jnp.concatenate(
-            (self.objects[..., : order + 1, :], self.objects[..., [-1], :]),
+            (self.objects[..., : order + 1, :], self.objects[..., -1:, :]),
             axis=-2,
         )
         return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
@@ -396,12 +399,13 @@ class SBRPaths(Paths):
     def reshape(self, *batch: int) -> Self:
         return eqx.tree_at(
             lambda p: p.masks,
-            self.reshape(*batch),
+            super().reshape(*batch),
             self.masks.reshape(*batch, self.masks.shape[-1]),
         )
 
     def plot(self, **kwargs: Any) -> PlotOutput:
-        with reuse(**kwargs) as output:  # TODO: check if kwargs may not cause issues
+        backend = kwargs.pop("backend", None)  # TODO: check if kwargs may not cause issues
+        with reuse(backend=backend) as output:
             for order in range(self.order + 1):
                 self.get_paths(order).plot(**kwargs)
 
