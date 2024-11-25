@@ -37,6 +37,7 @@ from differt.rt import (
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
+from differt.utils import dot
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -181,7 +182,7 @@ def _compute_paths(
 
         # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
-        ray_lengths = jnp.sum(ray_directions * ray_directions, axis=-1)  # Squared norm
+        ray_lengths = dot(ray_directions)  # Squared norm
 
         too_small = (ray_lengths < min_len).any(
             axis=-1
@@ -355,7 +356,7 @@ def _compute_paths_sbr(
         ray_origins += t_hit[..., None] * ray_directions
         ray_directions = (
             ray_directions
-            - 2 * jnp.sum(ray_directions * mirror_normals, axis=-1) * mirror_normals
+            - 2.0 * dot(ray_directions, mirror_normals, keepdims=True) * mirror_normals
         )
 
         return (ray_origins, ray_directions), (

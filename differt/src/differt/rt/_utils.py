@@ -11,6 +11,7 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 from differt.geometry import fibonacci_lattice, viewing_frustum
+from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
 if sys.version_info >= (3, 11):
@@ -262,22 +263,22 @@ def rays_intersect_triangles(
     h = jnp.cross(ray_directions, edge_2)
 
     # [*batch]
-    a = jnp.sum(h * edge_1, axis=-1)
+    a = dot(h, edge_1)
 
     hit = jnp.abs(a) > epsilon
 
     f = jnp.where(a == 0.0, 0, 1.0 / a)
     s = ray_origins - vertex_0
-    u = f * jnp.sum(s * h, axis=-1)
+    u = f * dot(s, h)
 
     hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
-    v = f * jnp.sum(q * ray_directions, axis=-1)
+    v = f * dot(q, ray_directions)
 
     hit &= (v >= 0.0) & (u + v <= 1.0)
 
-    t = f * jnp.sum(q * edge_2, axis=-1)
+    t = f * dot(q, edge_2)
 
     hit &= t > epsilon
 
