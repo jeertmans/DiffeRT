@@ -4,7 +4,7 @@ import math
 import sys
 import warnings
 from collections.abc import Mapping
-from typing import Any, Literal, overload
+from typing import Any, overload
 
 import equinox as eqx
 import jax
@@ -478,7 +478,7 @@ class TriangleScene(eqx.Module):
         self,
         order: int | None = None,
         *,
-        chunk_size: Literal[None] = None,
+        chunk_size: None = None,
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
@@ -492,7 +492,7 @@ class TriangleScene(eqx.Module):
         order: int | None = None,
         *,
         chunk_size: int,
-        path_candidates: Literal[None] = None,
+        path_candidates: None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
