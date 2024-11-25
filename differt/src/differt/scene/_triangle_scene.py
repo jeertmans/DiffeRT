@@ -348,7 +348,7 @@ def _compute_paths_sbr(
         )  # Distance (scaled by ray directions) from RXs projected onto rays to ray origins
 
         masks = jnp.where(
-            (t_rxs > 0) & (t_rxs < t_hit[:, None, :]) & valid_rays,
+            (t_rxs > 0) & (t_rxs < t_hit[:, None, :]) & valid_rays[:, None, :],
             ray_distances_to_rx_vertices < max_dist,
             False,  # noqa: FBT003
         )
@@ -373,17 +373,31 @@ def _compute_paths_sbr(
             masks,
         )
 
+    @jaxtyped(typechecker=typechecker)
+    def fun(
+        ray_origins: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+        ray_directions: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+    ) -> tuple[
+        Int[Array, "num_tx_vertices num_rays_per_tx"],
+        Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+        Bool[Array, "num_tx_vertices num_rx_vertices num_rays_per_tx"],
+    ]:
+        valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
+        _, (path_candidates, vertices, masks) = jax.lax.scan(
+            scan_fun,
+            (ray_origins, ray_directions, valid_rays),
+            length=order + 1,
+        )
+        return (path_candidates, vertices, masks)
+
     if parallel:
         num_devices = jax.device_count()
 
         if (num_tx_vertices * num_rays_per_tx) % num_devices == 0:
             tx_mesh = math.gcd(num_tx_vertices, num_devices)
             ray_mesh = num_devices // tx_mesh
-            in_specs = (P("i", "j", None), P("i", "j", None), P("i", "j"))
-            out_specs = (
-                (P("i", "j", None), P("i", "j", None), P("i", "j")),
-                (P("i", "j"), P("i", "j", None), P("i", None, "j")),
-            )
+            in_specs = (P("i", "j", None), P("i", "j", None))
+            out_specs = (P("i", "j"), P("i", "j", None), P("i", "j"))
         else:
             msg = (
                 f"Found {num_devices} devices available, "
@@ -393,8 +407,8 @@ def _compute_paths_sbr(
             )
             raise ValueError(msg)
 
-        scan_fun = shard_map(  # type: ignore[reportAssigmentType]
-            scan_fun,
+        fun = shard_map(  # type: ignore[reportAssigmentType]
+            fun,
             Mesh(
                 mesh_utils.create_device_mesh((tx_mesh, ray_mesh)),
                 axis_names=("i", "j"),
@@ -403,13 +417,7 @@ def _compute_paths_sbr(
             out_specs=out_specs,
         )
 
-    valid_rays = jnp.ones((num_tx_vertices, num_rays_per_tx), dtype=bool)
-
-    _, (path_candidates, vertices, masks) = jax.lax.scan(
-        scan_fun,
-        (ray_origins, ray_directions, valid_rays),
-        length=order + 1,
-    )
+    path_candidates, vertices, masks = fun(ray_origins, ray_directions)
 
     path_candidates = jnp.moveaxis(path_candidates[:-1, ...], 0, -1)
     vertices = jnp.moveaxis(vertices[:-1, ...], 0, -2)

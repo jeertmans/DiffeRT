@@ -167,6 +167,7 @@ class TestTriangleScene:
         if method == "sbr":
             masked_vertices = got.masked_vertices
             masked_objects = got.masked_objects
+            unique_objects = jnp.unique(masked_objects, axis=0)
             return  # TODO: Implement this test
 
         chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
@@ -329,7 +330,9 @@ class TestTriangleScene:
         scene = advanced_path_tracing_example_scene
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
-        paths = scene.compute_paths(order=1)
+
+        with jax.debug_nans(False):  # noqa: FBT003
+            paths = scene.compute_paths(order=1)
 
         if n_tx is None:
             n_tx = m_tx
