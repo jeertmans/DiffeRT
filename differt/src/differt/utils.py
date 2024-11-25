@@ -1,7 +1,7 @@
 """General purpose utilities."""
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, Concatenate, Literal, overload
+from typing import Any, Concatenate, overload
 
 import chex
 import equinox as eqx
@@ -239,7 +239,7 @@ def minimize(
 @overload
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
-    shape: Literal[None] = None,
+    shape: None = None,
     *,
     key: PRNGKeyArray,
 ) -> Float[Array, "3"]: ...

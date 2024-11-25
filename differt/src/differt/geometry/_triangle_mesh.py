@@ -1,7 +1,7 @@
 # ruff: noqa: ERA001
 
 import sys
-from typing import Any, Literal, overload
+from typing import Any, overload
 
 import equinox as eqx
 import jax
@@ -377,7 +377,7 @@ class TriangleMesh(eqx.Module):
         vertex_b: Float[Array, "3"],
         vertex_c: Float[Array, "3"],
         *,
-        normal: Literal[None] = None,
+        normal: None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
     ) -> Self: ...
@@ -387,8 +387,8 @@ class TriangleMesh(eqx.Module):
     def plane(
         cls,
         vertex_a: Float[Array, "3"],
-        vertex_b: Literal[None] = None,
-        vertex_c: Literal[None] = None,
+        vertex_b: None = None,
+        vertex_c: None = None,
         *,
         normal: Float[Array, "3"],
         side_length: Float[ArrayLike, " "] = 1.0,
