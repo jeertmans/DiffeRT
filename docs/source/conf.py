@@ -9,7 +9,6 @@
 
 import inspect
 import os
-import warnings
 from datetime import date
 from typing import Any
 
@@ -114,13 +113,6 @@ nb_execution_timeout = (
     600  # So cells can take a long time, especially when downloading sionna scenes
 )
 nb_merge_streams = True
-
-if "READTHEDOCS" in os.environ:
-    warnings.filterwarnings(
-        "ignore",
-        message=".*QOpenGLWidget is not supported on this platform.*",
-        module=".*",
-    )  # Warnings about OpenGL widget
 
 # By default, MyST-nb chooses the Widget output instead of the 2D snapshot
 # so we need to change priorities, because the widget cannot work if Python is
