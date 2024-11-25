@@ -378,9 +378,9 @@ def _compute_paths_sbr(
         ray_origins: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
         ray_directions: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
     ) -> tuple[
-        Int[Array, "num_tx_vertices num_rays_per_tx"],
-        Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-        Bool[Array, "num_tx_vertices num_rx_vertices num_rays_per_tx"],
+        Int[Array, "order_plus_1 num_tx_vertices num_rays_per_tx"],
+        Float[Array, "order_plus_1 num_tx_vertices num_rays_per_tx 3"],
+        Bool[Array, "order_plus_1 num_tx_vertices num_rx_vertices num_rays_per_tx"],
     ]:
         valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
         _, (path_candidates, vertices, masks) = jax.lax.scan(
@@ -397,7 +397,7 @@ def _compute_paths_sbr(
             tx_mesh = math.gcd(num_tx_vertices, num_devices)
             ray_mesh = num_devices // tx_mesh
             in_specs = (P("i", "j", None), P("i", "j", None))
-            out_specs = (P("i", "j"), P("i", "j", None), P("i", "j"))
+            out_specs = (P("i", "j"), P("i", "j", None), P("i", None, "j"))
         else:
             msg = (
                 f"Found {num_devices} devices available, "

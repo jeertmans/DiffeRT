@@ -11,12 +11,13 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
-from differt.geometry._utils import (
+from differt.geometry import (
+    Paths,
     assemble_paths,
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.scene._sionna import (
+from differt.scene import (
     get_sionna_scene,
     list_sionna_scenes,
 )
@@ -162,15 +163,36 @@ class TestTriangleScene:
             expected_objects -= expected_objects % 2
 
         with jax.debug_nans(False):  # noqa: FBT003
-            got = scene.compute_paths(order, method=method)
+            got = scene.compute_paths(order, method=method, max_dist=1e-1)
 
         if method == "sbr":
             masked_vertices = got.masked_vertices
             masked_objects = got.masked_objects
+            masked_objects -= masked_objects % 2
+            expected_objects -= expected_objects % 2
             unique_objects = jnp.unique(masked_objects, axis=0)
-            return  # TODO: Implement this test
+            vertices = jnp.empty_like(
+                masked_vertices,
+                shape=(unique_objects.shape[0], *masked_vertices.shape[1:]),
+            )
+            for i, path_candidate in enumerate(unique_objects):
+                vertices = vertices.at[i, ...].set(
+                    masked_vertices.mean(
+                        axis=0,
+                        where=(masked_objects == path_candidate).all(axis=-1)[
+                            ..., None, None
+                        ],
+                    )
+                )
 
-        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
+            got = Paths(vertices=vertices, objects=unique_objects)
+            rtol = 0.5  # TODO: see if we can improve acc.
+        else:
+            rtol = 1e-6
+
+        chex.assert_trees_all_close(
+            got.masked_vertices, expected_path_vertices, rtol=rtol
+        )
         chex.assert_trees_all_equal(got.masked_objects, expected_objects)
 
         normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
@@ -185,7 +207,7 @@ class TestTriangleScene:
         dot_incidents = jnp.sum(-indicents * normals, axis=-1)
         dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
 
-        chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
+        chex.assert_trees_all_close(dot_incidents, dot_reflecteds, rtol=rtol)
 
     @pytest.mark.parametrize(
         ("order", "expected_path_vertices", "expected_objects"),
@@ -404,7 +426,7 @@ class TestTriangleScene:
 
             # TODO: fix this when 'hybrid' is implemented
             num_path_candidates = (
-                num_rays if method != "sbr" else scene.mesh.triangles.shape[0]
+                num_rays if method == "sbr" else scene.mesh.triangles.shape[0]
             )
 
             chex.assert_shape(
