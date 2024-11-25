@@ -165,6 +165,8 @@ class TestTriangleScene:
             got = scene.compute_paths(order, method=method)
 
         if method == "sbr":
+            masked_vertices = got.masked_vertices
+            masked_objects = got.masked_objects
             return  # TODO: Implement this test
 
         chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
@@ -367,12 +369,23 @@ class TestTriangleScene:
             ),
         ],
     )
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            pytest.param(
+                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
+            ),
+        ],
+    )
     def test_compute_paths_parallel(
         self,
         m_tx: int,
         n_tx: int,
         m_rx: int,
         n_rx: int,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         expectation: AbstractContextManager[Exception],
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
@@ -381,9 +394,15 @@ class TestTriangleScene:
         scene = scene.with_receivers_grid(m_rx, n_rx)
 
         with expectation:
-            paths = scene.compute_paths(order=1, parallel=True)
+            num_rays = m_rx * n_rx
+            paths = scene.compute_paths(
+                order=1, method=method, num_rays=num_rays, parallel=True
+            )
 
-            num_path_candidates = scene.mesh.triangles.shape[0]
+            # TODO: fix this when 'hybrid' is implemented
+            num_path_candidates = (
+                num_rays if method != "sbr" else scene.mesh.triangles.shape[0]
+            )
 
             chex.assert_shape(
                 paths.vertices,

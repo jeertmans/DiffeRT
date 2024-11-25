@@ -293,15 +293,17 @@ def _compute_paths_sbr(
 
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
-        ray_origins_and_directions: tuple[
+        ray_origins_directions_and_valids: tuple[
             Float[Array, "num_tx_vertices num_rays_per_tx 3"],
             Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+            Bool[Array, "num_tx_vertices num_rays_per_tx"],
         ],
         _: None,
     ) -> tuple[
         tuple[
             Float[Array, "num_tx_vertices num_rays_per_tx 3"],
             Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+            Bool[Array, "num_tx_vertices num_rays_per_tx"],
         ],
         tuple[
             Int[Array, "num_tx_vertices num_rays_per_tx"],
@@ -309,8 +311,14 @@ def _compute_paths_sbr(
             Bool[Array, "num_tx_vertices num_rx_vertices num_rays_per_tx"],
         ],
     ]:
-        # [num_tx_vertices num_rays_per_tx 3]
-        ray_origins, ray_directions = ray_origins_and_directions
+        # [num_tx_vertices num_rays_per_tx 3],
+        # [num_tx_vertices num_rays_per_tx 3],
+        # [num_tx_vertices num_rays_per_tx]
+        (
+            ray_origins,
+            ray_directions,
+            valid_rays,
+        ) = ray_origins_directions_and_valids
 
         # 1 - Compute next intersection with triangles
 
@@ -330,20 +338,17 @@ def _compute_paths_sbr(
         )
 
         # [num_tx_vertices num_rx_vertices num_rays_per_tx]
-        ray_distances_to_rx_vertices = jax.lax.integer_pow(
-            jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices), 2
-        ).sum(axis=-1) / jax.lax.integer_pow(ray_origins_to_rx_vertices, 2).sum(
-            axis=-1
+        ray_distances_to_rx_vertices = dot(
+            jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices)
         )  # Squared distance from rays to RXs
 
         # [num_tx_vertices num_rx_vertices num_rays_per_tx]
-        t_rxs = (
-            jnp.sum(ray_directions[:, None, ...] * ray_origins_to_rx_vertices, axis=-1)
-            / jax.lax.integer_pow(ray_directions[:, None, ...], 2).sum(axis=-1)
+        t_rxs = dot(
+            ray_directions[:, None, ...], ray_origins_to_rx_vertices
         )  # Distance (scaled by ray directions) from RXs projected onto rays to ray origins
 
         masks = jnp.where(
-            t_rxs < t_hit[:, None, :],
+            (t_rxs > 0) & (t_rxs < t_hit[:, None, :]) & valid_rays,
             ray_distances_to_rx_vertices < max_dist,
             False,  # noqa: FBT003
         )
@@ -359,7 +364,10 @@ def _compute_paths_sbr(
             - 2.0 * dot(ray_directions, mirror_normals, keepdims=True) * mirror_normals
         )
 
-        return (ray_origins, ray_directions), (
+        # Mark rays leaving the scene as invalid
+        valid_rays &= jnp.isfinite(t_hit)
+
+        return (ray_origins, ray_directions, valid_rays), (
             triangles,
             ray_origins,
             masks,
@@ -371,8 +379,11 @@ def _compute_paths_sbr(
         if (num_tx_vertices * num_rays_per_tx) % num_devices == 0:
             tx_mesh = math.gcd(num_tx_vertices, num_devices)
             ray_mesh = num_devices // tx_mesh
-            in_specs = (P("i", None), P("j", None))
-            out_specs = (P("i", "j", None, None, None), P("i", "j", None))
+            in_specs = (P("i", "j", None), P("i", "j", None), P("i", "j"))
+            out_specs = (
+                (P("i", "j", None), P("i", "j", None), P("i", "j")),
+                (P("i", "j"), P("i", "j", None), P("i", None, "j")),
+            )
         else:
             msg = (
                 f"Found {num_devices} devices available, "
@@ -392,9 +403,11 @@ def _compute_paths_sbr(
             out_specs=out_specs,
         )
 
+    valid_rays = jnp.ones((num_tx_vertices, num_rays_per_tx), dtype=bool)
+
     _, (path_candidates, vertices, masks) = jax.lax.scan(
         scan_fun,
-        (ray_origins, ray_directions),
+        (ray_origins, ray_directions, valid_rays),
         length=order + 1,
     )
 
