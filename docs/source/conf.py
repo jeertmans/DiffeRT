@@ -114,7 +114,7 @@ nb_execution_mode = "off" if os.environ.get("NB_OFF") else "auto"
 nb_execution_timeout = (
     600  # So cells can take a long time, especially when downloading sionna scenes
 )
-nb_merge_streams = True
+nb_merge_streams = False
 nb_output_stderr = (
     "remove-warn" if "READTHEDOCS" in os.environ else "show"
 )  # Warnings about OpenGL widget
