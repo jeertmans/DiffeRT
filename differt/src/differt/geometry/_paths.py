@@ -404,7 +404,9 @@ class SBRPaths(Paths):
         )
 
     def plot(self, **kwargs: Any) -> PlotOutput:
-        backend = kwargs.pop("backend", None)  # TODO: check if kwargs may not cause issues
+        backend = kwargs.pop(
+            "backend", None
+        )  # TODO: check if kwargs may not cause issues
         with reuse(backend=backend) as output:
             for order in range(self.order + 1):
                 self.get_paths(order).plot(**kwargs)

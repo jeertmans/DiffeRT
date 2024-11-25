@@ -33,7 +33,6 @@ from differt.rt import (
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     image_method,
-    image_of_vertices_with_respect_to_mirrors,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
     triangles_visible_from_vertices,
@@ -300,13 +299,13 @@ def _compute_paths_sbr(
         _: None,
     ) -> tuple[
         tuple[
-            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
-            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
+            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
         ],
         tuple[
-            Int[Array, f"num_tx_vertices num_rays_per_tx"],
-            Float[Array, f"num_tx_vertices num_rays_per_tx 3"],
-            Bool[Array, f"num_tx_vertices num_rx_vertices num_rays_per_tx"],
+            Int[Array, "num_tx_vertices num_rays_per_tx"],
+            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+            Bool[Array, "num_tx_vertices num_rx_vertices num_rays_per_tx"],
         ],
     ]:
         # [num_tx_vertices num_rays_per_tx 3]
@@ -354,9 +353,10 @@ def _compute_paths_sbr(
         mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
 
         ray_origins += t_hit[..., None] * ray_directions
-        ray_directions = ray_directions - 2 * jnp.sum(
-            ray_directions * mirror_normals, axis=-1
-        ) * mirror_normals
+        ray_directions = (
+            ray_directions
+            - 2 * jnp.sum(ray_directions * mirror_normals, axis=-1) * mirror_normals
+        )
 
         return (ray_origins, ray_directions), (
             triangles,
@@ -394,7 +394,7 @@ def _compute_paths_sbr(
     _, (path_candidates, vertices, masks) = jax.lax.scan(
         scan_fun,
         (ray_origins, ray_directions),
-        length=order+1,
+        length=order + 1,
     )
 
     path_candidates = jnp.moveaxis(path_candidates[:-1, ...], 0, -1)
@@ -675,7 +675,7 @@ class TriangleScene(eqx.Module):
         order: int | None = None,
         *,
         method: Literal["exhaustive", "hybrid"] = "exhaustive",
-        chunk_size: Literal[None] = None,
+        chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[Array, "num_path_candidates order"] | None = None,
         parallel: bool = False,
@@ -693,7 +693,7 @@ class TriangleScene(eqx.Module):
         method: Literal["exhaustive", "hybrid"] = "exhaustive",
         chunk_size: int,
         num_rays: int = int(1e6),
-        path_candidates: Literal[None] = None,
+        path_candidates: None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
