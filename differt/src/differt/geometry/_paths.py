@@ -388,8 +388,8 @@ class SBRPaths(Paths):
             axis=-2,
         )
         objects = jnp.concatenate(
-            (self.objects[..., : order + 1, :], self.objects[..., -1:, :]),
-            axis=-2,
+            (self.objects[..., : order + 1], self.objects[..., -1:]),
+            axis=-1,
         )
         return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
 
