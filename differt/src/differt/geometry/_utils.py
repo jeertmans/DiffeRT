@@ -482,6 +482,8 @@ def min_distance_between_cells(
     For every vertex, the minimum distance to another vertex that is not is the same
     cell is computed.
 
+    For an actual application example, see :ref:`multipath_lifetime_map`.
+
     Args:
         cell_vertices: The array of vertex coordinates.
         cell_ids: The array of corresponding cell indices.

@@ -39,6 +39,8 @@ Miscellaneous utilities.
 
    assemble_paths
    fibonacci_lattice
+   merge_cell_ids
+   min_distance_between_cells
    normalize
    orthogonal_basis
    path_lengths

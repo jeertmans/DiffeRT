@@ -12,6 +12,7 @@ from differt.geometry._utils import (
     assemble_paths,
     cartesian_to_spherical,
     fibonacci_lattice,
+    min_distance_between_cells,
     normalize,
     orthogonal_basis,
     pairwise_cross,
@@ -274,3 +275,25 @@ def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
     got = cartesian_to_spherical(xyz)
 
     chex.assert_trees_all_close(got, sph, atol=7e-5)
+
+
+def test_min_distance_between_cells(key: PRNGKeyArray) -> None:
+    key_vertices, key_ids = jax.random.split(key, 2)
+
+    batch = (10, 4, 5)
+
+    cell_vertices = 10 * jax.random.normal(key_vertices, (*batch, 3))
+    cell_ids = jax.random.randint(key_ids, batch, minval=0, maxval=5)
+
+    got = min_distance_between_cells(cell_vertices, cell_ids).reshape(-1)
+
+    cell_vertices = cell_vertices.reshape(-1, 3)
+    cell_ids = cell_ids.reshape(-1)
+
+    for cell_vertex, cell_id, got_dist in zip(
+        cell_vertices, cell_ids, got, strict=False
+    ):
+        dist = jnp.linalg.norm(cell_vertex - cell_vertices, axis=-1)
+        expected_dist = jnp.min(dist, where=(cell_id != cell_ids), initial=jnp.inf)
+
+        chex.assert_trees_all_close(got_dist, expected_dist)

@@ -280,35 +280,61 @@ class TestTriangleScene:
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
     @pytest.mark.parametrize(
-        ("order", "chunk_size", "path_candidates", "expectation"),
+        ("order", "chunk_size", "path_candidates", "method", "expectation"),
         [
-            (0, None, None, does_not_raise()),
-            (0, 1000, None, does_not_raise()),
-            (None, None, jnp.empty((1, 0), dtype=jnp.int32), does_not_raise()),
+            (0, None, None, "exhaustive", does_not_raise()),
+            (0, 1000, None, "exhaustive", does_not_raise()),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
+                does_not_raise(),
+            ),
             (
                 0,
                 None,
                 jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
                 pytest.raises(ValueError, match="You must specify one of"),
             ),
             (
                 None,
                 1000,
                 jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
                 pytest.warns(UserWarning, match="Argument 'chunk_size' is ignored"),
+            ),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "sbr",
+                pytest.raises(ValueError, match="Argument 'order' is required"),
+            ),
+            pytest.param(
+                0,
+                None,
+                None,
+                "hybrid",
+                does_not_raise(),
+                marks=pytest.mark.xfail(reason="Not yet implemented."),
             ),
         ],
     )
     @pytest.mark.parametrize(
         "parallel", [False, pytest.param(True, marks=skip_if_not_8_devices)]
     )
+    @pytest.mark.parametrize("assume_quads", [False, True])
     def test_compute_paths_on_empty_scene(
         self,
         order: int | None,
         chunk_size: int | None,
         path_candidates: Int[Array, "num_path_candidates order"] | None,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         expectation: AbstractContextManager[Exception],
         parallel: bool,
+        assume_quads: bool,
         key: PRNGKeyArray,
     ) -> None:
         key_tx, key_rx = jax.random.split(key, 2)
@@ -320,7 +346,9 @@ class TestTriangleScene:
 
         receivers = jax.random.uniform(key_rx, (1, 3))
 
-        scene = TriangleScene(transmitters=transmitters, receivers=receivers)
+        scene = TriangleScene(
+            transmitters=transmitters, receivers=receivers
+        ).set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
             transmitters[:, None, None, None, :],
             receivers[None, :, None, None, :],
@@ -328,11 +356,12 @@ class TestTriangleScene:
 
         with expectation:
             with jax.debug_nans(False):  # noqa: FBT003
-                got = scene.compute_paths(
+                got = scene.compute_paths(  # type: ignore[reportCallIssue]
                     order=order,
-                    chunk_size=chunk_size,
+                    chunk_size=chunk_size,  # type: ignore[reportArgumentType]
                     path_candidates=path_candidates,
                     parallel=parallel,
+                    method=method,  # type: ignore[reportArgumentType]
                 )
 
             paths = next(got) if isinstance(got, Iterator) else got

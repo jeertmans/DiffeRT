@@ -1,12 +1,27 @@
 import math
 
 import chex
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry._paths import Paths, SBRPaths
+from differt.geometry import path_lengths
+from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
+
+
+def test_merge_cell_ids() -> None:
+    cell_a_ids = jnp.array(
+        [4, 0, 2, 0, 4],
+    )
+    cell_b_ids = jnp.array(
+        [1, 3, 7, 3, 1],
+    )
+    expected = jnp.array([0, 1, 2, 1, 0])
+    got = merge_cell_ids(cell_a_ids, cell_b_ids)
+
+    chex.assert_trees_all_equal(got, expected)
 
 
 def random_paths(
@@ -91,6 +106,33 @@ class TestPaths:
 
         assert at_least_one_test, "This test is useless, please remove."
 
+    def test_multipath_cells(self, key: PRNGKeyArray) -> None:
+        with pytest.raises(
+            ValueError, match="Cannot create multiplath cells from non-existing mask!"
+        ):
+            _ = random_paths(
+                6, 3, 2, num_objects=20, with_mask=False, key=key
+            ).multipath_cells()
+
+        paths = random_paths(3, 6, 2, num_objects=1, with_mask=True, key=key)
+        paths = eqx.tree_at(
+            lambda p: p.mask,
+            paths,
+            jnp.array([
+                [True, False],
+                [True, True],
+                [True, False],
+                [False, False],
+                [False, True],
+                [False, False],
+            ]),
+        )
+
+        got = paths.multipath_cells()
+        expected = jnp.array([0, 1, 0, 3, 4, 3])
+
+        chex.assert_trees_all_equal(got, expected)
+
     def test_iter(self, key: PRNGKeyArray) -> None:
         paths = random_paths(6, 3, 2, num_objects=20, with_mask=True, key=key)
 
@@ -102,6 +144,15 @@ class TestPaths:
             assert path.num_valid_paths == 1
 
         assert got == paths.num_valid_paths
+
+    def test_reduce(self, key: PRNGKeyArray) -> None:
+        paths = random_paths(4, 10, num_objects=3, with_mask=True, key=key)
+
+        expected = path_lengths(paths.vertices).sum(where=paths.mask)
+
+        got = paths.reduce(path_lengths)
+
+        chex.assert_trees_all_equal(got, expected)
 
     @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:

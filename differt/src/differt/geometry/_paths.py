@@ -8,11 +8,11 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped, jaxtyped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11):  # pragma: no cover
     from typing import Self
 else:
     from typing_extensions import Self
@@ -20,7 +20,9 @@ else:
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def _cell_ids(array: Shaped[Array, "batch n"]) -> Int[Array, " batch"]:
+def _cell_ids(
+    array: Shaped[Array, "batch n"],
+) -> Int[Array, " batch"]:  # pragram: no cover
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         indices: Int[Array, " batch"],
@@ -54,6 +56,8 @@ def merge_cell_ids(
     granted that arrays have been reshaped to uni-dimensional
     arrays. Of course, this method handles multiple dimensions
     and will reshape the output array to match initial shape.
+
+    For an actual application example, see :ref:`multipath_lifetime_map`.
 
     Warning:
         The indices used in the returned array have nothing to
@@ -303,9 +307,9 @@ class Paths(eqx.Module):
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def reduce(
-        self, fun: Callable[[Float[Array, "*batch n"]], Float[Array, " *batch"]]
-    ) -> Float[Array, " "]:
-        """Apply a function on all paths and accumulate the result into a scalar value.
+        self, fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]]
+    ) -> Num[Array, " "]:
+        """Apply a function on all path vertices and accumulate the result into a scalar value.
 
         Args:
             fun: The function to be called on all path vertices.
