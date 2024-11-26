@@ -748,9 +748,9 @@ class TriangleScene(eqx.Module):
         order: int,
         *,
         method: Literal["sbr"],
-        chunk_size: None,
+        chunk_size: None = None,
         num_rays: int = int(1e6),
-        path_candidates: None,
+        path_candidates: None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: None = None,
@@ -831,7 +831,8 @@ class TriangleScene(eqx.Module):
 
                 If :attr:`self.mesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>`
                 is :data:`True`, then path candidates are
-                rounded down toward the nearest even value.
+                rounded down toward the nearest even value (but object indices still refer
+                to triangle indices, not quadrilateral indices).
 
                 **Not compatible with** ``method == 'sbr'``.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
