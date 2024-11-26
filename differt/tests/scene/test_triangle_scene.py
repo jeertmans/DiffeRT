@@ -418,11 +418,13 @@ class TestTriangleScene:
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
 
+        num_rays = m_rx * n_rx
+
         with expectation:
-            num_rays = m_rx * n_rx
-            paths = scene.compute_paths(
-                order=1, method=method, num_rays=num_rays, parallel=True
-            )
+            with jax.debug_nans(False):  # noqa: FBT003
+                paths = scene.compute_paths(
+                    order=1, method=method, num_rays=num_rays, parallel=True
+                )
 
             # TODO: fix this when 'hybrid' is implemented
             num_path_candidates = (

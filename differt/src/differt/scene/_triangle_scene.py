@@ -263,7 +263,7 @@ def _compute_paths_sbr(
     *,
     order: int,
     num_rays: int,
-    parallel: bool = False,
+    parallel: bool,
     epsilon: Float[ArrayLike, " "] | None,
     max_dist: Float[ArrayLike, " "],
 ) -> SBRPaths:
@@ -274,7 +274,6 @@ def _compute_paths_sbr(
 
     num_tx_vertices = tx_vertices.shape[0]
     num_rx_vertices = rx_vertices.shape[0]
-    num_rays_per_tx = num_rays // num_tx_vertices
 
     world_vertices = jnp.concatenate(
         (triangle_vertices.reshape(-1, 3), rx_vertices), axis=0
@@ -283,7 +282,7 @@ def _compute_paths_sbr(
     # [num_tx_vertices 2 3]
     frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
 
-    # [num_tx_vertices num_rays_per_tx 2 3]
+    # [num_tx_vertices num_rays 2 3]
     ray_origins = jnp.broadcast_to(
         tx_vertices[:, None, :], (num_tx_vertices, num_rays, 3)
     )
@@ -294,26 +293,26 @@ def _compute_paths_sbr(
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         ray_origins_directions_and_valids: tuple[
-            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-            Bool[Array, "num_tx_vertices num_rays_per_tx"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_rays"],
         ],
         _: None,
     ) -> tuple[
         tuple[
-            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-            Bool[Array, "num_tx_vertices num_rays_per_tx"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_rays"],
         ],
         tuple[
-            Int[Array, "num_tx_vertices num_rays_per_tx"],
-            Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-            Bool[Array, "num_tx_vertices num_rx_vertices num_rays_per_tx"],
+            Int[Array, "num_tx_vertices num_rays"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_rx_vertices num_rays"],
         ],
     ]:
-        # [num_tx_vertices num_rays_per_tx 3],
-        # [num_tx_vertices num_rays_per_tx 3],
-        # [num_tx_vertices num_rays_per_tx]
+        # [num_tx_vertices num_rays 3],
+        # [num_tx_vertices num_rays 3],
+        # [num_tx_vertices num_rays]
         (
             ray_origins,
             ray_directions,
@@ -322,7 +321,7 @@ def _compute_paths_sbr(
 
         # 1 - Compute next intersection with triangles
 
-        # [num_tx_vertices num_rays_per_tx]
+        # [num_tx_vertices num_rays]
         triangles, t_hit = first_triangles_hit_by_rays(
             ray_origins,
             ray_directions,
@@ -332,17 +331,17 @@ def _compute_paths_sbr(
 
         # 2 - Check if the rays pass near RX
 
-        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        # [num_tx_vertices num_rx_vertices num_rays]
         ray_origins_to_rx_vertices = (
             rx_vertices[None, :, None, :] - ray_origins[:, None, ...]
         )
 
-        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        # [num_tx_vertices num_rx_vertices num_rays]
         ray_distances_to_rx_vertices = dot(
             jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices)
         )  # Squared distance from rays to RXs
 
-        # [num_tx_vertices num_rx_vertices num_rays_per_tx]
+        # [num_tx_vertices num_rx_vertices num_rays]
         t_rxs = dot(
             ray_directions[:, None, ...], ray_origins_to_rx_vertices
         )  # Distance (scaled by ray directions) from RXs projected onto rays to ray origins
@@ -355,7 +354,7 @@ def _compute_paths_sbr(
 
         # 3 - Update rays
 
-        # [num_tx_vertices num_rays_per_tx 3]
+        # [num_tx_vertices num_rays 3]
         mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
 
         ray_origins += t_hit[..., None] * ray_directions
@@ -375,12 +374,12 @@ def _compute_paths_sbr(
 
     @jaxtyped(typechecker=typechecker)
     def fun(
-        ray_origins: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
-        ray_directions: Float[Array, "num_tx_vertices num_rays_per_tx 3"],
+        ray_origins: Float[Array, "num_tx_vertices num_rays 3"],
+        ray_directions: Float[Array, "num_tx_vertices num_rays 3"],
     ) -> tuple[
-        Int[Array, "order_plus_1 num_tx_vertices num_rays_per_tx"],
-        Float[Array, "order_plus_1 num_tx_vertices num_rays_per_tx 3"],
-        Bool[Array, "order_plus_1 num_tx_vertices num_rx_vertices num_rays_per_tx"],
+        Int[Array, "order_plus_1 num_tx_vertices num_rays"],
+        Float[Array, "order_plus_1 num_tx_vertices num_rays 3"],
+        Bool[Array, "order_plus_1 num_tx_vertices num_rx_vertices num_rays"],
     ]:
         valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
         _, (path_candidates, vertices, masks) = jax.lax.scan(
@@ -393,16 +392,20 @@ def _compute_paths_sbr(
     if parallel:
         num_devices = jax.device_count()
 
-        if (num_tx_vertices * num_rays_per_tx) % num_devices == 0:
+        if (num_tx_vertices * num_rays) % num_devices == 0:
             tx_mesh = math.gcd(num_tx_vertices, num_devices)
             ray_mesh = num_devices // tx_mesh
             in_specs = (P("i", "j", None), P("i", "j", None))
-            out_specs = (P("i", "j"), P("i", "j", None), P("i", None, "j"))
+            out_specs = (
+                P(None, "i", "j"),
+                P(None, "i", "j", None),
+                P(None, "i", None, "j"),
+            )
         else:
             msg = (
                 f"Found {num_devices} devices available, "
                 "but could not find any input with a size that is a multiple of that value. "
-                "Please user a number of transmitter and rays that is a "
+                "Please user a number of transmitters and rays that is a "
                 f"multiple of {num_devices}."
             )
             raise ValueError(msg)
@@ -438,18 +441,18 @@ def _compute_paths_sbr(
 
     tx_objects = jnp.broadcast_to(
         tx_objects[:, None, None, None],
-        (num_tx_vertices, num_rx_vertices, num_rays_per_tx, 1),
+        (num_tx_vertices, num_rx_vertices, num_rays, 1),
     )
     rx_objects = jnp.broadcast_to(
         rx_objects[None, :, None, None],
-        (num_tx_vertices, num_rx_vertices, num_rays_per_tx, 1),
+        (num_tx_vertices, num_rx_vertices, num_rays, 1),
     )
     path_candidates = jnp.broadcast_to(
         path_candidates[:, None, ...],
         (
             num_tx_vertices,
             num_rx_vertices,
-            num_rays_per_tx,
+            num_rays,
             order,
         ),
     )
@@ -889,12 +892,13 @@ class TriangleScene(eqx.Module):
                 self.receivers.reshape(-1, 3),
                 order=order,
                 num_rays=num_rays,
+                parallel=parallel,
                 epsilon=epsilon,
                 max_dist=max_dist,
             ).reshape(*tx_batch, *rx_batch, -1)
         if method == "hybrid":
             msg = "Hybrid method not implemented yet."
-            raise NotImplementedError(msg)
+            raise NotImplementedError(msg)  # TODO: implement
             visibility = triangles_visible_from_vertices(
                 self.transmitters, self.mesh.triangle_vertices
             )
