@@ -222,6 +222,7 @@ extend-ignore-names = ["T"]
   "PLR2004",  # TODO: remove this
   "PLW2901",  # TODO: remove this
   "RUF027",
+  "T201",
 ]
 "**/tests/*" = ["PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
 "**/{docs,tests}/*" = ["D", "DOC", "S101"]

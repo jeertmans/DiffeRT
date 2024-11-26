@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001
 
 import sys
+from collections.abc import Iterator
 from typing import Any, overload
 
 import equinox as eqx
@@ -167,6 +168,21 @@ class TriangleMesh(eqx.Module):
             ),
             is_leaf=lambda x: x is None,
         )
+
+    def iter_objects(self) -> Iterator[Self]:
+        """
+        Iterator over sub meshes (i.e., objects) defined by :attr:`object_bounds`.
+
+        If :attr:`object_bounds` is :data:`None`, then yield ``self``.
+
+        Yields:
+            One or more sub meshes.
+        """
+        if self.object_bounds is None:
+            yield self
+        else:
+            for start, stop in self.object_bounds:
+                yield self[start:stop]
 
     @property
     def num_triangles(self) -> int:
@@ -536,7 +552,10 @@ class TriangleMesh(eqx.Module):
                 (triangles, jnp.asarray([[0, 3, 5], [0, 5, 7]])),
                 axis=0,
             )
-        return cls(vertices=vertices, triangles=triangles)
+
+        indices = jnp.arange(0, triangles.shape[0] + 1, 2)
+        object_bounds = jnp.column_stack((indices[:-1], indices[+1:]))
+        return cls(vertices=vertices, triangles=triangles, object_bounds=object_bounds)
 
     @property
     def is_empty(self) -> bool:

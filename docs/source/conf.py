@@ -71,6 +71,8 @@ nitpick_ignore = (
 
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
+numfig = True
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {

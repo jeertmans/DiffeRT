@@ -4,6 +4,7 @@ __all__ = (
     "SizedIterator",
     "consecutive_vertices_are_on_same_side_of_mirrors",
     "fermat_path_on_planar_mirrors",
+    "first_triangles_hit_by_rays",
     "generate_all_path_candidates",
     "generate_all_path_candidates_chunks_iter",
     "generate_all_path_candidates_iter",
@@ -24,6 +25,7 @@ from ._image_method import (
 )
 from ._utils import (
     SizedIterator,
+    first_triangles_hit_by_rays,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,

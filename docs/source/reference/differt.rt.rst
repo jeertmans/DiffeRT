@@ -81,6 +81,7 @@ Utilities to check that ray paths are physically valid.
    :toctree: _autosummary
 
    consecutive_vertices_are_on_same_side_of_mirrors
+   first_triangles_hit_by_rays
    rays_intersect_any_triangle
    rays_intersect_triangles
    triangles_visible_from_vertices
