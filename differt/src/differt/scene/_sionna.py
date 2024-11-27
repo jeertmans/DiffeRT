@@ -1,3 +1,4 @@
+import sys
 import tarfile
 import tempfile
 from collections.abc import Iterator
@@ -83,7 +84,11 @@ def download_sionna_scenes(
             f.flush()
 
             with tarfile.open(f.name) as tar:
-                tar.extractall(path=folder, members=members(tar), filter="data")
+                # tarfile added 'filter' parameter for security reasons.
+                if sys.version_info >= (3, 10, 12):
+                    tar.extractall(path=folder, members=members(tar), filter="data")
+                else:  # pragram: no cover
+                    tar.extractall(path=folder, members=members(tar))
 
 
 def list_sionna_scenes(*, folder: str | Path = SIONNA_SCENES_FOLDER) -> list[str]:
