@@ -1,7 +1,6 @@
 from functools import partial
 from typing import Literal, overload
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
@@ -547,7 +546,7 @@ def viewing_frustum(
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
 
 
-@eqx.filter_jit
+@partial(jax.jit, static_argnames=("reduce",))
 @jaxtyped(typechecker=typechecker)
 def viewing_frustum(
     viewing_vertex: Float[Array, "*#batch 3"],

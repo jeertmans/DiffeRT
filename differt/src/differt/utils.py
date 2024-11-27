@@ -1,6 +1,7 @@
 """General purpose utilities."""
 
 from collections.abc import Callable, Iterable, Mapping
+from functools import partial
 from typing import Any, Concatenate, ParamSpec, overload
 
 import chex
@@ -307,7 +308,7 @@ def sample_points_in_bounding_box(
 ) -> Float[Array, "3"]: ...
 
 
-@eqx.filter_jit
+@partial(jax.jit, static_argnames=("shape",))
 @jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
