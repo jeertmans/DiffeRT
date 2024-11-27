@@ -16,7 +16,7 @@ from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
 if sys.version_info >= (3, 11):
     from typing import Concatenate
 else:
-    from typing_extensions import Concatenate
+    from typing_extensions import Concatenate  # noqa: UP035
 
 
 @eqx.filter_jit
