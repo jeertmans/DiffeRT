@@ -39,7 +39,7 @@ from differt.rt import (
 )
 from differt.utils import dot
 
-if sys.version_info >= (3, 11):  # pragma: no cover
+if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self

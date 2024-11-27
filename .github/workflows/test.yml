@@ -46,11 +46,8 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Install dependencies
-      run: uv sync --locked --no-dev --extra tests
-
     - name: Run tests
-      run: uv run pytest
+      run: uv run --frozen --no-dev --extra tests pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
