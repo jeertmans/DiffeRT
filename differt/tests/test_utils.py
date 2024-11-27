@@ -4,8 +4,8 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.utils import dot, minimize, sample_points_in_bounding_box, sorted_array2
 from differt.utils import (
+    dot,
     minimize,
     safe_divide,
     sample_points_in_bounding_box,
