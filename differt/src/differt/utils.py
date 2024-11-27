@@ -1,7 +1,8 @@
 """General purpose utilities."""
 
+import sys
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, Concatenate, overload
+from typing import Any, overload
 
 import chex
 import equinox as eqx
@@ -10,6 +11,12 @@ import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
+
+# Concatenate only supports '...' as of Python 3.11
+if sys.version_info >= (3, 11):
+    from typing import Concatenate
+else:
+    from typing import Concatenate
 
 
 @eqx.filter_jit
