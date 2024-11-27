@@ -99,9 +99,11 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    kwargs.setdefault("shading", "flat")
+
     vertices = np.asarray(vertices)
     triangles = np.asarray(triangles)
-    view.add(Mesh(vertices=vertices, faces=triangles, shading="flat", **kwargs))
+    view.add(Mesh(vertices=vertices, faces=triangles, **kwargs))
     view.camera.set_range()
 
     return canvas
