@@ -28,9 +28,6 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Setup Python ${{ matrix.pyversion }}
-      run: uv python install ${{ matrix.pyversion }}
-
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -47,7 +44,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Run tests
-      run: uv run --frozen --no-dev --extra tests pytest
+      run: uv run --python ${{ matrix.python-version }} --frozen --no-dev --extra tests pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4
