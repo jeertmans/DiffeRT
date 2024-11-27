@@ -1,7 +1,7 @@
 """General purpose utilities."""
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, Concatenate, Literal, overload
+from typing import Any, Concatenate, ParamSpec, overload
 
 import chex
 import equinox as eqx
@@ -10,6 +10,57 @@ import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def dot(
+    u: Shaped[Array, "*#batch n"],
+    v: Shaped[Array, "*#batch n"] | None = None,
+    keepdims: bool = False,
+) -> Shaped[Array, "*batch "] | Shaped[Array, "*batch 1"]:
+    """
+    Compute the dot product between two multidimensional arrays, over the last axis.
+
+    Args:
+        u: The first input array.
+        v: The second input array.
+
+            If not provided, the second input is assumed to be the first input.
+        keepdims: If set to :data:`True`, the output array will have the same
+            number of dimensions as the input.
+
+    Returns:
+        The array of dot products.
+
+    Examples:
+        The following example shows how the dot product works.
+
+        >>> from differt.utils import dot
+        >>>
+        >>> u = jnp.arange(10).reshape(5, 2)
+        >>> u
+        Array([[0, 1],
+               [2, 3],
+               [4, 5],
+               [6, 7],
+               [8, 9]], dtype=int32)
+        >>>
+        >>> dot(u)
+        Array([  1,  13,  41,  85, 145], dtype=int32)
+        >>> dot(u, u)
+        Array([  1,  13,  41,  85, 145], dtype=int32)
+        >>> dot(u, keepdims=True)
+        Array([[  1],
+               [ 13],
+               [ 41],
+               [ 85],
+               [145]], dtype=int32)
+    """
+    if v is None:
+        v = u
+
+    return jnp.sum(u * v, axis=-1, keepdims=keepdims)
 
 
 @jax.jit
@@ -81,12 +132,14 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 # Redefined here, because chex uses deprecated type hints
 # TODO: fixme when google/chex#361 is resolved.
 _OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+# TODO: fixme when Python >= 3.11
+_P = ParamSpec("_P")
 
 
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def minimize(
-    fun: Callable[Concatenate[Num[Array, " n"], ...], Num[Array, " "]],
+    fun: Callable[Concatenate[Num[Array, " n"], _P], Num[Array, " "]],
     x0: Num[Array, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
@@ -239,7 +292,7 @@ def minimize(
 @overload
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
-    shape: Literal[None] = None,
+    shape: None = None,
     *,
     key: PRNGKeyArray,
 ) -> Float[Array, "3"]: ...

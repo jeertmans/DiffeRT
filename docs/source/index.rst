@@ -19,6 +19,7 @@ Contents
    :maxdepth: 1
 
    installation
+   conventions
 
 .. toctree::
    :caption: Basic Tutorials

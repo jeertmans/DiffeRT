@@ -4,6 +4,7 @@
 
 .. autoclass:: {{ objname }}
    :members:
+   :inherited-members:
 
    {% block attributes %}
    {% if attributes %}

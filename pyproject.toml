@@ -54,7 +54,7 @@ tests = [
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.0.25"
+current_version = "0.0.26"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -152,6 +152,7 @@ filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
+  'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
 ]
 log_level = "INFO"
 markers = [
@@ -222,6 +223,7 @@ extend-ignore-names = ["T"]
   "PLR2004",  # TODO: remove this
   "PLW2901",  # TODO: remove this
   "RUF027",
+  "T201",
 ]
 "**/tests/*" = ["PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
 "**/{docs,tests}/*" = ["D", "DOC", "S101"]

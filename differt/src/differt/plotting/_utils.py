@@ -20,8 +20,10 @@ if TYPE_CHECKING:
 
     BackendName = Literal["vispy", "matplotlib", "plotly"]
     T = TypeVar("T", Canvas, MplFigure, Figure)
+    PlotOutput = Canvas | MplFigure | Figure
 else:
     T = TypeVar("T")
+    PlotOutput = Any
 
 P = ParamSpec("P")
 
@@ -244,7 +246,7 @@ class _Dispatcher(Generic[P, T]):
     ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
+def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
     """
     Transform a function into a backend dispatcher for plot functions.
 
@@ -311,7 +313,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    registry: dict[str, Callable[P, T]] = {}
+    registry: dict[str, Callable[P, PlotOutput]] = {}
 
     def register(
         backend: str,
@@ -339,7 +341,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
-            """Actually register the backend implementation."""
+            """Actually register the backend implementation."""  # noqa: DOC201
 
             @wraps(impl)
             def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
@@ -357,7 +359,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
 
             registry[backend] = __wrapper__
 
-            return __wrapper__  # noqa: DOC201
+            return __wrapper__
 
         return wrapper
 
@@ -386,7 +388,7 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         backend = get_backend(backend_opt)
 
         try:
-            return registry[backend](*args, **kwargs)
+            return registry[backend](*args, **kwargs)  # type: ignore[reportReturnType]
         except KeyError:
             msg = f"No backend implementation for '{backend}'"
             raise NotImplementedError(

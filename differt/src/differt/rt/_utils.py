@@ -11,7 +11,8 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
-from differt.geometry import fibonacci_lattice
+from differt.geometry import fibonacci_lattice, viewing_frustum
+from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
 if sys.version_info >= (3, 11):
@@ -228,12 +229,12 @@ def rays_intersect_triangles(
             ... )
             >>> rays_hit = hit.any(axis=1)  # True if rays hit any triangle
             >>> triangles_hit = hit.any(axis=0)  # True if triangles hit by any ray
-            >>> ray_directions *= np.max(
+            >>> ray_directions *= jnp.max(
             ...     t, axis=1, keepdims=True, initial=1.0, where=hit
             ... )  # Scale rays length before plotting
             >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
-            ...     np.asarray(ray_origins[rays_hit, :]),
-            ...     np.asarray(ray_directions[rays_hit, :]),
+            ...     jnp.asarray(ray_origins[rays_hit, :]),
+            ...     jnp.asarray(ray_directions[rays_hit, :]),
             ...     backend="plotly",
             ...     line={"color": "red"},
             ...     showlegend=False,
@@ -264,22 +265,22 @@ def rays_intersect_triangles(
     h = jnp.cross(ray_directions, edge_2)
 
     # [*batch]
-    a = jnp.sum(h * edge_1, axis=-1)
+    a = dot(h, edge_1)
 
     hit = jnp.abs(a) > epsilon
 
     f = jnp.where(a == 0.0, 0, 1.0 / a)
     s = ray_origins - vertex_0
-    u = f * jnp.sum(s * h, axis=-1)
+    u = f * dot(s, h)
 
     hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
-    v = f * jnp.sum(q * ray_directions, axis=-1)
+    v = f * dot(q, ray_directions)
 
     hit &= (v >= 0.0) & (u + v <= 1.0)
 
-    t = f * jnp.sum(q * edge_2, axis=-1)
+    t = f * dot(q, edge_2)
 
     hit &= t > epsilon
 
@@ -377,6 +378,10 @@ def triangles_visible_from_vertices(
     whether a given triangle can be reached from a specific vertex, i.e., with a ray path,
     without interacting with any other triangle facet.
 
+    It also uses
+    :func:`viewing_frustum<differt.geometry.viewing_frustum>` to only
+    launch rays in a spatial region that contains triangles.
+
     Args:
         vertices: An array of vertices, used as origins of the rays.
 
@@ -402,10 +407,10 @@ def triangles_visible_from_vertices(
             ...     triangles_visible_from_vertices,
             ... )
             >>> from differt.scene import (
+            ...     TriangleScene,
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -429,8 +434,16 @@ def triangles_visible_from_vertices(
     # [*batch 3]
     ray_origins = vertices
 
+    # [2 3]
+    # note: currently we don't handle batches and generate one frustum for everything
+    frustum = viewing_frustum(
+        ray_origins,
+        triangle_vertices.reshape(*triangle_vertices.shape[:-3], -1, 3),
+        reduce=True,
+    )
+
     # [num_rays 3]
-    ray_directions = fibonacci_lattice(num_rays)
+    ray_directions = fibonacci_lattice(num_rays, frustum=frustum)
 
     batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
 
@@ -457,3 +470,67 @@ def triangles_visible_from_vertices(
         init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
         xs=ray_directions,
     )[0]
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def first_triangles_hit_by_rays(
+    ray_origins: Float[Array, "*#batch 3"],
+    ray_directions: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+    **kwargs: Any,
+) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+    """
+    Return the first triangle hit by each ray.
+
+    This function should be used when allocating an array of size
+    ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
+    getting the first triangle hit by the ray.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        kwargs: Keyword arguments passed to
+            :func:`rays_intersect_triangles`.
+
+    Returns:
+        For each ray, return the index and to distance to the first triangle hit.
+
+        If no triangle is hit, the index is set to ``-1`` and
+        the distance is set to :data:`inf<numpy.inf>`.
+    """
+    # Put 'num_triangles' axis as leading axis
+    triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+
+    batch = jnp.broadcast_shapes(
+        ray_origins.shape[:-1],
+        ray_directions.shape[:-1],
+        triangle_vertices.shape[1:-2],
+    )
+
+    @jaxtyped(typechecker=typechecker)
+    def scan_fun(
+        carry: tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]],
+        triangle_vertices: Float[Array, "*#batch 3 3"],
+    ) -> tuple[
+        tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]], None
+    ]:
+        indices, t_hit, index = carry
+        t, hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            **kwargs,
+        )
+        t = jnp.where(hit, t, jnp.inf)
+        indices = jnp.where(t < t_hit, index, indices)
+        t_hit = jnp.minimum(t, t_hit)
+        return (indices, t_hit, index + 1), None
+
+    return jax.lax.scan(
+        scan_fun,
+        init=(-jnp.ones(batch, dtype=int), jnp.full(batch, jnp.inf), jnp.array(0)),
+        xs=triangle_vertices,
+    )[0][:2]

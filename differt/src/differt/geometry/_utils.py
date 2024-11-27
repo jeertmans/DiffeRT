@@ -351,10 +351,30 @@ def rotation_matrix_along_axis(
     return co * i + si * x + (1 - co) * o
 
 
+@overload
+def fibonacci_lattice(
+    n: int,
+    dtype: DTypeLike | None = None,
+    *,
+    frustum: None = None,
+) -> Float[Array, "{n} 3"]: ...
+
+
+@overload
+def fibonacci_lattice(
+    n: int,
+    dtype: None = None,
+    *,
+    frustum: Float[Array, "2 2"] | Float[Array, "2 3"],
+) -> Float[Array, "{n} 3"]: ...
+
+
 @jaxtyped(typechecker=typechecker)
 def fibonacci_lattice(
     n: int,
     dtype: DTypeLike | None = None,
+    *,
+    frustum: Float[Array, "2 2"] | Float[Array, "2 3"] | None = None,
 ) -> Float[Array, "{n} 3"]:
     """
     Return a lattice of vertices on the unit sphere.
@@ -362,9 +382,21 @@ def fibonacci_lattice(
     This function uses the Fibonacci lattice method :cite:`fibonacci-lattice`
     to generate an almost uniformly distributed set of points on the unit sphere.
 
+    If ``frustum`` is passed, points are distributed in the region defined by the
+    frustum's limits.
+
     Args:
         n: The size of the lattice.
         dtype: The float dtype of the vertices.
+
+            Unused if ``frustum`` is passed.
+        frustum: The spatial region where to sample points.
+
+            The frustum in an array of min. and max. values for
+            azimutal and elevation angles, see :func:`viewing_frustum` for example.
+
+            It is allowed to pass a frustum with distance values, but it will be ignored
+            as the distance of from sampled points to origin is always 1.
 
     Returns:
         The array of vertices.
@@ -387,7 +419,9 @@ def fibonacci_lattice(
             >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
             >>> fig  # doctest: +SKIP
     """
-    if dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
+    if frustum is not None:
+        dtype = frustum.dtype
+    elif dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
         msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
         raise ValueError(msg)
 
@@ -397,12 +431,13 @@ def fibonacci_lattice(
     lat = jnp.arccos(1 - 2 * i / n)
     lon = 2 * jnp.pi * i / phi
 
-    co_lat = jnp.cos(lat)
-    si_lat = jnp.sin(lat)
-    co_lon = jnp.cos(lon)
-    si_lon = jnp.sin(lon)
+    pa = jnp.stack((lat, lon), axis=-1)
 
-    return jnp.stack((si_lat * co_lon, si_lat * si_lon, co_lat), axis=-1, dtype=dtype)
+    if frustum is not None:
+        pa %= frustum[1, -2:] - frustum[0, -2:]
+        pa += frustum[0, -2:]
+
+    return spherical_to_cartesian(pa).astype(dtype)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -446,6 +481,8 @@ def min_distance_between_cells(
     For every vertex, the minimum distance to another vertex that is not is the same
     cell is computed.
 
+    For an actual application example, see :ref:`multipath_lifetime_map`.
+
     Args:
         cell_vertices: The array of vertex coordinates.
         cell_ids: The array of corresponding cell indices.
@@ -477,3 +514,305 @@ def min_distance_between_cells(
             cell_ids.reshape(-1),
         ),
     )[1].reshape(cell_ids.shape)
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: Literal[False] = False,
+) -> Float[Array, "*batch 2 3"]: ...
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: Literal[True] = True,
+) -> Float[Array, "2 3"]: ...
+
+
+@overload
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    optimize: bool = False,
+    reduce: bool,
+) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
+
+
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
+def viewing_frustum(
+    viewing_vertex: Float[Array, "*#batch 3"],
+    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    *,
+    reduce: bool = False,
+) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
+    r"""
+    Compute the viewing frustum as seen by one viewer.
+
+    The frustum is a region, espressed in spherical coordinates,
+    see :ref:`spherical-coordinates`,
+    that fully contains the world vertices.
+
+    Warning:
+        The frustum may present wrong results along the polar axis.
+
+        We are still looking at a better way to compute the frustum,
+        so feel free to reach out if your have any suggestion.
+
+    Args:
+        viewing_vertex: The coordinates of the viewer (i.e., camera).
+        world_vertices: The array of world coordinates.
+        reduce: Whether to reduce batch dimensions.
+
+    Returns:
+        The extents (min. and max. values) of the viewing frustum.
+
+    Examples:
+        The following example shows how to *launch* rays in a limited
+        region of space, to avoid launching rays where no triangles
+        would be hit.
+
+        .. plotly::
+            :context: reset
+
+            >>> from differt.geometry import (
+            ...     fibonacci_lattice,
+            ...     viewing_frustum,
+            ...     TriangleMesh,
+            ... )
+            >>> from differt.plotting import draw_rays, reuse, draw_markers
+            >>>
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([0.0, 0.0, 0.0])
+            ...     key = jax.random.key(1234)
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     for mesh in (
+            ...         TriangleMesh.box(with_top=True).translate(tx).iter_objects()
+            ...     ):
+            ...         key, key_color = jax.random.split(key, 2)
+            ...         color = r, g, b = jax.random.randint(key_color, (3,), 0, 256)
+            ...         center = mesh.bounding_box.mean(axis=0)
+            ...         mesh = mesh.translate(5 * (center - tx)).set_face_colors(color)
+            ...         mesh.plot()
+            ...
+            ...         frustum = viewing_frustum(
+            ...             tx, mesh.triangle_vertices.reshape(-1, 3)
+            ...         )
+            ...         ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...             tx, fibonacci_lattice(20, frustum=frustum)
+            ...         )
+            ...         ray_origins += 0.5 * ray_directions
+            ...         ray_directions *= 2.5  # Scale rays length before plotting
+            ...         draw_rays(
+            ...             ray_origins,
+            ...             ray_directions,
+            ...             line={"color": f"rgb({float(r)},{float(g)},{float(b)})"},
+            ...             mode="lines",
+            ...             showlegend=False,
+            ...         )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
+
+        This second example shows what happens if you compute the frustum on all the objects
+        at the same time, instead of computing one frustum per object (i.e., face).
+
+        .. plotly::
+            :context:
+
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([0.0, 0.0, 0.0])
+            ...     world_vertices = jnp.empty((0, 3))
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     for mesh in (
+            ...         TriangleMesh.box(with_top=True)
+            ...         .translate(tx)
+            ...         .set_face_colors(jnp.array([1.0, 0.0, 0.0]))
+            ...         .iter_objects()
+            ...     ):
+            ...         center = mesh.bounding_box.mean(axis=0)
+            ...         mesh = mesh.translate(5 * (center - tx))
+            ...         mesh.plot()
+            ...
+            ...         world_vertices = jnp.concatenate(
+            ...             (world_vertices, mesh.triangle_vertices.reshape(-1, 3)),
+            ...             axis=0,
+            ...         )
+            ...
+            ...     frustum = viewing_frustum(tx, world_vertices)
+            ...     ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...         tx, fibonacci_lattice(20 * 6, frustum=frustum)
+            ...     )
+            ...     ray_origins += 0.5 * ray_directions
+            ...     ray_directions *= 2.5  # Scale rays length before plotting
+            ...     draw_rays(
+            ...         ray_origins,
+            ...         ray_directions,
+            ...         line={"color": "red"},
+            ...         mode="lines",
+            ...         showlegend=False,
+            ...     )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
+
+        While the rays cover all the objects, many of them are launching in spatial regions where there
+        is not object to hit.
+
+        This third example shows a scenario where TX is far from the mesh,
+        where computing the frustum becomes very suitable.
+
+        .. plotly::
+            :context:
+
+            >>> with reuse("plotly") as fig:
+            ...     tx = jnp.array([30.0, 0.0, 20.0])
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     mesh = TriangleMesh.box(
+            ...         width=10.0, length=20.0, height=3.0, with_top=True
+            ...     ).set_face_colors(jnp.array([1.0, 0.0, 0.0]))
+            ...     mesh.plot()
+            ...
+            ...     frustum = viewing_frustum(tx, mesh.triangle_vertices.reshape(-1, 3))
+            ...     ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...         tx, fibonacci_lattice(20 * 6, frustum=frustum)
+            ...     )
+            ...     ray_origins += 0.5 * ray_directions
+            ...     ray_directions *= 40.0  # Scale rays length before plotting
+            ...     draw_rays(
+            ...         ray_origins,
+            ...         ray_directions,
+            ...         line={"color": "red"},
+            ...         mode="lines",
+            ...         showlegend=False,
+            ...     )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
+    """
+    xyz = world_vertices - viewing_vertex[..., None, :]
+    rpa = cartesian_to_spherical(xyz)
+
+    r, p, a = rpa[..., 0], rpa[..., 1], rpa[..., 2]
+
+    if reduce:
+        r = r.ravel()
+        p = p.ravel()
+        a = a.ravel()
+
+    r_min = jnp.min(r, axis=-1)
+    r_max = jnp.max(r, axis=-1)
+    p_min = jnp.min(p, axis=-1)
+    p_max = jnp.max(p, axis=-1)
+    a_min = jnp.min(a, axis=-1)
+    a_max = jnp.max(a, axis=-1)
+
+    # The discontinuity for azimutal angles near -pi;pi can create
+    # issues, leading to a larger angular sector that expected.
+
+    # We map azimutal angles from [-pi;pi[ to [0;2pi[.
+    two_pi = 2 * jnp.pi
+
+    a_0 = (a + two_pi) % two_pi
+    a_0_min = jnp.min(a_0, axis=-1)
+    a_0_max = jnp.max(a_0, axis=-1)
+
+    a_width = a_max - a_min
+    a_0_width = a_0_max - a_0_min
+
+    a_min, a_max = jnp.where(
+        a_width > a_0_width,
+        jnp.stack((a_0_min, a_0_max)),
+        jnp.stack((a_min, a_max)),
+    )
+
+    # For polar angle, we 'try' to fix a similar issue.
+    # TODO: improve this.
+    p_0_min = p_max
+    p_0_max = p_min
+
+    p_min = jnp.where(p_min == p_max, 0.0, p_min)
+    p_0_max = jnp.where(p_0_min == p_0_max, jnp.pi, p_0_max)
+
+    p_width = p_max - p_min
+    p_0_width = p_0_max - p_0_min
+
+    p_min, p_max = jnp.where(
+        p_width > p_0_width,
+        jnp.stack((p_0_min, p_0_max)),
+        jnp.stack((p_min, p_max)),
+    )
+
+    return jnp.stack((
+        r_min,
+        p_min,
+        a_min,
+        r_max,
+        p_max,
+        a_max,
+    )).reshape(*r.shape[:-1], 2, 3)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
+    """
+    Transform cartesian coordinates to spherical coordinates.
+
+    See :ref:`conventions` for details.
+
+    Args:
+        xyz: The array of cartesian coordinates.
+
+    Returns:
+        The array of corresponding spherical coordinates.
+
+    .. seealso::
+
+        :func:`spherical_to_cartesian`
+    """
+    r = jnp.linalg.norm(xyz, axis=-1)
+    p = jnp.arccos(xyz[..., -1] / r)
+    a = jnp.arctan2(xyz[..., 1], xyz[..., 0])
+
+    return jnp.stack((r, p, a), axis=-1)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def spherical_to_cartesian(
+    rpa: Float[Array, "*batch 3"] | Float[Array, "*batch 2"],
+) -> Float[Array, "*batch 3"]:
+    """
+    Transform spherical coordinates to cartisian coordinates.
+
+    See :ref:`conventions` for details.
+
+    Args:
+        rpa: The array of spherical coordinates.
+
+            If the radial component is missing, a radius of 1 is assumed.
+
+    Returns:
+        The array of corresponding cartesian coordinates.
+
+    .. seealso::
+
+        :func:`cartesian_to_spherical`
+    """
+    p = rpa[..., -2]
+    a = rpa[..., -1]
+
+    cp = jnp.cos(p)
+    sp = jnp.sin(p)
+    ca = jnp.cos(a)
+    sa = jnp.sin(a)
+
+    xyz = jnp.stack((sp * ca, sp * sa, cp), axis=-1)
+
+    if rpa.shape[-1] == 3:  # noqa: PLR2004
+        xyz *= rpa[..., 0, None]
+
+    return xyz

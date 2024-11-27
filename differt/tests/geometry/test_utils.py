@@ -10,7 +10,9 @@ from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry._utils import (
     assemble_paths,
+    cartesian_to_spherical,
     fibonacci_lattice,
+    min_distance_between_cells,
     normalize,
     orthogonal_basis,
     pairwise_cross,
@@ -19,6 +21,7 @@ from differt.geometry._utils import (
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
+    spherical_to_cartesian,
 )
 
 from ..utils import random_inputs
@@ -251,3 +254,46 @@ def test_assemble_paths_random_inputs(
         expected_path_length = sum(shape[-2] for shape in shapes)
 
         assert got.shape[-2] == expected_path_length
+
+
+def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
+    key_xyz, key_sph = jax.random.split(key, 2)
+
+    xyz = 10 * jax.random.normal(key_xyz, (100, 3))
+    sph = cartesian_to_spherical(xyz)
+    got = spherical_to_cartesian(sph)
+
+    chex.assert_trees_all_close(got, xyz, atol=1e-5)
+
+    key_r, key_polar, key_azim = jax.random.split(key_sph, 3)
+
+    r = jnp.abs(10 * jax.random.normal(key_r, (100,)))
+    p = jax.random.uniform(key_polar, (100,), minval=0, maxval=jnp.pi)
+    a = jax.random.uniform(key_azim, (100,), minval=-jnp.pi, maxval=jnp.pi)
+    sph = jnp.stack((r, p, a), axis=-1)
+    xyz = spherical_to_cartesian(sph)
+    got = cartesian_to_spherical(xyz)
+
+    chex.assert_trees_all_close(got, sph, atol=7e-5)
+
+
+def test_min_distance_between_cells(key: PRNGKeyArray) -> None:
+    key_vertices, key_ids = jax.random.split(key, 2)
+
+    batch = (10, 4, 5)
+
+    cell_vertices = 10 * jax.random.normal(key_vertices, (*batch, 3))
+    cell_ids = jax.random.randint(key_ids, batch, minval=0, maxval=5)
+
+    got = min_distance_between_cells(cell_vertices, cell_ids).reshape(-1)
+
+    cell_vertices = cell_vertices.reshape(-1, 3)
+    cell_ids = cell_ids.reshape(-1)
+
+    for cell_vertex, cell_id, got_dist in zip(
+        cell_vertices, cell_ids, got, strict=False
+    ):
+        dist = jnp.linalg.norm(cell_vertex - cell_vertices, axis=-1)
+        expected_dist = jnp.min(dist, where=(cell_id != cell_ids), initial=jnp.inf)
+
+        chex.assert_trees_all_close(got_dist, expected_dist)
