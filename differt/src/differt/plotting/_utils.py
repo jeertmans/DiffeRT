@@ -341,7 +341,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
-            """Actually register the backend implementation."""
+            """Actually register the backend implementation."""  # noqa: DOC201
 
             @wraps(impl)
             def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
@@ -359,7 +359,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
 
             registry[backend] = __wrapper__
 
-            return __wrapper__  # noqa: DOC201
+            return __wrapper__
 
         return wrapper
 

@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
+from typing import Literal
 
 import chex
 import equinox as eqx
@@ -10,12 +11,13 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 
-from differt.geometry._utils import (
+from differt.geometry import (
+    Paths,
     assemble_paths,
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.scene._sionna import (
+from differt.scene import (
     get_sionna_scene,
     list_sionna_scenes,
 )
@@ -131,12 +133,23 @@ class TestTriangleScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            pytest.param(
+                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
+            ),
+        ],
+    )
     def test_compute_paths_on_advanced_path_tracing_example(
         self,
         order: int,
         expected_path_vertices: Array,
         expected_objects: Array,
         assume_quads: bool,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
         scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
@@ -150,9 +163,36 @@ class TestTriangleScene:
             expected_objects -= expected_objects % 2
 
         with jax.debug_nans(False):  # noqa: FBT003
-            got = scene.compute_paths(order)
+            got = scene.compute_paths(order, method=method, max_dist=1e-1)
 
-        chex.assert_trees_all_close(got.masked_vertices, expected_path_vertices)
+        if method == "sbr":
+            masked_vertices = got.masked_vertices
+            masked_objects = got.masked_objects
+            masked_objects -= masked_objects % 2
+            expected_objects -= expected_objects % 2
+            unique_objects = jnp.unique(masked_objects, axis=0)
+            vertices = jnp.empty_like(
+                masked_vertices,
+                shape=(unique_objects.shape[0], *masked_vertices.shape[1:]),
+            )
+            for i, path_candidate in enumerate(unique_objects):
+                vertices = vertices.at[i, ...].set(
+                    masked_vertices.mean(
+                        axis=0,
+                        where=(masked_objects == path_candidate).all(axis=-1)[
+                            ..., None, None
+                        ],
+                    )
+                )
+
+            got = Paths(vertices=vertices, objects=unique_objects)
+            rtol = 0.5  # TODO: see if we can improve acc.
+        else:
+            rtol = 1e-6
+
+        chex.assert_trees_all_close(
+            got.masked_vertices, expected_path_vertices, rtol=rtol
+        )
         chex.assert_trees_all_equal(got.masked_objects, expected_objects)
 
         normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
@@ -167,7 +207,7 @@ class TestTriangleScene:
         dot_incidents = jnp.sum(-indicents * normals, axis=-1)
         dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
 
-        chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
+        chex.assert_trees_all_close(dot_incidents, dot_reflecteds, rtol=rtol)
 
     @pytest.mark.parametrize(
         ("order", "expected_path_vertices", "expected_objects"),
@@ -240,35 +280,61 @@ class TestTriangleScene:
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
     @pytest.mark.parametrize(
-        ("order", "chunk_size", "path_candidates", "expectation"),
+        ("order", "chunk_size", "path_candidates", "method", "expectation"),
         [
-            (0, None, None, does_not_raise()),
-            (0, 1000, None, does_not_raise()),
-            (None, None, jnp.empty((1, 0), dtype=jnp.int32), does_not_raise()),
+            (0, None, None, "exhaustive", does_not_raise()),
+            (0, 1000, None, "exhaustive", does_not_raise()),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
+                does_not_raise(),
+            ),
             (
                 0,
                 None,
                 jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
                 pytest.raises(ValueError, match="You must specify one of"),
             ),
             (
                 None,
                 1000,
                 jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
                 pytest.warns(UserWarning, match="Argument 'chunk_size' is ignored"),
+            ),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "sbr",
+                pytest.raises(ValueError, match="Argument 'order' is required"),
+            ),
+            pytest.param(
+                0,
+                None,
+                None,
+                "hybrid",
+                does_not_raise(),
+                marks=pytest.mark.xfail(reason="Not yet implemented."),
             ),
         ],
     )
     @pytest.mark.parametrize(
         "parallel", [False, pytest.param(True, marks=skip_if_not_8_devices)]
     )
+    @pytest.mark.parametrize("assume_quads", [False, True])
     def test_compute_paths_on_empty_scene(
         self,
         order: int | None,
         chunk_size: int | None,
         path_candidates: Int[Array, "num_path_candidates order"] | None,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         expectation: AbstractContextManager[Exception],
         parallel: bool,
+        assume_quads: bool,
         key: PRNGKeyArray,
     ) -> None:
         key_tx, key_rx = jax.random.split(key, 2)
@@ -280,7 +346,9 @@ class TestTriangleScene:
 
         receivers = jax.random.uniform(key_rx, (1, 3))
 
-        scene = TriangleScene(transmitters=transmitters, receivers=receivers)
+        scene = TriangleScene(
+            transmitters=transmitters, receivers=receivers
+        ).set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
             transmitters[:, None, None, None, :],
             receivers[None, :, None, None, :],
@@ -288,11 +356,12 @@ class TestTriangleScene:
 
         with expectation:
             with jax.debug_nans(False):  # noqa: FBT003
-                got = scene.compute_paths(
+                got = scene.compute_paths(  # type: ignore[reportCallIssue]
                     order=order,
-                    chunk_size=chunk_size,
+                    chunk_size=chunk_size,  # type: ignore[reportArgumentType]
                     path_candidates=path_candidates,
                     parallel=parallel,
+                    method=method,  # type: ignore[reportArgumentType]
                 )
 
             paths = next(got) if isinstance(got, Iterator) else got
@@ -312,7 +381,9 @@ class TestTriangleScene:
         scene = advanced_path_tracing_example_scene
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
-        paths = scene.compute_paths(order=1)
+
+        with jax.debug_nans(False):  # noqa: FBT003
+            paths = scene.compute_paths(order=1)
 
         if n_tx is None:
             n_tx = m_tx
@@ -352,12 +423,23 @@ class TestTriangleScene:
             ),
         ],
     )
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            pytest.param(
+                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
+            ),
+        ],
+    )
     def test_compute_paths_parallel(
         self,
         m_tx: int,
         n_tx: int,
         m_rx: int,
         n_rx: int,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         expectation: AbstractContextManager[Exception],
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
@@ -365,10 +447,18 @@ class TestTriangleScene:
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
 
-        with expectation:
-            paths = scene.compute_paths(order=1, parallel=True)
+        num_rays = m_rx * n_rx
 
-            num_path_candidates = scene.mesh.triangles.shape[0]
+        with expectation:
+            with jax.debug_nans(False):  # noqa: FBT003
+                paths = scene.compute_paths(
+                    order=1, method=method, num_rays=num_rays, parallel=True
+                )
+
+            # TODO: fix this when 'hybrid' is implemented
+            num_path_candidates = (
+                num_rays if method == "sbr" else scene.mesh.triangles.shape[0]
+            )
 
             chex.assert_shape(
                 paths.vertices,

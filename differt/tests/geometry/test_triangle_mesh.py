@@ -143,6 +143,43 @@ class TestTriangleMesh:
 
         # TODO: test that other attributes are set correctly.
 
+    def test_iter_objects(self) -> None:
+        mesh = TriangleMesh.empty()
+        assert mesh.num_triangles == 0
+
+        count = 0
+        for sub_mesh in mesh.iter_objects():
+            count += 1
+            assert sub_mesh.num_triangles == 0
+
+        assert count == 1
+
+        mesh = TriangleMesh.box(with_top=True)
+        assert mesh.num_triangles == 12
+
+        count = 0
+        for sub_mesh in mesh.iter_objects():
+            count += 1
+            assert sub_mesh.num_triangles == 2
+
+            sub_count = 0
+            for sub_sub_mesh in sub_mesh.iter_objects():
+                sub_count += 1
+                assert sub_sub_mesh.num_triangles == 2
+
+            assert sub_count == 1
+
+        assert count == 6
+
+        mesh = eqx.tree_at(lambda m: m.object_bounds, mesh, None)
+
+        count = 0
+        for sub_mesh in mesh.iter_objects():
+            count += 1
+            assert sub_mesh.num_triangles == 12
+
+        assert count == 1
+
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2))
         triangles = jnp.ones((20, 3))

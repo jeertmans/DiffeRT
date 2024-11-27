@@ -1,0 +1,124 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg xmlns="http://www.w3.org/2000/svg"
+	 xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	 xmlns:dc="http://purl.org/dc/elements/1.1/"
+	 width="600" height="520" version="1.0">
+
+	<metadata>
+		<rdf:RDF>
+			<rdf:Description about="3D_Spherical.svg">
+				<dc:title>Spherical coordinates</dc:title>
+				<dc:format>image/svg+xml</dc:format>
+			</rdf:Description>
+		</rdf:RDF>
+	</metadata>
+
+	<title>Spherical coordinates</title>
+
+	<defs/>
+
+	<g id="grid" fill="none" stroke="gray" stroke-width="0.5">
+		<path d="m210,45 h330"/>
+		<path d="m210,80 h330"/>
+		<path d="m210,115 h330"/>
+		<path d="m210,150 h330"/>
+		<path d="m210,185 h330"/>
+		<path d="m210,220 h330"/>
+		<path d="m210,255 h330"/>
+		<path d="m210,290 h330"/>
+		<path d="m210,325 h330"/>
+
+		<path d="m245,360 v-325"/>
+		<path d="m280,360 v-325"/>
+		<path d="m315,360 v-325"/>
+		<path d="m350,360 v-325"/>
+		<path d="m385,360 v-325"/>
+		<path d="m420,360 v-325"/>
+		<path d="m455,360 v-325"/>
+		<path d="m490,360 v-325"/>
+		<path d="m525,360 v-325"/>
+
+		<path d="m210,45 l-168,140"/>
+		<path d="m210,80 l-168,140"/>
+		<path d="m210,115 l-168,140"/>
+		<path d="m210,150 l-168,140"/>
+		<path d="m210,185 l-168,140"/>
+		<path d="m210,220 l-168,140"/>
+		<path d="m210,255 l-168,140"/>
+		<path d="m210,290 l-168,140"/>
+		<path d="m210,325 l-168,140"/>
+
+		<path d="m245,360 l-168,140"/>
+		<path d="m280,360 l-168,140"/>
+		<path d="m315,360 l-168,140"/>
+		<path d="m350,360 l-168,140"/>
+		<path d="m385,360 l-168,140"/>
+		<path d="m420,360 l-168,140"/>
+		<path d="m455,360 l-168,140"/>
+		<path d="m490,360 l-168,140"/>
+		<path d="m525,360 l-168,140"/>
+
+		<path d="m186,380 h330"/>
+		<path d="m162,400 h330"/>
+		<path d="m138,420 h330"/>
+		<path d="m114,440 h330"/>
+		<path d="m90,460 h330"/>
+		<path d="m66,480 h330"/>
+		<path d="m42,500 h330"/>
+
+		<path d="m186,380 v-325"/>
+		<path d="m162,400 v-325"/>
+		<path d="m138,420 v-325"/>
+		<path d="m114,440 v-325"/>
+		<path d="m90,460 v-325"/>
+		<path d="m66,480 v-325"/>
+		<path d="m42,500 v-325"/>
+	</g>
+
+	<g id="axis" fill="none" stroke="black" stroke-width="1.5">
+		<path d="m210,360 h330"/>
+		<path d="m210,360 v-325"/>
+		<path d="m210,360 l-168,140"/>
+	</g>
+
+	<g fill="none" stroke="black" stroke-width="1.5" stroke-dasharray="9, 9">
+		<path d="m210,360 L360,90 V480z"/>
+	</g>
+
+	<g fill="none" stroke="black" stroke-width="2">
+		<path d="m355,85 l 10,10"/>
+		<path d="m365,85 l -10,10"/>
+	</g>
+
+<!-- angle -->
+	<g fill="none" stroke="black" stroke-width="1.5">
+		<path d="m210,265 c10,5 30,22 35,32" />
+		<path d="m186,380 c12,6 33,6 49,0" />
+	</g>
+
+<!-- text -->
+	<g font-family="serif" font-style="italic" font-size="48px">
+		<text x="10" y="515">x</text>
+		<text x="545" y="370" font-style="italic">y</text>
+		<text x="200" y="30" font-style="italic">z</text>
+
+		<text x="270" y="200" font-style="italic">r</text>
+		<text x="220" y="270" font-style="italic">θ</text>
+		<text x="195" y="415" font-style="italic">φ</text>
+	</g>
+
+	<g font-family="serif" font-size="48px">
+		<text x="380" y="90">
+			<tspan dx="0">(</tspan>
+			<tspan dx="-10" font-style="italic">r</tspan>
+			<tspan dx="-10">,</tspan>
+			<tspan dx="-5" font-style="italic">θ</tspan>
+			<tspan dx="-10">,</tspan>
+			<tspan dx="-5" font-style="italic">φ</tspan>
+			<tspan dx="-10">)</tspan>
+		</text>
+	</g>
+</svg>

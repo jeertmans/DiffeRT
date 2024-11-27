@@ -167,16 +167,8 @@ def draw_paths(
 
         .. plotly::
 
+            >>> from differt.geometry import rotation_matrix_along_z_axis as rot
             >>> from differt.plotting import draw_paths
-            >>>
-            >>> def rotation(angle: float) -> np.ndarray:
-            ...     co = np.cos(angle)
-            ...     si = np.sin(angle)
-            ...     return np.array([
-            ...         [+co, -si, 0.0],
-            ...         [+si, +co, 0.0],
-            ...         [0.0, 0.0, 1.0],
-            ...     ])
             >>>
             >>> path = np.array(
             ...     [
@@ -187,7 +179,7 @@ def draw_paths(
             ...     ],
             ... )
             >>> paths = np.stack([
-            ...     path @ rotation(angle) + np.array([0.0, 0.0, 0.1 * dz])
+            ...     path @ rot(angle) + np.array([0.0, 0.0, 0.1 * dz])
             ...     for dz, angle in enumerate(np.linspace(0, 2 * np.pi, 10))
             ... ])
             >>> fig = draw_paths(
@@ -212,10 +204,12 @@ def _(
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
     paths = np.asarray(paths)
+    path_length = paths.shape[-2]
+    paths = paths.reshape(-1, 3)
+    connect = np.ones(paths.shape[0], dtype=bool)
+    connect[path_length - 1 :: path_length] = False
 
-    for path in paths.reshape(-1, *paths.shape[-2:]):
-        x, y, z = path.T
-        view.add(LinePlot(data=(x, y, z), **kwargs))
+    view.add(LinePlot(data=paths, connect=connect, **kwargs))  # type: ignore[reportArgumentType]
 
     view.camera.set_range()
 
@@ -230,9 +224,9 @@ def _(
     fig, ax = process_matplotlib_kwargs(kwargs)
 
     paths = np.asarray(paths)
+    xs, ys, zs = paths.reshape(-1, *paths.shape[-2:]).T
 
-    for path in paths.reshape(-1, *paths.shape[-2:]):
-        ax.plot(*path.T, **kwargs)
+    ax.plot(xs=xs, ys=ys, zs=zs, **kwargs)
 
     return fig
 
@@ -245,12 +239,12 @@ def _(
     fig = process_plotly_kwargs(kwargs)
 
     paths = np.asarray(paths)
-
-    for path in paths.reshape(-1, *paths.shape[-2:]):
-        x, y, z = path.T
-        fig = fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
-
-    return fig
+    paths = paths.reshape(-1, *paths.shape[-2:])
+    paths = np.concatenate(
+        (paths, np.full((paths.shape[0], 1, 3), np.nan, dtype=paths.dtype)), axis=-2
+    )
+    x, y, z = paths.reshape(-1, 3).T
+    return fig.add_scatter3d(x=x, y=y, z=z, **kwargs)
 
 
 @dispatch

@@ -78,6 +78,8 @@ mathjax3_config = {
     "tex": {"packages": {"[+]": ["boldsymbol"]}},
 }
 
+numfig = True
+
 # -- Intersphinx mapping
 
 intersphinx_mapping = {

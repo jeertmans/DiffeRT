@@ -6,6 +6,8 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Bool, Float, jaxtyped
 
+from differt.utils import dot
+
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
@@ -68,10 +70,7 @@ def image_of_vertices_with_respect_to_mirrors(
     # [*batch num_mirrors ]
     incident = vertices - mirror_vertices  # incident vectors
     return (
-        vertices
-        - 2.0
-        * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
-        * mirror_normals
+        vertices - 2.0 * dot(incident, mirror_normals, keepdims=True) * mirror_normals
     )
 
 
@@ -108,9 +107,9 @@ def intersection_of_rays_with_planes(
     u = ray_directions
     v = plane_vertices - ray_origins
     # [*batch 1]
-    un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
+    un = dot(u, plane_normals, keepdims=True)
     # [*batch 1]
-    vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
+    vn = dot(v, plane_normals, keepdims=True)
 
     t = vn / jnp.where(vn == 0.0, 1.0, un)
     return ray_origins + ray_directions * jnp.where(u == 0.0, 1.0, t)
@@ -275,14 +274,14 @@ def image_method(
             Float[Array, "*#batch 3"], Float[Array, "*#batch 3"]
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        """Perform forward pass on vertices by computing consecutive images."""
+        """Perform forward pass on vertices by computing consecutive images."""  # noqa: DOC201
         mirror_vertices, mirror_normals = mirror_vertices_and_normals
         images = image_of_vertices_with_respect_to_mirrors(
             previous_images,
             mirror_vertices,
             mirror_normals,
         )
-        return images, images  # noqa: DOC201
+        return images, images
 
     @jaxtyped(typechecker=typechecker)
     def backward(
@@ -293,7 +292,7 @@ def image_method(
             Float[Array, "*#batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        """Perform backward pass on images by computing the intersection with mirrors."""
+        """Perform backward pass on images by computing the intersection with mirrors."""  # noqa: DOC201
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
         intersections = intersection_of_rays_with_planes(
@@ -302,7 +301,7 @@ def image_method(
             mirror_vertices,
             mirror_normals,
         )
-        return intersections, intersections  # noqa: DOC201
+        return intersections, intersections
 
     _, images = jax.lax.scan(
         forward,
@@ -356,7 +355,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     d_next = vertices[..., +2:, :] - mirror_vertices
 
     # [*batch num_mirrors]
-    dot_prev = jnp.sum(d_prev * mirror_normals, axis=-1)
-    dot_next = jnp.sum(d_next * mirror_normals, axis=-1)
+    dot_prev = dot(d_prev, mirror_normals)
+    dot_next = dot(d_next, mirror_normals)
 
     return jnp.sign(dot_prev) == jnp.sign(dot_next)
