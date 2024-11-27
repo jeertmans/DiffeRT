@@ -1,4 +1,4 @@
-"""
+r"""
 Electromagnetic fields utilities.
 
 .. plot::
@@ -34,12 +34,25 @@ Electromagnetic fields utilities.
    ...     rx_positions,
    ...     ground_vertex[None, ...], ground_normal[None, ...],
    ... )
-   >>> e_at_rp, b_at_rp = ant.fields(reflection_points - tx_position)
+   >>> e_at_rp, b_at_rp = ant.fields(reflection_points - tx_position).squeeze()
    >>> incident_vectors = normalize(reflection_points - tx_position)[0]
    >>> cos_theta = jnp.sum(ground_normal * -incident_vectors, axis=-1)
    >>> epsilon_r = 1.0
    >>> r_s, r_p = reflection_coefficients(epsilon_r, cos_theta)
-   >>> # theta_d = jnp.rad2deg(theta)
+   >>> e_refl = r_s[:, None] * cos_theta[:, None] * e_at_rp
+   >>> r_s.shape, cos_theta.shape, e_at_rp.shape, e_refl.shape
+   >>> b_refl = r_s[:, None] * cos_theta[:, None] * b_at_rp
+   >>> s = jnp.linalg.norm(reflection_points - rx_positions, axis=-1, keepdims=True)
+   >>> spreading_factor = 1 / s
+   >>> phase_shift = jnp.exp(1j * s * ant.wavenumber)
+   >>> e_refl *= spreading_factor * phase_shift
+   >>> b_refl *= spreading_factor * phase_shift
+   >>> p_refl = jnp.linalg.norm(pointing_vector(e_refl, b_refl), axis=-1)
+   >>> plt.plot(
+   ...     x,
+   ...     20 * jnp.log10(p_refl / ant.average_power),
+   ...     label=r"$P_\text{reflection}$",
+   ... )  # doctest: +SKIP
    >>> plt.xlabel("Distance to transmitter on x-axis")  # doctest: +SKIP
    >>> plt.ylabel("Loss (dB)")  # doctest: +SKIP
    >>> plt.legend()  # doctest: +SKIP

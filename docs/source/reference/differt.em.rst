@@ -5,7 +5,6 @@
 
 .. automodule:: differt.em
 
-
 .. rubric:: Constants
 
 Electrical constants (re-exported to this module).
