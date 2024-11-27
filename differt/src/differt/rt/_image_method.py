@@ -1,5 +1,7 @@
 # ruff: noqa: ERA001
 
+from functools import partial
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -9,7 +11,7 @@ from jaxtyping import Array, Bool, Float, jaxtyped
 from differt.utils import dot
 
 
-@jax.jit
+@partial(jax.jit, inline=True)
 @jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*#batch 3"],
@@ -74,7 +76,7 @@ def image_of_vertices_with_respect_to_mirrors(
     )
 
 
-@jax.jit
+@partial(jax.jit, inline=True)
 @jaxtyped(typechecker=typechecker)
 def intersection_of_rays_with_planes(
     ray_origins: Float[Array, "*#batch 3"],
@@ -346,7 +348,9 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         A boolean array indicating whether pairs of consecutive vertices
         are on the same side of the corresponding mirror.
     """
-    chex.assert_axis_dimension(vertices, -2, mirror_vertices.shape[-2] + 2)
+    chex.assert_axis_dimension(
+        vertices, -2, mirror_vertices.shape[-2] + 2, exception_type=TypeError
+    )
 
     # dot_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
 

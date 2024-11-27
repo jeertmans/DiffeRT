@@ -1,6 +1,6 @@
+from functools import partial
 from typing import Literal, overload
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
@@ -52,7 +52,7 @@ def normalize(
 ): ...
 
 
-@eqx.filter_jit
+@partial(jax.jit, static_argnames=("keepdims",), inline=True)
 @jaxtyped(typechecker=typechecker)
 def normalize(
     vector: Float[Array, "*batch 3"],
@@ -97,7 +97,7 @@ def normalize(
     return vector / length, (length if keepdims else jnp.squeeze(length, axis=-1))
 
 
-@eqx.filter_jit
+@partial(jax.jit, static_argnames=("normalize",), inline=True)
 @jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
     u: Float[Array, "*batch 3"],
@@ -146,7 +146,7 @@ def orthogonal_basis(
     return v, w
 
 
-@jax.jit
+@partial(jax.jit, inline=True)
 @jaxtyped(typechecker=typechecker)
 def path_lengths(
     paths: Float[Array, "*batch path_length 3"],
@@ -440,7 +440,6 @@ def fibonacci_lattice(
     return spherical_to_cartesian(pa).astype(dtype)
 
 
-@jax.jit
 @jaxtyped(typechecker=typechecker)
 def assemble_paths(
     *path_segments: Float[Array, "*#batch _num_vertices 3"],
@@ -547,7 +546,7 @@ def viewing_frustum(
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
 
 
-@eqx.filter_jit
+@partial(jax.jit, static_argnames=("reduce",))
 @jaxtyped(typechecker=typechecker)
 def viewing_frustum(
     viewing_vertex: Float[Array, "*#batch 3"],
