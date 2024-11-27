@@ -2,6 +2,7 @@
 
 import sys
 from collections.abc import Callable, Iterator, Sized
+from functools import cache
 from typing import Any, Generic, TypeVar
 
 import equinox as eqx
@@ -24,7 +25,7 @@ _T = TypeVar("_T")
 
 @typechecker
 class SizedIterator(Iterator, Sized, Generic[_T]):
-    """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
+    """A custom generic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
     The main purpose of this class is to be able to use
     `tqdm <https://github.com/tqdm/tqdm>`_ utilities
@@ -67,6 +68,7 @@ class SizedIterator(Iterator, Sized, Generic[_T]):
 
 
 @jaxtyped(typechecker=typechecker)
+@cache
 def generate_all_path_candidates(
     num_primitives: int,
     order: int,
