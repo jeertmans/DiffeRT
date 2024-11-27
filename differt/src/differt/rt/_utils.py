@@ -25,7 +25,7 @@ _T = TypeVar("_T")
 
 @typechecker
 class SizedIterator(Iterator, Sized, Generic[_T]):
-    """A custom generatic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
+    """A custom generic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
     The main purpose of this class is to be able to use
     `tqdm <https://github.com/tqdm/tqdm>`_ utilities
