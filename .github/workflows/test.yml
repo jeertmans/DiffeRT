@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.9', '3.10', '3.11', '3.12']
+        pyversion: ['3.10', '3.11', '3.12']
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
@@ -27,9 +27,6 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         enable-cache: true
-
-    - name: Setup Python ${{ matrix.pyversion }}
-      run: uv python install ${{ matrix.pyversion }}
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -46,11 +43,8 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Install dependencies
-      run: uv sync --locked --no-dev --extra tests
-
     - name: Run tests
-      run: uv run pytest
+      run: uv run --python ${{ matrix.pyversion }} --frozen --no-dev --extra tests pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v4

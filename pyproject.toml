@@ -152,6 +152,7 @@ filterwarnings = [
   "error",
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
+  'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
 ]
 log_level = "INFO"
 markers = [

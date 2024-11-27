@@ -14,7 +14,7 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
-if sys.version_info >= (3, 11):  # pragma: no cover
+if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self

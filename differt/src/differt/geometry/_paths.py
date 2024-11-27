@@ -12,7 +12,7 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped, jaxtyped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
-if sys.version_info >= (3, 11):  # pragma: no cover
+if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
@@ -22,7 +22,7 @@ else:
 @jaxtyped(typechecker=typechecker)
 def _cell_ids(
     array: Shaped[Array, "batch n"],
-) -> Int[Array, " batch"]:  # pragram: no cover
+) -> Int[Array, " batch"]:
     @jaxtyped(typechecker=typechecker)
     def scan_fun(
         indices: Int[Array, " batch"],

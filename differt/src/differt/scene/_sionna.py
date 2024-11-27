@@ -1,5 +1,7 @@
+import sys
 import tarfile
 import tempfile
+import warnings
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -25,6 +27,12 @@ def download_sionna_scenes(
 
     If cached is :data:`False` and folder exists, then it will
     raise an error if not empty: please clear it first!
+
+    Warning:
+        Older Python versions (i.e., <3.12, <3.11.4, and <3.10.12) do not
+        provide the ``filter`` parameter in :meth:`tarfile.TarFile.extractall`,
+        which can be considered a security risk. This function will raise a
+        warning if the current Python version is one of these versions.
 
     Args:
         branch_or_tag: The branch or tag version of the Sionna repository.
@@ -83,7 +91,21 @@ def download_sionna_scenes(
             f.flush()
 
             with tarfile.open(f.name) as tar:
-                tar.extractall(path=folder, members=members(tar), filter="data")
+                # tarfile added 'filter' parameter for security reasons.
+                if (
+                    sys.version_info >= (3, 12)
+                    or (sys.version_info.minor == 11 and sys.version_info.micro >= 4)  # noqa: PLR2004
+                    or (sys.version_info.minor == 10 and sys.version_info.micro >= 12)  # noqa: PLR2004
+                ):
+                    tar.extractall(path=folder, members=members(tar), filter="data")
+                else:  # pragma: no cover
+                    msg = (
+                        "You are using an old version of Python that doesn't include the 'filter' "
+                        "parameter in 'tarfile.TarFile.extractall'. This is can be security issue, and we "
+                        "recommend upgrading to a newer version of Python: 3.12, 3.11.4, or 3.10.12."
+                    )
+                    warnings.warn(msg, UserWarning, stacklevel=2)
+                    tar.extractall(path=folder, members=members(tar))  # noqa: S202
 
 
 def list_sionna_scenes(*, folder: str | Path = SIONNA_SCENES_FOLDER) -> list[str]:
