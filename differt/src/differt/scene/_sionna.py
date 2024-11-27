@@ -30,7 +30,7 @@ def download_sionna_scenes(
 
     Warning:
         Older Python versions (i.e., <3.12, <3.11.4, and <3.10.12) do not
-        provide the 'filter' parameter in :func:`tarfile.TarFile.extractall`,
+        provide the ``filter`` parameter in :meth:`tarfile.TarFile.extractall`,
         which can be considered a security risk. This function will raise a
         warning if the current Python version is one of these versions.
 
