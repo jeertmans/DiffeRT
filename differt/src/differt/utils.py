@@ -1,8 +1,7 @@
 """General purpose utilities."""
 
-import sys
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, overload
+from typing import Any, Concatenate, ParamSpec, overload
 
 import chex
 import equinox as eqx
@@ -11,12 +10,6 @@ import jax.numpy as jnp
 import optax
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
-
-# Concatenate only supports '...' as of Python 3.11
-if sys.version_info >= (3, 11):
-    from typing import Concatenate
-else:
-    from typing_extensions import Concatenate  # noqa: UP035
 
 
 @eqx.filter_jit
@@ -139,12 +132,14 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
 # Redefined here, because chex uses deprecated type hints
 # TODO: fixme when google/chex#361 is resolved.
 _OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+# TODO: fixme when Python >= 3.11
+_P = ParamSpec("_P")
 
 
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def minimize(
-    fun: Callable[Concatenate[Num[Array, " n"], ...], Num[Array, " "]],
+    fun: Callable[Concatenate[Num[Array, " n"], _P], Num[Array, " "]],
     x0: Num[Array, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
