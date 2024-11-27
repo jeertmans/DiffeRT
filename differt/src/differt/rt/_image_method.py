@@ -322,6 +322,7 @@ def image_method(
     return jnp.moveaxis(paths, 0, -2)  # Put 'num_mirrors' axis at the end
 
 
+@jax.jit
 @jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "*#batch num_vertices 3"],

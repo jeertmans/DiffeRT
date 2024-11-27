@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Literal, overload
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
