@@ -104,7 +104,7 @@ def download_sionna_scenes(
                         "parameter in 'tarfile.TarFile.extractall'. This is can be security issue, and we "
                         "recommend upgrading to a newer version of Python: 3.12, 3.11.4, or 3.10.12."
                     )
-                    warnings.warn(UserWarning, msg, stacklevel=2)
+                    warnings.warn(msg, UserWarning, stacklevel=2)
                     tar.extractall(path=folder, members=members(tar))  # noqa: S202
 
 
