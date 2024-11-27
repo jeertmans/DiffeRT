@@ -98,7 +98,7 @@ def download_sionna_scenes(
                     or (sys.version_info.minor == 10 and sys.version_info.micro >= 12)  # noqa: PLR2004
                 ):
                     tar.extractall(path=folder, members=members(tar), filter="data")
-                else:  # pragram: no cover
+                else:  # pragma: no cover
                     msg = (
                         "You are using an old version of Python that doesn't include the 'filter' "
                         "parameter in 'tarfile.TarFile.extractall'. This is can be security issue, and we "
