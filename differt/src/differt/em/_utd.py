@@ -9,7 +9,7 @@ from jaxtyping import Array, Complex, Float, jaxtyped
 @jaxtyped(typechecker=typechecker)
 def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
     r"""
-    Evaluate the transition function :cite:`utd-mcnamara{p. 184}` at the given points.
+    Evaluate the transition function :cite:`utd-mcnamara{eq. 4.72, p. 184}` at the given points.
 
     The transition function is defined as follows:
 
@@ -41,7 +41,7 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
         .. plot::
 
             The following example reproduces the same plot as in
-            :cite:`utd-mcnamara{fig. 4.16}`.
+            :cite:`utd-mcnamara{fig. 4.16, p. 185}`.
 
             >>> from differt.em import F
             >>>
@@ -83,7 +83,7 @@ def diffraction_coefficients(
     Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
 
     The implementation closely follows what is described
-    in :cite:`utd-mcnamara{p. 268}`.
+    in :cite:`utd-mcnamara{p. 268-273}`.
 
     Args:
         sin_beta_0: ...

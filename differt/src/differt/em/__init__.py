@@ -54,7 +54,7 @@ Electromagnetic (EM) fields utilities.
    >>> p_los = jnp.linalg.norm(pointing_vector(e_los, b_los), axis=-1)
    >>> plt.plot(
    ...     x,
-   ...     20 * jnp.log10(p_los / ant.average_power),
+   ...     10 * jnp.log10(p_los / ant.average_power),
    ...     label=r"$P_\text{los}$",
    ... )  # doctest: +SKIP
 
@@ -89,12 +89,12 @@ Electromagnetic (EM) fields utilities.
       As a result, we need to first determine those local directions, and
       apply the corresponding reflection coefficients to the projection
       of the fields onto those directions
-      :cite:`utd-mcnamara{eq. 3.3-3.8, p.70}` and :cite:`utd-mcnamara{eq. 3.39, p.77}`.
+      :cite:`utd-mcnamara{eq. 3.3-3.8 and 3.39, p. 70 and 77}`.
 
       After reflection, the s direction stays the same, and the p direction is reversed.
 
    Finally, we apply the spreading factor and phase shift due to the propagation
-   from the reflection points to the receiver :cite:`utd-mcnamara{eq. 3.1, p.63}`.
+   from the reflection points to the receiver :cite:`utd-mcnamara{eq. 3.1, p. 63}`.
 
    >>> reflected_vectors, s_r = normalize(
    ...     reflection_points - rx_positions, keepdims=True
@@ -108,20 +108,19 @@ Electromagnetic (EM) fields utilities.
    >>> p_refl = jnp.linalg.norm(pointing_vector(e_refl, b_refl), axis=-1)
    >>> plt.semilogx(
    ...     x,
-   ...     20 * jnp.log10(p_refl / ant.average_power),
+   ...     10 * jnp.log10(p_refl / ant.average_power),
    ...     "--",
    ...     label=r"$P_\text{reflection}$",
    ... )  # doctest: +SKIP
 
    We also plot the total field, to better observe the interference pattern.
 
-   >>> # Total
    >>> e_tot = e_los + e_refl
    >>> b_tot = b_los + b_refl
    >>> p_tot = jnp.linalg.norm(pointing_vector(e_tot, b_tot), axis=-1)
    >>> plt.semilogx(
    ...     x,
-   ...     20 * jnp.log10(p_tot / ant.average_power),
+   ...     10 * jnp.log10(p_tot / ant.average_power),
    ...     "-.",
    ...     label=r"$P_\text{total}$",
    ... )  # doctest: +SKIP

@@ -26,7 +26,7 @@ Electrical constants (re-exported to this module).
 Fresnel and diffraction coefficients, as described by the Geometrical Optics (GO)
 and the Uniform Theory of Diffraction (UTD).
 
-As detailed in :cite:`utd-mcnamara{eq. 3.199}`, the GO reflected field
+As detailed in :cite:`utd-mcnamara{eq. 3.199, p. 131}`, the GO reflected field
 from a smooth conducting surface can be expressed as:
 
 .. math::
