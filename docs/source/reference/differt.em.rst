@@ -75,3 +75,4 @@ Utility functions, mostly used internally for computing EM fields.
    lengths_to_delays
    path_delays
    pointing_vector
+   sp_directions

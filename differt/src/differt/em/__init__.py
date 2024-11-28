@@ -16,6 +16,7 @@ __all__ = (
     "reflection_coefficients",
     "refraction_coefficients",
     "refractive_indices",
+    "sp_directions",
     "z_0",
 )
 
@@ -27,5 +28,5 @@ from ._fresnel import (
     refractive_indices,
 )
 from ._utd import F, diffraction_coefficients
-from ._utils import lengths_to_delays, path_delays
+from ._utils import lengths_to_delays, path_delays, sp_directions
 from .constants import c, epsilon_0, mu_0, z_0

@@ -389,6 +389,7 @@ def reflection_coefficients(
         >>> print(f"Corresponding distance: {distance:.1f} m")
         Corresponding distance: 6.0 m
     """
+    # TODO: check in the above example the s-p polarization directions are correct
     return fresnel_coefficients(n_r, cos_theta_i)[0]
 
 
