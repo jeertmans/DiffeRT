@@ -29,7 +29,7 @@ impl TriangleScene {
     #[classmethod]
     fn load_xml(cls: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         // TODO: create a Rust variant without PyType?
-        let sionna_scene_py_type = PyType::new_bound::<SionnaScene>(cls.py());
+        let sionna_scene_py_type = PyType::new::<SionnaScene>(cls.py());
         let sionna = SionnaScene::load_xml(&sionna_scene_py_type, file)?;
 
         let path = PathBuf::from(file);
@@ -42,7 +42,7 @@ impl TriangleScene {
 
         let mut mesh = TriangleMesh::default();
 
-        let triangle_mesh_py_type = PyType::new_bound::<TriangleMesh>(cls.py());
+        let triangle_mesh_py_type = PyType::new::<TriangleMesh>(cls.py());
 
         for (_, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);

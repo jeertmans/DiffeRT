@@ -236,7 +236,7 @@ def rays_intersect_triangles(
             ...     jnp.asarray(ray_origins[rays_hit, :]),
             ...     jnp.asarray(ray_directions[rays_hit, :]),
             ...     backend="plotly",
-            ...     line={"color": "red"},
+            ...     color="red",
             ...     showlegend=False,
             ... )
             >>> visible_color = jnp.array([0.2, 0.2, 0.2])

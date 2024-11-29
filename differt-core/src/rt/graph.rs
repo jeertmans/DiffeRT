@@ -225,7 +225,7 @@ pub mod complete {
         ) -> Bound<'py, PyArray2<NodeId>> {
             AllPathsFromCompleteGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
                 .collect_array()
-                .into_pyarray_bound(py)
+                .into_pyarray(py)
         }
 
         /// Return an iterator over all paths of length ``depth``
@@ -497,7 +497,7 @@ pub mod complete {
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray1<NodeId>>> {
-            slf.next().map(|path| PyArray1::from_vec_bound(py, path))
+            slf.next().map(|path| PyArray1::from_vec(py, path))
         }
 
         fn __len__(&self) -> usize {
@@ -557,7 +557,7 @@ pub mod complete {
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray2<NodeId>>> {
-            slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
+            slf.iter.next().map(|paths| paths.into_pyarray(py))
         }
 
         fn __len__(&self) -> usize {
@@ -889,7 +889,7 @@ pub mod directed {
         ) -> Bound<'py, PyArray2<NodeId>> {
             AllPathsFromDiGraphIter::new(self.clone(), from_, to, depth, include_from_and_to)
                 .collect_array()
-                .into_pyarray_bound(py)
+                .into_pyarray(py)
         }
 
         /// Return an iterator over all paths of length ``depth``
@@ -1057,7 +1057,7 @@ pub mod directed {
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray1<NodeId>>> {
-            slf.next().map(|path| PyArray1::from_vec_bound(py, path))
+            slf.next().map(|path| PyArray1::from_vec(py, path))
         }
 
         /// Count the number of elements in this iterator by consuming it.
@@ -1101,7 +1101,7 @@ pub mod directed {
             mut slf: PyRefMut<'py, Self>,
             py: Python<'py>,
         ) -> Option<Bound<'py, PyArray2<NodeId>>> {
-            slf.iter.next().map(|paths| paths.into_pyarray_bound(py))
+            slf.iter.next().map(|paths| paths.into_pyarray(py))
         }
 
         /// Count the number of elements in this iterator by consuming it.
