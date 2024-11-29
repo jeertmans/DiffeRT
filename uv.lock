@@ -834,7 +834,7 @@ wheels = [
 
 [[package]]
 name = "differt"
-version = "0.0.26"
+version = "0.0.27"
 source = { editable = "differt" }
 dependencies = [
     { name = "beartype" },
@@ -915,7 +915,7 @@ requires-dist = [
 
 [[package]]
 name = "differt-core"
-version = "0.0.26"
+version = "0.0.27"
 source = { editable = "differt-core" }
 dependencies = [
     { name = "numpy" },
