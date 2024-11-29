@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from jaxtyping import ArrayLike, Int, Real
+from jaxtyping import ArrayLike, Float, Int, Real
 
 from ._utils import (
     dispatch,
@@ -251,6 +251,8 @@ def _(
 def draw_rays(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
+    *,
+    ratio: Float[ArrayLike, " "] = 0.1,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -260,14 +262,59 @@ def draw_rays(
         ray_origins: An array of origin vertices.
         ray_directions: An array of ray directions. The ray ends
             should be equal to ``ray_origins + ray_directions``.
+        ratio: The ratio of the arrow head size with respect to the
+            corresponding ray length.
         kwargs: Keyword arguments passed to
-            :class:`LinePlot<vispy.scene.visuals.Arrow>`,
-            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
-            or :func:`draw_paths` (because VisPy and Plotly don't have a nice quiver plot),
+            :class:`Arrow<vispy.scene.visuals.Arrow>`,
+            :meth:`quiver<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
+            or a mix of :class:`Scatter3d<plotly.graph_objects.Scatter3d>`
+            and :class:`Cone<plotly.graph_objects.Cone>` [#f1]_ ,
             depending on the backend.
 
     Returns:
         The resulting plot output.
+
+    .. [#f1] Plotly's 3D quiver plot is just a cone, which does not look like an
+        arrow. To improve it, a line is prepended the cone.
+
+    .. raw:: html
+
+        <details>
+        <summary><a>Specific keyword rules for Plotly's backend</a></summary>
+
+    The following keyword arguments have a special meaning:
+
+    - ``color``: the color of the rays;
+    - ``name``: the name of the rays;
+
+    The following keyword arguments are passed to the line plot:
+
+    - ``legendgroup=name``;
+    - ``line_color=color``;
+    - ``mode="lines"``;
+    - ``showlegend=False``.
+
+    The following keyword arguments are passed to the cone plot (i.e., arrow head):
+
+    - ``colorscale=[color, color]``;
+    - ``hoverinfo="name"``;
+    - ``legendgroup=name``;
+    - ``name=name``;
+    - ``showscale=False``;
+    - ``showlegend=True``;
+    - ``sizemode="raw"``.
+
+    If you wish to override any of the above arguments, or add any additional,
+    you can use the following keyword arguments:
+
+    - ``cone_kwargs``: a mapping of keyword arguments passed to :class:`Cone<plotly.graph_objects.Cone>`;
+    - ``line_kwargs``: a mapping of keyword arguments passed to :class:`Scatter3d<plotly.graph_objects.Scatter3d>`;
+
+    Other keyword arguments are passed to both constructors.
+
+    .. raw:: html
+
+        </details>
 
     Examples:
         The following example shows how to plot rays.
@@ -295,23 +342,48 @@ def draw_rays(
 def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
+    *,
+    ratio: Float[ArrayLike, " "] = 0.1,
     **kwargs: Any,
 ) -> Canvas:
-    ray_origins = np.asarray(ray_origins)
-    ray_directions = np.asarray(ray_directions)
-    ray_ends = ray_origins + ray_directions
-    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+    from vispy.scene.visuals import Arrow  # noqa: PLC0415
 
-    return draw_paths(paths, backend="vispy", **kwargs)  # type: ignore[reportReturnType]
+    canvas, view = process_vispy_kwargs(kwargs)
+
+    kwargs.setdefault("width", 3.0)
+    kwargs.setdefault("arrow_size", 6.0)
+
+    ray_origins = np.asarray(ray_origins).reshape(-1, 3)
+    ray_directions = np.asarray(ray_directions).reshape(-1, 3)
+    ratio = np.asarray(ratio)
+    body_ends = ray_origins + (1 - ratio) * ray_directions
+
+    pos = np.concatenate((ray_origins, body_ends), axis=-1).reshape(-1, 3)
+    connect = np.ones(pos.shape[0], dtype=bool)
+    connect[1::2] = False
+
+    arrows_dir = ratio * ray_directions
+    arrows_center = body_ends + 0.5 * arrows_dir
+    arrows = np.concatenate((body_ends, arrows_center), axis=-1)
+
+    view.add(Arrow(pos=pos, connect=connect, arrows=arrows, **kwargs))  # type: ignore[reportArgumentType]
+
+    view.camera.set_range()
+
+    return canvas
 
 
 @draw_rays.register("matplotlib")
 def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
+    *,
+    ratio: Float[ArrayLike, " "] = 0.1,
     **kwargs: Any,
 ) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
+
+    kwargs.setdefault("arrow_length_ratio", float(ratio))  # type: ignore[reportCallIssue]
 
     ray_origins = np.asarray(ray_origins).reshape(-1, 3)
     ray_directions = np.asarray(ray_directions).reshape(-1, 3)
@@ -324,15 +396,58 @@ def _(
 @draw_rays.register("plotly")
 def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
-    ray_directions: Real[ArrayLike, "*batch 3"],
+    ray_directions: Float[ArrayLike, "*batch 3"],
+    *,
+    ratio: Float[ArrayLike, " "] = 0.1,
     **kwargs: Any,
 ) -> Figure:
     ray_origins = np.asarray(ray_origins)
     ray_directions = np.asarray(ray_directions)
-    ray_ends = ray_origins + ray_directions
-    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
+    ratio = np.asarray(ratio)
 
-    return draw_paths(paths, backend="plotly", **kwargs)  # type: ignore[reportReturnType]
+    color = kwargs.pop("color", None)
+    name = kwargs.pop("name", None)
+    line_kwargs = kwargs.pop("line_kwargs", {})
+    cone_kwargs = kwargs.pop("cone_kwargs", {})
+    line_kwargs = {**kwargs, **line_kwargs}
+    cone_kwargs = {**kwargs, **cone_kwargs}
+
+    line_kwargs.setdefault("legendgroup", name)
+    if color:  # pragma: no cover
+        line_kwargs.setdefault("line_color", color)
+    line_kwargs.setdefault("mode", "lines")
+    line_kwargs.setdefault("showlegend", False)
+
+    line_ends = ray_origins + (1 - ratio) * ray_directions
+    line_paths = np.concatenate(
+        (ray_origins[..., None, :], line_ends[..., None, :]), axis=-2
+    )
+
+    fig = draw_paths(line_paths, backend="plotly", **line_kwargs)
+
+    if color is None:  # pragma: no cover
+        color = fig.layout.template.layout.colorway[0]
+        fig.data[-1].line.color = color
+    cone_kwargs.setdefault("colorscale", [color, color])
+    cone_kwargs.setdefault("hoverinfo", "name")
+    cone_kwargs.setdefault("legendgroup", name)
+    cone_kwargs.setdefault("name", name)
+    cone_kwargs.setdefault("showscale", False)
+    cone_kwargs.setdefault("showlegend", True)
+    cone_kwargs.setdefault("sizemode", "raw")
+
+    cone_origins = line_ends.reshape(-1, 3)
+    cone_directions = (ratio * ray_directions).reshape(-1, 3)
+
+    return fig.add_cone(
+        x=cone_origins[:, 0],
+        y=cone_origins[:, 1],
+        z=cone_origins[:, 2],
+        u=cone_directions[:, 0],
+        v=cone_directions[:, 1],
+        w=cone_directions[:, 2],
+        **cone_kwargs,
+    )
 
 
 @dispatch

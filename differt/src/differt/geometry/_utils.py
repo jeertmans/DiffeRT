@@ -601,7 +601,7 @@ def viewing_frustum(
             ...         color = r, g, b = jax.random.randint(key_color, (3,), 0, 256)
             ...         center = mesh.bounding_box.mean(axis=0)
             ...         mesh = mesh.translate(5 * (center - tx)).set_face_colors(color)
-            ...         mesh.plot()
+            ...         mesh.plot(opacity=0.5)
             ...
             ...         frustum = viewing_frustum(
             ...             tx, mesh.triangle_vertices.reshape(-1, 3)
@@ -614,8 +614,7 @@ def viewing_frustum(
             ...         draw_rays(
             ...             ray_origins,
             ...             ray_directions,
-            ...             line={"color": f"rgb({float(r)},{float(g)},{float(b)})"},
-            ...             mode="lines",
+            ...             color=f"rgb({r:f},{g:f},{b:f})",
             ...             showlegend=False,
             ...         )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
@@ -638,7 +637,7 @@ def viewing_frustum(
             ...     ):
             ...         center = mesh.bounding_box.mean(axis=0)
             ...         mesh = mesh.translate(5 * (center - tx))
-            ...         mesh.plot()
+            ...         mesh.plot(opacity=0.5)
             ...
             ...         world_vertices = jnp.concatenate(
             ...             (world_vertices, mesh.triangle_vertices.reshape(-1, 3)),
@@ -654,8 +653,7 @@ def viewing_frustum(
             ...     draw_rays(
             ...         ray_origins,
             ...         ray_directions,
-            ...         line={"color": "red"},
-            ...         mode="lines",
+            ...         color="red",
             ...         showlegend=False,
             ...     )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
@@ -675,7 +673,7 @@ def viewing_frustum(
             ...     mesh = TriangleMesh.box(
             ...         width=10.0, length=20.0, height=3.0, with_top=True
             ...     ).set_face_colors(jnp.array([1.0, 0.0, 0.0]))
-            ...     mesh.plot()
+            ...     mesh.plot(opacity=0.5)
             ...
             ...     frustum = viewing_frustum(tx, mesh.triangle_vertices.reshape(-1, 3))
             ...     ray_origins, ray_directions = jnp.broadcast_arrays(
@@ -686,8 +684,7 @@ def viewing_frustum(
             ...     draw_rays(
             ...         ray_origins,
             ...         ray_directions,
-            ...         line={"color": "red"},
-            ...         mode="lines",
+            ...         color="red",
             ...         showlegend=False,
             ...     )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
