@@ -383,7 +383,7 @@ def _(
 ) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    kwargs.setdefault("arrow_head_ratio", float(ratio))  # type: ignore[reportCallIssue]
+    kwargs.setdefault("arrow_length_ratio", float(ratio))  # type: ignore[reportCallIssue]
 
     ray_origins = np.asarray(ray_origins).reshape(-1, 3)
     ray_directions = np.asarray(ray_directions).reshape(-1, 3)
