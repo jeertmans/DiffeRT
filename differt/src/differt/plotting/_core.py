@@ -382,6 +382,10 @@ def _(
     color = kwargs.pop("color", None)
     name = kwargs.pop("name", None)
     line_kwargs = kwargs.pop("line_kwargs", {})
+    cone_kwargs = kwargs.pop("cone_kwargs", {})
+    line_kwargs = {**kwargs, **line_kwargs}
+    cone_kwargs = {**kwargs, **cone_kwargs}
+
     line_kwargs.setdefault("legendgroup", name)
     if color:  # pragma: no cover
         line_kwargs.setdefault("line_color", color)
@@ -393,9 +397,8 @@ def _(
         (ray_origins[..., None, :], line_ends[..., None, :]), axis=-2
     )
 
-    fig = draw_paths(line_paths, backend="plotly", **line_kwargs, **kwargs)
+    fig = draw_paths(line_paths, backend="plotly", **line_kwargs)
 
-    cone_kwargs = kwargs.pop("line_kwargs", {})
     if color is None:  # pragma: no cover
         color = fig.layout.template.layout.colorway[0]
         fig.data[-1].line.color = color
@@ -418,7 +421,6 @@ def _(
         v=cone_directions[:, 1],
         w=cone_directions[:, 2],
         **cone_kwargs,
-        **kwargs,
     )
 
 
