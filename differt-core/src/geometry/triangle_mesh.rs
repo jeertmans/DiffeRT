@@ -127,14 +127,14 @@ impl TriangleMesh {
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
         let array = arr2(&self.vertices);
-        PyArray2::from_owned_array_bound(py, array)
+        PyArray2::from_owned_array(py, array)
     }
 
     /// :class:`Int[np.ndarray, 'num_triangles 3']<jaxtyping.Int>`: The array of triangle indices.
     #[getter]
     fn triangles<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<usize>> {
         let array = arr2(&self.triangles);
-        PyArray2::from_owned_array_bound(py, array)
+        PyArray2::from_owned_array(py, array)
     }
 
     /// :class:`Float[np.ndarray, 'num_vertices 3']<jaxtyping.Float>` | :data:`None`: The array of face colors.
@@ -146,7 +146,7 @@ impl TriangleMesh {
     fn face_colors<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<f32>>> {
         if let Some(face_colors) = &self.face_colors {
             let array = arr2(face_colors);
-            return Some(PyArray2::from_owned_array_bound(py, array));
+            return Some(PyArray2::from_owned_array(py, array));
         }
         None
     }
@@ -160,7 +160,7 @@ impl TriangleMesh {
     #[getter]
     fn face_materials<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<isize>>> {
         if let Some(face_materials) = &self.face_materials {
-            return Some(PyArray1::from_slice_bound(py, face_materials.as_slice()));
+            return Some(PyArray1::from_slice(py, face_materials.as_slice()));
         }
         None
     }
@@ -174,7 +174,7 @@ impl TriangleMesh {
     fn object_bounds<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<usize>>> {
         if let Some(object_bounds) = &self.object_bounds {
             let array = arr2(object_bounds);
-            return Some(PyArray2::from_owned_array_bound(py, array));
+            return Some(PyArray2::from_owned_array(py, array));
         }
         None
     }
