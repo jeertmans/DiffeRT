@@ -261,13 +261,61 @@ def draw_rays(
         ray_directions: An array of ray directions. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         kwargs: Keyword arguments passed to
-            :class:`LinePlot<vispy.scene.visuals.Arrow>`,
-            :meth:`plot<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
-            or :func:`draw_paths` (because VisPy and Plotly don't have a nice quiver plot),
+            :func:`draw_paths` [#f1]_ ,
+            :meth:`quiver<mpl_toolkits.mplot3d.axes3d.Axes3D.quiver>`,
+            or a mix of :class:`Scatter3d<plotly.graph_objects.Scatter3d>`
+            and :class:`Cone<plotly.graph_objects.Cone>` [#f2]_ ,
             depending on the backend.
 
     Returns:
         The resulting plot output.
+
+    .. [#f1] VisPy doesn't have a nice quiver plot.
+    .. [#f2] Plotly's 3D quiver plot is just a cone, which does not look like an
+        arrow. To improve it, a line is added prepended the cone, and the ``ratio = 0.9``
+        keyword argument determines the size of each line
+        relative to the total length of the corresponding ray. The size of each
+        cone is then set to the ``1 - ratio`` of the total length.
+
+    .. raw:: html
+
+        <details>
+        <summary><a>Specific keyword rules for Plotly's backend</a></summary>
+
+    The following keyword arguments have a special meaning:
+
+    - ``ratio`` (default: ``0.9``): a ratio (cast to :class:`float`) of line-length to ray-length;
+    - ``color``: the color of the rays;
+    - ``name``: the name of the rays;
+
+    The following keyword arguments are passed to the line plot:
+
+    - ``legendgroup=name``;
+    - ``line_color=color``;
+    - ``mode="lines"``;
+    - ``showlegend=False``.
+
+    The following keyword arguments are passed to the cone plot (i.e., arrow tip):
+
+    - ``colorscale=[color, color]``;
+    - ``hoverinfo="name"``;
+    - ``legendgroup=name``;
+    - ``name=name``;
+    - ``showscale=False``;
+    - ``showlegend=True``;
+    - ``sizemode="raw"``.
+
+    If you wish to override any of the above arguments, or add any additional,
+    you can use the following keyword arguments:
+
+    - ``cone_kwargs``: a mapping of keyword arguments passed to :class:`Cone<plotly.graph_objects.Cone>`;
+    - ``line_kwargs``: a mapping of keyword arguments passed to :class:`Scatter3d<plotly.graph_objects.Scatter3d>`;
+
+    Other keyword arguments are passed to both constructors.
+
+    .. raw:: html
+
+        </details>
 
     Examples:
         The following example shows how to plot rays.
@@ -329,10 +377,49 @@ def _(
 ) -> Figure:
     ray_origins = np.asarray(ray_origins)
     ray_directions = np.asarray(ray_directions)
-    ray_ends = ray_origins + ray_directions
-    paths = np.concatenate((ray_origins[..., None, :], ray_ends[..., None, :]), axis=-2)
 
-    return draw_paths(paths, backend="plotly", **kwargs)  # type: ignore[reportReturnType]
+    ratio = float(kwargs.pop("ratio", 0.9))
+    color = kwargs.pop("color", None)
+    name = kwargs.pop("name", None)
+    line_kwargs = kwargs.pop("line_kwargs", {})
+    line_kwargs.setdefault("legendgroup", name)
+    if color:  # pragma: no cover
+        line_kwargs.setdefault("line_color", color)
+    line_kwargs.setdefault("mode", "lines")
+    line_kwargs.setdefault("showlegend", False)
+
+    line_ends = ray_origins + ratio * ray_directions
+    line_paths = np.concatenate(
+        (ray_origins[..., None, :], line_ends[..., None, :]), axis=-2
+    )
+
+    fig = draw_paths(line_paths, backend="plotly", **line_kwargs, **kwargs)
+
+    cone_kwargs = kwargs.pop("line_kwargs", {})
+    if color is None:  # pragma: no cover
+        color = fig.layout.template.layout.colorway[0]
+        fig.data[-1].line.color = color
+    cone_kwargs.setdefault("colorscale", [color, color])
+    cone_kwargs.setdefault("hoverinfo", "name")
+    cone_kwargs.setdefault("legendgroup", name)
+    cone_kwargs.setdefault("name", name)
+    cone_kwargs.setdefault("showscale", False)
+    cone_kwargs.setdefault("showlegend", True)
+    cone_kwargs.setdefault("sizemode", "raw")
+
+    cone_origins = line_ends.reshape(-1, 3)
+    cone_directions = ((1 - ratio) * ray_directions).reshape(-1, 3)
+
+    return fig.add_cone(
+        x=cone_origins[:, 0],
+        y=cone_origins[:, 1],
+        z=cone_origins[:, 2],
+        u=cone_directions[:, 0],
+        v=cone_directions[:, 1],
+        w=cone_directions[:, 2],
+        **cone_kwargs,
+        **kwargs,
+    )
 
 
 @dispatch
