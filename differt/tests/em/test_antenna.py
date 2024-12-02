@@ -38,7 +38,7 @@ class TestAntenna:
     def test_abstract(self):
         with pytest.raises(
             TypeError,
-            match="Can't instantiate abstract class Antenna with abstract methods",
+            match="Can't instantiate abstract class Antenna",
         ):
             _ = Antenna(frequency=1e9)  # type: ignore[reportAbstractUsage]
 

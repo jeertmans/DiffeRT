@@ -13,6 +13,7 @@ from differt.rt import first_triangles_hit_by_rays
 from differt.scene import TriangleScene
 
 
+@pytest.mark.slow
 def test_ray_casting() -> None:
     o3d = pytest.importorskip("open3d")
 
@@ -75,6 +76,7 @@ def test_ray_casting() -> None:
     )
 
 
+@pytest.mark.slow
 def test_simple_street_canyon() -> None:
     sionna = pytest.importorskip("sionna")
     file = sionna.rt.scene.simple_street_canyon
