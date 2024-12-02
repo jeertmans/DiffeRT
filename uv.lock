@@ -1000,7 +1000,17 @@ tests = [
     { name = "scipy" },
 ]
 tests-extended = [
+    { name = "chex" },
+    { name = "differt", extra = ["all"] },
     { name = "open3d-cpu", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
+    { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-codspeed" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-missing-modules" },
+    { name = "pytest-xdist" },
+    { name = "scipy" },
     { name = "sionna", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
 ]
 
@@ -1037,6 +1047,7 @@ requires-dist = [
     { name = "differt", extras = ["all"], marker = "extra == 'docs'", editable = "differt" },
     { name = "differt", extras = ["all"], marker = "extra == 'icmlcn2025'", editable = "differt" },
     { name = "differt", extras = ["all"], marker = "extra == 'tests'", editable = "differt" },
+    { name = "differt-dev", extras = ["tests"], marker = "extra == 'tests-extended'" },
     { name = "e3x", marker = "extra == 'icmlcn2025'", specifier = ">=1.0.2" },
     { name = "jax", extras = ["cuda"], marker = "extra == 'cuda'", specifier = ">=0.4.32" },
     { name = "jupyterlab", marker = "extra == 'remote-jupyter'", specifier = ">=4.2" },

@@ -49,6 +49,7 @@ tests = [
   "scipy>=1.12.0",
 ]
 tests-extended = [
+  "differt-dev[tests]",
   "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
   "sionna==0.19.1;python_version<'3.12' and sys_platform=='linux'",
 ]

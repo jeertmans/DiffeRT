@@ -65,7 +65,11 @@ def test_ray_casting() -> None:
 
     ans = scene.cast_rays(o3d_rays)  # codespell:ignore ans
 
-    chex.assert_trees_all_close(t_hit, ans["t_hit"].numpy(), atol=1e-4)  # codespell:ignore ans
+    chex.assert_trees_all_close(
+        t_hit,
+        ans["t_hit"].numpy(),  # codespell:ignore ans
+        atol=1e-4,
+    )
     chex.assert_trees_all_equal(
         jnp.where(hit, triangles, jnp.asarray(scene.INVALID_ID, dtype=jnp.uint32)),
         ans["primitive_ids"].numpy(),  # codespell:ignore ans
