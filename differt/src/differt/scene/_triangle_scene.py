@@ -13,7 +13,7 @@ from beartype import beartype as typechecker
 from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
 from jax.sharding import Mesh
-from jax.sharding import PartitionSpec as P  # noqa: N814
+from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
 
 import differt_core.scene
