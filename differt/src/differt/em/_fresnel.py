@@ -317,8 +317,9 @@ def reflection_coefficients(
            >>> reflected_vectors, s_r = normalize(
            ...     rx_positions - reflection_points, keepdims=True
            ... )
-           >>> l = jnp.linalg.norm(rx_positions - tx_position, axis=-1)
+           >>> l = jnp.linalg.norm(rx_positions - tx_position, axis=-1, keepdims=True)
            >>> tau = (s + s_r - l) / c  # Delay between two paths
+           >>> tau = tau.squeeze(axis=-1)
 
            We then compute the EM fields at those points, and use the Fresnel
            reflection coefficients to compute the reflected fields.

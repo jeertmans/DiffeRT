@@ -84,7 +84,7 @@ class Antenna(eqx.Module):
 
     @abstractmethod
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
+        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         r"""
         Compute electric and magnetic fields in vacuum at given position and (optional) time.
@@ -107,7 +107,7 @@ class Antenna(eqx.Module):
     def pointing_vector(
         self,
         r: Float[Array, "*#batch 3"],
-        t: Float[Array, "*#batch 3"] | None = None,
+        t: Float[Array, "*#batch"] | None = None,
     ) -> Inexact[Array, "*batch 3"]:
         r"""
         Compute the pointing vector in vacuum at given position and (optional) time.
@@ -378,7 +378,7 @@ class Dipole(Antenna):
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
+        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         r_hat, r = normalize(r - self.center, keepdims=True)
         p = self.moment
@@ -403,7 +403,9 @@ class Dipole(Antenna):
         )
         b = (factor * k_k / c) * r_x_p * (1 - 1 / j_k_r) * r_inv
 
-        exp = jnp.exp(j_k_r - 1j * w * t) if t is not None else jnp.exp(j_k_r)
+        exp = (
+            jnp.exp(j_k_r - 1j * w * t[..., None]) if t is not None else jnp.exp(j_k_r)
+        )
 
         e *= exp
         b *= exp
@@ -456,7 +458,7 @@ class ShortDipole(Dipole):
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch 3"] | None = None
+        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         raise NotImplementedError
 
