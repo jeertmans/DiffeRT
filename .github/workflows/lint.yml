@@ -41,7 +41,6 @@ jobs:
 
   pre-commit:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'schedule' }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
