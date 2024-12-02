@@ -412,6 +412,9 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new mesh with updated face colors.
 
+        Raises:
+            ValueError: If ``colors`` or ``key`` is not specified.
+
         Examples:
             The following example shows how this function paints the mesh,
             for different argument types.
