@@ -10,7 +10,6 @@ from differt.em._fresnel import (
 )
 
 
-@jax.debug_nans(False)
 def test_fresnel_coefficients(key: PRNGKeyArray) -> None:
     key_n_1, key_n_2 = jax.random.split(key, 2)
 

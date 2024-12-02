@@ -3,7 +3,6 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
-import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
@@ -332,7 +331,6 @@ def test_triangles_visible_from_vertices(
 )
 @pytest.mark.parametrize("epsilon", [None, 1e-2])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
-@jax.debug_nans(False)  # noqa: FBT003
 def test_first_triangles_hit_by_rays(
     ray_origins: Array,
     ray_directions: Array,

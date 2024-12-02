@@ -1,6 +1,5 @@
 import chex
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -63,7 +62,7 @@ def test_ray_casting() -> None:
     hit = triangles != -1
     triangles = triangles.astype(jnp.uint32)
 
-    ans = scene.cast_rays(o3d_rays)  # codespell:ignore ans
+    ans = scene.cast_rays(o3d_rays, nthreads=1)  # codespell:ignore ans
 
     chex.assert_trees_all_close(
         t_hit,
@@ -132,8 +131,7 @@ def test_simple_street_canyon() -> None:
     max_depth = sionna_path_objects.shape[0]  # May differ from 'max_order'
 
     for order in range(max_depth + 1):
-        with jax.debug_nans(False):  # noqa: FBT003
-            paths = differt_scene.compute_paths(order=order)
+        paths = differt_scene.compute_paths(order=order)
         select = (sionna_path_objects == -1).sum(axis=0) == (max_depth - order)
         vertices = sionna_path_vertices[:order, select, :]
         vertices = np.moveaxis(vertices, 0, -2)
