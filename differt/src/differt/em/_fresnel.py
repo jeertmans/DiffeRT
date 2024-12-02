@@ -249,10 +249,9 @@ def reflection_coefficients(
            patterns from line of sight and reflection on a glass
            ground.
 
-           >>> from differt.em import reflection_coefficients
-           >>> from differt.em import Dipole
-           >>> from differt.em import pointing_vector
-           >>> from differt.geometry import assemble_paths, normalize, path_lengths
+           >>> from differt.em import reflection_coefficients, Dipole, pointing_vector
+           >>> from differt.em.constants import c
+           >>> from differt.geometry import normalize
            >>> from differt.rt import image_method
            >>> from differt.utils import dot
 
@@ -302,9 +301,7 @@ def reflection_coefficients(
            ... )  # doctest: +SKIP
 
            After, the :func:`image_method<differt.rt.image_method>`
-           function is used to compute the reflection points. We then compute the EM fields
-           at those points, and use the Fresnel reflection coefficients to compute the
-           reflected fields.
+           function is used to compute the reflection points.
 
            >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])
            >>> ground_normal = jnp.array([0.0, 1.0, 0.0])
@@ -314,12 +311,21 @@ def reflection_coefficients(
            ...     ground_vertex[None, ...],
            ...     ground_normal[None, ...],
            ... ).squeeze(axis=-2)  # Squeeze because only one reflection
-           >>> e_at_rp, b_at_rp = ant.fields(reflection_points - tx_position)
            >>> incident_vectors, s = normalize(
            ...     reflection_points - tx_position, keepdims=True
            ... )
+           >>> reflected_vectors, s_r = normalize(
+           ...     rx_positions - reflection_points, keepdims=True
+           ... )
+           >>> l = jnp.linalg.norm(rx_positions - tx_position, axis=-1)
+           >>> tau = (s + s_r - l) / c  # Delay between two paths
+
+           We then compute the EM fields at those points, and use the Fresnel
+           reflection coefficients to compute the reflected fields.
+
+           >>> e_at_rp, b_at_rp = ant.fields(reflection_points - tx_position, t=-tau)
            >>> cos_theta = dot(ground_normal, -incident_vectors)
-           >>> n_r = 1.5  # Glass
+           >>> n_r = 1.5  # Air to glass
            >>> r_s, r_p = reflection_coefficients(n_r, cos_theta)
            >>> e_s = normalize(
            ...     jnp.cross(
@@ -343,9 +349,6 @@ def reflection_coefficients(
            Finally, we apply the spreading factor and phase shift due to the propagation
            from the reflection points to the receiver :cite:`utd-mcnamara{eq. 3.1, p. 63}`.
 
-           >>> reflected_vectors, s_r = normalize(
-           ...     reflection_points - rx_positions, keepdims=True
-           ... )
            >>> spreading_factor = s / (
            ...     s + s_r
            ... )  # We assume that the radii of curvature are equal to 's'
