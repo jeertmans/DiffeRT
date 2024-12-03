@@ -9,7 +9,11 @@ from differt.geometry import (
     assemble_paths,
     fibonacci_lattice,
 )
-from differt.rt import first_triangles_hit_by_rays
+from differt.rt import (
+    first_triangles_hit_by_rays,
+    rays_intersect_any_triangle,
+    rays_intersect_triangles,
+)
 from differt.scene import TriangleScene
 
 
@@ -48,6 +52,7 @@ def test_ray_casting() -> None:
     scene.add_triangles(o3d_mesh)
 
     ray_directions = fibonacci_lattice(1_000)
+    ray_directions = fibonacci_lattice(50)
     ray_origins = jnp.zeros_like(ray_directions)
 
     o3d_rays = o3d.core.Tensor(
@@ -73,6 +78,32 @@ def test_ray_casting() -> None:
     chex.assert_trees_all_equal(
         jnp.where(hit, triangles, jnp.asarray(scene.INVALID_ID, dtype=jnp.uint32)),
         ans["primitive_ids"].numpy(),  # codespell:ignore ans
+    )
+
+    got_counts = rays_intersect_triangles(
+        ray_origins[..., None, :], ray_directions[..., None, :], triangle_vertices
+    )[1].sum(axis=-1)
+
+    expected_counts = scene.count_intersections(o3d_rays, nthreads=1).numpy()
+
+    chex.assert_trees_all_equal(
+        got_counts,
+        expected_counts,
+    )
+
+    scale = 100.0
+
+    got_hit = rays_intersect_any_triangle(
+        ray_origins,
+        scale * ray_directions,
+        triangle_vertices,
+    )
+
+    expected_hit = scene.test_occlusions(o3d_rays, tfar=scale, nthreads=1).numpy()
+
+    chex.assert_trees_all_equal(
+        got_hit,
+        expected_hit,
     )
 
 
