@@ -620,7 +620,6 @@ class TriangleMesh(eqx.Module):
 
         u, v = orthogonal_basis(
             normal,  # type: ignore[reportArgumentType]
-            normalize=True,
         )
 
         s = 0.5 * side_length
