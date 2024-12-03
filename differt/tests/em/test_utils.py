@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.em._utils import lengths_to_delays, path_delays
+from differt.em._utils import lengths_to_delays, path_delays, sp_directions
 from differt.em.constants import c
 
 from ..utils import random_inputs
@@ -61,3 +61,32 @@ def test_path_delays_random_inputs(
         )
 
         chex.assert_trees_all_close(got, expected)
+
+
+def test_sp_directions() -> None:
+    cos = jnp.cos(jnp.pi / 6)
+    sin = jnp.sin(jnp.pi / 6)
+    k_i = jnp.array([[cos, -sin, 0.0], [0.0, -1.0, 0.0]])
+    k_r = jnp.array([[cos, +sin, 0.0], [0.0, +1.0, 0.0]])
+    normals = jnp.array([[0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
+    got = sp_directions(k_i, k_r, normals)
+
+    chex.assert_trees_all_close(
+        got[0][0], got[1][0], custom_message="s-components should be equal"
+    )
+
+    for comp, k in zip(got, (k_i, k_r), strict=True):
+        s = comp[0]
+        p = comp[1]
+
+        chex.assert_trees_all_close(jnp.cross(p, s), k)
+        chex.assert_trees_all_close(jnp.cross(k, p), s)
+        chex.assert_trees_all_close(jnp.cross(s, k), p)
+
+    expected_e_i_s = jnp.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
+    expected_e_i_p = jnp.array([[+sin, cos, 0.0], [0.0, 0.0, -1.0]])
+    expected_e_r_p = jnp.array([[-sin, cos, 0.0], [0.0, 0.0, 1.0]])
+
+    chex.assert_trees_all_close(got[0][0], expected_e_i_s)
+    chex.assert_trees_all_close(got[0][1], expected_e_i_p)
+    chex.assert_trees_all_close(got[1][1], expected_e_r_p)

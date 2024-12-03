@@ -249,7 +249,12 @@ def reflection_coefficients(
            patterns from line of sight and reflection on a glass
            ground.
 
-           >>> from differt.em import reflection_coefficients, Dipole, pointing_vector
+           >>> from differt.em import (
+           ...     reflection_coefficients,
+           ...     Dipole,
+           ...     pointing_vector,
+           ...     sp_directions,
+           ... )
            >>> from differt.em.constants import c
            >>> from differt.geometry import normalize
            >>> from differt.rt import image_method
@@ -292,8 +297,8 @@ def reflection_coefficients(
 
            Next, we compute the EM fields from the direct (line-of-sight) path.
 
-           >>> e_los, b_los = ant.fields(rx_positions - tx_position)
-           >>> p_los = jnp.linalg.norm(pointing_vector(e_los, b_los), axis=-1)
+           >>> E_los, B_los = ant.fields(rx_positions - tx_position)
+           >>> P_los = jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(p_los / ant.average_power),
@@ -324,18 +329,13 @@ def reflection_coefficients(
            We then compute the EM fields at those points, and use the Fresnel
            reflection coefficients to compute the reflected fields.
 
-           >>> e_at_rp, b_at_rp = ant.fields(reflection_points - tx_position, t=-tau)
+           >>> E_at_rp, B_at_rp = ant.fields(reflection_points - tx_position, t=-tau)
            >>> cos_theta = dot(ground_normal, -incident_vectors)
            >>> n_r = 1.5  # Air to glass
            >>> r_s, r_p = reflection_coefficients(n_r, cos_theta)
-           >>> e_s = normalize(
-           ...     jnp.cross(
-           ...         incident_vectors, jnp.cross(ground_normal, incident_vectors)
-           ...     )
-           ... )[0]
-           >>> e_p = jnp.cross(incident_vectors, e_s)
-           >>> e_refl = r_s[:, None] * e_s * e_at_rp + r_p[:, None] * e_p * e_at_rp
-           >>> b_refl = r_s[:, None] * e_s * b_at_rp + r_p[:, None] * e_p * b_at_rp
+
+           To apply the coefficients correctly, we must determine the polarization
+           directions of both the incident and the reflected fields.
 
            .. important::
 
@@ -345,7 +345,40 @@ def reflection_coefficients(
               of the fields onto those directions
               :cite:`utd-mcnamara{eq. 3.3-3.8 and 3.39, p. 70 and 77}`.
 
-              After reflection, the s direction stays the same, and the p direction is reversed.
+           >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(
+           ...     incident_vectors, reflected_vectors, ground_normal
+           ... )
+
+           We then transform XYZ-components into local s and p components.
+
+           >>> E_i_at_rp_sp = jnp.stack(
+           ...     (dot(E_at_rp, e_i_s), dot(E_at_rp, e_i_p)), axis=-1
+           ... )
+           >>> B_i_at_rp_sp = jnp.stack(
+           ...     (dot(B_at_rp, e_i_s), dot(B_at_rp, e_i_p)), axis=-1
+           ... )
+
+           After, we construct the rotation matrix to go from incident components
+           to reflected components.
+
+           >>> i_sp_to_r_sp = jnp.stack(
+           ...     (
+           ...         jnp.stack((dot(e_i_s, e_r_s), dot(e_i_p, e_r_s)), axis=-1),
+           ...         jnp.stack((dot(e_i_s, e_r_p), dot(e_i_p, e_r_p)), axis=-1),
+           ...     ),
+           ...     axis=-1,
+           ... )
+           >>> E_r_at_rp_sp = jnp.matmul(i_sp_to_r_sp, E_i_at_rp_sp[..., None])
+           >>> B_r_at_rp_sp = jnp.matmul(i_sp_to_r_sp, B_i_at_rp_sp[..., None])
+
+           Then, we go back to XYZ components.
+
+           >>> E_r_at_rp = (
+           ...     E_r_at_rp_sp[..., 0, :] * e_r_s + E_r_at_rp_sp[..., 1, :] * e_r_p
+           ... )
+           >>> B_r_at_rp = (
+           ...     B_r_at_rp_sp[..., 0, :] * e_r_s + B_r_at_rp_sp[..., 1, :] * e_r_p
+           ... )
 
            Finally, we apply the spreading factor and phase shift due to the propagation
            from the reflection points to the receiver :cite:`utd-mcnamara{eq. 3.1, p. 63}`.
@@ -354,24 +387,24 @@ def reflection_coefficients(
            ...     s + s_r
            ... )  # We assume that the radii of curvature are equal to 's'
            >>> phase_shift = jnp.exp(1j * s_r * ant.wavenumber)
-           >>> e_refl *= spreading_factor * phase_shift
-           >>> b_refl *= spreading_factor * phase_shift
-           >>> p_refl = jnp.linalg.norm(pointing_vector(e_refl, b_refl), axis=-1)
+           >>> E_r = E_r_at_rp * spreading_factor * phase_shift
+           >>> B_r = B_r_at_rp * spreading_factor * phase_shift
+           >>> P_r = jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(p_refl / ant.average_power),
+           ...     10 * jnp.log10(P_r / ant.average_power),
            ...     "--",
            ...     label=r"$P_\text{reflection}$",
            ... )  # doctest: +SKIP
 
            We also plot the total field, to better observe the interference pattern.
 
-           >>> e_tot = e_los + e_refl
-           >>> b_tot = b_los + b_refl
-           >>> p_tot = jnp.linalg.norm(pointing_vector(e_tot, b_tot), axis=-1)
+           >>> E_tot = E_los + E_r
+           >>> B_tot = B_los + B_r
+           >>> P_tot = jnp.linalg.norm(pointing_vector(E_tot, E_tot), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(p_tot / ant.average_power),
+           ...     10 * jnp.log10(P_tot / ant.average_power),
            ...     "-.",
            ...     label=r"$P_\text{total}$",
            ... )  # doctest: +SKIP
@@ -393,7 +426,6 @@ def reflection_coefficients(
         >>> print(f"Corresponding distance: {distance:.1f} m")
         Corresponding distance: 6.0 m
     """
-    # TODO: check in the above example the s-p polarization directions are correct
     return fresnel_coefficients(n_r, cos_theta_i)[0]
 
 

@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
-from differt.geometry import normalize, path_lengths
+from differt.geometry import normalize, path_lengths, perpendicular_vectors
 
 from .constants import c
 
@@ -87,22 +87,29 @@ def path_delays(
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def sp_directions(
-    propagation_directions: Float[Array, "*#batch 3"],
+    k_i: Float[Array, "*#batch 3"],
+    k_r: Float[Array, "*#batch 3"],
     normals: Float[Array, "*#batch 3"],
-) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+) -> tuple[
+    tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
+    tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
+]:
     """
-    Compute the directions of the local s and p components, relative to the propagation direction and a local normal or a local edge direction..
+    Compute the directions of the local s and p components, before and after reflection, relative to the propagation direction and a local normal.
 
     Args:
-        propagation_directions: The array of propagation directions.
+        k_i: The array of propagation direction of incident fields.
 
             Each vector must have a unit length.
-        normals: The array of local normals or local edge directions.
+        k_r: The array of propagation direction of reflected fields.
+
+            Each vector must have a unit length.
+        normals: The array of local normals.
 
             Each vector must have a unit length.
 
     Returns:
-        The array of s and p directions.
+        The array of s and p directions, before and after reflection.
 
     Examples:
         The following example shows how to compute and display the direction of
@@ -183,9 +190,9 @@ def sp_directions(
             >>> normal = jnp.array([1.0, 0.0, 0.0])
             >>> tx = reflection_point + jnp.array([cos, 0.0, +sin])
             >>> rx = reflection_point + jnp.array([cos, 0.0, -sin])
-            >>> incident_dir = reflection_point - tx
-            >>> reflection_dir = rx - reflection_point
-            >>> e_s, e_p = sp_directions(incident_dir, normal)
+            >>> k_i = reflection_point - tx
+            >>> k_r = rx - reflection_point
+            >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, normal)
 
             Finally, we draw all the vectors and markers.
 
@@ -212,25 +219,24 @@ def sp_directions(
             >>> add_vector(
             ...     fig,
             ...     reflection_point,
-            ...     reflection_point + 0.5 * e_s,
+            ...     reflection_point + 0.5 * e_i_s,
             ...     color="orange",
             ...     name="s-component (incident)",
             ... )
             >>> add_vector(
             ...     fig,
             ...     reflection_point,
-            ...     reflection_point + 0.5 * e_p,
+            ...     reflection_point + 0.5 * e_i_p,
             ...     color="orange",
             ...     name="p-component (incident)",
             ... )
 
             We do the same, but for the reflected field.
 
-            >>> e_s, e_p = sp_directions(reflection_dir, normal)
             >>> add_vector(
             ...     fig,
             ...     reflection_point,
-            ...     reflection_point + 0.5 * e_s,
+            ...     reflection_point + 0.5 * e_r_s,
             ...     color="green",
             ...     name="s-component (reflected)",
             ...     dashed=True,
@@ -238,13 +244,22 @@ def sp_directions(
             >>> add_vector(
             ...     fig,
             ...     reflection_point,
-            ...     reflection_point + 0.5 * e_p,
+            ...     reflection_point + 0.5 * e_r_p,
             ...     color="green",
             ...     name="p-component (reflected)",
             ... )
             >>> fig  # doctest: +SKIP
     """
-    e_s = normalize(jnp.cross(propagation_directions, normals))[0]
-    e_p = jnp.cross(propagation_directions, e_s)
+    e_i_s, e_i_s_norm = normalize(jnp.cross(k_i, normals), keepdims=True)
+    # Alternative vectors if normal is parallel to k_i
+    normal_incidence = e_i_s_norm == 0.0
+    e_i_s: Array = jnp.where(
+        normal_incidence,
+        perpendicular_vectors(k_i),
+        e_i_s,
+    )  # type: ignore[reportTypeAssignment]
+    e_i_p = normalize(jnp.cross(e_i_s, k_i))[0]
+    e_r_s = e_i_s
+    e_r_p = normalize(jnp.cross(e_r_s, k_r))[0]
 
-    return e_s, e_p
+    return (e_i_s, e_i_p), (e_r_s, e_r_p)
