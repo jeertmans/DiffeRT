@@ -301,7 +301,7 @@ def reflection_coefficients(
            >>> P_los = jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(p_los / ant.average_power),
+           ...     10 * jnp.log10(P_los / ant.average_power),
            ...     label=r"$P_\text{los}$",
            ... )  # doctest: +SKIP
 
