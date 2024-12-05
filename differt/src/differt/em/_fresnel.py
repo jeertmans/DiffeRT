@@ -268,6 +268,7 @@ def reflection_coefficients(
            >>> tx_position = jnp.array([0.0, 2.0, 0.0])
            >>> rx_position = jnp.array([0.0, 2.0, 0.0])
            >>> num_positions = 1000
+           >>> # [num_positions 3]
            >>> x = jnp.logspace(0, 3, num_positions)  # From close to very far
            >>> rx_positions = (
            ...     jnp.tile(rx_position, (num_positions, 1)).at[..., 0].add(x)
@@ -297,7 +298,9 @@ def reflection_coefficients(
 
            Next, we compute the EM fields from the direct (line-of-sight) path.
 
+           >>> # [num_positions 3]
            >>> E_los, B_los = ant.fields(rx_positions - tx_position)
+           >>> # [num_positions]
            >>> P_los = jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
@@ -310,28 +313,30 @@ def reflection_coefficients(
 
            >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])
            >>> ground_normal = jnp.array([0.0, 1.0, 0.0])
+           >>> # [num_positions 3]
            >>> reflection_points = image_method(
            ...     tx_position,
            ...     rx_positions,
            ...     ground_vertex[None, ...],
            ...     ground_normal[None, ...],
            ... ).squeeze(axis=-2)  # Squeeze because only one reflection
-           >>> incident_vectors, s = normalize(
-           ...     reflection_points - tx_position, keepdims=True
-           ... )
-           >>> reflected_vectors, s_r = normalize(
-           ...     rx_positions - reflection_points, keepdims=True
-           ... )
+           >>> # [num_positions 3], [num_positions 1]
+           >>> k_i, s_i = normalize(reflection_points - tx_position, keepdims=True)
+           >>> k_r, s_r = normalize(rx_positions - reflection_points, keepdims=True)
+           >>> # [num_positions 1]
            >>> l = jnp.linalg.norm(rx_positions - tx_position, axis=-1, keepdims=True)
-           >>> tau = (s + s_r - l) / c  # Delay between two paths
+           >>> tau = (s_i + s_r - l) / c  # Delay between two paths
            >>> tau = tau.squeeze(axis=-1)
 
            We then compute the EM fields at those points, and use the Fresnel
            reflection coefficients to compute the reflected fields.
 
-           >>> E_at_rp, B_at_rp = ant.fields(reflection_points - tx_position, t=-tau)
-           >>> cos_theta = dot(ground_normal, -incident_vectors)
+           >>> # [num_positions 3]
+           >>> E_i, B_i = ant.fields(reflection_points - tx_position, t=-tau)
+           >>> # [num_positions 1]
+           >>> cos_theta = dot(ground_normal, -k_i, keepdims=True)
            >>> n_r = 1.5  # Air to glass
+           >>> # [num_positions 1]
            >>> r_s, r_p = reflection_coefficients(n_r, cos_theta)
 
            To apply the coefficients correctly, we must determine the polarization
@@ -345,50 +350,39 @@ def reflection_coefficients(
               of the fields onto those directions
               :cite:`utd-mcnamara{eq. 3.3-3.8 and 3.39, p. 70 and 77}`.
 
-           >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(
-           ...     incident_vectors, reflected_vectors, ground_normal
-           ... )
+           >>> # [num_positions 3]
+           >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, ground_normal)
 
            We then transform XYZ-components into local s and p components.
 
-           >>> E_i_at_rp_sp = jnp.stack(
-           ...     (dot(E_at_rp, e_i_s), dot(E_at_rp, e_i_p)), axis=-1
-           ... )
-           >>> B_i_at_rp_sp = jnp.stack(
-           ...     (dot(B_at_rp, e_i_s), dot(B_at_rp, e_i_p)), axis=-1
-           ... )
+           >>> # [num_positions 1]
+           >>> E_i_s = dot(E_i, e_i_s, keepdims=True)
+           >>> E_i_p = dot(E_i, e_i_p, keepdims=True)
+           >>> B_i_s = dot(B_i, e_i_s, keepdims=True)
+           >>> B_i_p = dot(B_i, e_i_p, keepdims=True)
 
-           After, we construct the rotation matrix to go from incident components
-           to reflected components.
+           Then, we apply reflection coefficients to the local s and p components.
 
-           >>> i_sp_to_r_sp = jnp.stack(
-           ...     (
-           ...         jnp.stack((dot(e_i_s, e_r_s), dot(e_i_p, e_r_s)), axis=-1),
-           ...         jnp.stack((dot(e_i_s, e_r_p), dot(e_i_p, e_r_p)), axis=-1),
-           ...     ),
-           ...     axis=-1,
-           ... )
-           >>> E_r_at_rp_sp = jnp.matmul(i_sp_to_r_sp, E_i_at_rp_sp[..., None])
-           >>> B_r_at_rp_sp = jnp.matmul(i_sp_to_r_sp, B_i_at_rp_sp[..., None])
+           >>> # [num_positions 1]
+           >>> E_r_s = r_s * E_i_s
+           >>> E_r_p = r_p * E_i_p
+           >>> B_r_s = r_s * B_i_s
+           >>> B_r_p = r_p * B_i_p
 
-           Then, we go back to XYZ components.
+           And we project back to XYZ-components.
 
-           >>> E_r_at_rp = (
-           ...     E_r_at_rp_sp[..., 0, :] * e_r_s + E_r_at_rp_sp[..., 1, :] * e_r_p
-           ... )
-           >>> B_r_at_rp = (
-           ...     B_r_at_rp_sp[..., 0, :] * e_r_s + B_r_at_rp_sp[..., 1, :] * e_r_p
-           ... )
+           >>> E_r = E_r_s * e_r_s + E_r_p * e_r_p
+           >>> B_r = B_r_s * e_r_s + B_r_p * e_r_p
 
            Finally, we apply the spreading factor and phase shift due to the propagation
            from the reflection points to the receiver :cite:`utd-mcnamara{eq. 3.1, p. 63}`.
 
-           >>> spreading_factor = s / (
-           ...     s + s_r
-           ... )  # We assume that the radii of curvature are equal to 's'
+           >>> spreading_factor = s_i / (
+           ...     s_i + s_r
+           ... )  # We assume that the radii of curvature are equal to 's_i'
            >>> phase_shift = jnp.exp(1j * s_r * ant.wavenumber)
-           >>> E_r = E_r_at_rp * spreading_factor * phase_shift
-           >>> B_r = B_r_at_rp * spreading_factor * phase_shift
+           >>> E_r *= spreading_factor * phase_shift
+           >>> B_r *= spreading_factor * phase_shift
            >>> P_r = jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
            >>> plt.semilogx(
            ...     x,
@@ -401,7 +395,7 @@ def reflection_coefficients(
 
            >>> E_tot = E_los + E_r
            >>> B_tot = B_los + B_r
-           >>> P_tot = jnp.linalg.norm(pointing_vector(E_tot, E_tot), axis=-1)
+           >>> P_tot = jnp.linalg.norm(pointing_vector(E_tot, B_tot), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_tot / ant.average_power),
