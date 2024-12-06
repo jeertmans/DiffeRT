@@ -47,7 +47,7 @@ jobs:
       run: uv run --python ${{ matrix.pyversion }} --frozen --no-dev --extra tests pytest
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
@@ -100,7 +100,7 @@ jobs:
       run: cargo tarpaulin --verbose --timeout 120 --out xml
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
