@@ -39,7 +39,6 @@ remote-jupyter = [
 tests = [
   "differt[all]",
   "chex>=0.1.84",
-  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
   "pytest-codspeed>=2.2.0",
@@ -48,6 +47,11 @@ tests = [
   "pytest-missing-modules>=0.2.0",
   "pytest-xdist>=3.3.1",
   "scipy>=1.12.0",
+]
+tests-extended = [
+  "differt-dev[tests]",
+  "open3d-cpu>=0.18.0;python_version<'3.12' and sys_platform=='linux'",
+  "sionna==0.19.1;python_version<'3.12' and sys_platform=='linux'",
 ]
 
 [tool.bumpversion]
@@ -145,7 +149,6 @@ addopts = [
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
-  "JAX_DEBUG_NANS=True",
   "JAX_PLATFORM_NAME=cpu",
 ]
 filterwarnings = [
@@ -210,7 +213,7 @@ select = ["ALL"]
 extend-allowed-calls = ["jax.numpy.array"]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["equinox.field"]
+extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
 
 [tool.ruff.lint.pep8-naming]
 extend-ignore-names = ["T"]

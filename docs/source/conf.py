@@ -71,6 +71,13 @@ nitpick_ignore = (
 
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
+# -- MathJax settings
+
+mathjax3_config = {
+    "loader": {"load": ["[tex]/boldsymbol"]},
+    "tex": {"packages": {"[+]": ["boldsymbol"]}},
+}
+
 numfig = True
 
 # -- Intersphinx mapping
