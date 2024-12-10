@@ -305,7 +305,7 @@ def rays_intersect_any_triangle(
     checking if at least one of the triangles is intersect.
 
     A triangle is considered to be intersected if
-    ``t < hit_threshold & hit`` evaluates to :data:`True`.
+    ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
 
     Args:
         ray_origins: An array of origin vertices.
