@@ -190,7 +190,6 @@ jobs:
   release-differt-core:
     name: Release differt-core
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt-core
     needs: [linux, musllinux, windows, macos, sdist]
     environment: release
     permissions:
@@ -204,15 +203,16 @@ jobs:
     - name: Download build wheels
       uses: actions/download-artifact@v4
       with:
-        path: differt-core
+        path: dist
         pattern: differt-core-wheels-*
 
     - name: Generate artifact attestation
       uses: actions/attest-build-provenance@v1
       with:
-        subject-path: differt-core-wheels-*/*
+        subject-path: dist/*
 
     - name: Publish to PyPI
+      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
       uses: PyO3/maturin-action@v1
       with:
         command: upload
@@ -251,7 +251,7 @@ jobs:
     - name: Generate artifact attestation
       uses: actions/attest-build-provenance@v1
       with:
-        subject-path: differt-wheels-and-sdist
+        subject-path: dist/*
 
     - name: Publish to PyPI
       if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
