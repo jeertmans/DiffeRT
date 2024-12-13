@@ -239,13 +239,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: differt-wheels-sdist
-        path: differt/dist/differt-wheels-*.tar.gz
+        path: differt/dist/differt-*.tar.gz
 
     - name: Upload wheels any
       uses: actions/upload-artifact@v4
       with:
         name: differt-wheels-any
-        path: differt/dist/differt-wheels-*.whl
+        path: differt/dist/differt-*.whl
 
   release-differt:
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
