@@ -55,13 +55,13 @@ def close_figure(
     monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> Iterator[None]:
     if "backend" in request.fixturenames:
-        _figure = plt.figure
+        figure_ = plt.figure
         fig = None
 
         @cache
         def figure() -> Figure:
             nonlocal fig
-            fig = _figure()
+            fig = figure_()
             return fig
 
         with monkeypatch.context() as m:
