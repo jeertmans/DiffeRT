@@ -69,6 +69,10 @@ exclude = [
   "tests",
 ]
 
+[tool.hatch.build.targets.sdist.force-include]
+"../LICENSE.md" = "LICENSE.md"
+"../README.md" = "README.md"
+
 [tool.hatch.build.targets.wheel]
 exclude = [
   "conftest.py",
