@@ -266,6 +266,7 @@ jobs:
       with:
         path: differt/dist
         pattern: differt-wheels-*
+        merge-multiple: true
 
     - name: Generate artifact attestation
       uses: actions/attest-build-provenance@v1
