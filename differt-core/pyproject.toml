@@ -30,5 +30,11 @@ requires-python = ">= 3.9"
 [tool.maturin]
 bindings = "pyo3"
 features = ["pyo3/extension-module"]
+include = [
+  {path = "src/**/*", format = "sdist"},
+  {path = "LICENSE.md", format = "sdist"},
+  {path = "README.md", format = "sdist"},
+]
 module-name = "differt_core._lowlevel"
 python-source = "python"
+strip = true
