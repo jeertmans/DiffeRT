@@ -184,7 +184,7 @@ jobs:
     - name: Upload sdist
       uses: actions/upload-artifact@v4
       with:
-        name: differ-core-wheels-sdist
+        name: differt-core-wheels-sdist
         path: differt-core/dist
 
   release-differt-core:
@@ -209,14 +209,14 @@ jobs:
     - name: Generate artifact attestation
       uses: actions/attest-build-provenance@v1
       with:
-        subject-path: dist/*
+        subject-path: dist/differt-core-wheels-*
 
     - name: Publish to PyPI
       if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
       uses: PyO3/maturin-action@v1
       with:
         command: upload
-        args: --non-interactive --skip-existing differt-core-wheels-*/*
+        args: --non-interactive --skip-existing dist/differt-core-wheels-*
         working-directory: differt-core
 
   build-and-release-differt:
