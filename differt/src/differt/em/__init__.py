@@ -4,12 +4,15 @@ __all__ = (
     "Antenna",
     "Dipole",
     "F",
+    "InteractionType",
+    "Material",
     "ShortDipole",
     "c",
     "diffraction_coefficients",
     "epsilon_0",
     "fresnel_coefficients",
     "lengths_to_delays",
+    "materials",
     "mu_0",
     "path_delays",
     "pointing_vector",
@@ -27,6 +30,8 @@ from ._fresnel import (
     refraction_coefficients,
     refractive_indices,
 )
+from ._interaction_type import InteractionType
+from ._material import Material, materials
 from ._utd import F, diffraction_coefficients
 from ._utils import lengths_to_delays, path_delays, sp_directions
 from .constants import c, epsilon_0, mu_0, z_0

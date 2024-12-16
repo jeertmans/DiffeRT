@@ -103,6 +103,13 @@ class Paths(eqx.Module):
     batch ``*batch`` dimensions, which would not be possible if we were to directly
     store valid paths.
     """
+    interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """An optional array to indicate the type of each interaction.
+
+    If not specified, :class:`InteractionType.REFLECTION` is assumed.
+    """
 
     @jaxtyped(
         typechecker=None
@@ -120,11 +127,16 @@ class Paths(eqx.Module):
         vertices = self.vertices.reshape(*batch, self.path_length, 3)
         objects = self.objects.reshape(*batch, self.path_length)
         mask = self.mask.reshape(*batch) if self.mask is not None else None
+        interaction_types = (
+            self.interaction_types.reshape(*batch, self.path_length - 2)
+            if self.interaction_types is not None
+            else None
+        )
 
         return eqx.tree_at(
-            lambda p: (p.vertices, p.objects, p.mask),
+            lambda p: (p.vertices, p.objects, p.mask, p.interaction_types),
             self,
-            (vertices, objects, mask),
+            (vertices, objects, mask, interaction_types),
             is_leaf=lambda x: x is None,
         )
 

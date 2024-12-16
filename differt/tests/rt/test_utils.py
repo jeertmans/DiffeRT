@@ -248,7 +248,7 @@ def test_rays_intersect_any_triangle(
 ) -> None:
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol = jnp.finfo(dtype).eps  # type: ignore[reportAssigmentType]
+        hit_tol = jnp.finfo(dtype).eps
 
     hit_threshold = 1.0 - hit_tol  # type: ignore[reportOperatorIssue]
     with expectation:

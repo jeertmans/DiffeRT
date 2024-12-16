@@ -330,7 +330,7 @@ def rays_intersect_any_triangle(
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         hit_tol = 10.0 * jnp.finfo(dtype).eps
 
-    hit_threshold = 1.0 - hit_tol
+    hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)

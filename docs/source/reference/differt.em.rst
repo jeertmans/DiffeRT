@@ -65,6 +65,25 @@ when relevant.
    Dipole
    ShortDipole
 
+.. rubric:: Materials
+
+We provide a basic class to represent radio materials, as well as
+a mapping for most common materials: ITU-R materials.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   Materials
+   materials
+
+Types of interaction (reflection, diffraction, etc.) within a path
+are identified by different numbers, which are listed in an enum class:
+
+.. autosummary::
+   :toctree: _autosummary
+
+   InteractionType
+
 .. rubric:: Utilities
 
 Utility functions, mostly used internally for computing EM fields.
