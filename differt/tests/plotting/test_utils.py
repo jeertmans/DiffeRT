@@ -23,12 +23,12 @@ if TYPE_CHECKING:
     from pytest_missing_modules.plugin import MissingModulesContextGenerator
 
 
-@dispatch  # type: ignore[reportArgumentType]
+@dispatch
 def my_plot_unimplemented(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
     """A plot function with no backend implementation."""
 
 
-@dispatch  # type: ignore[reportArgumentType]
+@dispatch
 def my_plot(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
     """A plot function with dummy backend implementations."""
 

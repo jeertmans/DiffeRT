@@ -1,3 +1,4 @@
+# pyright: reportMissingTypeArgument=false
 from contextlib import nullcontext as does_not_raise
 
 import numpy as np

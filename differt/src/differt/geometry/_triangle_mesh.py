@@ -471,7 +471,7 @@ class TriangleMesh(eqx.Module):
             normal = normalize(w)[0]
 
         u, v = orthogonal_basis(
-            normal,  # type: ignore[reportArgumentType]
+            normal,
             normalize=True,
         )
 
