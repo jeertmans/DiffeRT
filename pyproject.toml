@@ -122,8 +122,11 @@ precision = 2
 omit = ["**/*/conftest.py"]
 
 [tool.pyright]
-deprecateTypingAliases = true
 include = ["differt/src/differt", "differt/tests", "differt-core/src/differt_core"]
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = false  # Incompatible with eqx.AbstractVar
+reportMissingTypeArgument = true
+reportUnnecessaryTypeIgnoreComment = true
 venv = ".venv"
 venvPath = "."
 
