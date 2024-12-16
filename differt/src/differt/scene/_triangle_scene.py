@@ -943,7 +943,7 @@ class TriangleScene(eqx.Module):
         if path_candidates is None:
             path_candidates = generate_all_path_candidates(
                 num_objects,
-                order,  # type: ignore[reportArgumentType]
+                order,
             )
 
             if self.mesh.assume_quads:

@@ -1,3 +1,4 @@
+# pyright: reportMissingTypeArgument=false
 import chex
 import jax.numpy as jnp
 import numpy as np
