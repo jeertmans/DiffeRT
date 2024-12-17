@@ -1,11 +1,18 @@
+{% if module.rsplit('.', 1)[1].startswith('_') -%}
+{{ (module.rsplit('.', 1)[0] + '.' + objname) | escape | underline}}
+{%- else -%}
 {{ fullname | escape | underline}}
+{%- endif %}
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
    :members:
-   :inherited-members:
    :show-inheritance:
+   {% if objname == 'InteractionType' -%}
+   :member-order: bysource
+   {%- else -%}
+   :inherited-members:
 
    {% block attributes %}
    {% if attributes %}
@@ -30,3 +37,4 @@
    {% endblock %}
 
    .. rubric:: Detailed documentation
+   {%- endif %}

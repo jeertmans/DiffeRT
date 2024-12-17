@@ -24,6 +24,7 @@ __all__ = (
 )
 
 from ._antenna import Antenna, Dipole, ShortDipole, pointing_vector
+from ._constants import c, epsilon_0, mu_0, z_0
 from ._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
@@ -34,4 +35,3 @@ from ._interaction_type import InteractionType
 from ._material import Material, materials
 from ._utd import F, diffraction_coefficients
 from ._utils import lengths_to_delays, path_delays, sp_directions
-from .constants import c, epsilon_0, mu_0, z_0

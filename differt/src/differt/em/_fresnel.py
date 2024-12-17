@@ -250,12 +250,12 @@ def reflection_coefficients(
            ground.
 
            >>> from differt.em import (
+           ...     c,
            ...     reflection_coefficients,
            ...     Dipole,
            ...     pointing_vector,
            ...     sp_directions,
            ... )
-           >>> from differt.em.constants import c
            >>> from differt.geometry import normalize
            >>> from differt.rt import image_method
            >>> from differt.utils import dot

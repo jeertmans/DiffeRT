@@ -20,6 +20,7 @@ Contents
 
    installation
    conventions
+   motivations
 
 .. toctree::
    :caption: Basic Tutorials

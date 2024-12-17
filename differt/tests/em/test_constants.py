@@ -1,7 +1,7 @@
 import pytest
 import scipy.constants
 
-from differt.em import constants
+from differt.em import _constants
 
 
 @pytest.mark.parametrize(
@@ -17,7 +17,7 @@ from differt.em import constants
     ],
 )
 def test_constants(constant_name: str, value: float | None) -> None:
-    got = getattr(constants, constant_name)
+    got = getattr(_constants, constant_name)
     if value:
         assert abs(got - value) < 1e-6
     else:

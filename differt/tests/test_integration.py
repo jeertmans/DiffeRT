@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from differt.em import materials
 from differt.geometry import (
     TriangleMesh,
     assemble_paths,
@@ -179,3 +180,32 @@ def test_simple_street_canyon() -> None:
             atol=1e-5,
             custom_message=f"Mismatch for paths {order = }.",
         )
+
+
+def test_itu_materials() -> None:
+    sionna = pytest.importorskip("sionna")
+    sionna_scene = sionna.rt.scene.Scene("__empty__")
+
+    for mat_name, differt_mat in materials.items():
+        if not mat_name.startswith("itu_"):
+            continue
+
+        if mat_name == "itu_vacuum":
+            sionna_mat = sionna_scene.get("vacuum")
+        else:
+            sionna_mat = sionna_scene.get(mat_name)
+
+        for f in np.logspace(9 - 2, 9 + 3, 21):
+            sionna_scene.frequency = f
+
+            chex.assert_trees_all_close(
+                differt_mat.relative_permittivity(f),
+                sionna_mat.relative_permittivity,
+                custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
+            )
+
+            chex.assert_trees_all_close(
+                differt_mat.conductivity(f),
+                sionna_mat.conductivity,
+                custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
+            )

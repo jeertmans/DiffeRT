@@ -29,7 +29,9 @@ class Material(eqx.Module):
         tuple[Float[Array, " *batch"], Float[Array, " *batch"]],
     ] = eqx.field(static=True)
     """
-    Compute the electrical properties of the material at the given frequency.
+    The callable that computes the electrical properties of the material at the given frequency.
+
+    The signature of the callable must be as follows.
 
     Args:
         frequency: The frequency at which to compute the electrical properties.
@@ -37,7 +39,7 @@ class Material(eqx.Module):
     Returns:
         A tuple containing the relative permittivity and conductivity of the material.
     """
-    aliases: tuple[str, ...] | None = eqx.field(default=None, static=True)
+    aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """
     A tuple of name aliases for the material.
     """
@@ -84,52 +86,78 @@ class Material(eqx.Module):
             tuple[Float[ArrayLike, " "], Float[ArrayLike, " "]] | None,
         ],
     ) -> Self:
-        """
-        Create a Material instance from JAX properties.
+        r"""
+        Create a material from ITU properties.
+
+        The ITU-R Recommendation P.2040-3 :cite:`itu-r-2040` defines the electrical properties of a material
+        using 4 real-valued coefficients: **a**, **b**, **c**, and **c**. The :data:`materials` mapping
+        is already populated with values from :cite:`itu-r-2040{Tab. 3}`.
 
         Args:
             name: The name of the material.
             itu_properties: The list of material properties and corresponding frequency range.
+
                 Each tuple must contain:
-                + a: The first coefficient for the real part of the relative permittivity.
-                + b: The second coefficient for the real part of the relative permittivity.
-                + c: The first coefficient for the conductivity.
-                + d: The second coefficient for the conductivity.
-                + frequency_range: The frequency range (in GHz) for which the electrical
-                    properties are assumed to be correct.
+
+                * **a** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The first coefficient for the real part of the relative permittivity.
+                * **b** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The second coefficient for the real part of the relative permittivity.
+                * **c** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The first coefficient for the conductivity.
+                * **d** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The second coefficient for the conductivity.
+                * **frequency_range** (:class:`tuple`\[:class:`Float[ArrayLike, " "]<jaxtyping.Float>`, :class:`Float[ArrayLike, " "]<jaxtyping.Float>`\]): The frequency range (in GHz) for which the electrical
+                  properties are assumed to be correct.
+
+                  This parameter must either be an ordered 2-tuple of min. and max. frequencies,
+                  or can be :data:`None`, in which case only one frequency range is allowed as
+                  it will match all frequencies.
 
         Returns:
-            A Material instance.
+            A new material.
 
         Raises:
-            ValueError: If you passed more than one frequency range and at least one was 'None'.
+            ValueError: If you passed more than one frequency range and at least one was :data:`None`.
         """
         f_ranges = []
         branches = []
+
+        dtype = jnp.result_type(*[x for prop in itu_properties for x in prop[:-1]])
+
+        aliases = ("itu_" + name.lower().replace(" ", "_"),)
+
+        @partial(jax.jit, inline=True, static_argnums=(1, 2, 3, 4))
+        @jaxtyped(typechecker=typechecker)
+        def callback(
+            f: Float[ArrayLike, " *batch"],
+            a: Float[ArrayLike, " "],
+            b: Float[ArrayLike, " "],
+            c: Float[ArrayLike, " "],
+            d: Float[ArrayLike, " "],
+        ) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]:
+            f_ghz = jnp.asarray(f) / 1e9
+
+            if b == 0:
+                rel_perm = jnp.full_like(f_ghz, a, dtype=dtype)
+            else:
+                rel_perm = jnp.asarray(a * f_ghz**b, dtype=dtype)
+
+            if d == 0:
+                cond = jnp.full_like(f_ghz, c, dtype=dtype)
+            else:
+                cond = jnp.asarray(c * f_ghz**d, dtype=dtype)
+
+            return rel_perm, cond
 
         if any(prop[-1] is None for prop in itu_properties):
             if len(itu_properties) != 1:
                 msg = "Only one frequency range can be used if 'None' is passed, as it will match any frequency."
                 raise ValueError(msg)
             a, b, c, d, _ = itu_properties[0]
-            props = [(a, b, c, d, (float("-inf"), float("+inf")))]
-        else:
-            props = [
-                (a, b, c, d, tuple(sorted(f_range)))  # type: ignore[reportArgumentType]
-                for a, b, c, d, f_range in itu_properties
-            ]
-            props = sorted(itu_properties, key=operator.itemgetter(-1))
+            return cls(
+                name=name,
+                properties=partial(callback, a=a, b=b, c=c, d=d),
+                aliases=aliases,
+            )
 
-        @partial(jax.jit, static_argnums=(1, 2, 3, 4))
-        @jaxtyped(typechecker=typechecker)
-        def callback(
-            f_ghz: Float[ArrayLike, " *#batch"],
-            a: Float[ArrayLike, " *#batch"],
-            b: Float[ArrayLike, " *#batch"],
-            c: Float[ArrayLike, " *#batch"],
-            d: Float[ArrayLike, " *#batch"],
-        ) -> tuple[Float[ArrayLike, "*batch"], Float[ArrayLike, "*batch"]]:
-            return a if b == 0 else a * f_ghz**b, c if d == 0 else c * f_ghz**d
+        props = sorted(itu_properties, key=operator.itemgetter(-1))
 
         for a, b, c, d, f_range in props:
             f_ranges.append(f_range)
@@ -137,53 +165,67 @@ class Material(eqx.Module):
 
         # This callbacks is used when frequency is outside of range
         branches.append(
-            lambda f_ghz: (
-                -jnp.ones_like(f_ghz),
-                -jnp.ones_like(f_ghz),
+            lambda f: (
+                -jnp.ones_like(f, dtype=dtype),
+                -jnp.ones_like(f, dtype=dtype),
             )
         )
+        i_range = jnp.arange(len(f_ranges))
         i_outside = len(branches) - 1
 
-        f_ranges = jnp.asarray(f_ranges)
+        # NOTE:
+        # Checking f >= f_min_ghz * 1e9
+        # leads to more accutate check than
+        # doing f / 1e9 >= f_min_ghz,
+        # hence we pre-multiply frequency ranges to be in Hz.
+        f_ranges = jnp.asarray(f_ranges) * 1e9
         f_min = f_ranges[:, 0]
         f_max = f_ranges[:, 1]
 
-        # TODO: jitting this seems to cause issues with precision
         @jax.jit
         def properties(
             f: Float[ArrayLike, "*batch"],
         ) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]:
-            f_ghz = jnp.asarray(f / 1e9)
+            f = jnp.asarray(f)
 
-            i_min = jnp.searchsorted(f_min, f_ghz, side="right", method="compare_all")
-            i_max = jnp.searchsorted(f_max, f_ghz, side="left", method="compare_all")
-
-            indices = jnp.where(i_max + 1 == i_min, i_max, i_outside)
-
-            if jnp.ndim(f_ghz) == 0:
+            if jnp.ndim(f) == 0:
+                where = (f_min <= f) & (f <= f_max)
+                indices = jnp.min(i_range, where=where, initial=i_outside)
                 return jax.lax.switch(
                     indices,
                     branches,
-                    f_ghz,
+                    f,
                 )
 
+            batch = f.shape
+            f = f.ravel()
+
+            where = (f_min <= f[..., None]) & (f[..., None] <= f_max)
+            indices = jnp.min(
+                jnp.broadcast_to(i_range, where.shape),
+                where=where,
+                initial=i_outside,
+                axis=-1,
+            )
+
             rel_perm, cond = jax.vmap(
-                lambda f_ghz, i: jax.lax.switch(
+                lambda freq, i: jax.lax.switch(
                     i,
                     branches,
-                    f_ghz,
+                    freq,
                 ),
-            )(f_ghz.ravel(), indices.ravel())
+            )(f, indices)
 
-            return rel_perm.reshape(f_ghz.shape), cond.reshape(f_ghz.shape)
+            return rel_perm.reshape(batch), cond.reshape(batch)
 
         return cls(
             name=name,
             properties=properties,
-            aliases=("itu_" + name.lower().replace(" ", "_"),),
+            aliases=aliases,
         )
 
 
+# ITU-R P.2024-3 materials from Table 3.
 _materials = [
     Material.from_itu_properties("Vacuum", (1.0, 0.0, 0.0, 0.0, None)),
     Material.from_itu_properties("Concrete", (5.24, 0.0, 0.0462, 0.7822, (1, 100))),
@@ -224,7 +266,7 @@ _materials = [
 materials: dict[str, Material] = {
     name: material
     for material in _materials
-    for name in (material.name, *(material.aliases or ()))
+    for name in (material.name, *material.aliases)
 }
 """A dictionary mapping material names and corresponding object instances.
 

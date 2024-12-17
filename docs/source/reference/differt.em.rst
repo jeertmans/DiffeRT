@@ -7,9 +7,13 @@
 
 .. rubric:: Constants
 
-Electrical constants (re-exported to this module).
+Electrical constants used for EM fields computation.
 
-.. currentmodule:: differt.em.constants
+..
+   _See https://github.com/sphinx-doc/sphinx/issues/6495 to understand why
+   we need to change the current module.
+
+.. currentmodule:: differt.em._constants
 
 .. autosummary::
    :toctree: _autosummary
@@ -67,17 +71,21 @@ when relevant.
 
 .. rubric:: Materials
 
-We provide a basic class to represent radio materials, as well as
-a mapping for most common materials: ITU-R materials.
+We provide a basic class to represent radio materials,
+and a mapping containing some common materials (e.g., ITU-R materials).
+
+.. currentmodule:: differt.em._material
 
 .. autosummary::
    :toctree: _autosummary
 
-   Materials
+   Material
    materials
 
+.. currentmodule:: differt.em
+
 Types of interaction (reflection, diffraction, etc.) within a path
-are identified by different numbers, which are listed in an enum class:
+are identified by different numbers, which are listed in an enum class.
 
 .. autosummary::
    :toctree: _autosummary

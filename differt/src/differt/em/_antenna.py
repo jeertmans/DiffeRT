@@ -13,7 +13,7 @@ from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
 from differt.geometry import normalize
 from differt.plotting import PlotOutput, draw_surface
 
-from .constants import c, epsilon_0, mu_0
+from ._constants import c, epsilon_0, mu_0
 
 
 @eqx.filter_jit

@@ -108,7 +108,7 @@ class Paths(eqx.Module):
     )
     """An optional array to indicate the type of each interaction.
 
-    If not specified, :class:`InteractionType.REFLECTION` is assumed.
+    If not specified, :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>` is assumed.
     """
 
     @jaxtyped(

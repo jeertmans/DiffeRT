@@ -1,4 +1,4 @@
-import math
+# ruff: noqa: FURB152
 from typing import ClassVar
 
 import chex
@@ -57,7 +57,6 @@ class TestITU:
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
-    @pytest.mark.xfail(reason="Using JIT causes issues with precision")
     def test_glass(self) -> None:
         mat = self.materials["itu_glass"]
 
@@ -90,7 +89,6 @@ class TestITU:
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
-    @pytest.mark.xfail(reason="Using JIT causes issues with precision")
     def test_ceiling_board(self) -> None:
         mat = self.materials["itu_ceiling_board"]
 
@@ -130,7 +128,7 @@ class TestITU:
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
-        expected_rel_perm = jnp.array([-1.0, math.e, math.e, math.e, -1.0])
+        expected_rel_perm = jnp.array([-1.0, 2.71, 2.71, 2.71, -1.0])
         expected_cond = jnp.array([-1.0, 0.33, 0.33, 0.33, -1.0])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)

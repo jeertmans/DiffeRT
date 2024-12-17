@@ -12,6 +12,7 @@ import os
 from datetime import date
 from typing import Any
 
+import jaxtyping
 from docutils import nodes
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
@@ -265,6 +266,13 @@ def fix_reference(
 
 
 def setup(app: Sphinx) -> None:
+    # Patch to avoid expanding the ArrayLike union type, which takes a lot
+    # of space and is less readable.
+    class ArrayLike(jaxtyping.Array):
+        pass
+
+    jaxtyping.ArrayLike = ArrayLike
+
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)

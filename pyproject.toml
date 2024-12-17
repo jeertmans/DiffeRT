@@ -111,7 +111,7 @@ search = "version: v{current_version}"
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
 ignore-words-list = "crate,serialisation,ue"
-skip = "docs/source/conf.py,pyproject.toml,uv.lock"
+skip = "docs/source/conf.py,docs/source/references.bib,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
 exclude_lines = [
