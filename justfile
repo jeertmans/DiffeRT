@@ -1,91 +1,107 @@
+# This doesn't do anything, but is a placeholder for a future feature
+# see: https://github.com/casey/just/issues/2290
+# set min-just-version := '1.38.0'
+
 # Default command (list all commands)
 default:
-  @just --list
+    @just --list
 
 # Benchmark code
-[group: 'test']
+[group('test')]
 bench: bench-python bench-rust
 
 # Benchmark Python code
-[group: 'python']
-[group: 'test']
+[group('python')]
+[group('test')]
 bench-python *ARGS:
-  uv run pytest -n0 --benchmark-enable --benchmark-only {{ARGS}}
+    uv run --extra tests pytest -n0 --benchmark-enable --benchmark-only {{ ARGS }}
 
 # Benchmark Rust code
-[group: 'rust']
-[group: 'test']
+[group('rust')]
+[group('test')]
 bench-rust *ARGS:
-  cargo bench {{ARGS}}
+    cargo bench {{ ARGS }}
 
 # Build Python package(s)
-[group: 'dev']
+[group('dev')]
 build *ARGS:
-  uv build {{ARGS}}
+    uv build {{ ARGS }}
 
 # Bump packages version
-[group: 'dev']
+[group('dev')]
 bump +ARGS="patch":
-  uv run bump-my-version {{ARGS}}
+    uv run bump-my-version {{ ARGS }}
 
 # Check the code can compile
-[group: 'rust']
-[group: 'test']
+[group('rust')]
+[group('test')]
 check:
-  cargo check
+    cargo check
 
 # Clean build artifacts
-[group: 'dev']
+[group('dev')]
 clean:
-  cargo clean
-  rm -rf dist
+    cargo clean
+    rm -rf dist
 
 # Force reloading CUDA after suspend, see: https://github.com/ami-iit/jaxsim/issues/50#issuecomment-2022483137
-[group: 'dev']
+[group('dev')]
 cuda-reload:
-  sudo rmmod nvidia_uvm
-  sudo modprobe nvidia_uvm
+    sudo rmmod nvidia_uvm
+    sudo modprobe nvidia_uvm
 
 # List JAX's devices
-[group: 'python']
-[group: 'test']
+[group('python')]
+[group('test')]
 devices:
-  uv run python -c "import jax;print(jax.devices())"
+    uv run python -c "import jax;print(jax.devices())"
+
+# Install marutin import hook to automatically build differt_core
+[group('dev')]
+[working-directory('differt-core')]
+hook-install:
+    uv run python -m maturin_import_hook site install --detect-uv
+
+# Uninstall marutin import hook
+[group('dev')]
+[working-directory('differt-core')]
+hook-uninstall:
+    uv run python -m maturin_import_hook site uninstall
 
 # Build and install Python packages
-[group: 'dev']
+[group('dev')]
 install *ARGS:
-  uv sync {{ARGS}}
+    uv sync {{ ARGS }}
 
 # Build and install Python package(s) using 'profiling' profile
-[group: 'dev']
+[group('dev')]
 install-profiling *ARGS:
-  uv sync --config-settings=build-args='--profile profiling' --reinstall-package differt_core {{ARGS}}
+    uv sync --config-settings=build-args='--profile profiling' --reinstall-package differt_core {{ ARGS }}
 
 # Run code linters and formatters
-[group: 'dev']
+[group('dev')]
 lint:
-  uv run pre-commit run --all-files
+    uv run pre-commit run --all-files
 
 alias fmt := lint
 
 # Test code
-[group: 'test']
+[group('test')]
 test: test-python test-rust
 
 # Test Python code
-[group: 'python']
-[group: 'test']
+[group('python')]
+[group('test')]
 test-python *ARGS:
-  uv run pytest {{ARGS}}
+    uv run --extra tests pytest {{ ARGS }}
 
 # Test Rust code
-[group: 'rust']
-[group: 'test']
+[group('rust')]
+[group('test')]
 test-rust *ARGS:
-  cargo test {{ARGS}}
+    cargo test {{ ARGS }}
 
 # Run jupyter-lab with a server that supports reconnecting to running sessions
-[group: 'dev']
+[group('dev')]
 remote-jupyter *ARGS:
-  jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true --set auth.mode=noauth {{ARGS}}
+    uv run --extra remote-jupyter jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true --set auth.mode=noauth {{ ARGS }}

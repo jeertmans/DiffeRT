@@ -67,9 +67,8 @@ To run build this package locally, you need:
 
 - [Rust](https://www.rust-lang.org/) stable toolchain;
 - any modern C compiler;
-- [just](https://github.com/casey/just) to easily run commands listed in `justfile`s;
-- [Maturin](https://www.maturin.rs/) for building Python bindings from Rust code;
-- and [uv](https://docs.astral.sh/uv/) to manage this project.
+- [just>=1.38.0](https://github.com/casey/just) to easily run commands listed in `justfile`s;
+- and [uv>= 0.4.25](https://docs.astral.sh/uv/) to manage this project.
 
 This project contains `justfile`s with recipes[^2] for most common
 use cases, so feel free to use them instead of the commands listed below/
