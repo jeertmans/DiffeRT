@@ -1,3 +1,7 @@
+# This doesn't do anything, but is a placeholder for a future feature
+# see: https://github.com/casey/just/issues/2290
+# set min-just-version := '1.38.0'
+
 # Default command (list all commands)
 default:
     @just --list
