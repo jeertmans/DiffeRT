@@ -215,11 +215,11 @@ def fresnel(
     """
     # Constant factors
     sqrtpi_2_4 = 0.31332853432887503  # 0.25 * jnp.sqrt(0.5 * jnp.pi)
-    _sqrt2 = 0.7071067811865476  # jnp.sqrt(0.5)
+    sqrt2 = 0.7071067811865476  # jnp.sqrt(0.5)
 
     # Erf function evaluations
-    ep = erf((1 + 1j) * _sqrt2 * z)
-    em = erf((1 - 1j) * _sqrt2 * z)
+    ep = erf((1 + 1j) * sqrt2 * z)
+    em = erf((1 - 1j) * sqrt2 * z)
 
     s = sqrtpi_2_4 * (1 + 1j) * (ep - 1j * em)
     c = sqrtpi_2_4 * (1 - 1j) * (ep + 1j * em)
