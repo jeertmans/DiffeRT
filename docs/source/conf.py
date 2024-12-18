@@ -8,8 +8,11 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import inspect
+import operator
 import os
+import sys
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import jaxtyping
@@ -26,6 +29,9 @@ project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
 author = "Jérome Eertmans"
 version = __version__
+git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
+conf_dir = Path(__file__).absolute().parent
+root_dir = conf_dir.parent.parent
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -36,9 +42,9 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
+    "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx.ext.viewcode",
     # Additional
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
@@ -168,8 +174,43 @@ plotly_include_source = True
 plotly_html_show_source_link = False
 plotly_html_show_formats = False
 
+# -- Linkcode settings
+
+
+def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:  # noqa: PLR0911
+    if domain != "py":
+        return None
+
+    if not info["module"]:
+        return None
+    if not info["fullname"]:
+        return None
+    if info["module"].split(".", 1)[0] not in {"differt", "differt_core"}:
+        return None
+
+    try:
+        mod = sys.modules.get(info["module"])
+        obj = operator.attrgetter(info["fullname"])(mod)
+        if isinstance(obj, property):
+            obj: Any = obj.fget
+        obj = inspect.unwrap(obj)
+        filename = inspect.getsourcefile(obj)
+        source, lineno = inspect.getsourcelines(obj)
+    except (AttributeError, TypeError):
+        return None
+
+    if filename is None:
+        return None
+
+    filename = os.path.relpath(filename, start=root_dir)
+    lines = f"#L{lineno}-L{lineno + len(source) - 1}" if lineno else ""
+
+    return f"https://github.com/jeertmans/DiffeRT/blob/{git_ref}/{filename}{lines}"
+
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
 
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
@@ -177,7 +218,7 @@ html_static_path = ["_static"]
 html_theme_options = {
     "show_toc_level": 2,
     "repository_url": "https://github.com/jeertmans/DiffeRT",
-    "repository_branch": "main",
+    "repository_branch": git_ref,
     "path_to_docs": "docs/source",
     "use_edit_page_button": True,
     "use_source_button": True,
