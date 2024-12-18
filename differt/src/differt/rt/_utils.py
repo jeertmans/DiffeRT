@@ -3,7 +3,7 @@
 import sys
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 import equinox as eqx
 import jax
@@ -24,7 +24,7 @@ _T = TypeVar("_T")
 
 
 @typechecker
-class SizedIterator(Iterator, Sized, Generic[_T]):
+class SizedIterator(Iterator[_T], Sized):
     """A custom generic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
     The main purpose of this class is to be able to use
@@ -330,7 +330,7 @@ def rays_intersect_any_triangle(
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         hit_tol = 10.0 * jnp.finfo(dtype).eps
 
-    hit_threshold = 1.0 - hit_tol  # type: ignore[reportOperatorIssue]
+    hit_threshold = 1.0 - hit_tol
 
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
