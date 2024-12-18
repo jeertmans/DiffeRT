@@ -1,22 +1,26 @@
+# This doesn't do anything, but is a placeholder for a future feature
+# see: https://github.com/casey/just/issues/2290
+set min-just-version := '1.38.0'
+
 # Default command (list all commands)
 default:
-  @just --list
+    @just --list
 
 # Clean build artifacts
 clean: clean-autosummary
-  rm -rf build
+    rm -rf build
 
 # Clean autosummary build artifacts.
 clean-autosummary:
-  rm -f source/reference/_autosummary/*.rst
+    rm -f source/reference/_autosummary/*.rst
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":
-  uv run sphinx-build -M {{builder}} source build {{OPTIONS}}
+    uv run --extra docs sphinx-build -M {{ builder }} source build {{ OPTIONS }}
 
 # Build docs in "draft" mode
 draft *ARGS:
-  NB_OFF="1" just build {{ARGS}}
+    NB_OFF="1" just build {{ ARGS }}
 
 # Check links
 linkcheck *ARGS: (draft "linkcheck" ARGS)
