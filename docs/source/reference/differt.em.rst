@@ -39,12 +39,24 @@ from a smooth conducting surface can be expressed as:
 where :math:`P` is the observation point and :math:`Q_r` is the reflection point on the surface, :math:`\rho_1^r` and :math:`\rho_2^r` are the principal radii of curvature at :math:`Q_r` of the reflected wavefront, :math:`k` is the wavenumber, and :math:`s_r` is the distance between :math:`Q_r` and :math:`P`. Moreover, :math:`\boldsymbol{E}^r(Q_r)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`:
 
 .. math::
-    \boldsymbol{E}^r(Q_r) = \boldsymbol{E}^r(Q_r) \cdot R
+    \boldsymbol{E}^r(Q_r) = \boldsymbol{E}^i(Q_r) \cdot \boldsymbol{R}
 
 where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficients.
 
 The foundamentals of UTD are described are also described in :cite:`utd-mcnamara`,
-where Chapter 6 (p. 263) covers three-dimension wedge diffraction.
+where Chapter 6 (p. 263) covers three-dimension wedge diffraction. A similar expression
+can be obtained to express the diffraction field in function of the incident field
+:cite:`utd-mcnamara{eq. 6.13, p. 268}`:
+
+.. math::
+    \boldsymbol{E}^d(P) = \boldsymbol{E}^d(Q_d) \sqrt{\frac{\rho^d}{\left(\rho_1^d+s^r\right)\left(\rho_2^r+s^r\right)}} e^{-jks^d},
+
+where :math:`P` is the observation point and :math:`Q_d` is the diffraction point on the edge, :math:`\rho^d` is the edge caustic distance, :math:`k` is the wavenumber, and :math:`s_d` is the distance between :math:`Q_r` and :math:`P`. Moreover, :math:`\boldsymbol{E}^d(Q_d)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`:
+
+.. math::
+    \boldsymbol{E}^d(Q_d) = \boldsymbol{E}^i(Q_d) \cdot \boldsymbol{D}
+
+where :math:`\boldsymbol{D}` is the dyadic matrix with the diffraction coefficients.
 
 .. autosummary::
    :toctree: _autosummary
@@ -103,3 +115,5 @@ Utility functions, mostly used internally for computing EM fields.
    path_delays
    pointing_vector
    sp_directions
+   F
+   L_i
