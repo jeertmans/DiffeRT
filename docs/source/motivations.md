@@ -37,7 +37,7 @@ In terms of features, DiffeRT does not aim to match the extensive functionality 
   but we then provide detailed tutorials to help the user understand and build their version of the function,
   if they which to do so, e.g., with {ref}`advanced_path_tracing`.
 
-We acknowledge the work of Sionna, and would recommend users to try both tools, and use the one that best fits their needs! If you want to re-use scenes files from Sionna, check out the {meth}`TriangleScene.load_xml<differt.scene.TriangleScene.load_xml>` method, as it supports reading the same file format as the one use by Sionna, i.e., the XML file format used by Mitsuba.
+We acknowledge the work of Sionna, and would recommend users to try both tools, and use the one that best fits their needs! If you want to reuse scenes files from Sionna, check out the {meth}`TriangleScene.load_xml<differt.scene.TriangleScene.load_xml>` method, as it supports reading the same file format as the one use by Sionna, i.e., the XML file format used by Mitsuba.
 
 ## What's Next?
 
