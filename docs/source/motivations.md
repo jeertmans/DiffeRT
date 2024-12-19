@@ -6,50 +6,39 @@ Those are two good questions, and we will try to motivate in this document the r
 
 ## What is DiffeRT
 
-DiffeRT is a Python, array-oriented, Differentiable Ray Tracing (RT) library that aims to provides
-fast and easy to use tools for model the propagation of radio waves. The long-term objective of DiffeRT
-is to provide:
+DiffeRT is a Python, array-oriented, Differentiable Ray Tracing (RT) library that aims to provide fast and easy-to-use tools to model the propagation of radio waves. The long-term objective of DiffeRT is to provide:
 
-- fast method to load large scenes, from various formats;
-- a large set of performant RT utilities (ray launching, image-method, etc.);
-- the ability to easily compute electromagnetic fields and relevant metrics (power delay profile, angular spread, etc.);
-- and allow to differentiate any of the previous parts, with respect to arbitrary input parameters, for optimization or Machine Learning applications.
+- fast methods to load large scenes from various formats;
+- a large set of performant RT utilities (e.g., ray launching, {func}`image_method<differt.rt.image_method>`);
+- the ability to easily compute electromagnetic fields and relevant metrics (e.g., power delay profile, angular spread);
+- and the ability to differentiate any of the previous parts with respect to arbitrary input parameters for optimization or Machine Learning applications.
 
 ## History
 
-At its origins, the development of DiffeRT emerged around 2021, in the form of unorganized code
-projects developed as part of a PhD. Then, a 2D version of DiffeRT,
-[DiffeRT2d](https://github.com/jeertmans/DiffeRT2d),
-came to life and was published in an open access journal in 2024 {cite}`differt2d`.
+The development of DiffeRT began around 2021 as a collection of unorganized code projects during a PhD program. Later, a 2D version of DiffeRT, [DiffeRT2d](https://github.com/jeertmans/DiffeRT2d), was created and published in an open-access journal in 2024 {cite}`differt2d`.
 
-While 2D RT is very nice to develop toy-example, especially when taking benefits
-from object-oriented programming, this usually scales very poorly to large scenes,
-ultimately making DiffeRT2d only usable for fundamental research on RT, and not
-for radio propagation in realistic scenes.
+While 2D RT is excellent for developing toy examples---especially when leveraging object-oriented programming---it often scales poorly to large scenes, limiting DiffeRT2d's use to fundamental research rather than realistic radio propagation scenarios.
 
-DiffeRT builds on some of the principles behind DiffeRT2d, while aiming at good performances
-and scalability to any scene size. As a result, most of the utilities provided by DiffeRT
-directly work on arrays, to avoid unnecessary abstractions caused by object-oriented programming[^1].
+DiffeRT builds on some of the principles behind DiffeRT2d while prioritizing performance and scalability for any scene size. Most utilities provided by DiffeRT work directly on arrays to avoid unnecessary abstractions associated with object-oriented programming[^1].
 
-[^1]: DiffeRT stills uses object-oriented programming in some places, but those classes are immutable
-  dataclasses, and JAX-compatible PyTree, which makes them compatible with many of the JAX features.
+[^1]: DiffeRT stills uses object-oriented programming in some places, but those classes are immutable dataclasses, and JAX-compatible PyTree, which makes them compatible with many of the JAX features.
 
-## DiffeRT vs Sionna
+## DiffeRT vs. Sionna
 
-<!-- TODO: improve this section, acknowledge Sionna and mention the possibility to load scene files created from Sionna -->
+In terms of features, DiffeRT does not aim to match the extensive functionality of Sionna. Instead, DiffeRT focuses on RT-specific applications similar to what `sionna.rt` offers, but with four main differences:
 
-In terms of features, DiffeRT is nowhere near to bringing the same level of features than Sionna.
-But this is not the goal of DiffeRT either. Instead, DiffeRT tries to focus on RT-oriented applications,
-similar to what `sionna.rt` offers, but with **four main differences**:
+1. **Public lower-level RT Routines[^2]:** Many internal RT mechanisms in Sionna are hidden or undocumented, making it challenging to modify the pipeline. DiffeRT, on the other hand, ensures that most RT utilities are public and well-documented, enabling users to customize or replace parts of the RT algorithms without re-implementing or copy-pasting code.
+2. **JAX Integration:** Unlike Sionna, which uses TensorFlow, DiffeRT leverages JAX for efficient array-based programming. JAX offers powerful features like automatic differentiation, just-in-time (JIT) compilation, and compatibility with GPU/TPU acceleration, making it highly suitable for optimization and Machine Learning tasks.
+3. **Minimal Abstraction with Immutable Dataclasses:** Sionna internally represents scenes using Mitsuba, which, while powerful, imposes restrictions on the types of scenes it can handle. Moreover, Sionna's classes are relatively complex, with many hidden attributes. In contrast, DiffeRT uses immutable dataclasses that can be created using simple constructor or convenient class methods (e.g., for reading scenes from files). Following JAX principles, all classes are immutable PyTrees, ensuring compatibility with JAX while avoiding unnecessary memory allocations through JIT optimization.
+4. **Lightweight and Broadcastable Design:** DiffeRT's design philosophy prioritizes transparency and usability for RT applications, avoiding the heavier abstractions often seen in other libraries. Classes aim to store as few attributes as possibles, and most utilities accept input arrays with arbitrary sized inputs, which makes it very easy, e.g., to compute the same operation for one receiving (RX) antenna, or on a two-dimensional grid of RXs.
 
-- **Most RT functions are public**[^2]: a lot of of the internal RT machinery is hidden (i.e., not documented to the external user) in Sionna. This makes it very convenient for users that don't want to understand of RT works, but makes it particularly hard when one wants to modify some part of the code or the pipeline. Inside DiffeRT, most RT utilities and public and documented, so any user can decide to re-implement their own version of some RT algorithm, without having to re-implement or copy-paste code.
-- **We use JAX**: Sionna uses TensforFlow, as well as Mistabu, we efficient array-based programming.
-  JAX is a very powerful array library that supports...
-- **Less abstraction and immutable dataclasses**: internally, Sionna represents and loads the scene files using Mitsuba. While offering performant high-level features, this restricts quite a lot the types of scenes that Sionna can work with. Instead, all our classes are immutable dataclasses, and can be create with their dataclass constructor, or via more convenient class methods, e.g., when reading a scene from file. As a result of using JAX, we apply the principle that all classes should by immutable PyTrees.
-  This means that you always return new class instante whenever you want to modify any of its attributes. While this may
-  look like a cause to memory problems, JIT compiliation will usually optimize away uncessary memory allocations.
-
-[^2]: The are some exceptions, like the internal machinery behind
+[^2]: There are some exceptions, like the internal machinery behind
   {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`,
   but we then provide detailed tutorials to help the user understand and build their version of the function,
   if they which to do so, e.g., with {ref}`advanced_path_tracing`.
+
+We acknowledge the work of Sionna, and would recommend users to try both tools, and use the one that best fits their needs! If you want to re-use scenes files from Sionna, check out the {meth}`TriangleScene.load_xml<differt.scene.TriangleScene.load_xml>` method, as it supports reading the same file format as the one use by Sionna, i.e., the XML file format used by Mitsuba.
+
+## What's Next?
+
+If you have any question, remark, or recommendation regarding DiffeRT, or its comparison with Sionna, please feel free to reach out on [GitHub discussion](https://github.com/jeertmans/DiffeRT/discussions)!
