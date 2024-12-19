@@ -1,9 +1,16 @@
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.utils import dot, minimize, sample_points_in_bounding_box, sorted_array2
+from differt.utils import (
+    dot,
+    minimize,
+    safe_divide,
+    sample_points_in_bounding_box,
+    sorted_array2,
+)
 
 from .utils import random_inputs
 
@@ -135,3 +142,20 @@ def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:
 
     assert_in_bounds(got, bounding_box)
     assert got.shape == (4, 5, 3)
+
+
+def test_safe_divide(key: PRNGKeyArray) -> None:
+    key_x, key_y = jax.random.split(key, 2)
+    x = jax.random.uniform(key_x, (30, 20))
+    y = jax.random.randint(key_y, (30, 20), minval=0, maxval=3)
+
+    assert y.sum() > 0, "We need at least one division by zero"
+
+    got = safe_divide(x, y)
+
+    assert not jnp.all(jnp.isnan(got)), "We don't want any NaN"
+
+    expected = jnp.where(y != 0, x / y, 0)
+
+    chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
+    chex.assert_trees_all_equal(got, expected)
