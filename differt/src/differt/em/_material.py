@@ -99,11 +99,18 @@ class Material(eqx.Module):
 
                 Each tuple must contain:
 
-                * **a** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The first coefficient for the real part of the relative permittivity.
-                * **b** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The second coefficient for the real part of the relative permittivity.
-                * **c** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The first coefficient for the conductivity.
-                * **d** (:class:`Float[ArrayLike, " "]<jaxtyping.Float>`): The second coefficient for the conductivity.
-                * **frequency_range** (:class:`tuple`\[:class:`Float[ArrayLike, " "]<jaxtyping.Float>`, :class:`Float[ArrayLike, " "]<jaxtyping.Float>`\]): The frequency range (in GHz) for which the electrical
+                * **a** (:class:`Float[ArrayLike, '']<jaxtyping.Float>`):
+                  The first coefficient for the real part of the relative permittivity.
+                * **b** (:class:`Float[ArrayLike, '']<jaxtyping.Float>`):
+                  The second coefficient for the real part of the relative permittivity.
+                * **c** (:class:`Float[ArrayLike, '']<jaxtyping.Float>`):
+                  The first coefficient for the conductivity.
+                * **d** (:class:`Float[ArrayLike, '']<jaxtyping.Float>`):
+                  The second coefficient for the conductivity.
+                * **frequency_range**
+                  (:class:`tuple`\[:class:`Float[ArrayLike, '']<jaxtyping.Float>`,
+                  :class:`Float[ArrayLike, '']<jaxtyping.Float>`\]):
+                  The frequency range (in GHz) for which the electrical
                   properties are assumed to be correct.
 
                   This parameter must either be an ordered 2-tuple of min. and max. frequencies,
