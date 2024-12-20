@@ -89,10 +89,10 @@ def test_F() -> None:  # noqa: N802
     info = jnp.finfo(float)
     got = F(info.eps)
     mag = jnp.abs(got)
-    ang = jnp.angle(got, deg=True)
+    angle = jnp.angle(got, deg=True)
 
     chex.assert_trees_all_close(mag, 0.0, atol=1e-7)
-    chex.assert_trees_all_close(ang, 45)
+    chex.assert_trees_all_close(angle, 45)
 
     # Test case 3: F(x), x -> +oo
     got = F(1e6)
@@ -102,43 +102,5 @@ def test_F() -> None:  # noqa: N802
 
 
 def test_diffraction_coefficients() -> None:
-    # Test case 1: Normal diffraction
-    incident_ray = jnp.array([1.0, 0.0, 0.0])
-    diffracted_ray = jnp.array([0.0, 1.0, 0.0])
-    edge_vector = jnp.array([0.0, 0.0, 1.0])
-    k = 2 * jnp.pi  # Assuming wavelength = 1
-    n = 1.5
-    r_prime = 10.0
-    r = 20.0
-    r0 = 5.0
-    result = diffraction_coefficients(
-        incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
-    )
-    assert result.shape == (3, 3)
-    assert jnp.iscomplexobj(result)
-
-    # Test case 2: Grazing incidence
-    incident_ray = jnp.array([0.0, 1.0, 0.0])
-    diffracted_ray = jnp.array([1.0, 0.0, 0.0])
-    result = diffraction_coefficients(
-        incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
-    )
-    assert jnp.allclose(
-        result, jnp.zeros((3, 3)), atol=1e-6
-    )  # Should be zero for grazing incidence
-
-    # Test case 3: Random inputs
-    for _ in range(10):
-        incident_ray = random.normal(key, (3,))
-        diffracted_ray = random.normal(key, (3,))
-        edge_vector = random.normal(key, (3,))
-        k = random.uniform(key, (), minval=1, maxval=10)
-        n = random.uniform(key, (), minval=1, maxval=2)
-        r_prime = random.uniform(key, (), minval=1, maxval=20)
-        r = random.uniform(key, (), minval=1, maxval=20)
-        r0 = random.uniform(key, (), minval=1, maxval=10)
-        result = diffraction_coefficients(
-            incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
-        )
-        assert result.shape == (3, 3)
-        assert jnp.iscomplexobj(result)
+    with pytest.raises(NotImplementedError):
+        _ = diffraction_coefficients()

@@ -1,5 +1,6 @@
+# ruff: noqa: N802, N806
 from functools import partial
-from typing import overload
+from typing import Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -7,6 +8,8 @@ import jax.numpy as jnp
 import jax.scipy.special as jsp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Complex, Float, jaxtyped
+
+from differt.utils import dot
 
 
 @partial(jax.jit, inline=True)
@@ -20,6 +23,25 @@ def _cot(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
 def _sign(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
     ones = jnp.ones_like(x)
     return jnp.where(x >= 0, ones, -ones)
+
+
+@partial(jax.jit, inline=True, static_argnames=("mode"))
+@jaxtyped(typechecker=typechecker)
+def _N(
+    beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
+) -> Float[Array, " *batch"]:
+    if mode == "+":
+        return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
+    return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
+
+
+@partial(jax.jit, inline=True, static_argnames=("mode"))
+@jaxtyped(typechecker=typechecker)
+def _a(
+    beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
+) -> Float[Array, " *batch"]:
+    N = _N(beta, n, mode)
+    return 2.0 * jax.lax.integer_pow(jnp.cos(0.5 * (2 * n * jnp.pi * N - beta)), 2)
 
 
 @overload
@@ -57,7 +79,7 @@ def L_i(
 
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
-def L_i(
+def L_i(  # noqa: PLR0917
     s_d: Float[Array, " *#batch"],
     sin_2_beta_0: Float[Array, " *#batch"],
     rho_1_i: Float[Array, " *#batch"] | None = None,
@@ -67,6 +89,13 @@ def L_i(
 ) -> Float[Array, " *batch"]:
     r"""
     Compute the distance parameter associated with the incident shadow boundaries.
+
+    .. note::
+
+        This function can also be used to compute the distance parameters
+        associated with the reflection shadow boundaries for the o- and n-faces,
+        by passing the corresponding radii of curvature, see
+        :cite:`utd-mcnamara{eq. 6.28, p. 270}`.
 
     Its general expression is given by :cite:`utd-mcnamara{eq. 6.25, p. 270}`:
 
@@ -112,6 +141,10 @@ def L_i(
 
     Returns:
         The values of the distance parameter :math:`L_i`.
+
+    Raises:
+        ValueError: If 's_i' was provided along at least one of the other radius parameters,
+            or if one or the three 'rho' parameters was not provided.
     """
     radii = (rho_1_i, rho_2_i, rho_e_i)
     all_none = all(x is None for x in radii)
@@ -135,7 +168,7 @@ def L_i(
 
 @jax.jit
 @jaxtyped(typechecker=typechecker)
-def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
+def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     r"""
     Evaluate the transition function at the given points.
 
@@ -197,18 +230,17 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:  # noqa: N802
 
 
 @jax.jit
-def rays_to_sin_angles(incident_rays, diffracted_rays, edge_vectors) -> None:
-    """Compute the sin of angles..."""
-    incident_rays, _ = normalize(incident_rays)
-    diffracted_rays, _ = normalize(diffracted_rays)
-
-
-@jax.jit
+@jaxtyped(typechecker=typechecker)
 def diffraction_coefficients(
-    incident_ray, diffracted_ray, edge_vector, k, n, r_prime, r, r0
-):
+    *_args: Any,
+) -> None:
     """
     Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
+
+    Warning:
+        This function is not yet implemented, as we are still thinking of the
+        best API for it. If you want to get involved in the implementation of UTD coefficients,
+        please reach out to us on GitHub!
 
     The implementation closely follows what is described
     in :cite:`utd-mcnamara{p. 268-273}`.
@@ -223,7 +255,16 @@ def diffraction_coefficients(
         rho_1_i: ...
         rho_1_i: ...
         rho_e_i: ...
+
+    Returns:
+        The soft and hard diffraction coefficients.
+
+    Raises:
+        NotImplementedError: The function is not yet implemented.
     """
+    # ruff: noqa: ERA001, F821, F841
+    raise NotImplementedError
+
     # Ensure input vectors are normalized
     incident_ray = incident_ray / jnp.linalg.norm(incident_ray)
     diffracted_ray = diffracted_ray / jnp.linalg.norm(diffracted_ray)
@@ -238,65 +279,33 @@ def diffraction_coefficients(
     L = r * jnp.sin(beta) ** 2 / (r + r_prime)
     L_prime = r_prime * jnp.sin(beta_0) ** 2 / (r + r_prime)
 
-    # Compute the cotangent arguments
-    cot_arg1 = (phi + (beta - beta_0)) / (2 * n)
-    cot_arg2 = (phi - (beta - beta_0)) / (2 * n)
-    cot_arg3 = (phi + (beta + beta_0)) / (2 * n)
-    cot_arg4 = (phi - (beta + beta_0)) / (2 * n)
+    phi_i = jnp.pi - (jnp.pi - jnp.arccos(dot(-s_t_i, t_o))) * _sign(dot(-s_t_i, n_o))
+    phi_d = jnp.pi - (jnp.pi - jnp.arccos(dot(+s_t_d, t_o))) * _sign(dot(+s_d_i, n_o))
 
-    # Define the cotangent function
-    def cot(x):
-        return 1.0 / jnp.tan(x)
+    # Compute the angle differences
+    phi_1 = phi_d - phi_i
+    phi_2 = phi_d + phi_i
 
-    # Compute the a± coefficients
-    1 + jnp.cos(2 * n * jnp.pi - (phi + beta - beta_0))
-    1 + jnp.cos(2 * n * jnp.pi - (phi - beta + beta_0))
+    # Compute the diffraction coefficients (without common mul. factor)
+    D_1 = _cot((jnp.pi + phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "+"))
+    D_2 = _cot((jnp.pi - phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "-"))
+    D_3 = _cot((jnp.pi + phi_2) / (2 * n)) * F(k * L_r_n * _a(phi_2, "+"))
+    D_4 = _cot((jnp.pi - phi_2) / (2 * n)) * F(k * L_r_o * _a(phi_2, "-"))
 
-    # Compute the D_s and D_h functions
-    def D_soft(L, cot_arg):
-        return (
-            -jnp.exp(-1j * jnp.pi / 4)
-            / (2 * n * jnp.sqrt(2 * jnp.pi * k))
-            * cot(cot_arg)
-            * F(k * L * jnp.power(jnp.sin(cot_arg), 2))
-        )
-
-    def D_hard(L, cot_arg):
-        return (
-            -jnp.exp(-1j * jnp.pi / 4)
-            / (2 * n * jnp.sqrt(2 * jnp.pi * k))
-            * cot(cot_arg)
-            * F(k * L * jnp.power(jnp.sin(cot_arg), 2))
-        )
-
-    # Compute the diffraction coefficients
-    D_s = (
-        D_soft(L, cot_arg1)
-        + D_soft(L, cot_arg2)
-        + D_soft(L_prime, cot_arg3)
-        + D_soft(L_prime, cot_arg4)
-    )
-
-    D_h = (
-        D_hard(L, cot_arg1)
-        + D_hard(L, cot_arg2)
-        + D_hard(L_prime, cot_arg3)
-        + D_hard(L_prime, cot_arg4)
+    factor = -jnp.exp(-1j * jnp.pi / 4) / (
+        2 * n * jnp.sqrt(2 * jnp.pi * k) * sin_beta_0
     )
 
     # Apply the Keller cone condition
-    D_s = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_s, 0)
-    D_h = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_h, 0)
+    # D_s = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_s, 0)
+    # D_h = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_h, 0)
 
-    # Construct the dyadic diffraction coefficient matrix
-    jnp.array([[D_s, 0, 0], [0, D_h, 0], [0, 0, 0]], dtype=jnp.complex64)
+    # TODO: below are assuming perfectly conducting surfaces
 
-    # s_p
+    D_12 = D_1 + D_2
+    D_34 = D_3 + D_4
 
-    d_12 = d_1 + d_2
-    d_34 = d_3 + d_4
+    D_s = (D_12 - D_34) * factor
+    D_h = (D_12 + D_34) * factor
 
-    d_s = d_12 - d_34
-    d_h = d_12 + d_34
-
-    return d_h, d_s
+    return D_s, D_h

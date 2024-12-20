@@ -49,7 +49,7 @@ can be obtained to express the diffraction field in function of the incident fie
 :cite:`utd-mcnamara{eq. 6.13, p. 268}`:
 
 .. math::
-    \boldsymbol{E}^d(P) = \boldsymbol{E}^d(Q_d) \sqrt{\frac{\rho^d}{\left(\rho_1^d+s^r\right)\left(\rho_2^r+s^r\right)}} e^{-jks^d},
+    \boldsymbol{E}^d(P) = \boldsymbol{E}^d(Q_d) \sqrt{\frac{\rho^d}{\left(\rho_1^d+s^d\right)\left(\rho_2^r+s^r\right)}} e^{-jks^d},
 
 where :math:`P` is the observation point and :math:`Q_d` is the diffraction point on the edge, :math:`\rho^d` is the edge caustic distance, :math:`k` is the wavenumber, and :math:`s_d` is the distance between :math:`Q_r` and :math:`P`. Moreover, :math:`\boldsymbol{E}^d(Q_d)` can be expressed in terms of the incident field :math:`\boldsymbol{E}^i`:
 

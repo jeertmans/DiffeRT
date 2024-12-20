@@ -525,7 +525,11 @@ class TriangleMesh(eqx.Module):
 
             return self.set_face_colors(colors=colors)
 
-        face_colors = jnp.broadcast_to(colors.reshape(-1, 3), self.triangles.shape)
+        # TODO: understand why pyright cannot determine that colors is not None
+        face_colors = jnp.broadcast_to(
+            colors.reshape(-1, 3),  # type: ignore[reportOptionalMemberAccess]
+            self.triangles.shape,
+        )
         return eqx.tree_at(
             lambda m: m.face_colors,
             self,
