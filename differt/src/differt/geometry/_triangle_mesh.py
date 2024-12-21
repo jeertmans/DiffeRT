@@ -119,12 +119,19 @@ class TriangleMesh(eqx.Module):
 
     If the present mesh contains multiple objects, usually as a result of appending
     multiple meshes together, this array contain start end end indices for each sub mesh.
+
+    .. important::
+
+        The object indices must cover exactly all triangles in this mesh,
+        and be sorted in ascending order. Otherwise, some methods, like
+        the random object coloring with :meth:`set_face_colors`, may not
+        work as expected.
     """
     assume_quads: bool = eqx.field(default=False)
     """Flag indicating whether triangles can be paired into quadrilaterals.
 
     Setting this to :data:`True` will not check anything, except that
-    :attr:`num_triangles` should is even, but each two consecutive
+    :attr:`num_triangles` is even, but each two consecutive
     triangles are assumed to represent a quadrilateral surface.
     """
 
@@ -359,13 +366,33 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    @jax.jit
+    @overload
+    def set_face_colors(
+        self,
+        colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
+        *,
+        key: None = None,
+    ) -> Self: ...
+
+    @overload
+    def set_face_colors(
+        self,
+        colors: None,
+        *,
+        key: PRNGKeyArray,
+    ) -> Self: ...
+
+    @eqx.filter_jit
     @jaxtyped(
         typechecker=None
     )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def set_face_colors(
         self,
-        colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
+        colors: Float[Array, "#{self.num_triangles} 3"]
+        | Float[Array, "3"]
+        | None = None,
+        *,
+        key: PRNGKeyArray | None = None,
     ) -> Self:
         """
         Return a copy of this mesh, with new face colors.
@@ -374,10 +401,135 @@ class TriangleMesh(eqx.Module):
             colors: The array of RGB colors.
                 If one color is provided, it will be applied to all triangles.
 
+                This or ``key`` must be specified.
+            key: If provided, colors will be randomly generated.
+
+                If :attr:`object_bounds` is not :data:`None`, then triangles
+                within the same object will share the same color. Otherwise,
+                a random color is generated for each triangle
+                (or quadrilateral if :attr:`assume_quads` is :data:`True`).
+
         Returns:
             A new mesh with updated face colors.
+
+        Raises:
+            ValueError: If ``colors`` or ``key`` is not specified.
+
+        Examples:
+            The following example shows how this function paints the mesh,
+            for different argument types.
+
+            First, we load a scene from Sionna :cite:`sionna`, that is
+            already colored, and extract the mesh from it.
+
+            .. plotly::
+                :context:
+
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
+                >>>
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Then, we could set the same color to all triangles.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.set_face_colors(jnp.array([0.8, 0.2, 0.0])).plot(
+                ...     backend="plotly"
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            We could also manually specify a different color for each triangle, but it can
+            become tedious as the number of triangles gets larger. Another option is to rely
+            on automatic random coloring, using the ``key`` argument.
+
+            As our mesh is a collection of 7 distinct objects, as this was loaded from a Sionna
+            XML file, this utility will automatically detect it and color each
+            object differently.
+
+            .. plotly::
+                :context:
+
+                >>> mesh.object_bounds
+                Array([[ 0, 12],
+                       [12, 24],
+                       [24, 36],
+                       [36, 48],
+                       [48, 60],
+                       [60, 72],
+                       [72, 74]], dtype=int32)
+                >>> fig = mesh.set_face_colors(key=jax.random.key(1234)).plot(
+                ...     backend="plotly"
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            If you prefer to have per-triangle coloring, you can perform surgery on the mesh
+            to remove its :attr:`object_bounds` attribute.
+
+            .. plotly::
+                :context:
+
+                >>> import equinox as eqx
+                >>>
+                >>> mesh = eqx.tree_at(lambda m: m.object_bounds, mesh, None)
+                >>> fig = mesh.set_face_colors(key=jax.random.key(1234)).plot(
+                ...     backend="plotly"
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            Finally, you can also set :attr:`assume_quads` to :data:`True` to color quadrilaterals
+            instead.
+
+            .. plotly::
+                :context:
+
+                >>> fig = (
+                ...     mesh.set_assume_quads()
+                ...     .set_face_colors(key=jax.random.key(1234))
+                ...     .plot(backend="plotly")
+                ... )
+                >>> fig  # doctest: +SKIP
         """
-        face_colors = jnp.broadcast_to(colors.reshape(-1, 3), self.triangles.shape)
+        if (colors is None) == (key is None):
+            msg = "You must specify one of 'colors' or `key`, not both."
+            raise ValueError(msg)
+
+        if key is not None:
+            if self.object_bounds is not None:
+                object_colors = jax.random.uniform(
+                    key, (self.object_bounds.shape[0], 3)
+                )
+                repeats = jnp.diff(self.object_bounds, axis=-1)
+                colors = jnp.repeat(
+                    object_colors,
+                    repeats,
+                    axis=0,
+                    total_repeat_length=self.num_triangles,
+                )
+            elif self.assume_quads:
+                quad_colors = jax.random.uniform(key, (self.num_quads, 3))
+                repeats = jnp.full(self.num_objects, 2)
+                colors = jnp.repeat(
+                    quad_colors, repeats, axis=0, total_repeat_length=self.num_triangles
+                )
+            else:
+                colors = jax.random.uniform(key, (self.num_triangles, 3))
+
+            return self.set_face_colors(colors=colors)
+
+        # TODO: understand why pyright cannot determine that colors is not None
+        face_colors = jnp.broadcast_to(
+            colors.reshape(-1, 3),  # type: ignore[reportOptionalMemberAccess]
+            self.triangles.shape,
+        )
         return eqx.tree_at(
             lambda m: m.face_colors,
             self,
@@ -472,7 +624,6 @@ class TriangleMesh(eqx.Module):
 
         u, v = orthogonal_basis(
             normal,
-            normalize=True,
         )
 
         s = 0.5 * side_length
@@ -517,6 +668,35 @@ class TriangleMesh(eqx.Module):
 
         Returns:
             A new box mesh.
+
+        Examples:
+            The following example shows how to create a cube.
+
+            .. plotly::
+
+                >>> from differt.geometry import TriangleMesh
+                >>> mesh = (
+                ...     TriangleMesh.box(with_top=True)
+                ...     .set_assume_quads()
+                ...     .set_face_colors(key=jax.random.key(1234))
+                ... )
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            The second example shows how to create a corridor-like
+            mesh, without the ceiling face.
+
+            .. plotly::
+
+                >>> from differt.geometry import TriangleMesh
+                >>> mesh = (
+                ...     TriangleMesh.box(length=10.0, width=3.0, height=2.0)
+                ...     .set_assume_quads()
+                ...     .set_face_colors(key=jax.random.key(1234))
+                ... )
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig = fig.update_scenes(aspectmode="data")
+                >>> fig  # doctest: +SKIP
         """
         dx = jnp.array([length * 0.5, 0.0, 0.0])
         dy = jnp.array([0.0, width * 0.5, 0.0])
