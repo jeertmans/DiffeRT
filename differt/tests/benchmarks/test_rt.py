@@ -75,7 +75,6 @@ def test_compute_paths_in_simple_street_canyon_scene(
     scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
     if chunk_size:
 
-        @jax.debug_nans(False)  # noqa: FBT003
         def bench_fun() -> None:
             for path in scene.compute_paths(
                 order,
@@ -85,7 +84,6 @@ def test_compute_paths_in_simple_street_canyon_scene(
 
     else:
 
-        @jax.debug_nans(False)  # noqa: FBT003
         def bench_fun() -> None:
             scene.compute_paths(
                 order,
@@ -104,7 +102,6 @@ def test_compile_compute_paths(
     path_candidates = generate_all_path_candidates(scene.mesh.num_triangles, 2)
 
     @jax.jit
-    @jax.debug_nans(False)  # noqa: FBT003
     def fun(path_candidates: Array) -> Paths:
         return scene.compute_paths(path_candidates=path_candidates)
 

@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
+from itertools import product
 
 import chex
 import jax
@@ -17,6 +18,7 @@ from differt.geometry._utils import (
     orthogonal_basis,
     pairwise_cross,
     path_lengths,
+    perpendicular_vectors,
     rotation_matrix_along_axis,
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
@@ -80,6 +82,17 @@ def test_normalize_random_inputs(
             chex.assert_trees_all_close(u, nu * lu)
         else:
             chex.assert_trees_all_close(u, nu * lu[..., None])
+
+
+def test_perpendicular_vectors() -> None:
+    all_vectors = list(product([0.0, 1.0, -1.0], repeat=3))
+    # Drop [0, 0, 0] case
+    all_vectors = all_vectors[1:]
+    u = jnp.array(all_vectors)
+    v = perpendicular_vectors(u)
+
+    chex.assert_trees_all_close(jnp.linalg.norm(v, axis=-1), 1.0)
+    chex.assert_trees_all_close(jnp.sum(u * v, axis=-1), 0.0)
 
 
 @pytest.mark.parametrize(
