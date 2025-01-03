@@ -199,7 +199,7 @@ def image_method(
             intersections with mirrors are computed backward, `i.e.`, from last mirror to
             first, by joining the UE, then the intersections points, with the images of the
             BS. Finally, the valid path can be obtained by joining BS, the intermediary
-            intersection points, and the UE :cite:`mpt-eucap2023{fig. 5}`.
+            intersection points, and the UE :cite:`mpt-eucap2023{fig. 5, p. 3}`.
 
         Next, we show how to reproduce the above results using :func:`image_method`.
 
