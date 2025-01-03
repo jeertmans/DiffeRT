@@ -6,6 +6,7 @@ from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Float, jaxtyped
 
 from differt.geometry import normalize, path_lengths, perpendicular_vectors
+from differt.utils import dot
 
 from ._constants import c
 
@@ -263,3 +264,84 @@ def sp_directions(
     e_r_p = normalize(jnp.cross(e_r_s, k_r))[0]
 
     return (e_i_s, e_i_p), (e_r_s, e_r_p)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def sp_rotation_matrix(
+    e_i_s: Float[Array, "*#batch 3"],
+    e_i_p: Float[Array, "*#batch 3"],
+    e_r_s: Float[Array, "*#batch 3"],
+    e_r_p: Float[Array, "*#batch 3"],
+) -> Float[Array, "*batch 2 2"]:
+    """
+    Return the rotation matrix to convert the s and p components of the incident field to the reflected (or any) field.
+
+    All input vectors must have a unit length.
+
+    Args:
+        e_i_s: The array of s component directions of the incident field.
+        e_i_p: The array of p component directions of the incident field.
+        e_r_s: The array of s component directions of the reflected field.
+        e_r_p: The array of p component directions of the reflected field.
+
+    Returns:
+        The array of rotation matrices.
+
+    Examples:
+        The following example shows how to compute and display the direction of
+        the s and p components before and after reflection on a spherical surface.
+
+        >>> from differt.em import (
+        ...     sp_rotation_matrix,
+        ... )
+        >>> k_i = jnp.array([+1.0, 0.0, 0.0])
+        >>> k_r = jnp.array([-1.0, 0.0, 0.0])
+        >>> normal = jnp.array([-1.0, 0.0, 0.0])
+        >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, normal)
+        >>> R = sp_rotation_matrix(e_i_s, e_i_p, e_r_s, e_r_p)
+
+        Let generate an array of incident fields, to be reflected.
+        We already split the fields into s and p components.
+
+        >>> E_s = jnp.array([4.0, 1.0, 0.0, -1.0])
+        >>> E_p = jnp.array([1.0, -2.0, 0.0, 1.0])
+        >>> E_i = jnp.stack((E_s, E_p), axis=-1)
+
+        We can then rotate the incident field to the reflected field.
+
+        >>> # TODO: replace einsum with matvec when jax>0.4.32 is available
+        >>> E_r = jnp.einsum("...ri,...i->...r", R, E_i)
+        >>> E_r
+        Array([[ 4., -1.],
+               [ 1.,  2.],
+               [ 0.,  0.],
+               [-1., -1.]], dtype=float32)
+
+        Above, we can clearly see that the s component stays the
+        same, while the p component is negated, as what we could
+        expected from a specular reflection.
+
+        We can also rotate the reflected field back to the incident field.
+
+        >>> R = jnp.moveaxis(R, -1, -2)  # Transpose last two axes
+        >>> E_i = jnp.einsum("...ir,...r->...i", R, E_r)
+        >>> E_i
+        Array([[ 4.,  1.],
+               [ 1., -2.],
+               [ 0.,  0.],
+               [-1.,  1.]], dtype=float32)
+
+    """
+    r11 = dot(e_r_s, e_i_s, keepdims=True)
+    r12 = dot(e_r_s, e_i_p, keepdims=True)
+    r21 = dot(e_r_p, e_i_s, keepdims=True)
+    r22 = dot(e_r_p, e_i_p, keepdims=True)
+
+    return jnp.stack(
+        (
+            jnp.concatenate((r11, r21), axis=-1),
+            jnp.concatenate((r12, r22), axis=-1),
+        ),
+        axis=-1,
+    )

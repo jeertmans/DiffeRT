@@ -77,9 +77,13 @@ when relevant.
 .. autosummary::
    :toctree: _autosummary
 
+   BaseAntenna
    Antenna
    Dipole
    ShortDipole
+   RadiationPattern
+   HWDipolePattern
+   ShortDipolePattern
 
 .. rubric:: Materials
 
@@ -115,5 +119,6 @@ Utility functions, mostly used internally for computing EM fields.
    path_delays
    pointing_vector
    sp_directions
+   sp_rotation_matrix
    F
    L_i

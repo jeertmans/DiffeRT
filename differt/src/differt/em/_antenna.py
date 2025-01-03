@@ -1,5 +1,3 @@
-"""Common antenna utilities."""
-
 from abc import abstractmethod
 from dataclasses import KW_ONLY
 from typing import Any
@@ -12,6 +10,7 @@ from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
 
 from differt.geometry import normalize
 from differt.plotting import PlotOutput, draw_surface
+from differt.utils import dot, safe_divide
 
 from ._constants import c, epsilon_0, mu_0
 
@@ -39,8 +38,8 @@ def pointing_vector(
 
 
 @jaxtyped(typechecker=typechecker)
-class Antenna(eqx.Module):
-    """An antenna class, must be subclassed."""
+class BaseAntenna(eqx.Module):
+    """An antenna class, base class for :class:`Antenna` and :class:`RadiationPattern`."""
 
     frequency: Float[Array, " "] = eqx.field(converter=jnp.asarray)
     """The frequency :math:`f` at which the antenna is operating."""
@@ -76,6 +75,11 @@ class Antenna(eqx.Module):
     def wavenumber(self) -> Float[Array, " "]:
         r"""The wavenumber :math:`k = \omega / c`."""
         return self.angular_frequency / c
+
+
+@jaxtyped(typechecker=typechecker)
+class Antenna(BaseAntenna):
+    """An antenna class, must be subclassed."""
 
     @property
     @abstractmethod
@@ -323,9 +327,9 @@ class Dipole(Antenna):
             >>> plt.show()  # doctest: +SKIP
     """
 
-    length: Float[Array, " "]
+    length: Float[Array, " "] = eqx.field(converter=jnp.asarray)
     """Dipole length (in meter)."""
-    moment: Float[Array, "3"]
+    moment: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
     """Dipole moment (in Coulomb-meter)."""
 
     @jaxtyped(typechecker=typechecker)
@@ -481,3 +485,178 @@ class ShortDipole(Dipole):
     ) -> Float[Array, " "]:
         # Bypass Dipole's specialized implementation
         return Antenna.directive_gain(self, num_points=num_points)
+
+
+@jaxtyped(typechecker=typechecker)
+class RadiationPattern(BaseAntenna):
+    """An antenna radiation pattern class, must be subclassed."""
+
+    @abstractmethod
+    def polarization_vectors(
+        self,
+        r: Float[Array, "*#batch 3"],
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        r"""
+        Compute s and p polarization vectors.
+
+        Args:
+            r: The array of positions.
+
+        Returns:
+            The electric :math:`\vec{E}` and magnetical :math:`\vec{B}` fields.
+
+            Fields can be either real or complex-valued.
+        """
+
+    @jaxtyped(typechecker=typechecker)
+    def directivity(
+        self,
+        num_points: int = int(1e2),
+    ) -> tuple[
+        Float[Array, " 2*{num_points}"],
+        Float[Array, " {num_points}"],
+        Float[Array, "2*{num_points} {num_points}"],
+    ]:
+        """
+        Compute an estimate of the antenna directivity for azimutal and elevation angles.
+
+        .. note::
+
+            Subclasses may provide a more accurate or exact
+            implementation.
+
+        Args:
+            num_points: The number of points to sample along the elevation axis.
+
+                Twice this number of points are sampled on the aximutal axis.
+
+        Returns:
+            Azimutal and elevation angles, as well as corresponding directivity values.
+
+        .. seealso::
+
+            :meth:`directive_gain`
+        """
+        u, du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
+        v, dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
+        x = jnp.outer(jnp.cos(u), jnp.sin(v))
+        y = jnp.outer(jnp.sin(u), jnp.sin(v))
+        z = jnp.outer(jnp.ones_like(u), jnp.cos(v))
+
+        r = self.center + jnp.stack((x, y, z), axis=-1)
+
+        s, p = self.polarization_vectors(r)
+
+        g = dot(s) + dot(p)
+
+        # TODO: check if this is correct
+
+        return u, v, g
+
+    @jaxtyped(typechecker=typechecker)
+    def directive_gain(
+        self,
+        num_points: int = int(1e2),
+    ) -> Float[Array, " "]:
+        """
+        Compute an estimate of the antenna directive gain.
+
+        .. note::
+
+            Subclasses may provide a more accurate or exact
+            implementation.
+
+        Args:
+            num_points: The number of points used for the estimate.
+
+        Returns:
+            The antenna directive gain.
+
+        .. seealso::
+
+            :meth:`directivity`
+        """
+        return self.directivity(num_points=num_points)[-1].max()
+
+    def plot_radiation_pattern(
+        self,
+        num_points: int = int(1e2),
+        distance: Float[ArrayLike, " "] = 1.0,
+        num_wavelengths: Float[ArrayLike, " "] | None = None,
+        **kwargs: Any,
+    ) -> PlotOutput:
+        """
+        Plot the radiation pattern (normalized power) of this antenna.
+
+        The power is computed on points on an sphere around the antenna.
+
+        Args:
+            num_points: The number of points to sample along the elevation axis.
+
+                Twice this number of points are sampled on the aximutal axis.
+            distance: The distance from the antenna at which power samples
+                are evaluated.
+            num_wavelengths: If provided, supersedes ``distance`` by setting
+                the distance relatively to the :attr:`wavelength`.
+            kwargs: Keyword arguments passed to
+                :func:`draw_surface<differt.plotting.draw_surface>`.
+
+        Returns:
+            The resulting plot output.
+        """
+        if num_wavelengths is not None:
+            distance = jnp.asarray(num_wavelengths) * self.wavelength
+        else:
+            distance = jnp.asarray(distance)
+
+        u = jnp.linspace(0, 2 * jnp.pi, num_points * 2)
+        v = jnp.linspace(0, jnp.pi, num_points)
+        x = jnp.outer(jnp.cos(u), jnp.sin(v))
+        y = jnp.outer(jnp.sin(u), jnp.sin(v))
+        z = jnp.outer(jnp.ones_like(u), jnp.cos(v))
+
+        r = self.center + distance * jnp.stack((x, y, z), axis=-1)
+
+        s = self.pointing_vector(r)
+
+        p = jnp.linalg.norm(s, axis=-1, keepdims=True)
+
+        gain = p / p.max()
+
+        r *= gain
+        gain = jnp.squeeze(gain, axis=-1)
+
+        return draw_surface(
+            x=r[..., 0], y=r[..., 1], z=r[..., 2], colors=gain, **kwargs
+        )
+
+
+@jaxtyped(typechecker=typechecker)
+class HWDipolePattern(RadiationPattern):
+    """An half-wave dipole radiation pattern."""
+
+    direction: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
+    """The dipole direction."""
+
+    def polarization_vectors(
+        self,
+        r: Float[Array, "*#batch 3"],
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        r_hat, r = normalize(r - self.center, keepdims=True)
+
+        cos_theta = dot(r_hat, self.direction)
+        sin_theta = jnp.sqrt(1 - cos_theta**2)
+
+        d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
+
+        cos_theta = dot()
+        sin_theta = jnp.sin()
+        d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
+
+
+@jaxtyped(typechecker=typechecker)
+class ShortDipolePattern(RadiationPattern):
+    """An short dipole radiation pattern."""
+
+    direction: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
+    """The dipole direction."""

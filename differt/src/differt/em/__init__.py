@@ -2,12 +2,16 @@
 
 __all__ = (
     "Antenna",
+    "BaseAntenna",
     "Dipole",
     "F",
+    "HWDipolePattern",
     "InteractionType",
     "L_i",
     "Material",
+    "RadiationPattern",
     "ShortDipole",
+    "ShortDipolePattern",
     "c",
     "diffraction_coefficients",
     "epsilon_0",
@@ -21,10 +25,20 @@ __all__ = (
     "refraction_coefficients",
     "refractive_indices",
     "sp_directions",
+    "sp_rotation_matrix",
     "z_0",
 )
 
-from ._antenna import Antenna, Dipole, ShortDipole, pointing_vector
+from ._antenna import (
+    Antenna,
+    BaseAntenna,
+    Dipole,
+    HWDipolePattern,
+    RadiationPattern,
+    ShortDipole,
+    ShortDipolePattern,
+    pointing_vector,
+)
 from ._constants import c, epsilon_0, mu_0, z_0
 from ._fresnel import (
     fresnel_coefficients,
@@ -35,4 +49,4 @@ from ._fresnel import (
 from ._interaction_type import InteractionType
 from ._material import Material, materials
 from ._utd import F, L_i, diffraction_coefficients
-from ._utils import lengths_to_delays, path_delays, sp_directions
+from ._utils import lengths_to_delays, path_delays, sp_directions, sp_rotation_matrix

@@ -2,12 +2,20 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
 from differt.em._constants import c
-from differt.em._utils import lengths_to_delays, path_delays, sp_directions
+from differt.em._utils import (
+    lengths_to_delays,
+    path_delays,
+    sp_directions,
+    sp_rotation_matrix,
+)
+from differt.geometry import normalize
+from differt.utils import dot
 
 from ..utils import random_inputs
 
@@ -90,3 +98,62 @@ def test_sp_directions() -> None:
     chex.assert_trees_all_close(got[0][0], expected_e_i_s)
     chex.assert_trees_all_close(got[0][1], expected_e_i_p)
     chex.assert_trees_all_close(got[1][1], expected_e_r_p)
+
+
+@pytest.mark.parametrize(
+    "batch",
+    [
+        (4,),
+        (10,),
+        (20, 10),
+    ],
+)
+def test_sp_rotation_matrix_random_inputs(
+    batch: tuple[int, ...], key: PRNGKeyArray
+) -> None:
+    key_E, key_e = jax.random.split(key, 2)
+    E_i = jax.random.normal(key_E, (*batch, 3))
+    k_i, k_r, normals = jnp.unstack(
+        normalize(jax.random.normal(key_e, (3, *batch, 3)))[0], axis=0
+    )
+    (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, normals)
+
+    # Generated s and p components should be orthogonal
+
+    chex.assert_trees_all_close(dot(e_i_s, e_i_p), 0.0, atol=1e-7)
+    chex.assert_trees_all_close(dot(e_r_s, e_r_p), 0.0, atol=1e-7)
+
+    E_i_s_p = jnp.concatenate(
+        (dot(E_i, e_i_s, keepdims=True), dot(E_i, e_i_p, keepdims=True)), axis=-1
+    )
+
+    # Remove E components orthogonal to the s and p components
+
+    E_i = E_i_s_p[..., 0, None] * e_i_s + E_i_s_p[..., 1, None] * e_i_p
+
+    R = sp_rotation_matrix(e_i_s, e_i_p, e_r_s, e_r_p)
+
+    E_r_s_p = jnp.einsum("...ri,...i->...r", R, E_i_s_p)
+
+    E_r = E_r_s_p[..., 0, None] * e_r_s + E_r_s_p[..., 1, None] * e_r_p
+
+    chex.assert_trees_all_equal_shapes_and_dtypes(
+        E_r,
+        E_i,
+    )
+
+    # The norm should be preserved.
+
+    # chex.assert_trees_all_close(
+    #    jnp.linalg.norm(E_r, axis=-1),
+    #    jnp.linalg.norm(E_i, axis=-1),
+    # )
+
+    # A back-rotation should yield the original field
+
+    R = jnp.moveaxis(R, -1, -2)
+
+    chex.assert_trees_all_close(
+        jnp.einsum("...ir,...r->...i", R, E_r_s_p),
+        E_i_s_p,
+    )
