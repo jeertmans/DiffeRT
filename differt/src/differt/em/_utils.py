@@ -279,6 +279,13 @@ def sp_rotation_matrix(
 
     All input vectors must have a unit length.
 
+    Warning:
+        The returned matrix is not a rotatiom matrix in the strict sense,
+        as it may have a determinant of -1, e.g., in the case of a specular reflection.
+
+        Instead, it is referred to as an improper rotation matrix, or a roto-reflection matrix
+        :cite:`improper-rotation`, as it combines a rotation and a reflection.
+
     Args:
         e_i_s: The array of s component directions of the incident field.
         e_i_p: The array of p component directions of the incident field.
@@ -324,8 +331,7 @@ def sp_rotation_matrix(
 
         We can also rotate the reflected field back to the incident field.
 
-        >>> R = jnp.moveaxis(R, -1, -2)  # Transpose last two axes
-        >>> E_i = jnp.einsum("...ir,...r->...i", R, E_r)
+        >>> E_i = jnp.einsum("...ir,...r->...i", R.mT, E_r)
         >>> E_i
         Array([[ 4.,  1.],
                [ 1., -2.],
@@ -338,10 +344,8 @@ def sp_rotation_matrix(
     r21 = dot(e_r_p, e_i_s, keepdims=True)
     r22 = dot(e_r_p, e_i_p, keepdims=True)
 
-    return jnp.stack(
-        (
-            jnp.concatenate((r11, r21), axis=-1),
-            jnp.concatenate((r12, r22), axis=-1),
-        ),
-        axis=-1,
-    )
+    r11, r12, r21, r22 = jnp.broadcast_arrays(r11, r12, r21, r22)
+
+    batch = r11.shape[:-1]
+
+    return jnp.concatenate((r11, r12, r21, r22), axis=-1).reshape(*batch, 2, 2)
