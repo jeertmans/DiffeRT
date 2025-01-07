@@ -66,7 +66,7 @@ def test_use_unsupported() -> None:
     with (
         pytest.raises(
             ValueError,
-            match="The backend 'bokeh' is not supported. We currently support:",
+            match=r"The backend 'bokeh' is not supported. We currently support:",
         ),
         use(backend="bokeh"),
     ):
