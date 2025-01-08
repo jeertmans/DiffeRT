@@ -4,6 +4,7 @@ import sys
 
 import nbformat as nbf
 
+SKIP_TAG = "nbsetup-skip"
 TAG = "differt-install-preamble"
 
 CELL = nbf.NotebookNode(
@@ -28,12 +29,15 @@ if __name__ == "__main__":
     for ipath in sys.argv[1:]:
         ntbk = nbf.read(ipath, nbf.NO_CONVERT)
 
+        if ntbk.metadata.get("nbsetup", {}).get("skip", False):
+            continue
+
         cells = ntbk.cells
 
         if len(cells) > 1 and TAG in cells[0].get("metadata", {}).get("tags", []):
             cell = cells[0]
 
-            if "nbsetup-skip" in cell["metadata"]["tags"]:
+            if SKIP_TAG in cell["metadata"]["tags"]:
                 continue  # Skip this cell, we don't want to overwrite it
 
             for field, value in CELL.items():
