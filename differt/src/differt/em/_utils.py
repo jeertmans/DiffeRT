@@ -3,10 +3,11 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Int, jaxtyped
 
 from differt.geometry import normalize, path_lengths, perpendicular_vectors
 from differt.utils import dot
+from ._interaction_type import InteractionType
 
 from ._constants import c
 
@@ -349,3 +350,48 @@ def sp_rotation_matrix(
     batch = r11.shape[:-1]
 
     return jnp.concatenate((r11, r12, r21, r22), axis=-1).reshape(*batch, 2, 2)
+
+
+@jax.jit
+@jaxtyped(typechecker=typechecker)
+def transition_matrices(
+    vertices: Float[Array, "*batch path_length 3"],
+    objects: Float[Array, "*batch path_length"],
+    interaction_types: Int[Array, "*batch path_length-2"],
+    object_normals: Float[Array, "*batch path_length 3"],
+) -> Float[Array, "*batch 2 2"]:
+    """
+    Compute the transition matrix, ...
+
+    Args:
+        k_i: The array of propagation direction of incident fields.
+
+            Each vector must have a unit length.
+        k_r: The array of propagation direction of reflected fields.
+
+            Each vector must have a unit length.
+        normals: The array of local normals.
+
+            Each vector must have a unit length.
+
+    Returns:
+        The array of s and p directions, before and after reflection.
+    """
+    if any(x.dtype == jnp.float64 for x in (vertices, object_normals)):
+        cdtype = jnp.complex128
+    else:
+        cdtype = jnp.complex64
+
+    # [*batch 2 2]
+    mat = jnp.zeros((vertices.shape[:-2], 2, 2), dtype=cdtype)
+
+    v = jnp.diff(vertices, axis=-2)
+    k, s = normalize(v)
+    k_i, s_i = k[..., :-1, :], s[..., :-1, :]
+    k_r, s_r = k[..., +1:, :], s[..., +1:, :]
+
+    mat_r = ...
+
+    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
+
+    return mat
