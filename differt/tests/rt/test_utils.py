@@ -298,7 +298,7 @@ def test_rays_intersect_any_triangle(
             1,  # Impossible to find all visible faces with few rays
             pytest.raises(
                 AssertionError,
-                match="Number of visible triangles did not match expectation.",
+                match=r"Number of visible triangles did not match expectation.",
             ),
         ),
     ],

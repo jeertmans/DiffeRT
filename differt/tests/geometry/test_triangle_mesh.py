@@ -89,7 +89,7 @@ class TestTriangleMesh:
     def test_num_quads(self, two_buildings_mesh: TriangleMesh) -> None:
         with pytest.raises(
             ValueError,
-            match="Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'.",
+            match=r"Cannot access the number of quadrilaterals if 'assume_quads' is set to 'False'.",
         ):
             _ = two_buildings_mesh.num_quads
 
@@ -212,14 +212,14 @@ class TestTriangleMesh:
 
         with pytest.raises(
             ValueError,
-            match="You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
+            match=r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[reportCallIssue]
 
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
+                r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
             ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[reportCallIssue]
@@ -227,7 +227,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+                r"You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
@@ -235,7 +235,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+                r"You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             ),
         ):
             _ = TriangleMesh.plane(vertex_a, vertex_b, vertex_c, normal=normal)
@@ -243,7 +243,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
+                r"You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             ),
         ):
             _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]

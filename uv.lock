@@ -556,7 +556,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -769,18 +769,18 @@ name = "dash"
 version = "2.18.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "dash-core-components", marker = "python_full_version < '3.12'" },
-    { name = "dash-html-components", marker = "python_full_version < '3.12'" },
-    { name = "dash-table", marker = "python_full_version < '3.12'" },
-    { name = "flask", marker = "python_full_version < '3.12'" },
-    { name = "importlib-metadata", marker = "python_full_version < '3.12'" },
-    { name = "nest-asyncio", marker = "python_full_version < '3.12'" },
-    { name = "plotly", marker = "python_full_version < '3.12'" },
-    { name = "requests", marker = "python_full_version < '3.12'" },
-    { name = "retrying", marker = "python_full_version < '3.12'" },
-    { name = "setuptools", marker = "python_full_version < '3.12'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
-    { name = "werkzeug", marker = "python_full_version < '3.12'" },
+    { name = "dash-core-components", marker = "python_full_version < '3.13'" },
+    { name = "dash-html-components", marker = "python_full_version < '3.13'" },
+    { name = "dash-table", marker = "python_full_version < '3.13'" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "importlib-metadata", marker = "python_full_version < '3.13'" },
+    { name = "nest-asyncio", marker = "python_full_version < '3.13'" },
+    { name = "plotly", marker = "python_full_version < '3.13'" },
+    { name = "requests", marker = "python_full_version < '3.13'" },
+    { name = "retrying", marker = "python_full_version < '3.13'" },
+    { name = "setuptools", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cf/ae/dfd8c42c83cad1b903e4e3e7be7042074d5d7d16be97eaede6656b8ead95/dash-2.18.2.tar.gz", hash = "sha256:20e8404f73d0fe88ce2eae33c25bbc513cbe52f30d23a401fa5f24dbb44296c8", size = 7457235 }
 wheels = [
@@ -885,7 +885,7 @@ all = [
     { name = "matplotlib" },
     { name = "notebook" },
     { name = "plotly" },
-    { name = "pyopengl", marker = "platform_system == 'Darwin'" },
+    { name = "pyopengl", marker = "sys_platform == 'darwin'" },
     { name = "pyqt6" },
     { name = "vispy" },
 ]
@@ -901,7 +901,7 @@ plotly = [
     { name = "plotly" },
 ]
 vispy = [
-    { name = "pyopengl", marker = "platform_system == 'Darwin'" },
+    { name = "pyopengl", marker = "sys_platform == 'darwin'" },
     { name = "vispy" },
 ]
 vispy-backend = [
@@ -929,8 +929,8 @@ requires-dist = [
     { name = "optax", specifier = ">=0.1.7" },
     { name = "plotly", marker = "extra == 'all'", specifier = ">=5.18.0" },
     { name = "plotly", marker = "extra == 'plotly'", specifier = ">=5.18.0" },
-    { name = "pyopengl", marker = "platform_system == 'Darwin' and extra == 'all'", specifier = ">=3.1.0" },
-    { name = "pyopengl", marker = "platform_system == 'Darwin' and extra == 'vispy'", specifier = ">=3.1.0" },
+    { name = "pyopengl", marker = "sys_platform == 'darwin' and extra == 'all'", specifier = ">=3.1.0" },
+    { name = "pyopengl", marker = "sys_platform == 'darwin' and extra == 'vispy'", specifier = ">=3.1.0" },
     { name = "pyqt6", marker = "extra == 'all'", specifier = ">=6.6.1" },
     { name = "pyqt6", marker = "extra == 'vispy-backend'", specifier = ">=6.6.1" },
     { name = "requests", specifier = ">=2.32.0" },
@@ -1002,7 +1002,7 @@ tests = [
 tests-extended = [
     { name = "chex" },
     { name = "differt", extra = ["all"] },
-    { name = "open3d-cpu", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
+    { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-codspeed" },
@@ -1017,29 +1017,9 @@ tests-extended = [
 [package.dev-dependencies]
 dev = [
     { name = "bump-my-version" },
-    { name = "chex" },
-    { name = "differt", extra = ["all"] },
+    { name = "differt-dev", extra = ["docs", "tests"] },
     { name = "maturin-import-hook" },
-    { name = "myst-nb" },
-    { name = "pillow" },
     { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-benchmark" },
-    { name = "pytest-codspeed" },
-    { name = "pytest-cov" },
-    { name = "pytest-env" },
-    { name = "pytest-missing-modules" },
-    { name = "pytest-xdist" },
-    { name = "scipy" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-book-theme" },
-    { name = "sphinx-copybutton" },
-    { name = "sphinx-design" },
-    { name = "sphinx-plotly-directive" },
-    { name = "sphinx-remove-toctrees" },
-    { name = "sphinxcontrib-apidoc" },
-    { name = "sphinxcontrib-bibtex" },
-    { name = "sphinxext-opengraph" },
 ]
 
 [package.metadata]
@@ -1055,7 +1035,7 @@ requires-dist = [
     { name = "jupyverse", extras = ["auth", "jupyterlab"], marker = "extra == 'remote-jupyter'", specifier = ">=0.4.2" },
     { name = "line-profiler", extras = ["ipython"], marker = "extra == 'prof'", specifier = ">=4.1.3" },
     { name = "myst-nb", marker = "extra == 'docs'", specifier = ">=0.17.2" },
-    { name = "open3d-cpu", marker = "python_full_version < '3.12' and sys_platform == 'linux' and extra == 'tests-extended'", specifier = ">=0.18.0" },
+    { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux' and extra == 'tests-extended'", specifier = ">=0.19.0" },
     { name = "pillow", marker = "extra == 'docs'", specifier = ">=10.1.0" },
     { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.4.3" },
     { name = "pytest-benchmark", marker = "extra == 'tests'", specifier = ">=4.0.0" },
@@ -1293,11 +1273,11 @@ name = "flask"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "blinker", marker = "python_full_version < '3.12'" },
-    { name = "click", marker = "python_full_version < '3.12'" },
-    { name = "itsdangerous", marker = "python_full_version < '3.12'" },
-    { name = "jinja2", marker = "python_full_version < '3.12'" },
-    { name = "werkzeug", marker = "python_full_version < '3.12'" },
+    { name = "blinker", marker = "python_full_version < '3.13'" },
+    { name = "click", marker = "python_full_version < '3.13'" },
+    { name = "itsdangerous", marker = "python_full_version < '3.13'" },
+    { name = "jinja2", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/e1/d104c83026f8d35dfd2c261df7d64738341067526406b40190bc063e829a/flask-3.0.3.tar.gz", hash = "sha256:ceb27b0af3823ea2737928a4d99d125a06175b8512c445cbd9a9ce200ef76842", size = 676315 }
 wheels = [
@@ -1491,7 +1471,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "jupyverse-api" },
-    { name = "pywinpty", marker = "platform_system == 'Windows'" },
+    { name = "pywinpty", marker = "sys_platform == 'win32'" },
     { name = "websockets" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/65/3e/4a8c0392e72a6b20400e83134b325679cc0b9a40604dd3233a123f75b0a5/fps_terminals-0.6.4.tar.gz", hash = "sha256:6bf7593d3ff7aa0dfd7ec4d6139ccdb46aa1d64fb684f7436e0e8e748af967ea", size = 7099 }
@@ -1838,7 +1818,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "platform_system == 'Darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -3325,27 +3305,30 @@ wheels = [
 
 [[package]]
 name = "open3d-cpu"
-version = "0.18.0"
+version = "0.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "addict", marker = "python_full_version < '3.12'" },
-    { name = "configargparse", marker = "python_full_version < '3.12'" },
-    { name = "dash", marker = "python_full_version < '3.12'" },
-    { name = "ipywidgets", marker = "python_full_version < '3.12'" },
-    { name = "matplotlib", marker = "python_full_version < '3.12'" },
-    { name = "nbformat", marker = "python_full_version < '3.12'" },
+    { name = "addict", marker = "python_full_version < '3.13'" },
+    { name = "configargparse", marker = "python_full_version < '3.13'" },
+    { name = "dash", marker = "python_full_version < '3.13'" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib", marker = "python_full_version < '3.13'" },
+    { name = "nbformat", marker = "python_full_version < '3.13'" },
     { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "pandas", marker = "python_full_version < '3.12'" },
-    { name = "pillow", marker = "python_full_version < '3.12'" },
-    { name = "pyquaternion", marker = "python_full_version < '3.12'" },
-    { name = "pyyaml", marker = "python_full_version < '3.12'" },
-    { name = "scikit-learn", marker = "python_full_version < '3.12'" },
-    { name = "tqdm", marker = "python_full_version < '3.12'" },
-    { name = "werkzeug", marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "pandas", marker = "python_full_version < '3.13'" },
+    { name = "pillow", marker = "python_full_version < '3.13'" },
+    { name = "pyquaternion", marker = "python_full_version < '3.13'" },
+    { name = "pyyaml", marker = "python_full_version < '3.13'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.13'" },
+    { name = "tqdm", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/10/7b2a70830b1bd3c57637181e78a7f37a9cfa191a6066e578cf9cf7b0eacd/open3d_cpu-0.18.0-cp310-cp310-manylinux_2_27_x86_64.whl", hash = "sha256:656ed68b4799787dddc61ee555e1c131cf13a17d4bce07244bef16b52b5ee055", size = 102381476 },
-    { url = "https://files.pythonhosted.org/packages/3e/d7/9b9ba1cd9431afd460cab5ffc3b4989b0f735d0e28a57bb938ff525db57a/open3d_cpu-0.18.0-cp311-cp311-manylinux_2_27_x86_64.whl", hash = "sha256:6a815c4a0b309fc94ee2141ed858f0cdd4ce33530ab7f48f9c7ce0540ec25f77", size = 102382310 },
+    { url = "https://files.pythonhosted.org/packages/a2/59/06d4066245eb9831611a5a1c645ebbfa137fb33271d4f1ff5fec6731595d/open3d_cpu-0.19.0-cp310-cp310-manylinux_2_31_x86_64.whl", hash = "sha256:96c0ac939bc4accd7a5b86456e6c2408025f36f03b324a27e73b8778d47f8035", size = 99645491 },
+    { url = "https://files.pythonhosted.org/packages/3b/cf/594247b6d76c2ad11f957544dffc441e82cd731035366318f26d8f980107/open3d_cpu-0.19.0-cp311-cp311-manylinux_2_31_x86_64.whl", hash = "sha256:ef477615f71708b7dad5c9cf912da13b57891f3ab4076c18c675ff27b73974f2", size = 99650635 },
+    { url = "https://files.pythonhosted.org/packages/fc/32/134e672918f9cc47f826213150797ee583227a8274403b902631b4949e46/open3d_cpu-0.19.0-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:dc935427a28cdba4ef511e9ee366b6001962b583e64231887c9b2e4cff787ee2", size = 99643248 },
 ]
 
 [[package]]
@@ -3683,8 +3666,6 @@ version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/26/10/2a30b13c61e7cf937f4adf90710776b7918ed0a9c434e2c38224732af310/psutil-6.1.0.tar.gz", hash = "sha256:353815f59a7f64cdaca1c0307ee13558a0512f6db064e92fe833784f08539c7a", size = 508565 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/2b/f4dea5d993d9cd22ad958eea828a41d5d225556123d372f02547c29c4f97/psutil-6.1.0-cp27-none-win32.whl", hash = "sha256:9118f27452b70bb1d9ab3198c1f626c2499384935aaf55388211ad982611407e", size = 246648 },
-    { url = "https://files.pythonhosted.org/packages/9f/14/4aa97a7f2e0ac33a050d990ab31686d651ae4ef8c86661fef067f00437b9/psutil-6.1.0-cp27-none-win_amd64.whl", hash = "sha256:a8506f6119cff7015678e2bce904a4da21025cc70ad283a53b099e7620061d85", size = 249905 },
     { url = "https://files.pythonhosted.org/packages/01/9e/8be43078a171381953cfee33c07c0d628594b5dbfc5157847b85022c2c1b/psutil-6.1.0-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:6e2dcd475ce8b80522e51d923d10c7871e45f20918e027ab682f94f1c6351688", size = 247762 },
     { url = "https://files.pythonhosted.org/packages/1d/cb/313e80644ea407f04f6602a9e23096540d9dc1878755f3952ea8d3d104be/psutil-6.1.0-cp36-abi3-macosx_11_0_arm64.whl", hash = "sha256:0895b8414afafc526712c498bd9de2b063deaac4021a3b3c34566283464aff8e", size = 248777 },
     { url = "https://files.pythonhosted.org/packages/65/8e/bcbe2025c587b5d703369b6a75b65d41d1367553da6e3f788aff91eaf5bd/psutil-6.1.0-cp36-abi3-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9dcbfce5d89f1d1f2546a2090f4fcf87c7f669d1d90aacb7d7582addece9fb38", size = 284259 },
@@ -4058,6 +4039,7 @@ version = "0.9.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7d/0d/3d092aa20efaedacb89c3221a92c6491be5b28f618a2c36b52b53e7446c2/pyquaternion-0.9.9.tar.gz", hash = "sha256:b1f61af219cb2fe966b5fb79a192124f2e63a3f7a777ac3cadf2957b1a81bea8", size = 15530 }
 wheels = [
@@ -4430,7 +4412,7 @@ name = "retrying"
 version = "1.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six", marker = "python_full_version < '3.12'" },
+    { name = "six", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ce/70/15ce8551d65b324e18c5aa6ef6998880f21ead51ebe5ed743c0950d7d9dd/retrying-1.3.4.tar.gz", hash = "sha256:345da8c5765bd982b1d1915deb9102fd3d1f7ad16bd84a9700b85f64d24e8f3e", size = 10929 }
 wheels = [
@@ -4631,10 +4613,11 @@ name = "scikit-learn"
 version = "1.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "joblib", marker = "python_full_version < '3.12'" },
+    { name = "joblib", marker = "python_full_version < '3.13'" },
     { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", marker = "python_full_version < '3.12'" },
-    { name = "threadpoolctl", marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.12.*'" },
+    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "threadpoolctl", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/59/44985a2bdc95c74e34fef3d10cb5d93ce13b0e2a7baefffe1b53853b502d/scikit_learn-1.5.2.tar.gz", hash = "sha256:b4237ed7b3fdd0a4882792e68ef2545d5baa50aca3bb45aa7df468138ad8f94d", size = 7001680 }
 wheels = [
@@ -5279,7 +5262,7 @@ name = "tqdm"
 version = "4.67.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e8/4f/0153c21dc5779a49a0598c445b1978126b1344bab9ee71e53e44877e14e0/tqdm-4.67.0.tar.gz", hash = "sha256:fe5a6f95e6fe0b9755e9469b77b9c3cf850048224ecaa8293d7d2d31f97d869a", size = 169739 }
 wheels = [
@@ -5597,7 +5580,7 @@ name = "werkzeug"
 version = "3.0.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markupsafe", marker = "python_full_version < '3.12'" },
+    { name = "markupsafe", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d4/f9/0ba83eaa0df9b9e9d1efeb2ea351d0677c37d41ee5d0f91e98423c7281c9/werkzeug-3.0.6.tar.gz", hash = "sha256:a8dd59d4de28ca70471a34cba79bed5f7ef2e036a76b3ab0835474246eb41f8d", size = 805170 }
 wheels = [

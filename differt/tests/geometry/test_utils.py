@@ -189,7 +189,7 @@ def test_rotation_matrices(
             jnp.float32,
             pytest.raises(
                 ValueError,
-                match="Unsupported dtype <class 'int'>, must be a floating dtype.",
+                match=r"Unsupported dtype <class 'int'>, must be a floating dtype.",
             ),
         ),
         (
@@ -197,7 +197,7 @@ def test_rotation_matrices(
             jnp.float32,
             pytest.raises(
                 ValueError,
-                match="Unsupported dtype <class 'jax.numpy.int32'>, must be a floating dtype.",
+                match=r"Unsupported dtype <class 'jax.numpy.int32'>, must be a floating dtype.",
             ),
         ),
     ],
