@@ -24,10 +24,7 @@ def refractive_indices(
     where :math:`\epsilon_r` is the relative permittivity, and :math:`\mu_r` is the relative permeability.
 
     Args:
-        epsilon_r: The relative refractive indices.
-
-            This is the ratios of the refractive indices of the second
-            media over the refractive indices of the first media.
+        epsilon_r: The relative permittivities.
         mu_r: The relative permeabilities. If not provided,
             a value of 1 is used.
 
@@ -45,11 +42,10 @@ def refractive_indices(
 
         :func:`refraction_coefficients`
     """
-    sqrt_n = epsilon_r if mu_r is None else epsilon_r * mu_r
-    return jax.lax.integer_pow(sqrt_n, 2)
+    return jnp.sqrt(epsilon_r if mu_r is None else epsilon_r * mu_r)
 
 
-@eqx.filter_jit
+@jax.jit
 @jaxtyped(typechecker=typechecker)
 def fresnel_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
@@ -209,7 +205,7 @@ def fresnel_coefficients(
     return (r_s, r_p), (t_s, t_p)
 
 
-@eqx.filter_jit
+@jax.jit
 @jaxtyped(typechecker=typechecker)
 def reflection_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],

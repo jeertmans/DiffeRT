@@ -1,4 +1,6 @@
 import math
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
 
 import chex
 import equinox as eqx
@@ -43,6 +45,51 @@ def random_paths(
 
 
 class TestPaths:
+    @pytest.mark.parametrize("with_mask", [False, True])
+    @pytest.mark.parametrize(
+        ("batch", "axis", "expectation"),
+        [
+            ((), None, does_not_raise()),
+            (
+                (),
+                -1,
+                pytest.raises(
+                    ValueError, match="Cannot squeeze a 0-dimensional batch!"
+                ),
+            ),
+            ((1,), -1, does_not_raise()),
+            ((1,), 0, does_not_raise()),
+            ((10, 1), -1, does_not_raise()),
+            ((10, 1), 1, does_not_raise()),
+            ((1, 1), (0, 1), does_not_raise()),
+            (
+                (1,),
+                1,
+                pytest.raises(
+                    ValueError, match="One of the provided axes is out-of-bounds!"
+                ),
+            ),
+        ],
+    )
+    def test_squeeze(
+        self,
+        with_mask: bool,
+        batch: tuple[int, ...],
+        axis: int | tuple[int, ...] | None,
+        expectation: AbstractContextManager[Exception],
+        key: PRNGKeyArray,
+    ) -> None:
+        path_length = 10
+        num_objects = 30
+        with expectation:
+            _ = random_paths(
+                path_length,
+                *batch,
+                num_objects=num_objects,
+                with_mask=with_mask,
+                key=key,
+            ).squeeze(axis=axis)
+
     @pytest.mark.parametrize("path_length", [3, 5])
     @pytest.mark.parametrize("batch", [(), (1,), (1, 2, 3, 4)])
     @pytest.mark.parametrize("num_objects", [1, 10])

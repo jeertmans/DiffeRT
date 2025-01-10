@@ -1,6 +1,6 @@
 import sys
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
 from typing import Any
 
@@ -129,6 +129,52 @@ class Paths(eqx.Module):
         mask = self.mask.reshape(*batch) if self.mask is not None else None
         interaction_types = (
             self.interaction_types.reshape(*batch, self.path_length - 2)
+            if self.interaction_types is not None
+            else None
+        )
+
+        return eqx.tree_at(
+            lambda p: (p.vertices, p.objects, p.mask, p.interaction_types),
+            self,
+            (vertices, objects, mask, interaction_types),
+            is_leaf=lambda x: x is None,
+        )
+
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
+        """
+        Return a copy by squeezing one or more axes of paths' batch dimensions.
+
+        Args:
+            axis: See :func:`jax.numpy.squeeze` for allowed values.
+
+        Returns:
+            A new paths instance with squeezed batch dimensions.
+
+        Raises:
+            ValueError: If one of the provided axes is out-of-bounds,
+                or if trying to squeeze a 0-dimensional batch.
+        """
+        ndim = self.vertices.ndim - 2
+        if axis is not None and ndim == 0:
+            msg = "Cannot squeeze a 0-dimensional batch!"
+            raise ValueError(msg)
+        if isinstance(axis, int):
+            axis = (axis,)
+        if isinstance(axis, Sequence):
+            axis = tuple(a + ndim if a < 0 else a for a in axis)
+
+            if any(ax >= ndim or ax < 0 for ax in axis):
+                msg = "One of the provided axes is out-of-bounds!"
+                raise ValueError(msg)
+
+        mask = self.mask.squeeze(axis) if self.mask is not None else None
+        vertices = self.vertices.squeeze(axis)
+        objects = self.objects.squeeze(axis)
+        interaction_types = (
+            self.interaction_types.squeeze(axis)
             if self.interaction_types is not None
             else None
         )

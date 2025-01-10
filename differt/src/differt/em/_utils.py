@@ -7,9 +7,9 @@ from jaxtyping import Array, ArrayLike, Float, Int, jaxtyped
 
 from differt.geometry import normalize, path_lengths, perpendicular_vectors
 from differt.utils import dot
-from ._interaction_type import InteractionType
 
 from ._constants import c
+from ._interaction_type import InteractionType
 
 
 @jax.jit
@@ -270,80 +270,30 @@ def sp_directions(
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def sp_rotation_matrix(
-    e_i_s: Float[Array, "*#batch 3"],
-    e_i_p: Float[Array, "*#batch 3"],
-    e_r_s: Float[Array, "*#batch 3"],
-    e_r_p: Float[Array, "*#batch 3"],
+    e_a_s: Float[Array, "*#batch 3"],
+    e_a_p: Float[Array, "*#batch 3"],
+    e_b_s: Float[Array, "*#batch 3"],
+    e_b_p: Float[Array, "*#batch 3"],
 ) -> Float[Array, "*batch 2 2"]:
     """
-    Return the rotation matrix to convert the s and p components of the incident field to the reflected (or any) field.
+    Return the rotation matrix to convert the s and p components from one base to another.
 
-    All input vectors must have a unit length.
-
-    Warning:
-        The returned matrix is not a rotatiom matrix in the strict sense,
-        as it may have a determinant of -1, e.g., in the case of a specular reflection.
-
-        Instead, it is referred to as an improper rotation matrix, or a roto-reflection matrix
-        :cite:`improper-rotation`, as it combines a rotation and a reflection.
+    All input vectors must have a unit length, and the direction of propagation must be the same.
+    The latter is equivalent to ensuring that all four vectors are coplanar.
 
     Args:
-        e_i_s: The array of s component directions of the incident field.
-        e_i_p: The array of p component directions of the incident field.
-        e_r_s: The array of s component directions of the reflected field.
-        e_r_p: The array of p component directions of the reflected field.
+        e_a_s: The array of s component directions of the incident field.
+        e_a_p: The array of p component directions of the incident field.
+        e_b_s: The array of s component directions of the reflected field.
+        e_b_p: The array of p component directions of the reflected field.
 
     Returns:
         The array of rotation matrices.
-
-    Examples:
-        The following example shows how to compute and display the direction of
-        the s and p components before and after reflection on a spherical surface.
-
-        >>> from differt.em import (
-        ...     sp_rotation_matrix,
-        ... )
-        >>> k_i = jnp.array([+1.0, 0.0, 0.0])
-        >>> k_r = jnp.array([-1.0, 0.0, 0.0])
-        >>> normal = jnp.array([-1.0, 0.0, 0.0])
-        >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, normal)
-        >>> R = sp_rotation_matrix(e_i_s, e_i_p, e_r_s, e_r_p)
-
-        Let generate an array of incident fields, to be reflected.
-        We already split the fields into s and p components.
-
-        >>> E_s = jnp.array([4.0, 1.0, 0.0, -1.0])
-        >>> E_p = jnp.array([1.0, -2.0, 0.0, 1.0])
-        >>> E_i = jnp.stack((E_s, E_p), axis=-1)
-
-        We can then rotate the incident field to the reflected field.
-
-        >>> # TODO: replace einsum with matvec when jax>0.4.32 is available
-        >>> E_r = jnp.einsum("...ri,...i->...r", R, E_i)
-        >>> E_r
-        Array([[ 4., -1.],
-               [ 1.,  2.],
-               [ 0.,  0.],
-               [-1., -1.]], dtype=float32)
-
-        Above, we can clearly see that the s component stays the
-        same, while the p component is negated, as what we could
-        expected from a specular reflection.
-
-        We can also rotate the reflected field back to the incident field.
-
-        >>> E_i = jnp.einsum("...ir,...r->...i", R.mT, E_r)
-        >>> E_i
-        Array([[ 4.,  1.],
-               [ 1., -2.],
-               [ 0.,  0.],
-               [-1.,  1.]], dtype=float32)
-
     """
-    r11 = dot(e_r_s, e_i_s, keepdims=True)
-    r12 = dot(e_r_s, e_i_p, keepdims=True)
-    r21 = dot(e_r_p, e_i_s, keepdims=True)
-    r22 = dot(e_r_p, e_i_p, keepdims=True)
+    r11 = dot(e_b_s, e_a_s, keepdims=True)
+    r12 = dot(e_b_s, e_a_p, keepdims=True)
+    r21 = dot(e_b_p, e_a_s, keepdims=True)
+    r22 = dot(e_b_p, e_a_p, keepdims=True)
 
     r11, r12, r21, r22 = jnp.broadcast_arrays(r11, r12, r21, r22)
 
