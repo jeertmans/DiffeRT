@@ -42,6 +42,7 @@ Miscellaneous utilities.
    merge_cell_ids
    min_distance_between_cells
    normalize
+   perpendicular_vectors
    orthogonal_basis
    path_lengths
    triangles_contain_vertices_assuming_inside_same_plane

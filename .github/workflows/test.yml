@@ -44,7 +44,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --frozen --no-dev --extra tests pytest
+      run: uv run --python ${{ matrix.pyversion }} --frozen --no-dev --extra tests-extended pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5

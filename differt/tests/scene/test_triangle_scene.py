@@ -162,8 +162,7 @@ class TestTriangleScene:
         if assume_quads:
             expected_objects -= expected_objects % 2
 
-        with jax.debug_nans(False):  # noqa: FBT003
-            got = scene.compute_paths(order, method=method, max_dist=1e-1)
+        got = scene.compute_paths(order, method=method, max_dist=1e-1)
 
         if method == "sbr":
             masked_vertices = got.masked_vertices
@@ -257,8 +256,7 @@ class TestTriangleScene:
         if assume_quads:
             expected_objects -= expected_objects % 2
 
-        with jax.debug_nans(False):  # noqa: FBT003
-            got = scene.compute_paths(order)
+        got = scene.compute_paths(order)
 
         chex.assert_trees_all_close(
             got.masked_vertices, expected_path_vertices, atol=1e-5
@@ -355,14 +353,13 @@ class TestTriangleScene:
         )
 
         with expectation:
-            with jax.debug_nans(False):  # noqa: FBT003
-                got = scene.compute_paths(  # type: ignore[reportCallIssue]
-                    order=order,
-                    chunk_size=chunk_size,  # type: ignore[reportArgumentType]
-                    path_candidates=path_candidates,
-                    parallel=parallel,
-                    method=method,  # type: ignore[reportArgumentType]
-                )
+            got = scene.compute_paths(  # type: ignore[reportCallIssue]
+                order=order,
+                chunk_size=chunk_size,  # type: ignore[reportArgumentType]
+                path_candidates=path_candidates,
+                parallel=parallel,
+                method=method,  # type: ignore[reportArgumentType]
+            )
 
             paths = next(got) if isinstance(got, Iterator) else got
 
@@ -382,8 +379,7 @@ class TestTriangleScene:
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
 
-        with jax.debug_nans(False):  # noqa: FBT003
-            paths = scene.compute_paths(order=1)
+        paths = scene.compute_paths(order=1)
 
         if n_tx is None:
             n_tx = m_tx
@@ -450,10 +446,9 @@ class TestTriangleScene:
         num_rays = m_rx * n_rx
 
         with expectation:
-            with jax.debug_nans(False):  # noqa: FBT003
-                paths = scene.compute_paths(
-                    order=1, method=method, num_rays=num_rays, parallel=True
-                )
+            paths = scene.compute_paths(
+                order=1, method=method, num_rays=num_rays, parallel=True
+            )
 
             # TODO: fix this when 'hybrid' is implemented
             num_path_candidates = (

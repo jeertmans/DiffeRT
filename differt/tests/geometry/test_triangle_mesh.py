@@ -346,6 +346,17 @@ class TestTriangleMesh:
             mesh = two_buildings_mesh.set_face_colors(colors)
             assert mesh.face_colors is not None
 
+    def test_set_face_colors_wrong_args(
+        self,
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+    ) -> None:
+        colors = jax.random.uniform(key, (two_buildings_mesh.num_triangles, 3))
+        with pytest.raises(
+            ValueError, match="You must specify one of 'colors' or `key`, not both"
+        ):
+            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[reportCallIssue]
+
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
