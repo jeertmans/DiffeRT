@@ -26,6 +26,7 @@ __all__ = (
     "refractive_indices",
     "sp_directions",
     "sp_rotation_matrix",
+    "transition_matrices",
     "z_0",
 )
 
@@ -49,4 +50,10 @@ from ._fresnel import (
 from ._interaction_type import InteractionType
 from ._material import Material, materials
 from ._utd import F, L_i, diffraction_coefficients
-from ._utils import lengths_to_delays, path_delays, sp_directions, sp_rotation_matrix
+from ._utils import (
+    lengths_to_delays,
+    path_delays,
+    sp_directions,
+    sp_rotation_matrix,
+    transition_matrices,
+)

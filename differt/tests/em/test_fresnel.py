@@ -1,13 +1,33 @@
 import chex
 import jax
+import jax.experimental
 import jax.numpy as jnp
+import pytest
 from jaxtyping import PRNGKeyArray
 
+from differt.em import materials
 from differt.em._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
     refraction_coefficients,
+    refractive_indices,
 )
+
+
+@pytest.mark.parametrize(
+    ("mat_name", "expected"),
+    [
+        ("Vacuum", 1.0),
+        ("Glass", 2.511971),
+    ],
+)
+@jax.experimental.enable_x64()
+def test_refractive_indices(mat_name: str, expected: float) -> None:
+    frequency = 1e9  # Hz
+    mat = materials[mat_name]
+    eta = mat.relative_permittivity(frequency)
+    got = refractive_indices(eta)
+    chex.assert_trees_all_close(got, expected)
 
 
 def test_fresnel_coefficients(key: PRNGKeyArray) -> None:

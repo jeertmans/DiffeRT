@@ -57,6 +57,19 @@ class TestITU:
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
+    def test_concrete_scalar(self) -> None:
+        mat = self.materials["itu_concrete"]
+
+        for f, expected_rel_perm, expected_cond in zip(
+            [0.1e9, 1e9, 10e9, 100e9, 1000e9],
+            [-1.0, 5.24, 5.24, 5.24, -1.0],
+            [-1.0, 0.0462, 0.279796, 1.694501, -1.0],
+            strict=False,
+        ):
+            got_rel_perm, got_cond = mat.properties(f)
+            chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+            chex.assert_trees_all_close(got_cond, expected_cond)
+
     def test_glass(self) -> None:
         mat = self.materials["itu_glass"]
 
@@ -142,5 +155,17 @@ class TestITU:
 
         expected_rel_perm = jnp.array([-1.0, 1.0, 1.0, 1.0, -1.0])
         expected_cond = jnp.array([-1.0, 1e7, 1e7, 1e7, -1.0])
+        chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+        chex.assert_trees_all_close(got_cond, expected_cond)
+
+    def test_wet_ground(self) -> None:
+        mat = self.materials["itu_wet_ground"]
+
+        f = jnp.array([0.1e9, 1e9, 10e9, 100e9])
+
+        got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
+
+        expected_rel_perm = jnp.array([-1.0, 30.0, 11.943215, -1.0])
+        expected_cond = jnp.array([-1.0, 0.15, 2.992893, -1.0])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)

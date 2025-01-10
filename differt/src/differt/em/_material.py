@@ -46,7 +46,7 @@ class Material(eqx.Module):
 
     @eqx.filter_jit
     def relative_permittivity(
-        self, frequency: Float[Array, " *batch"]
+        self, frequency: Float[ArrayLike, " *batch"]
     ) -> Float[Array, " *batch"]:
         """
         Compute the relative permittivity of the material at the given frequency.
@@ -61,7 +61,7 @@ class Material(eqx.Module):
 
     @eqx.filter_jit
     def conductivity(
-        self, frequency: Float[Array, " *batch"]
+        self, frequency: Float[ArrayLike, " *batch"]
     ) -> Float[Array, " *batch"]:
         """
         Compute the conductivity of the material at the given frequency.

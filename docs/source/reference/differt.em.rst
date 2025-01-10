@@ -61,7 +61,6 @@ where :math:`\boldsymbol{D}` is the dyadic matrix with the diffraction coefficie
 .. autosummary::
    :toctree: _autosummary
 
-   diffraction_coefficients
    fresnel_coefficients
    reflection_coefficients
    refraction_coefficients
@@ -80,10 +79,6 @@ when relevant.
    BaseAntenna
    Antenna
    Dipole
-   ShortDipole
-   RadiationPattern
-   HWDipolePattern
-   ShortDipolePattern
 
 .. rubric:: Materials
 
@@ -122,3 +117,17 @@ Utility functions, mostly used internally for computing EM fields.
    sp_rotation_matrix
    F
    L_i
+
+.. rubric:: Work in progress
+
+The following utilities are still under development, and using them is not recommended.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   diffraction_coefficients
+   transition_matrices
+   ShortDipole
+   RadiationPattern
+   HWDipolePattern
+   ShortDipolePattern
