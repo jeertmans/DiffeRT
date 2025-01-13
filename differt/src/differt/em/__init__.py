@@ -16,6 +16,7 @@ __all__ = (
     "diffraction_coefficients",
     "epsilon_0",
     "fresnel_coefficients",
+    "fspl",
     "lengths_to_delays",
     "materials",
     "mu_0",
@@ -51,6 +52,7 @@ from ._interaction_type import InteractionType
 from ._material import Material, materials
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
+    fspl,
     lengths_to_delays,
     path_delays,
     sp_directions,

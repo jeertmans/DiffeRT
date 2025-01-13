@@ -244,10 +244,11 @@ def reflection_coefficients(
            ground.
 
            >>> from differt.em import (
-           ...     c,
-           ...     reflection_coefficients,
            ...     Dipole,
+           ...     c,
+           ...     fspl,
            ...     pointing_vector,
+           ...     reflection_coefficients,
            ...     sp_directions,
            ... )
            >>> from differt.geometry import normalize
@@ -291,6 +292,8 @@ def reflection_coefficients(
            :context: close-figs
 
            Next, we compute the EM fields from the direct (line-of-sight) path.
+           We also plot the free-space path loss (see :func:`fspl<differt.em.fspl>` :cite:`fspl`)
+           as a reference.
 
            >>> # [num_positions 3]
            >>> E_los, B_los = ant.fields(rx_positions - tx_position)
@@ -300,6 +303,13 @@ def reflection_coefficients(
            ...     x,
            ...     10 * jnp.log10(P_los / ant.average_power),
            ...     label=r"$P_\text{los}$",
+           ... )  # doctest: +SKIP
+           >>> _, d = normalize(rx_positions - tx_position, keepdims=True)
+           >>> plt.semilogx(
+           ...     x,
+           ...     -fspl(d, ant.frequency, dB=True),
+           ...     "k-.",
+           ...     label="FSPL",
            ... )  # doctest: +SKIP
 
            After, the :func:`image_method<differt.rt.image_method>`
@@ -397,7 +407,7 @@ def reflection_coefficients(
            ...     label=r"$P_\text{total}$",
            ... )  # doctest: +SKIP
            >>> plt.xlabel("Distance to transmitter on x-axis (m)")  # doctest: +SKIP
-           >>> plt.ylabel("Loss (dB)")  # doctest: +SKIP
+           >>> plt.ylabel("Gain (dB)")  # doctest: +SKIP
            >>> plt.legend()  # doctest: +SKIP
            >>> plt.tight_layout()  # doctest: +SKIP
 

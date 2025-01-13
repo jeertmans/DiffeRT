@@ -3,12 +3,14 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
 from differt.em._constants import c
 from differt.em._utils import (
+    fspl,
     lengths_to_delays,
     path_delays,
     sp_directions,
@@ -132,3 +134,16 @@ def test_sp_rotation_matrix() -> None:
     chex.assert_trees_all_close(jnp.linalg.det(got_R), -1.0)
     chex.assert_trees_all_close(got_R, expected_R[:-1, :-1])
     chex.assert_trees_all_close(got_R @ got_R.mT, jnp.eye(2))
+
+
+def test_fspl(key: PRNGKeyArray) -> None:
+    key_d, key_f = jax.random.split(key, 2)
+    d = jax.random.uniform(key_d, (30, 1), minval=1.0, maxval=100.0)
+    f = jax.random.uniform(key_f, (1, 50), minval=0.1e9, maxval=10e9)
+
+    got = fspl(d, f)
+    got_db = fspl(d, f, dB=True)
+    expected_db = 20 * jnp.log10(d) + 20 * jnp.log10(f) - 147.55
+
+    chex.assert_trees_all_close(10 * jnp.log10(got), got_db)
+    chex.assert_trees_all_close(got_db, expected_db, rtol=2e-4)

@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any
 
 import jax
@@ -15,9 +16,9 @@ from ._interaction_type import InteractionType
 @jax.jit
 @jaxtyped(typechecker=typechecker)
 def lengths_to_delays(
-    lengths: Float[Array, " *#batch"],
+    lengths: Float[ArrayLike, " *#batch"],
     speed: Float[ArrayLike, " *#batch"] = c,
-) -> Float[Array, " *#batch"]:
+) -> Float[Array, " *batch"]:
     """
     Compute the delay, in seconds, corresponding to each length.
 
@@ -45,7 +46,7 @@ def lengths_to_delays(
         >>> lengths_to_delays(lengths, speed=2.0)
         Array([0.5, 1. , 2. ], dtype=float32)
     """
-    return lengths / speed
+    return jnp.asarray(lengths) / jnp.asarray(speed)
 
 
 @jax.jit
@@ -345,3 +346,30 @@ def transition_matrices(
     mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
 
     return mat
+
+
+@partial(jax.jit, static_argnames=("dB",))
+@jaxtyped(typechecker=typechecker)
+def fspl(
+    d: Float[ArrayLike, " *#batch"],
+    f: Float[ArrayLike, " *#batch"],
+    *,
+    dB: bool = False,  # noqa: N803
+) -> Float[Array, " *batch"]:
+    """
+    Compute the free-space path loss (FSPL), optionally in dB.
+
+    See :cite:`fspl` for more information.
+
+    Args:
+        d: The array of distances (in meters).
+        f: The array frequencies (in Hertz).
+        dB: Whether to return the result in dB.
+
+    Returns:
+        The array of free-space path losses.
+    """
+    if dB:
+        return 20 * jnp.log10(d) + 20 * jnp.log10(f) - 147.55221677811662
+
+    return jax.lax.integer_pow(4 * jnp.pi * d * f / c, 2)
