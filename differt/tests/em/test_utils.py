@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.em._constants import c
+from differt.em import Dipole, c
 from differt.em._utils import (
     fspl,
     lengths_to_delays,
@@ -16,7 +16,7 @@ from differt.em._utils import (
     sp_directions,
     sp_rotation_matrix,
 )
-from differt.geometry import rotation_matrix_along_z_axis
+from differt.geometry import rotation_matrix_along_z_axis, spherical_to_cartesian
 
 from ..utils import random_inputs
 
@@ -147,3 +147,29 @@ def test_fspl(key: PRNGKeyArray) -> None:
 
     chex.assert_trees_all_close(10 * jnp.log10(got), got_db)
     chex.assert_trees_all_close(got_db, expected_db, rtol=2e-4)
+
+
+@pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
+def test_fspl_vs_los(frequency: float, key: PRNGKeyArray) -> None:
+    key_r, key_azim, key_current = jax.random.split(key, 3)
+    r = jax.random.uniform(key_r, (1000,), minval=10.0, maxval=1000.0)
+    azim = jax.random.uniform(key_azim, (1000,), maxval=2 * jnp.pi)
+    polar = jnp.full_like(
+        azim, jnp.pi / 2
+    )  # 90 degrees, direction of maximum radiation
+    rpa = jnp.stack([r, polar, azim], axis=-1)
+    xyz = spherical_to_cartesian(rpa)
+    d = r
+    ant = Dipole(
+        frequency=frequency,
+        current=jax.random.uniform(key_current, minval=1.0, maxval=10.0),
+    )
+
+    got = 10 * jnp.log10(
+        ant.aperture
+        * jnp.linalg.norm(ant.pointing_vector(xyz), axis=-1)
+        / ant.reference_power
+    )
+    expected = -fspl(d, frequency, dB=True)
+
+    chex.assert_trees_all_close(got, expected, rtol=2e-4)

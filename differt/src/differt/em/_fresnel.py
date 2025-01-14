@@ -269,6 +269,7 @@ def reflection_coefficients(
            ...     jnp.tile(rx_position, (num_positions, 1)).at[..., 0].add(x)
            ... )
            >>> ant = Dipole(2.4e9)  # 2.4 GHz
+           >>> A_e = ant.aperture  # Effective aperture
            >>> plt.xscale("symlog", linthresh=1e-1)  # doctest: +SKIP
            >>> plt.plot(
            ...     [tx_position[0]],
@@ -298,10 +299,10 @@ def reflection_coefficients(
            >>> # [num_positions 3]
            >>> E_los, B_los = ant.fields(rx_positions - tx_position)
            >>> # [num_positions]
-           >>> P_los = jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
+           >>> P_los = A_e * jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(P_los / ant.average_power),
+           ...     10 * jnp.log10(P_los / ant.reference_power),
            ...     label=r"$P_\text{los}$",
            ... )  # doctest: +SKIP
            >>> _, d = normalize(rx_positions - tx_position, keepdims=True)
@@ -387,10 +388,10 @@ def reflection_coefficients(
            >>> phase_shift = jnp.exp(1j * s_r * ant.wavenumber)
            >>> E_r *= spreading_factor * phase_shift
            >>> B_r *= spreading_factor * phase_shift
-           >>> P_r = jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
+           >>> P_r = A_e * jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(P_r / ant.average_power),
+           ...     10 * jnp.log10(P_r / ant.reference_power),
            ...     "--",
            ...     label=r"$P_\text{reflection}$",
            ... )  # doctest: +SKIP
@@ -399,10 +400,10 @@ def reflection_coefficients(
 
            >>> E_tot = E_los + E_r
            >>> B_tot = B_los + B_r
-           >>> P_tot = jnp.linalg.norm(pointing_vector(E_tot, B_tot), axis=-1)
+           >>> P_tot = A_e * jnp.linalg.norm(pointing_vector(E_tot, B_tot), axis=-1)
            >>> plt.semilogx(
            ...     x,
-           ...     10 * jnp.log10(P_tot / ant.average_power),
+           ...     10 * jnp.log10(P_tot / ant.reference_power),
            ...     "-.",
            ...     label=r"$P_\text{total}$",
            ... )  # doctest: +SKIP

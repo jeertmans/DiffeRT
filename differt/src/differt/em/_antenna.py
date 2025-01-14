@@ -76,6 +76,13 @@ class BaseAntenna(eqx.Module):
         r"""The wavenumber :math:`k = \omega / c`."""
         return self.angular_frequency / c
 
+    @property
+    @jaxtyped(typechecker=typechecker)
+    def aperture(self) -> Float[Array, " "]:
+        r"""The antenna aperture :math:`A`."""
+        # TODO: check the name, as this is not the physical aperture
+        return (self.wavelength / (4 * jnp.pi)) ** 2
+
 
 @jaxtyped(typechecker=typechecker)
 class Antenna(BaseAntenna):
@@ -83,8 +90,12 @@ class Antenna(BaseAntenna):
 
     @property
     @abstractmethod
-    def average_power(self) -> Float[Array, " "]:  # TODO: provide default impl.
-        """The time-average power radiated by this antenna."""
+    def reference_power(self) -> Float[Array, " "]:
+        r"""The reference power (:math:`\text{W}/m^2`) radiated by this antenna.
+
+        This is the maximal value of the pointing vector at a distance
+        of one meter from this antenna.
+        """
 
     @abstractmethod
     def fields(
@@ -365,17 +376,17 @@ class Dipole(Antenna):
         self.moment = moment  # type: ignore[reportAttributeAccessIssue]
 
     @property
-    def average_power(self) -> Float[Array, " "]:
+    def reference_power(self) -> Float[Array, " "]:
         p_0 = jnp.linalg.norm(self.moment)
 
-        # Equivalent to mu_0 * self.angular_frequency**4 * p_0**2 / (12 * jnp.pi * c)
+        # Equivalent to mu_0 * self.angular_frequency**4 * p_0**2 / (16 * jnp.pi**2 * c)
         # but avoids overflow
 
         r = mu_0 * self.angular_frequency
         t = self.angular_frequency * p_0
         r *= t
         r *= t
-        r *= self.angular_frequency / (12 * jnp.pi * c)
+        r *= self.angular_frequency / (16 * jnp.pi**2 * c)
 
         return r
 
