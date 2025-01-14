@@ -110,6 +110,7 @@ Utility functions, mostly used internally for computing EM fields.
 .. autosummary::
    :toctree: _autosummary
 
+   fspl
    lengths_to_delays
    path_delays
    pointing_vector

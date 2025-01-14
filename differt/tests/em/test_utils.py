@@ -3,18 +3,20 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
+from jaxtyping import Array, PRNGKeyArray
 
-from differt.em._constants import c
+from differt.em import Dipole, c
 from differt.em._utils import (
+    fspl,
     lengths_to_delays,
     path_delays,
     sp_directions,
     sp_rotation_matrix,
 )
-from differt.geometry import rotation_matrix_along_z_axis
+from differt.geometry import rotation_matrix_along_z_axis, spherical_to_cartesian
 
 from ..utils import random_inputs
 
@@ -132,3 +134,42 @@ def test_sp_rotation_matrix() -> None:
     chex.assert_trees_all_close(jnp.linalg.det(got_R), -1.0)
     chex.assert_trees_all_close(got_R, expected_R[:-1, :-1])
     chex.assert_trees_all_close(got_R @ got_R.mT, jnp.eye(2))
+
+
+def test_fspl(key: PRNGKeyArray) -> None:
+    key_d, key_f = jax.random.split(key, 2)
+    d = jax.random.uniform(key_d, (30, 1), minval=1.0, maxval=100.0)
+    f = jax.random.uniform(key_f, (1, 50), minval=0.1e9, maxval=10e9)
+
+    got = fspl(d, f)
+    got_db = fspl(d, f, dB=True)
+    expected_db = 20 * jnp.log10(d) + 20 * jnp.log10(f) - 147.55
+
+    chex.assert_trees_all_close(10 * jnp.log10(got), got_db)
+    chex.assert_trees_all_close(got_db, expected_db, rtol=2e-4)
+
+
+@pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
+def test_fspl_vs_los(frequency: float, key: PRNGKeyArray) -> None:
+    key_r, key_azim, key_current = jax.random.split(key, 3)
+    r = jax.random.uniform(key_r, (1000,), minval=10.0, maxval=1000.0)
+    azim = jax.random.uniform(key_azim, (1000,), maxval=2 * jnp.pi)
+    polar = jnp.full_like(
+        azim, jnp.pi / 2
+    )  # 90 degrees, direction of maximum radiation
+    rpa = jnp.stack([r, polar, azim], axis=-1)
+    xyz = spherical_to_cartesian(rpa)
+    d = r
+    ant = Dipole(
+        frequency=frequency,
+        current=jax.random.uniform(key_current, minval=1.0, maxval=10.0),
+    )
+
+    got = 10 * jnp.log10(
+        ant.aperture
+        * jnp.linalg.norm(ant.pointing_vector(xyz), axis=-1)
+        / ant.reference_power
+    )
+    expected = -fspl(d, frequency, dB=True)
+
+    chex.assert_trees_all_close(got, expected, rtol=2e-4)

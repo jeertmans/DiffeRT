@@ -2,11 +2,14 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
+from jaxtyping import PRNGKeyArray
 
-from differt.em import c, mu_0
+from differt.em import c
 from differt.em._antenna import Antenna, Dipole
+from differt.geometry import normalize, spherical_to_cartesian
 
 
 @pytest.fixture
@@ -97,17 +100,18 @@ class TestDipole:
             3.0 * 2.0,
         )
 
-    def test_average_power(self) -> None:
-        f = 1e9
-        w = 2 * jnp.pi * f
-        p_0 = 1.0
+    @pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
+    def test_reference_power(self, frequency: float, key: PRNGKeyArray) -> None:
+        key_pa, key_moment = jax.random.split(key, 2)
+        xyz = spherical_to_cartesian(
+            jax.random.uniform(key_pa, (10_000, 2), maxval=jnp.pi)
+        )
         dipole = Dipole(
-            frequency=f,
+            frequency=frequency,
+            moment=normalize(jax.random.normal(key_moment, (3,)))[0],
         )
-        p_0 = jnp.linalg.norm(dipole.moment)
-        chex.assert_trees_all_close(
-            dipole.average_power, mu_0 * w**4 * p_0**2 / (12 * jnp.pi * c)
-        )
+        expected = jnp.linalg.norm(dipole.pointing_vector(xyz), axis=-1).max()
+        chex.assert_trees_all_close(dipole.reference_power, expected, rtol=1e-2)
 
     @pytest.mark.parametrize(
         ("ratio", "expected_gain"),
