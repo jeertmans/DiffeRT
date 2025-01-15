@@ -544,7 +544,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -870,7 +870,7 @@ all = [
     { name = "matplotlib" },
     { name = "notebook" },
     { name = "plotly" },
-    { name = "pyopengl", marker = "sys_platform == 'darwin'" },
+    { name = "pyopengl", marker = "platform_system == 'Darwin'" },
     { name = "pyqt6" },
     { name = "vispy" },
 ]
@@ -886,7 +886,7 @@ plotly = [
     { name = "plotly" },
 ]
 vispy = [
-    { name = "pyopengl", marker = "sys_platform == 'darwin'" },
+    { name = "pyopengl", marker = "platform_system == 'Darwin'" },
     { name = "vispy" },
 ]
 vispy-backend = [
@@ -914,8 +914,8 @@ requires-dist = [
     { name = "optax", specifier = ">=0.1.7" },
     { name = "plotly", marker = "extra == 'all'", specifier = ">=5.18.0" },
     { name = "plotly", marker = "extra == 'plotly'", specifier = ">=5.18.0" },
-    { name = "pyopengl", marker = "sys_platform == 'darwin' and extra == 'all'", specifier = ">=3.1.0" },
-    { name = "pyopengl", marker = "sys_platform == 'darwin' and extra == 'vispy'", specifier = ">=3.1.0" },
+    { name = "pyopengl", marker = "platform_system == 'Darwin' and extra == 'all'", specifier = ">=3.1.0" },
+    { name = "pyopengl", marker = "platform_system == 'Darwin' and extra == 'vispy'", specifier = ">=3.1.0" },
     { name = "pyqt6", marker = "extra == 'all'", specifier = ">=6.6.1" },
     { name = "pyqt6", marker = "extra == 'vispy-backend'", specifier = ">=6.6.1" },
     { name = "requests", specifier = ">=2.32.0" },
@@ -963,6 +963,9 @@ icmlcn2025 = [
     { name = "differt", extra = ["all"] },
     { name = "e3x" },
 ]
+jax-tqdm = [
+    { name = "jax-tqdm" },
+]
 kaleido = [
     { name = "kaleido" },
 ]
@@ -1003,6 +1006,7 @@ requires-dist = [
     { name = "differt", extras = ["all"], marker = "extra == 'tests'", editable = "differt" },
     { name = "e3x", marker = "extra == 'icmlcn2025'", specifier = ">=1.0.2" },
     { name = "jax", extras = ["cuda"], marker = "extra == 'cuda'", specifier = ">=0.4.32" },
+    { name = "jax-tqdm", marker = "extra == 'jax-tqdm'", specifier = ">=0.3.1" },
     { name = "jupyterlab", marker = "extra == 'remote-jupyter'", specifier = ">=4.2" },
     { name = "jupyverse", extras = ["auth", "jupyterlab"], marker = "extra == 'remote-jupyter'", specifier = ">=0.4.2" },
     { name = "kaleido", marker = "extra == 'kaleido'", specifier = "==1.0.0rc0" },
@@ -1419,7 +1423,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "jupyverse-api" },
-    { name = "pywinpty", marker = "sys_platform == 'win32'" },
+    { name = "pywinpty", marker = "platform_system == 'Windows'" },
     { name = "websockets" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/65/3e/4a8c0392e72a6b20400e83134b325679cc0b9a40604dd3233a123f75b0a5/fps_terminals-0.6.4.tar.gz", hash = "sha256:6bf7593d3ff7aa0dfd7ec4d6139ccdb46aa1d64fb684f7436e0e8e748af967ea", size = 7099 }
@@ -1653,7 +1657,7 @@ name = "ipykernel"
 version = "6.29.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "sys_platform == 'darwin'" },
+    { name = "appnope", marker = "platform_system == 'Darwin'" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -1819,6 +1823,20 @@ with-cuda = [
     { name = "nvidia-cusparse-cu12" },
     { name = "nvidia-nccl-cu12" },
     { name = "nvidia-nvjitlink-cu12" },
+]
+
+[[package]]
+name = "jax-tqdm"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chex" },
+    { name = "jax" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/50/9e/0a4ded775300f4e7f49f987cf67f7b650475b7a4433002c5eaebbcae3ce4/jax_tqdm-0.3.1.tar.gz", hash = "sha256:b76b3ecc334b91f414f52740c28c1aa85bb75eb8d1a0048b5723db3dd4812a1a", size = 4856 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/c6/0f22fff746feeae26d0fdc4b29cf3db6495432e7eee5eae21e1368703098/jax_tqdm-0.3.1-py3-none-any.whl", hash = "sha256:a44a650ec150149be1532ee827e9fa34fc3e76dd5df0da13e3e69d912dfd37d5", size = 5311 },
 ]
 
 [[package]]
@@ -4747,7 +4765,7 @@ name = "tqdm"
 version = "4.67.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e8/4f/0153c21dc5779a49a0598c445b1978126b1344bab9ee71e53e44877e14e0/tqdm-4.67.0.tar.gz", hash = "sha256:fe5a6f95e6fe0b9755e9469b77b9c3cf850048224ecaa8293d7d2d31f97d869a", size = 169739 }
 wheels = [

@@ -52,6 +52,9 @@ tests = [
 kaleido = [
     "kaleido==1.0.0rc0",
 ]
+jax-tqdm = [
+    "jax-tqdm>=0.3.1",
+]
 
 [tool.bumpversion]
 allow_dirty = false
