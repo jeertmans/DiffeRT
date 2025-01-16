@@ -110,7 +110,9 @@ class TestDipole:
             frequency=frequency,
             moment=normalize(jax.random.normal(key_moment, (3,)))[0],
         )
-        expected = jnp.linalg.norm(dipole.pointing_vector(xyz), axis=-1).max()
+        expected = (
+            jnp.linalg.norm(dipole.pointing_vector(xyz), axis=-1).max() * 4 * jnp.pi
+        )
         chex.assert_trees_all_close(dipole.reference_power, expected, rtol=1e-2)
 
     @pytest.mark.parametrize(
