@@ -186,6 +186,71 @@ class Paths(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
+    @eqx.filter_jit
+    @jaxtyped(
+        typechecker=None
+    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
+    def mask_duplicate_objects(self, axis: int = -1) -> Self:
+        """
+        Return a copy by masking duplicate objects along a given axis.
+
+        E.g., when generating path candidates from a generative Machine Learning model,
+        see :ref:`sampling-paths`, it is possible that the model generates the same
+        path candidate multiple times. This method allows to mask these duplicates,
+        while maintaining the same batch dimensions and compatibility with :func:`jax.jit`.
+
+        Args:
+            axis: The batch axis along which the unique values are computed.
+
+                It defaults to the last axis, which is the axis where
+                different path candidates are stored when generating
+                paths with
+                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+
+        Returns:
+            A new paths instance with masked duplicate objects.
+
+        Raises:
+            ValueError: If the provided axis is out-of-bounds.
+        """
+        ndim = self.objects.ndim - 1
+        batch = self.objects.shape[:-1]
+        if not -ndim <= axis < ndim:
+            msg = f"The provided axis {axis} is out-of-bounds for batch of dimensions {ndim}!"
+            raise ValueError(msg)
+
+        size = batch[axis]
+
+        objects = jnp.moveaxis(self.objects, axis if axis >= 0 else axis - 1, -2)
+        indices = jnp.arange(size, dtype=objects.dtype)
+
+        @jaxtyped(typechecker=typechecker)
+        def f(
+            objects: Int[Array, "axis_length path_length"],
+        ) -> Bool[Array, " axis_length"]:
+            _, index = jnp.unique(
+                objects,
+                axis=0,
+                size=size,
+                return_index=True,
+            )
+
+            return jnp.isin(indices, index)
+
+        for _ in range(max(ndim - 1, 0)):
+            f = jax.vmap(f)
+
+        mask = f(objects)
+        mask = jnp.moveaxis(mask, -1, axis)
+        mask = mask & self.mask if self.mask is not None else mask
+
+        return eqx.tree_at(
+            lambda p: p.mask,
+            self,
+            mask,
+            is_leaf=lambda x: x is None,
+        )
+
     @property
     @jaxtyped(typechecker=typechecker)
     def path_length(self) -> int:

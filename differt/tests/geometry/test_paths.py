@@ -9,8 +9,9 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import path_lengths
+from differt.geometry import TriangleMesh, path_lengths
 from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
+from differt.scene import TriangleScene
 
 
 def test_merge_cell_ids() -> None:
@@ -89,6 +90,82 @@ class TestPaths:
                 with_mask=with_mask,
                 key=key,
             ).squeeze(axis=axis)
+
+    def test_mask_duplicate_objects(self, key: PRNGKeyArray) -> None:
+        mesh = TriangleMesh.box()  # 6 objects
+        # 6 path candidates, only 3 are unique
+        path_candidates = jnp.array([
+            [0, 1, 2],
+            [1, 0, 2],
+            [0, 1, 2],
+            [0, 1, 2],
+            [2, 3, 4],
+            [1, 0, 2],
+        ])
+
+        # 1 - One TX, one RX, no batch dimension
+
+        key_rx, key_tx = jax.random.split(key, 2)
+
+        scene = TriangleScene(
+            transmitters=jax.random.normal(key_tx, (3,)),
+            receivers=jax.random.normal(key_rx, (3,)),
+            mesh=mesh,
+        )
+
+        paths = scene.compute_paths(path_candidates=path_candidates)
+
+        assert paths.mask is not None
+        paths = eqx.tree_at(lambda p: p.mask, paths, jnp.ones_like(paths.mask))
+
+        got = paths.mask_duplicate_objects()
+
+        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+
+        paths = eqx.tree_at(lambda p: p.mask, paths, None)
+
+        got = paths.mask_duplicate_objects()
+
+        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+
+        with pytest.raises(
+            ValueError,
+            match="The provided axis -2 is out-of-bounds for batch of dimensions 1!",
+        ):
+            _ = paths.mask_duplicate_objects(axis=-2)
+
+        # 2 - Many TXs, many RXs, multiple batch dimensions
+
+        scene = scene.with_transmitters_grid(2, 1).with_receivers_grid(4, 3)
+
+        paths = scene.compute_paths(path_candidates=path_candidates)
+
+        assert paths.mask is not None
+        chex.assert_shape(paths.mask, (1, 2, 3, 4, path_candidates.shape[0]))
+        paths = eqx.tree_at(lambda p: p.mask, paths, jnp.ones_like(paths.mask))
+
+        got = paths.mask_duplicate_objects()
+
+        chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
+        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+
+        paths = eqx.tree_at(lambda p: p.mask, paths, None)
+
+        got = paths.mask_duplicate_objects()
+
+        chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
+        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+
+        paths = eqx.tree_at(
+            lambda p: (p.vertices, p.objects),
+            paths,
+            (jnp.swapaxes(paths.vertices, 0, -3), jnp.swapaxes(paths.objects, 0, -2)),
+        )
+
+        got = paths.mask_duplicate_objects(axis=0)
+
+        chex.assert_shape(got.mask, (path_candidates.shape[0], 2, 3, 4, 1))
+        chex.assert_trees_all_equal(got.mask.sum(axis=0), 3)
 
     @pytest.mark.parametrize("path_length", [3, 5])
     @pytest.mark.parametrize("batch", [(), (1,), (1, 2, 3, 4)])

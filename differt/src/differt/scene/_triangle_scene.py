@@ -863,6 +863,14 @@ class TriangleScene(eqx.Module):
             The paths, as class wrapping path vertices, object indices, and a masked
             identify valid paths.
 
+            The returned paths have the following batch dimensions:
+
+            * ``[*transmitters_batch *receivers_batch num_path_candidates]``,
+            * ``[*transmitters_batch *receivers_batch chunk_size]``,
+            * or ``[*transmitters_batch *receivers_batch num_rays]``,
+
+            depending on the method used.
+
         Raises:
             ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
                 or if both have been provided simultaneously.
