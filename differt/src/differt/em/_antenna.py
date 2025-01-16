@@ -79,9 +79,8 @@ class BaseAntenna(eqx.Module):
     @property
     @jaxtyped(typechecker=typechecker)
     def aperture(self) -> Float[Array, " "]:
-        r"""The antenna aperture :math:`A`."""
-        # TODO: check the name, as this is not the physical aperture
-        return (self.wavelength / (4 * jnp.pi)) ** 2
+        r"""The aperture :math:`A` of an isotropic antenna."""
+        return self.wavelength**2 / (4 * jnp.pi)
 
 
 @jaxtyped(typechecker=typechecker)
@@ -91,10 +90,12 @@ class Antenna(BaseAntenna):
     @property
     @abstractmethod
     def reference_power(self) -> Float[Array, " "]:
-        r"""The reference power (:math:`\text{W}/m^2`) radiated by this antenna.
+        r"""The reference power (W) radiated by this antenna.
 
         This is the maximal value of the pointing vector at a distance
-        of one meter from this antenna.
+        of one meter from this antenna, multiplied by the area of the sphere
+        (:math:`4\phi`),
+        to obtain a power.
         """
 
     @abstractmethod
@@ -379,14 +380,15 @@ class Dipole(Antenna):
     def reference_power(self) -> Float[Array, " "]:
         p_0 = jnp.linalg.norm(self.moment)
 
-        # Equivalent to mu_0 * self.angular_frequency**4 * p_0**2 / (16 * jnp.pi**2 * c)
+        # Equivalent to
+        # 4 * pi * (r=1) * mu_0 * self.angular_frequency**4 * p_0**2 / (16 * jnp.pi**2 * c)
         # but avoids overflow
 
         r = mu_0 * self.angular_frequency
         t = self.angular_frequency * p_0
         r *= t
         r *= t
-        r *= self.angular_frequency / (16 * jnp.pi**2 * c)
+        r *= self.angular_frequency / (4 * jnp.pi * c)
 
         return r
 
