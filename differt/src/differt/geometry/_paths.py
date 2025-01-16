@@ -202,6 +202,11 @@ class Paths(eqx.Module):
         Args:
             axis: The batch axis along which the unique values are computed.
 
+                It defaults to the last axis, which is the axis where
+                different path candidates are stored when generating
+                paths with
+                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+
         Returns:
             A new paths instance with masked duplicate objects.
 
