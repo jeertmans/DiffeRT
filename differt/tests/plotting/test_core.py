@@ -125,7 +125,10 @@ def test_draw_contour(
     if (backend == "vispy" and (fill or isinstance(levels, int))) or (
         backend == "plotly" and isinstance(levels, np.ndarray)
     ):
-        expectation = pytest.warns(UserWarning)
+        expectation = pytest.warns(
+            UserWarning,
+            match="%s does not support" % "VisPy" if backend == "vispy" else "Plotly",
+        )
     else:
         expectation = does_not_raise()
 
@@ -162,7 +165,12 @@ def test_draw_surface(
     Z = X * Y  # noqa: N806
 
     if backend in {"vispy", "matplotlib"} and pass_colors:
-        expectation = pytest.warns(UserWarning)
+        expectation = pytest.warns(
+            UserWarning,
+            match="VisPy does not currently support coloring like we would like"
+            if backend == "vispy"
+            else "Matplotlib requires 'colors' to be RGB or RGBA values",
+        )
     else:
         expectation = does_not_raise()
 

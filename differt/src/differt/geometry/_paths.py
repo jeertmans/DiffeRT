@@ -389,18 +389,18 @@ class Paths(eqx.Module):
             >>> vertices = jax.random.uniform(key_v, (*batch, path_length, 3))
             >>> objects = jax.random.randint(key_o, (*batch, path_length), 0, 2)
             >>> objects
-            Array([[[1, 0, 0],
-                    [1, 0, 0],
-                    [0, 1, 1],
+            Array([[[1, 1, 0],
+                    [0, 0, 1],
                     [1, 0, 1],
-                    [0, 1, 0],
-                    [0, 1, 1]],
-                   [[1, 0, 1],
-                    [0, 0, 0],
-                    [0, 0, 0],
+                    [1, 0, 0],
+                    [1, 1, 1],
+                    [1, 1, 1]],
+                   [[1, 0, 0],
+                    [1, 1, 1],
+                    [0, 0, 1],
                     [1, 1, 0],
                     [0, 0, 1],
-                    [0, 1, 1]]], dtype=int32)
+                    [1, 0, 0]]], dtype=int32)
             >>> paths = Paths(vertices, objects)
             >>> groups = paths.group_by_objects()
             >>> groups

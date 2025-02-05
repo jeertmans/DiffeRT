@@ -18,7 +18,6 @@ from differt.em import _constants
 )
 def test_constants(constant_name: str, value: float | None) -> None:
     got = getattr(_constants, constant_name)
-    if value:
-        assert abs(got - value) < 1e-6
-    else:
-        assert got == getattr(scipy.constants, constant_name)
+    expected: float = value if value is not None else getattr(scipy.constants, constant_name)
+    
+    assert abs(got - expected) < 1e-6

@@ -365,7 +365,7 @@ impl TriangleMesh {
                             }),
                     );
                 },
-                name => log::info!("Unexpeced element: {name}, skipping."),
+                name => log::info!("Unexpected element: {name}, skipping."),
             }
         }
 

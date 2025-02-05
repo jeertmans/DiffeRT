@@ -550,8 +550,8 @@ class RadiationPattern(BaseAntenna):
 
             :meth:`directive_gain`
         """
-        u, du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
-        v, dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
+        u, _du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
+        v, _dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
         x = jnp.outer(jnp.cos(u), jnp.sin(v))
         y = jnp.outer(jnp.sin(u), jnp.sin(v))
         z = jnp.outer(jnp.ones_like(u), jnp.cos(v))
@@ -664,7 +664,7 @@ class HWDipolePattern(RadiationPattern):
 
         cos_theta = dot()
         sin_theta = jnp.sin()
-        d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
+        _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
 
 
 @jaxtyped(typechecker=typechecker)

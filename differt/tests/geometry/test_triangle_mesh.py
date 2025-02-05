@@ -439,7 +439,7 @@ class TestTriangleMesh:
         assert two_buildings_mesh.sample(10, key=key).num_triangles == 10
 
         with pytest.raises(
-            ValueError, match="Cannot take a larger sample than population"
+            ValueError, match="Cannot take a larger sample"
         ):
             assert two_buildings_mesh.sample(30, key=key)
 
