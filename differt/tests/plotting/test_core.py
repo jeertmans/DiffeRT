@@ -127,7 +127,7 @@ def test_draw_contour(
     ):
         expectation = pytest.warns(
             UserWarning,
-            match="%s does not support" % "VisPy" if backend == "vispy" else "Plotly",
+            match=f"{'VisPy' if backend == 'vispy' else 'Plotly'} does not support",
         )
     else:
         expectation = does_not_raise()

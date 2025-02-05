@@ -438,9 +438,7 @@ class TestTriangleMesh:
     def test_sample(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         assert two_buildings_mesh.sample(10, key=key).num_triangles == 10
 
-        with pytest.raises(
-            ValueError, match="Cannot take a larger sample"
-        ):
+        with pytest.raises(ValueError, match="Cannot take a larger sample"):
             assert two_buildings_mesh.sample(30, key=key)
 
         assert two_buildings_mesh.sample(30, replace=True, key=key).num_triangles == 30
