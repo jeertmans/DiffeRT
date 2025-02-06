@@ -2,7 +2,7 @@ import sys
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import equinox as eqx
 import jax
@@ -11,10 +11,13 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 @jax.jit

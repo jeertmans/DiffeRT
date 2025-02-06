@@ -3,16 +3,20 @@ import operator
 import sys
 from collections.abc import Callable
 from functools import partial
+from typing import TYPE_CHECKING, Any
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 class Material(eqx.Module):

@@ -4,7 +4,7 @@ import math
 import sys
 import warnings
 from collections.abc import Mapping
-from typing import Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -38,10 +38,13 @@ from differt.rt import (
 )
 from differt.utils import dot
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 @eqx.filter_jit

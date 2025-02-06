@@ -2,7 +2,7 @@
 
 import sys
 from collections.abc import Iterator
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import equinox as eqx
 import jax
@@ -14,10 +14,13 @@ from differt.plotting import PlotOutput, draw_mesh
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 @jax.jit

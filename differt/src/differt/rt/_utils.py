@@ -3,7 +3,7 @@
 import sys
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import equinox as eqx
 import jax
@@ -14,10 +14,13 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 _T = TypeVar("_T")
 

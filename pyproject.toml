@@ -138,7 +138,7 @@ venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
-  "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
+  "--jaxtyping-packages=differt,beartype.beartype",
   "--numprocesses=logical",
   "--cov-report=xml",
   "--cov=differt/src/differt",
