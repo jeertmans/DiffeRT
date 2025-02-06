@@ -7,7 +7,7 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
@@ -106,9 +106,6 @@ class Paths(eqx.Module):
     If not specified, :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>` is assumed.
     """
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def reshape(self, *batch: int) -> Self:
         """
         Return a copy with reshaped paths' batch dimensions to match a given shape.
@@ -135,9 +132,6 @@ class Paths(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
         """
         Return a copy by squeezing one or more axes of paths' batch dimensions.
@@ -182,9 +176,6 @@ class Paths(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def mask_duplicate_objects(self, axis: int = -1) -> Self:
         """
         Return a copy by masking duplicate objects along a given axis.
@@ -505,9 +496,6 @@ class SBRPaths(Paths):
         )
         return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def reshape(self, *batch: int) -> Self:
         return eqx.tree_at(
             lambda p: p.masks,

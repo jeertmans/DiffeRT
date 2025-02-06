@@ -7,7 +7,7 @@ from typing import Any, overload
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
 from differt.plotting import PlotOutput, draw_mesh
@@ -137,9 +137,6 @@ class TriangleMesh(eqx.Module):
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
             raise ValueError(msg)
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
         """Return a copy of this mesh, taking only specific triangles.
 
@@ -290,9 +287,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
         """
         Return a new mesh by applying a rotation matrix to all triangle coordinates.
@@ -310,9 +304,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
         """
         Return a new mesh by applying a scale factor to all triangle coordinates.
@@ -330,9 +321,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def translate(self, translation: Float[Array, "3"]) -> Self:
         """
         Return a new mesh by applying a translation to all triangle coordinates.
@@ -376,9 +364,6 @@ class TriangleMesh(eqx.Module):
     ) -> Self: ...
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def set_face_colors(
         self,
         colors: Float[Array, "#{self.num_triangles} 3"]
@@ -557,9 +542,6 @@ class TriangleMesh(eqx.Module):
     ) -> Self: ...
 
     @classmethod
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def plane(
         cls,
         vertex_a: Float[Array, "3"],
@@ -633,9 +615,6 @@ class TriangleMesh(eqx.Module):
         return cls(vertices=vertices, triangles=triangles)
 
     @classmethod
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def box(
         cls,
         length: Float[ArrayLike, " "] = 1.0,
@@ -790,9 +769,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def sample(
         self,
         size: int,

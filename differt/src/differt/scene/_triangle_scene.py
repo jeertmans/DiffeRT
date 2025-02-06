@@ -13,7 +13,7 @@ from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
 from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 import differt_core.scene
 from differt.geometry import (
@@ -503,9 +503,6 @@ class TriangleScene(eqx.Module):
         return eqx.tree_at(lambda s: s.mesh, self, self.mesh.set_assume_quads(flag))
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def with_transmitters_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
@@ -541,9 +538,6 @@ class TriangleScene(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def with_receivers_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
@@ -577,9 +571,6 @@ class TriangleScene(eqx.Module):
         return eqx.tree_at(lambda s: s.receivers, self, jnp.stack((x, y, z), axis=-1))
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
         """
         Return a new scene by applying a rotation matrix to all the objects in the scene.
@@ -605,9 +596,6 @@ class TriangleScene(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
         """
         Return a new scene by applying a scale factor to all the objects in the scene.
@@ -629,9 +617,6 @@ class TriangleScene(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def translate(self, translation: Float[Array, "3"]) -> Self:
         """
         Return a new scene by applying a translation to all the objects in the scene.
