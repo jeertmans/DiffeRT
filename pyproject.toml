@@ -38,6 +38,7 @@ remote-jupyter = [
 ]
 tests = [
   "differt[all]",
+  "beartype>=0.19.0",
   "chex>=0.1.84",
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
@@ -136,6 +137,7 @@ venvPath = "."
 
 [tool.pytest.ini_options]
 addopts = [
+  "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
   "--numprocesses=logical",
   "--cov-report=xml",
   "--cov=differt/src/differt",

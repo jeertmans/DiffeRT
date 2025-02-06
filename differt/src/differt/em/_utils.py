@@ -3,8 +3,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Int
 
 from differt.geometry import normalize, path_lengths, perpendicular_vectors
 from differt.utils import dot
@@ -14,7 +13,6 @@ from ._interaction_type import InteractionType
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def lengths_to_delays(
     lengths: Float[ArrayLike, " *#batch"],
     speed: Float[ArrayLike, " *#batch"] = c,
@@ -50,7 +48,6 @@ def lengths_to_delays(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def path_delays(
     paths: Float[Array, "*batch path_length 3"],
     **kwargs: Any,
@@ -88,7 +85,6 @@ def path_delays(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def sp_directions(
     k_i: Float[Array, "*#batch 3"],
     k_r: Float[Array, "*#batch 3"],
@@ -269,7 +265,6 @@ def sp_directions(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def sp_rotation_matrix(
     e_a_s: Float[Array, "*#batch 3"],
     e_a_p: Float[Array, "*#batch 3"],
@@ -304,7 +299,6 @@ def sp_rotation_matrix(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def transition_matrices(
     vertices: Float[Array, "*batch path_length 3"],
     objects: Float[Array, "*batch path_length"],
@@ -349,7 +343,6 @@ def transition_matrices(
 
 
 @partial(jax.jit, static_argnames=("dB",))
-@jaxtyped(typechecker=typechecker)
 def fspl(
     d: Float[ArrayLike, " *#batch"],
     f: Float[ArrayLike, " *#batch"],

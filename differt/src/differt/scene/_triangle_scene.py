@@ -9,7 +9,6 @@ from typing import Any, Literal, overload
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
 from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
 from jax.sharding import Mesh
@@ -46,7 +45,6 @@ else:
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def _compute_paths(
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
@@ -103,7 +101,6 @@ def _compute_paths(
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    @jaxtyped(typechecker=typechecker)
     def fun(
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -255,7 +252,6 @@ def _compute_paths(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def _compute_paths_sbr(
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
@@ -290,7 +286,6 @@ def _compute_paths_sbr(
         lambda frustum: fibonacci_lattice(num_rays, frustum=frustum)
     )(frustums)
 
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         ray_origins_directions_and_valids: tuple[
             Float[Array, "num_tx_vertices num_rays 3"],
@@ -372,7 +367,6 @@ def _compute_paths_sbr(
             masks,
         )
 
-    @jaxtyped(typechecker=typechecker)
     def fun(
         ray_origins: Float[Array, "num_tx_vertices num_rays 3"],
         ray_directions: Float[Array, "num_tx_vertices num_rays 3"],
@@ -466,7 +460,6 @@ def _compute_paths_sbr(
     )
 
 
-@jaxtyped(typechecker=typechecker)
 class TriangleScene(eqx.Module):
     """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
@@ -485,14 +478,12 @@ class TriangleScene(eqx.Module):
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def num_transmitters(self) -> int:
         """The number of transmitters."""
         return self.transmitters[..., 0].size
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def num_receivers(self) -> int:
         """The number of receivers."""
         return self.receivers[..., 0].size
@@ -758,7 +749,6 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
     ) -> SBRPaths: ...
 
-    @jaxtyped(typechecker=typechecker)
     def compute_paths(  # noqa: C901
         self,
         order: int | None = None,

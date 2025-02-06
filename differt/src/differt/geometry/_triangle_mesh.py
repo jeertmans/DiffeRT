@@ -7,7 +7,6 @@ from typing import Any, overload
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray, jaxtyped
 
 import differt_core.geometry
@@ -22,7 +21,6 @@ else:
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def triangles_contain_vertices_assuming_inside_same_plane(
     triangle_vertices: Float[Array, "*#batch 3 3"],
     vertices: Float[Array, "*#batch 3"],
@@ -81,7 +79,6 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
-@jaxtyped(typechecker=typechecker)
 class TriangleMesh(eqx.Module):
     """A simple geometry made of triangles."""
 
@@ -220,7 +217,6 @@ class TriangleMesh(eqx.Module):
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
         """The array of indexed triangle vertices."""
         if self.triangles.size == 0:
@@ -269,7 +265,6 @@ class TriangleMesh(eqx.Module):
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
         """The triangle normals."""
         vectors = jnp.diff(self.triangle_vertices, axis=1)
@@ -279,14 +274,12 @@ class TriangleMesh(eqx.Module):
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
         # Using self.triangle_vertices is important because, e.g., as a result of using

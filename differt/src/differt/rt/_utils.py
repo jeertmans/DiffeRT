@@ -8,8 +8,7 @@ from typing import Any, TypeVar
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import dot
@@ -23,7 +22,6 @@ else:
 _T = TypeVar("_T")
 
 
-@typechecker
 class SizedIterator(Iterator[_T], Sized):
     """A custom generic class that is both :class:`Iterator<collections.abc.Iterator>` and :class:`Sized<collections.abc.Sized>`.
 
@@ -67,7 +65,6 @@ class SizedIterator(Iterator[_T], Sized):
         return self._size()
 
 
-@jaxtyped(typechecker=typechecker)
 @cache
 def generate_all_path_candidates(
     num_primitives: int,
@@ -105,7 +102,6 @@ def generate_all_path_candidates(
     )
 
 
-@jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_iter(
     num_primitives: int,
     order: int,
@@ -130,7 +126,6 @@ def generate_all_path_candidates_iter(
     return SizedIterator(m, size=it.__len__)
 
 
-@jaxtyped(typechecker=typechecker)
 def generate_all_path_candidates_chunks_iter(
     num_primitives: int,
     order: int,
@@ -159,7 +154,6 @@ def generate_all_path_candidates_chunks_iter(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def rays_intersect_triangles(
     ray_origins: Float[Array, "*#batch 3"],
     ray_directions: Float[Array, "*#batch 3"],
@@ -288,7 +282,6 @@ def rays_intersect_triangles(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def rays_intersect_any_triangle(
     ray_origins: Float[Array, "*#batch 3"],
     ray_directions: Float[Array, "*#batch 3"],
@@ -341,7 +334,6 @@ def rays_intersect_any_triangle(
         triangle_vertices.shape[1:-2],
     )
 
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         intersect: Bool[Array, " *batch"],
         triangle_vertices: Float[Array, "*#batch 3 3"],
@@ -363,7 +355,6 @@ def rays_intersect_any_triangle(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def triangles_visible_from_vertices(
     vertices: Float[Array, "*#batch 3"],
     triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
@@ -447,7 +438,6 @@ def triangles_visible_from_vertices(
 
     batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
 
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         visible: Bool[Array, "*batch num_triangles"],
         ray_direction: Float[Array, "3"],
@@ -473,7 +463,6 @@ def triangles_visible_from_vertices(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def first_triangles_hit_by_rays(
     ray_origins: Float[Array, "*#batch 3"],
     ray_directions: Float[Array, "*#batch 3"],
@@ -510,7 +499,6 @@ def first_triangles_hit_by_rays(
         triangle_vertices.shape[1:-2],
     )
 
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         carry: tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]],
         triangle_vertices: Float[Array, "*#batch 3 3"],

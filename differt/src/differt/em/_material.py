@@ -7,8 +7,7 @@ from functools import partial
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, jaxtyped
+from jaxtyping import Array, ArrayLike, Float
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -16,7 +15,6 @@ else:
     from typing_extensions import Self
 
 
-@jaxtyped(typechecker=typechecker)
 class Material(eqx.Module):
     """A class representing a material and it electrical properties."""
 
@@ -131,7 +129,6 @@ class Material(eqx.Module):
         aliases = ("itu_" + name.lower().replace(" ", "_"),)
 
         @partial(jax.jit, inline=True, static_argnums=(1, 2, 3, 4))
-        @jaxtyped(typechecker=typechecker)
         def callback(
             f: Float[ArrayLike, " *batch"],
             a: Float[ArrayLike, " "],

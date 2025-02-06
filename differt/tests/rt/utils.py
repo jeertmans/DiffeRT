@@ -1,11 +1,9 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, Float, PRNGKeyArray, jaxtyped
+from jaxtyping import Array, Float, PRNGKeyArray
 
 
-@jaxtyped(typechecker=typechecker)
 class PlanarMirrorsSetup(eqx.Module):
     from_vertices: Float[Array, "*#batch 3"]
     to_vertices: Float[Array, "*#batch 3"]
