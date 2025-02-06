@@ -959,6 +959,7 @@ cuda = [
     { name = "jax", version = "0.4.35", source = { registry = "https://pypi.org/simple" }, extra = ["cuda"], marker = "python_full_version >= '3.12'" },
 ]
 docs = [
+    { name = "beartype" },
     { name = "differt", extra = ["all"] },
     { name = "myst-nb" },
     { name = "pillow" },
@@ -1022,6 +1023,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beartype", marker = "extra == 'docs'", specifier = ">=0.19.0" },
     { name = "beartype", marker = "extra == 'tests'", specifier = ">=0.19.0" },
     { name = "chex", marker = "extra == 'tests'", specifier = ">=0.1.84" },
     { name = "differt", extras = ["all"], marker = "extra == 'docs'", editable = "differt" },
