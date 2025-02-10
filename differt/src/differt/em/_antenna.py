@@ -639,8 +639,8 @@ class HWDipolePattern(RadiationPattern):
 
         d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
 
-        cos_theta = dot()
-        sin_theta = jnp.sin()
+        cos_theta = dot()  # type: ignore
+        sin_theta = jnp.sin()  # type: ignore
         d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
 
 
