@@ -12,7 +12,7 @@ from differt.scene._sionna import (
 from differt_core.scene import SionnaScene
 
 # Let's put a timeout on downloading the scenes.
-download_sionna_scenes = partial(download_sionna_scenes, timeout=600)
+download_sionna_scenes = partial(download_sionna_scenes, timeout=600.0)
 
 
 @pytest.fixture
