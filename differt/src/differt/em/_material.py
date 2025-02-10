@@ -46,7 +46,6 @@ class Material(eqx.Module):
     A tuple of name aliases for the material.
     """
 
-    @eqx.filter_jit
     def relative_permittivity(
         self, frequency: Float[ArrayLike, " *batch"]
     ) -> Float[Array, " *batch"]:
@@ -61,7 +60,6 @@ class Material(eqx.Module):
         """
         return self.properties(frequency)[0]
 
-    @eqx.filter_jit
     def conductivity(
         self, frequency: Float[ArrayLike, " *batch"]
     ) -> Float[Array, " *batch"]:

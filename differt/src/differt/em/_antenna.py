@@ -14,11 +14,11 @@ from differt.utils import dot, safe_divide
 from ._constants import c, epsilon_0, mu_0
 
 
-@eqx.filter_jit
+@jax.jit
 def pointing_vector(
     e: Inexact[Array, "*#batch 3"],
     b: Inexact[Array, "*#batch 3"],
-) -> Inexact[Array, "*batch"]:
+) -> Inexact[Array, "*batch 3"]:
     r"""
     Compute the pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
