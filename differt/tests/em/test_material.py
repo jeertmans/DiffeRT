@@ -22,7 +22,7 @@ class TestITU:
             match="Only one frequency range can be used if 'None' is passed, as it will match any frequency",
         ):
             _ = Material.from_itu_properties(
-                "test", (0, 0, 0, 0, None), (0, 0, 0, 0, None)
+                "test", (0.0, 0.0, 0.0, 0.0, None), (0.0, 0.0, 0.0, 0.0, None)
             )
 
     def test_num_materials(self) -> None:
