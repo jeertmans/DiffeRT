@@ -5,8 +5,7 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Inexact
 
 from differt.geometry import normalize
 from differt.plotting import PlotOutput, draw_surface
@@ -15,11 +14,11 @@ from differt.utils import dot, safe_divide
 from ._constants import c, epsilon_0, mu_0
 
 
-@eqx.filter_jit
+@jax.jit
 def pointing_vector(
     e: Inexact[Array, "*#batch 3"],
     b: Inexact[Array, "*#batch 3"],
-) -> Inexact[Array, "*batch"]:
+) -> Inexact[Array, "*batch 3"]:
     r"""
     Compute the pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
@@ -37,7 +36,6 @@ def pointing_vector(
     return jnp.cross(e, h)
 
 
-@jaxtyped(typechecker=typechecker)
 class BaseAntenna(eqx.Module):
     """An antenna class, base class for :class:`Antenna` and :class:`RadiationPattern`."""
 
@@ -53,37 +51,31 @@ class BaseAntenna(eqx.Module):
     """
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def period(self) -> Float[Array, " "]:
         """The period :math:`T = 1/f`."""
         return 1 / self.frequency
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def angular_frequency(self) -> Float[Array, " "]:
         r"""The angular frequency :math:`\omega = 2 \pi f`."""
         return 2 * jnp.pi * self.frequency
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def wavelength(self) -> Float[Array, " "]:
         r"""The wavelength :math:`\lambda = c / f`."""
         return c * self.period
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def wavenumber(self) -> Float[Array, " "]:
         r"""The wavenumber :math:`k = \omega / c`."""
         return self.angular_frequency / c
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def aperture(self) -> Float[Array, " "]:
         r"""The aperture :math:`A` of an isotropic antenna."""
         return self.wavelength**2 / (4 * jnp.pi)
 
 
-@jaxtyped(typechecker=typechecker)
 class Antenna(BaseAntenna):
     """An antenna class, must be subclassed."""
 
@@ -119,7 +111,6 @@ class Antenna(BaseAntenna):
         """
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
     def pointing_vector(
         self,
         r: Float[Array, "*#batch 3"],
@@ -143,7 +134,6 @@ class Antenna(BaseAntenna):
         e, b = self.fields(r, t)
         return pointing_vector(e, b)
 
-    @jaxtyped(typechecker=typechecker)
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -192,7 +182,6 @@ class Antenna(BaseAntenna):
 
         return u, v, U / p_tot
 
-    @jaxtyped(typechecker=typechecker)
     def directive_gain(
         self,
         num_points: int = int(1e2),
@@ -270,7 +259,6 @@ class Antenna(BaseAntenna):
         )
 
 
-@jaxtyped(typechecker=typechecker)
 class Dipole(Antenna):
     r"""
     A simple electrical (or Hertzian) dipole.
@@ -344,7 +332,6 @@ class Dipole(Antenna):
     moment: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
     """Dipole moment (in Coulomb-meter)."""
 
-    @jaxtyped(typechecker=typechecker)
     def __init__(
         self,
         frequency: Float[ArrayLike, " "],
@@ -393,7 +380,6 @@ class Dipole(Antenna):
         return r
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
     def fields(
         self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
@@ -429,7 +415,6 @@ class Dipole(Antenna):
 
         return e, b
 
-    @jaxtyped(typechecker=typechecker)
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -452,7 +437,6 @@ class Dipole(Antenna):
 
         return u, v, 1.5 * jax.lax.integer_pow(sin_theta, 2)
 
-    @jaxtyped(typechecker=typechecker)
     def directive_gain(  # noqa: PLR6301
         self,
         num_points: int = int(1e2),  # noqa: ARG002
@@ -473,13 +457,11 @@ class ShortDipole(Dipole):
     """
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
     def fields(
         self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         raise NotImplementedError
 
-    @jaxtyped(typechecker=typechecker)
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -491,7 +473,6 @@ class ShortDipole(Dipole):
         # Bypass Dipole's specialized implementation
         return Antenna.directivity(self, num_points=num_points)
 
-    @jaxtyped(typechecker=typechecker)
     def directive_gain(
         self,
         num_points: int = int(1e2),
@@ -500,7 +481,6 @@ class ShortDipole(Dipole):
         return Antenna.directive_gain(self, num_points=num_points)
 
 
-@jaxtyped(typechecker=typechecker)
 class RadiationPattern(BaseAntenna):
     """An antenna radiation pattern class, must be subclassed."""
 
@@ -521,7 +501,6 @@ class RadiationPattern(BaseAntenna):
             Fields can be either real or complex-valued.
         """
 
-    @jaxtyped(typechecker=typechecker)
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -566,7 +545,6 @@ class RadiationPattern(BaseAntenna):
 
         return u, v, g
 
-    @jaxtyped(typechecker=typechecker)
     def directive_gain(
         self,
         num_points: int = int(1e2),
@@ -630,7 +608,7 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)
+        s = self.pointing_vector(r)  # type: ignore
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 
@@ -644,7 +622,6 @@ class RadiationPattern(BaseAntenna):
         )
 
 
-@jaxtyped(typechecker=typechecker)
 class HWDipolePattern(RadiationPattern):
     """An half-wave dipole radiation pattern."""
 
@@ -654,20 +631,19 @@ class HWDipolePattern(RadiationPattern):
     def polarization_vectors(
         self,
         r: Float[Array, "*#batch 3"],
-    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:  # type: ignore
         r_hat, r = normalize(r - self.center, keepdims=True)
 
         cos_theta = dot(r_hat, self.direction)
         sin_theta = jnp.sqrt(1 - cos_theta**2)
 
-        d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
+        _d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
 
-        cos_theta = dot()
-        sin_theta = jnp.sin()
+        cos_theta = dot()  # type: ignore
+        sin_theta = jnp.sin()  # type: ignore
         _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
 
 
-@jaxtyped(typechecker=typechecker)
 class ShortDipolePattern(RadiationPattern):
     """An short dipole radiation pattern."""
 

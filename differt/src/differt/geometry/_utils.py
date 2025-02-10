@@ -3,12 +3,10 @@ from typing import Literal, overload
 
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int, jaxtyped
+from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def pairwise_cross(
     u: Float[Array, "m 3"],
     v: Float[Array, "n 3"],
@@ -53,7 +51,6 @@ def normalize(
 
 
 @partial(jax.jit, static_argnames=("keepdims",), inline=True)
-@jaxtyped(typechecker=typechecker)
 def normalize(
     vector: Float[Array, "*batch 3"],
     keepdims: bool = False,
@@ -98,7 +95,6 @@ def normalize(
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def perpendicular_vectors(u: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
     """
     Generate a vector perpendicular to the input vectors.
@@ -134,7 +130,6 @@ def perpendicular_vectors(u: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def orthogonal_basis(
     u: Float[Array, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
@@ -172,7 +167,6 @@ def orthogonal_basis(
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def path_lengths(
     paths: Float[Array, "*batch path_length 3"],
 ) -> Float[Array, " *batch"]:
@@ -207,7 +201,6 @@ def path_lengths(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def rotation_matrix_along_x_axis(
     angle: Float[ArrayLike, " "],
 ) -> Float[Array, "3 3"]:
@@ -243,7 +236,6 @@ def rotation_matrix_along_x_axis(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def rotation_matrix_along_y_axis(
     angle: Float[ArrayLike, " "],
 ) -> Float[Array, "3 3"]:
@@ -279,7 +271,6 @@ def rotation_matrix_along_y_axis(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def rotation_matrix_along_z_axis(
     angle: Float[ArrayLike, " "],
 ) -> Float[Array, "3 3"]:
@@ -315,7 +306,6 @@ def rotation_matrix_along_z_axis(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def rotation_matrix_along_axis(
     angle: Float[ArrayLike, " "],
     axis: Float[Array, "3"],
@@ -394,7 +384,6 @@ def fibonacci_lattice(
 ) -> Float[Array, "{n} 3"]: ...
 
 
-@jaxtyped(typechecker=typechecker)
 def fibonacci_lattice(
     n: int,
     dtype: DTypeLike | None = None,
@@ -468,7 +457,6 @@ def fibonacci_lattice(
     return spherical_to_cartesian(pa).astype(dtype)
 
 
-@jaxtyped(typechecker=typechecker)
 def assemble_paths(
     *path_segments: Float[Array, "*#batch _num_vertices 3"],
 ) -> Float[Array, "*#batch path_length 3"]:
@@ -498,7 +486,6 @@ def assemble_paths(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def min_distance_between_cells(
     cell_vertices: Float[Array, "*batch 3"],
     cell_ids: Int[Array, "*batch"],
@@ -519,7 +506,6 @@ def min_distance_between_cells(
         The array of minimal distances.
     """
 
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         _: None, vertex_and_cell_id: tuple[Float[Array, "3"], Int[Array, " "]]
     ) -> tuple[None, Float[Array, " "]]:
@@ -575,7 +561,6 @@ def viewing_frustum(
 
 
 @partial(jax.jit, static_argnames=("reduce",))
-@jaxtyped(typechecker=typechecker)
 def viewing_frustum(
     viewing_vertex: Float[Array, "*#batch 3"],
     world_vertices: Float[Array, "*#batch num_vertices 3"],
@@ -781,7 +766,6 @@ def viewing_frustum(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
     """
     Transform cartesian coordinates to spherical coordinates.
@@ -806,7 +790,6 @@ def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batc
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def spherical_to_cartesian(
     rpa: Float[Array, "*batch 3"] | Float[Array, "*batch 2"],
 ) -> Float[Array, "*batch 3"]:

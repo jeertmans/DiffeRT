@@ -1,14 +1,12 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Float, Inexact, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Inexact
 
 from differt.utils import safe_divide
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def refractive_indices(
     epsilon_r: Inexact[ArrayLike, " *#batch"],
     mu_r: Inexact[ArrayLike, " *#batch"] | None = None,
@@ -46,7 +44,6 @@ def refractive_indices(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def fresnel_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[Array, " *#batch"],
@@ -206,7 +203,6 @@ def fresnel_coefficients(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def reflection_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[Array, " *#batch"],
@@ -429,7 +425,6 @@ def reflection_coefficients(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def refraction_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[Array, " *#batch"],

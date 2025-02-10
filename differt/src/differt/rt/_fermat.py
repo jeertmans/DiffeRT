@@ -4,15 +4,13 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, Float, jaxtyped
+from jaxtyping import Array, Float
 
 from differt.geometry import orthogonal_basis
 from differt.utils import minimize
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def _st_to_xyz(
     st: Float[Array, "*batch num_unknowns"],
     o: Float[Array, "*batch num_mirrors 3"],
@@ -25,7 +23,6 @@ def _st_to_xyz(
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def _loss(  # noqa: PLR0917
     st: Float[Array, "*batch num_unknowns"],
     from_: Float[Array, "*batch 3"],
@@ -45,7 +42,6 @@ def _loss(  # noqa: PLR0917
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def fermat_path_on_planar_mirrors(
     from_vertices: Float[Array, "*#batch 3"],
     to_vertices: Float[Array, "*#batch 3"],

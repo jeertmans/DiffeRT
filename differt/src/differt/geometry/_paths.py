@@ -2,28 +2,28 @@ import sys
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped, jaxtyped
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
-if sys.version_info >= (3, 11):
-    from typing import Self
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 else:
-    from typing_extensions import Self
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def _cell_ids(
     array: Shaped[Array, "batch n"],
 ) -> Int[Array, " batch"]:
-    @jaxtyped(typechecker=typechecker)
     def scan_fun(
         indices: Int[Array, " batch"],
         row_and_index: tuple[Shaped[Array, " n"], Int[Array, " "]],
@@ -41,7 +41,6 @@ def _cell_ids(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def merge_cell_ids(
     cell_ids_a: Int[Array, " *batch"],
     cell_ids_b: Int[Array, " *batch"],
@@ -76,7 +75,6 @@ def merge_cell_ids(
     ).reshape(batch)
 
 
-@jaxtyped(typechecker=typechecker)
 class Paths(eqx.Module):
     """
     A convenient wrapper class around path vertices and object indices.
@@ -111,9 +109,6 @@ class Paths(eqx.Module):
     If not specified, :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>` is assumed.
     """
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def reshape(self, *batch: int) -> Self:
         """
         Return a copy with reshaped paths' batch dimensions to match a given shape.
@@ -140,9 +135,6 @@ class Paths(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
         """
         Return a copy by squeezing one or more axes of paths' batch dimensions.
@@ -187,9 +179,6 @@ class Paths(eqx.Module):
         )
 
     @eqx.filter_jit
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def mask_duplicate_objects(self, axis: int = -1) -> Self:
         """
         Return a copy by masking duplicate objects along a given axis.
@@ -224,7 +213,6 @@ class Paths(eqx.Module):
         objects = jnp.moveaxis(self.objects, axis if axis >= 0 else axis - 1, -2)
         indices = jnp.arange(size, dtype=objects.dtype)
 
-        @jaxtyped(typechecker=typechecker)
         def f(
             objects: Int[Array, "axis_length path_length"],
         ) -> Bool[Array, " axis_length"]:
@@ -252,20 +240,17 @@ class Paths(eqx.Module):
         )
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def path_length(self) -> int:
         """The length (i.e., number of vertices) of each individual path."""
         return self.objects.shape[-1]
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def order(self) -> int:
         """The length (i.e., number of vertices) of each individual path, excluding start and end vertices."""
         return self.objects.shape[-1] - 2
 
     @property
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def num_valid_paths(self) -> Int[ArrayLike, " "]:
         """The number of paths kept by :attr:`mask`.
 
@@ -276,7 +261,6 @@ class Paths(eqx.Module):
         return self.objects[..., 0].size
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def masked_vertices(
         self,
     ) -> Float[Array, "{self.num_valid_paths} {self.path_length} 3"]:
@@ -292,7 +276,6 @@ class Paths(eqx.Module):
         return vertices
 
     @property
-    @jaxtyped(typechecker=typechecker)
     def masked_objects(
         self,
     ) -> Int[Array, "{self.num_valid_paths} {self.path_length}"]:
@@ -307,7 +290,6 @@ class Paths(eqx.Module):
         return objects
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
     def multipath_cells(
         self,
         axis: int = -1,
@@ -360,7 +342,6 @@ class Paths(eqx.Module):
         return _cell_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
 
     @jax.jit
-    @jaxtyped(typechecker=typechecker)
     def group_by_objects(self) -> Int[Array, " *batch"]:
         """
         Return an array of unique object groups.
@@ -428,7 +409,6 @@ class Paths(eqx.Module):
             yield cls(vertices=vertices, objects=objects, mask=None)
 
     @eqx.filter_jit
-    @jaxtyped(typechecker=typechecker)
     def reduce(
         self, fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]]
     ) -> Num[Array, " "]:
@@ -457,7 +437,6 @@ class Paths(eqx.Module):
         return draw_paths(self.masked_vertices, **kwargs)
 
 
-@jaxtyped(typechecker=typechecker)
 class SBRPaths(Paths):
     """
     Paths method generated with shooting-and-bouncing method.
@@ -520,9 +499,6 @@ class SBRPaths(Paths):
         )
         return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
 
-    @jaxtyped(
-        typechecker=None
-    )  # typing.Self is (currently) not compatible with jaxtyping and beartype
     def reshape(self, *batch: int) -> Self:
         return eqx.tree_at(
             lambda p: p.masks,
