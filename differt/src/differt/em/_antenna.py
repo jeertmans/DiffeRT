@@ -608,7 +608,7 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)
+        s = self.pointing_vector(r)  # type: ignore
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 
@@ -631,7 +631,7 @@ class HWDipolePattern(RadiationPattern):
     def polarization_vectors(
         self,
         r: Float[Array, "*#batch 3"],
-    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:  # type: ignore
         r_hat, r = normalize(r - self.center, keepdims=True)
 
         cos_theta = dot(r_hat, self.direction)

@@ -337,9 +337,9 @@ def transition_matrices(
 
     mat_r = ...
 
-    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
+    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)  # type: ignore
 
-    return mat
+    return mat  # type: ignore
 
 
 @partial(jax.jit, static_argnames=("dB",))
