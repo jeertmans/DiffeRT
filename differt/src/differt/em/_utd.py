@@ -6,27 +6,23 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.scipy.special as jsp
-from beartype import beartype as typechecker
-from jaxtyping import Array, Complex, Float, jaxtyped
+from jaxtyping import Array, Complex, Float
 
 from differt.utils import dot
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def _cot(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
     return 1 / jnp.tan(x)
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def _sign(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
     ones = jnp.ones_like(x)
     return jnp.where(x >= 0, ones, -ones)
 
 
 @partial(jax.jit, inline=True, static_argnames=("mode"))
-@jaxtyped(typechecker=typechecker)
 def _N(
     beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
 ) -> Float[Array, " *batch"]:
@@ -36,7 +32,6 @@ def _N(
 
 
 @partial(jax.jit, inline=True, static_argnames=("mode"))
-@jaxtyped(typechecker=typechecker)
 def _a(
     beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
 ) -> Float[Array, " *batch"]:
@@ -78,7 +73,6 @@ def L_i(
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def L_i(  # noqa: PLR0917
     s_d: Float[Array, " *#batch"],
     sin_2_beta_0: Float[Array, " *#batch"],
@@ -167,7 +161,6 @@ def L_i(  # noqa: PLR0917
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     r"""
     Evaluate the transition function at the given points.
@@ -230,7 +223,6 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def diffraction_coefficients(
     *_args: Any,
 ) -> None:

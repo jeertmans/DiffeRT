@@ -5,14 +5,12 @@ from functools import partial
 import chex
 import jax
 import jax.numpy as jnp
-from beartype import beartype as typechecker
-from jaxtyping import Array, Bool, Float, jaxtyped
+from jaxtyping import Array, Bool, Float
 
 from differt.utils import dot
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[Array, "*#batch 3"],
     mirror_vertices: Float[Array, "*#batch 3"],
@@ -77,7 +75,6 @@ def image_of_vertices_with_respect_to_mirrors(
 
 
 @partial(jax.jit, inline=True)
-@jaxtyped(typechecker=typechecker)
 def intersection_of_rays_with_planes(
     ray_origins: Float[Array, "*#batch 3"],
     ray_directions: Float[Array, "*#batch 3"],
@@ -118,7 +115,6 @@ def intersection_of_rays_with_planes(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def image_method(
     from_vertices: Float[Array, "*#batch 3"],
     to_vertices: Float[Array, "*#batch 3"],
@@ -269,14 +265,13 @@ def image_method(
     from_vertices = jnp.broadcast_to(from_vertices, batch_and_3)
     to_vertices = jnp.broadcast_to(to_vertices, batch_and_3)
 
-    @jaxtyped(typechecker=typechecker)
     def forward(
         previous_images: Float[Array, "*batch 3"],
         mirror_vertices_and_normals: tuple[
             Float[Array, "*#batch 3"], Float[Array, "*#batch 3"]
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        """Perform forward pass on vertices by computing consecutive images."""  # noqa: DOC201
+        """Perform forward pass on vertices by computing consecutive images."""
         mirror_vertices, mirror_normals = mirror_vertices_and_normals
         images = image_of_vertices_with_respect_to_mirrors(
             previous_images,
@@ -285,7 +280,6 @@ def image_method(
         )
         return images, images
 
-    @jaxtyped(typechecker=typechecker)
     def backward(
         previous_intersections: Float[Array, "*batch 3"],
         mirror_vertices_normals_and_images: tuple[
@@ -294,7 +288,7 @@ def image_method(
             Float[Array, "*#batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        """Perform backward pass on images by computing the intersection with mirrors."""  # noqa: DOC201
+        """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
         intersections = intersection_of_rays_with_planes(
@@ -323,7 +317,6 @@ def image_method(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[Array, "*#batch num_vertices 3"],
     mirror_vertices: Float[Array, "*#batch num_mirrors 3"],

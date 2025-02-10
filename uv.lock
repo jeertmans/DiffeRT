@@ -694,7 +694,6 @@ wheels = [
 name = "differt"
 source = { editable = "differt" }
 dependencies = [
-    { name = "beartype" },
     { name = "chex" },
     { name = "differt-core" },
     { name = "equinox" },
@@ -740,7 +739,6 @@ vispy-backend = [
 
 [package.metadata]
 requires-dist = [
-    { name = "beartype", specifier = ">=0.19.0" },
     { name = "chex", specifier = ">=0.1.86" },
     { name = "differt-core", editable = "differt-core" },
     { name = "equinox", specifier = ">=0.11.11" },
@@ -790,6 +788,7 @@ cuda = [
     { name = "jax", extra = ["cuda"] },
 ]
 docs = [
+    { name = "beartype" },
     { name = "differt", extra = ["all"] },
     { name = "myst-nb" },
     { name = "pillow" },
@@ -811,6 +810,7 @@ prof = [
     { name = "line-profiler", extra = ["ipython"] },
 ]
 tests = [
+    { name = "beartype" },
     { name = "chex" },
     { name = "differt", extra = ["all"] },
     { name = "jax" },
@@ -824,6 +824,7 @@ tests = [
     { name = "scipy" },
 ]
 tests-extended = [
+    { name = "beartype" },
     { name = "chex" },
     { name = "differt", extra = ["all"] },
     { name = "jax" },
@@ -849,6 +850,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beartype", marker = "extra == 'docs'", specifier = ">=0.19.0" },
+    { name = "beartype", marker = "extra == 'tests'", specifier = ">=0.19.0" },
     { name = "chex", marker = "extra == 'tests'", specifier = ">=0.1.84" },
     { name = "differt", extras = ["all"], marker = "extra == 'docs'", editable = "differt" },
     { name = "differt", extras = ["all"], marker = "extra == 'icmlcn2025'", editable = "differt" },
