@@ -236,21 +236,25 @@ class Material(eqx.Module):
 # ITU-R P.2024-3 materials from Table 3.
 _materials = [
     Material.from_itu_properties("Vacuum", (1.0, 0.0, 0.0, 0.0, None)),
-    Material.from_itu_properties("Concrete", (5.24, 0.0, 0.0462, 0.7822, (1, 100))),
-    Material.from_itu_properties("Brick", (3.91, 0.0, 0.0238, 0.16, (1, 40))),
-    Material.from_itu_properties("Plasterboard", (2.73, 0.0, 0.0085, 0.9395, (1, 100))),
-    Material.from_itu_properties("Wood", (1.99, 0.0, 0.0047, 1.0718, (0.001, 100))),
+    Material.from_itu_properties("Concrete", (5.24, 0.0, 0.0462, 0.7822, (1.0, 100.0))),
+    Material.from_itu_properties("Brick", (3.91, 0.0, 0.0238, 0.16, (1.0, 40.0))),
+    Material.from_itu_properties(
+        "Plasterboard", (2.73, 0.0, 0.0085, 0.9395, (1.0, 100.0))
+    ),
+    Material.from_itu_properties("Wood", (1.99, 0.0, 0.0047, 1.0718, (0.001, 100.0))),
     Material.from_itu_properties(
         "Glass",
-        (6.31, 0.0, 0.0036, 1.3394, (0.1, 100)),
-        (5.79, 0.0, 0.0004, 1.658, (220, 450)),
+        (6.31, 0.0, 0.0036, 1.3394, (0.1, 100.0)),
+        (5.79, 0.0, 0.0004, 1.658, (220.0, 450.0)),
     ),
     Material.from_itu_properties(
         "Ceiling board",
-        (1.48, 0.0, 0.0011, 1.0750, (1, 100)),
-        (1.52, 0.0, 0.0029, 1.029, (220, 450)),
+        (1.48, 0.0, 0.0011, 1.0750, (1.0, 100.0)),
+        (1.52, 0.0, 0.0029, 1.029, (220.0, 450.0)),
     ),
-    Material.from_itu_properties("Chipboard", (2.58, 0.0, 0.0217, 0.7800, (1, 100))),
+    Material.from_itu_properties(
+        "Chipboard", (2.58, 0.0, 0.0217, 0.7800, (1.0, 100.0))
+    ),
     Material.from_itu_properties(
         "Plywood",
         (
@@ -258,17 +262,21 @@ _materials = [
             0.0,
             0.33,
             0.0,
-            (1, 40),
+            (1.0, 40.0),
         ),
     ),
-    Material.from_itu_properties("Marble", (7.074, 0.0, 0.0055, 0.9262, (1, 60))),
-    Material.from_itu_properties("Floorboard", (3.66, 0.0, 0.0044, 1.3515, (50, 100))),
-    Material.from_itu_properties("Metal", (1.0, 0.0, 1e7, 0.0, (1, 100))),
-    Material.from_itu_properties("Very dry ground", (3.0, 0.0, 0.00015, 2.52, (1, 10))),
+    Material.from_itu_properties("Marble", (7.074, 0.0, 0.0055, 0.9262, (1.0, 60.0))),
     Material.from_itu_properties(
-        "Medium dry ground", (15.0, -0.1, 0.035, 1.63, (1, 10))
+        "Floorboard", (3.66, 0.0, 0.0044, 1.3515, (50.0, 100.0))
     ),
-    Material.from_itu_properties("Wet ground", (30.0, -0.4, 0.15, 1.30, (1, 10))),
+    Material.from_itu_properties("Metal", (1.0, 0.0, 1e7, 0.0, (1.0, 100.0))),
+    Material.from_itu_properties(
+        "Very dry ground", (3.0, 0.0, 0.00015, 2.52, (1.0, 10.0))
+    ),
+    Material.from_itu_properties(
+        "Medium dry ground", (15.0, -0.1, 0.035, 1.63, (1.0, 10.0))
+    ),
+    Material.from_itu_properties("Wet ground", (30.0, -0.4, 0.15, 1.30, (1.0, 10.0))),
 ]
 
 materials: dict[str, Material] = {
