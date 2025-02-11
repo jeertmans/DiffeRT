@@ -89,7 +89,7 @@ class LOSModel(eqx.Module):
 @eqx.filter_jit(donate="all-except-first")
 def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, " "]:
     paths = scene.compute_paths(order=0)
-    f = lambda *x: model(*x)  # noqa: E731
+    f = model
 
     for _ in range(paths.vertices.ndim - 2):
         f = jax.vmap(f, in_axes=(None, 0))
