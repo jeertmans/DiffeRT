@@ -12,6 +12,28 @@ env:
   DISPLAY: :99
 
 jobs:
+  download-scenes:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+
+    - name: Download Sionna scenes
+      run: |
+        uv run differt/src/differt/scene/_sionna.py
+        tree -L 2 differt/src/differt/scene/scenes
+
+    - name: Upload scenes
+      uses: actions/upload-artifact@v4
+      with:
+        name: sionna-scenes
+        path: differt/src/differt/scene/scenes
+    
   pytest:
     strategy:
       fail-fast: false
@@ -20,6 +42,7 @@ jobs:
         pyversion: ['3.10', '3.11', '3.12', '3.13']
         resolution: ['highest', 'lowest-direct']
     runs-on: ${{ matrix.os }}
+    needs: [download-scenes]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -44,10 +67,11 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Download Sionna scenes
-      run: |
-        uv run --python ${{ matrix.pyversion }} differt/src/differt/scene/_sionna.py
-        tree -L 2 differt/src/differt/scene/scenes
+    - name: Download scenes
+      uses: actions/download-artifact@v4
+      with:
+        name: sionna-scenes
+        path: differt/src/differt/scene/scenes
 
     - name: Run tests
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --extra tests-extended pytest
@@ -113,11 +137,18 @@ jobs:
 
   python-benchmark:
     runs-on: ubuntu-latest
+    needs: [download-scenes]
     permissions:
       pull-requests: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Download scenes
+      uses: actions/download-artifact@v4
+      with:
+        name: sionna-scenes
+        path: differt/src/differt/scene/scenes
 
     - uses: actions/setup-python@v5
       id: setup-python
@@ -194,9 +225,16 @@ jobs:
 
   linkcheck-docs:
     runs-on: ubuntu-latest
+    needs: [download-scenes]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Download scenes
+      uses: actions/download-artifact@v4
+      with:
+        name: sionna-scenes
+        path: differt/src/differt/scene/scenes
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v5
