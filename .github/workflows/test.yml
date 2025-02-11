@@ -152,12 +152,11 @@ jobs:
 
     - uses: actions/setup-python@v5
       id: setup-python
-      with:
-        cache: pip
-        cache-dependency-path: uv.lock
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
