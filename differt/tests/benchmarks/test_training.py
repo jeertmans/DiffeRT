@@ -50,7 +50,6 @@ def train_dataloader(
 class LOSModel(eqx.Module):
     embeds: nn.MLP
     logits: nn.Linear
-    inference: bool
 
     def __init__(
         self,
@@ -58,7 +57,6 @@ class LOSModel(eqx.Module):
         width: int = 64,
         depth: int = 3,
         *,
-        inference: bool = False,
         key: PRNGKeyArray,
     ) -> None:
         key_embeds, key_logits = jax.random.split(key)
@@ -70,28 +68,16 @@ class LOSModel(eqx.Module):
             key=key_embeds,
         )
         self.logits = nn.Linear(num_embeds * 3, "scalar", key=key_logits)
-        self.inference = inference
 
     def __call__(
         self,
         triangle_vertices: Float[Array, "num_triangles 3 3"],
         path_vertices: Float[Array, "2 3"],
-        *,
-        key: PRNGKeyArray,
     ) -> Float[Array, " "]:
-        # [num_triangles 3 num_embeds] -> [num_triangles num_embeds]
-        triangle_embeds = jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(
-            axis=1
+        # [num_triangles 3 num_embeds] -> [num_triangles num_embeds] -> [num_embeds]
+        scene_embeds = (
+            jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)
         )
-
-        if self.inference:
-            where = jax.random.uniform(key, shape=(triangle_embeds.shape[0], 1)) < 0.1
-            # [num_embeds]
-            scene_embeds = triangle_embeds.sum(axis=0, where=where, initial=0.0)
-        else:
-            del key
-            # [num_embeds]
-            scene_embeds = triangle_embeds.sum(axis=0)
 
         # [2 num_embeds] -> [2*num_embeds]
         path_embeds = jax.vmap(self.embeds)(path_vertices).reshape(-1)
@@ -101,9 +87,9 @@ class LOSModel(eqx.Module):
 
 
 @eqx.filter_jit(donate="all-except-first")
-def loss(model: LOSModel, scene: TriangleScene, key: PRNGKeyArray) -> Array:
+def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, " "]:
     paths = scene.compute_paths(order=0)
-    f = lambda *x: model(*x, key=key)  # noqa: E731
+    f = lambda *x: model(*x)  # noqa: E731
 
     for _ in range(paths.vertices.ndim - 2):
         f = jax.vmap(f, in_axes=(None, 0))
@@ -119,7 +105,6 @@ def train(
     dataloader: Iterator[TriangleScene],
     *,
     steps: int = 100,
-    key: PRNGKeyArray,
 ) -> tuple[LOSModel, Float[Array, " "]]:
     optim = optax.adam(learning_rate=1e-3)
     opt_state = optim.init(eqx.filter(model, eqx.is_inexact_array))
@@ -129,13 +114,10 @@ def train(
         model: LOSModel,
         opt_state: optax.OptState,
         scene: TriangleScene,
-        *,
-        key: PRNGKeyArray,
     ) -> tuple[LOSModel, optax.OptState, Float[Array, " "]]:
         loss_value, grads = eqx.filter_value_and_grad(loss)(
             model,
             scene,
-            key=key,
         )
         updates, opt_state = optim.update(
             grads, opt_state, eqx.filter(model, eqx.is_array)
@@ -145,8 +127,8 @@ def train(
 
     loss_value = jnp.array(0.0)
 
-    for key_step, scene in zip(jax.random.split(key, steps), dataloader, strict=False):
-        model, opt_state, loss_value = make_step(model, opt_state, scene, key=key_step)
+    for _, scene in zip(range(steps), dataloader, strict=False):
+        model, opt_state, loss_value = make_step(model, opt_state, scene)
 
     return nn.inference_mode(model), loss_value
 
@@ -158,9 +140,9 @@ def test_train_time(
     key: PRNGKeyArray,
 ) -> None:
     def bench_fun() -> None:
-        key_model, key_dataloader, key_train = jax.random.split(key, 3)
+        key_model, key_dataloader = jax.random.split(key)
         model = LOSModel(key=key_model)
         dataloader = train_dataloader(simple_street_canyon_scene, key=key_dataloader)
-        train(model, dataloader, key=key_train)[1].block_until_ready()
+        train(model, dataloader)[1].block_until_ready()
 
     _ = benchmark(bench_fun)
