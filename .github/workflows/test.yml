@@ -18,6 +18,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         pyversion: ['3.10', '3.11', '3.12', '3.13']
+        resolution: ['highest', 'lowest-direct']
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
@@ -44,7 +45,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --frozen --no-dev --extra tests-extended pytest
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --extra tests-extended pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
