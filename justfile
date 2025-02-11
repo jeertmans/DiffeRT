@@ -14,7 +14,7 @@ bench: bench-python bench-rust
 [group('python')]
 [group('test')]
 bench-python *ARGS:
-    uv run --extra tests pytest -n0 --benchmark-enable --benchmark-only {{ ARGS }}
+    uv run --extra tests pytest -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" {{ ARGS }}
 
 # Benchmark Rust code
 [group('rust')]
@@ -100,8 +100,3 @@ test-python *ARGS:
 [group('test')]
 test-rust *ARGS:
     cargo test {{ ARGS }}
-
-# Run jupyter-lab with a server that supports reconnecting to running sessions
-[group('dev')]
-remote-jupyter *ARGS:
-    uv run --extra remote-jupyter jupyverse --set kernels.require_yjs=true --set jupyterlab.server_side_execution=true --set auth.mode=noauth {{ ARGS }}

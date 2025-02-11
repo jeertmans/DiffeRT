@@ -9,12 +9,10 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-from beartype import beartype as typechecker
-from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped, jaxtyped
+from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def dot(
     u: Shaped[Array, "*#batch n"],
     v: Shaped[Array, "*#batch n"] | None = None,
@@ -65,7 +63,6 @@ def dot(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
     """
     Sort a 2D array by row and (then) by column.
@@ -91,11 +88,11 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ... ) = jax.random.split(key, 2)
         >>> arr = jax.random.permutation(key1, arr)
         >>> arr
-        Array([[4, 5],
-               [8, 9],
+        Array([[6, 7],
                [0, 1],
-               [2, 3],
-               [6, 7]], dtype=int32)
+               [8, 9],
+               [4, 5],
+               [2, 3]], dtype=int32)
         >>>
         >>> sorted_array2(arr)
         Array([[0, 1],
@@ -111,18 +108,18 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ...     2,
         ... )
         >>> arr
-        Array([[1, 1, 1, 0, 1],
-               [1, 0, 1, 1, 1],
-               [1, 0, 0, 1, 1],
-               [1, 0, 0, 0, 0],
-               [1, 1, 0, 1, 0]], dtype=int32)
+        Array([[1, 1, 0, 0, 0],
+               [1, 1, 0, 1, 1],
+               [0, 0, 1, 1, 1],
+               [1, 1, 1, 1, 0],
+               [0, 1, 1, 1, 0]], dtype=int32)
         >>>
         >>> sorted_array2(arr)
-        Array([[1, 0, 0, 0, 0],
-               [1, 0, 0, 1, 1],
-               [1, 0, 1, 1, 1],
-               [1, 1, 0, 1, 0],
-               [1, 1, 1, 0, 1]], dtype=int32)
+        Array([[0, 0, 1, 1, 1],
+               [0, 1, 1, 1, 0],
+               [1, 1, 0, 0, 0],
+               [1, 1, 0, 1, 1],
+               [1, 1, 1, 1, 0]], dtype=int32)
     """
     if array.size == 0:
         return array
@@ -138,7 +135,6 @@ _P = ParamSpec("_P")
 
 
 @eqx.filter_jit
-@jaxtyped(typechecker=typechecker)
 def minimize(
     fun: Callable[Concatenate[Num[Array, " n"], _P], Num[Array, " "]],
     x0: Num[Array, "*batch n"],
@@ -273,7 +269,6 @@ def minimize(
 
     opt_state = optimizer.init(x0)
 
-    @jaxtyped(typechecker=typechecker)
     def f(
         carry: tuple[Num[Array, "*batch n"], _OptState],
         _: None,
@@ -309,7 +304,6 @@ def sample_points_in_bounding_box(
 
 
 @partial(jax.jit, static_argnames=("shape",))
-@jaxtyped(typechecker=typechecker)
 def sample_points_in_bounding_box(
     bounding_box: Float[Array, "2 3"],
     shape: tuple[int, ...] | None = None,
@@ -344,7 +338,6 @@ def sample_points_in_bounding_box(
 
 
 @jax.jit
-@jaxtyped(typechecker=typechecker)
 def safe_divide(
     num: Num[Array, " *#batch"], den: Num[Array, " *#batch"]
 ) -> Num[Array, " *batch"]:

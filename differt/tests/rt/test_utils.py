@@ -273,9 +273,9 @@ def test_rays_intersect_any_triangle(
 @pytest.mark.parametrize(
     ("vertex", "expected_number"),
     [
-        (jnp.array([4.0, 0.0, 0.0]), 2),  # Sees one face of the cude
-        (jnp.array([4.0, 4.0, 0.0]), 4),  # Sees two faces
-        (jnp.array([4.0, 4.0, 4.0]), 6),  # Sees three faces
+        (jnp.array([2.0, 0.0, 0.0]), 2),  # Sees one face of the cude
+        (jnp.array([2.0, 2.0, 0.0]), 4),  # Sees two faces
+        (jnp.array([2.0, 2.0, 2.0]), 6),  # Sees three faces
     ],
 )
 @pytest.mark.parametrize(
