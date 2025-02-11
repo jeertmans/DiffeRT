@@ -15,7 +15,7 @@ from pathlib import Path
 
 import requests
 from filelock import FileLock
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
 
