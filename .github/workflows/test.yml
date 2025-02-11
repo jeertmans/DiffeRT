@@ -24,10 +24,24 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Download Sionna scenes
+    - name: Generate cache key
+      id: cache-key
       run: |
-        uv run differt/src/differt/scene/_sionna.py
-        tree -L 2 differt/src/differt/scene/scenes
+        curl -s -H "Accept: application/vnd.github.VERSION.sha" "https://api.github.com/repos/NVlabs/sionna/commits/main"
+
+    - name: Cache scenes
+      id: cache-scenes
+      uses: actions/cache@v4
+      with:
+        path: prime-numbers
+        key: ${{ steps.cache-key.outputs.result }}-scenes
+
+    - name: Download Sionna scenes
+      if: steps.cache-scenes.outputs.cache-hit != 'true'
+      run: uv run differt/src/differt/scene/_sionna.py
+
+    - name: List scenes
+      run: tree -L 2 differt/src/differt/scene/scenes
 
     - name: Upload scenes
       uses: actions/upload-artifact@v4
