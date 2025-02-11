@@ -1,3 +1,11 @@
+# /// script
+# dependencies = [
+#   "filelock>=3.15.4",
+#   "requests>=2.32.0",
+#   "tqdm>=4.66.2",
+# ]
+# ///
+
 import sys
 import tarfile
 import tempfile
@@ -156,3 +164,89 @@ def get_sionna_scene(
         )
 
     return str(p)
+
+
+def main() -> None:  # pragma: no cover
+    import argparse  # noqa: PLC0415
+
+    parser = argparse.ArgumentParser(
+        prog="download-sionna-scenes",
+        description="Download Sionna scenes from Sionna's repository.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "ref",
+        type=str,
+        default="main",
+        nargs="?",
+        help="branch or tag version of the Sionna repository.",
+    )
+    parser.add_argument(
+        "--folder",
+        type=Path,
+        default=SIONNA_SCENES_FOLDER,
+        help="where to extract the scene files",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="force to clean any existing folder with '--no-cached' is set.",
+    )
+    parser.add_argument(
+        "--cached",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="whether to skip download if folder already exists.",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=1024,
+        help="the chunk size, in bytes, used when for displaying progress",
+    )
+    parser.add_argument(
+        "--progress",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="whether to show a progress bar",
+    )
+    parser.add_argument(
+        "--leave",
+        action="store_true",
+        help="whether to leave the progress bar upon completion",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="how many seconds to wait before giving up on the download",
+    )
+    args = parser.parse_args()
+
+    if args.folder.exists():
+        if not args.folder.is_dir():
+            msg = f"'{args.folder.relative_to(Path.cwd())}' exists and is not a directory."
+            parser.error(msg)
+        if not args.cached and len(list(args.folder.iterdir())) > 0:
+            if not args.force:
+                msg = f"'{args.folder.relative_to(Path.cwd())}' exists and is not empty, please clean it manually or set '--force'."
+                parser.error(msg)
+
+            import shutil  # noqa: PLC0415
+
+            shutil.rmtree(args.folder)
+
+    download_sionna_scenes(
+        branch_or_tag=args.ref,
+        folder=args.folder,
+        cached=args.cached,
+        chunk_size=args.chunk_size,
+        progress=args.progress,
+        leave=args.leave,
+        timeout=args.timeout,
+    )
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

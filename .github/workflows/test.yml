@@ -46,7 +46,7 @@ jobs:
 
     - name: Download Sionna scenes
       run: |
-        uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev download-sionna-scenes
+        uv run --python ${{ matrix.pyversion }} differt/src/differt/scene/_sionna.py
         tree -L 2 differt/src/differt/scene/scenes
 
     - name: Run tests
