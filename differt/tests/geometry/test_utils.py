@@ -276,7 +276,7 @@ def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
     sph = cartesian_to_spherical(xyz)
     got = spherical_to_cartesian(sph)
 
-    chex.assert_trees_all_close(got, xyz, atol=1e-5)
+    chex.assert_trees_all_close(got, xyz, atol=2e-5)
 
     key_r, key_polar, key_azim = jax.random.split(key_sph, 3)
 

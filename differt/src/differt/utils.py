@@ -88,11 +88,11 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ... ) = jax.random.split(key, 2)
         >>> arr = jax.random.permutation(key1, arr)
         >>> arr
-        Array([[4, 5],
-               [8, 9],
+        Array([[6, 7],
                [0, 1],
-               [2, 3],
-               [6, 7]], dtype=int32)
+               [8, 9],
+               [4, 5],
+               [2, 3]], dtype=int32)
         >>>
         >>> sorted_array2(arr)
         Array([[0, 1],
@@ -108,18 +108,18 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ...     2,
         ... )
         >>> arr
-        Array([[1, 1, 1, 0, 1],
-               [1, 0, 1, 1, 1],
-               [1, 0, 0, 1, 1],
-               [1, 0, 0, 0, 0],
-               [1, 1, 0, 1, 0]], dtype=int32)
+        Array([[1, 1, 0, 0, 0],
+               [1, 1, 0, 1, 1],
+               [0, 0, 1, 1, 1],
+               [1, 1, 1, 1, 0],
+               [0, 1, 1, 1, 0]], dtype=int32)
         >>>
         >>> sorted_array2(arr)
-        Array([[1, 0, 0, 0, 0],
-               [1, 0, 0, 1, 1],
-               [1, 0, 1, 1, 1],
-               [1, 1, 0, 1, 0],
-               [1, 1, 1, 0, 1]], dtype=int32)
+        Array([[0, 0, 1, 1, 1],
+               [0, 1, 1, 1, 0],
+               [1, 1, 0, 0, 0],
+               [1, 1, 0, 1, 1],
+               [1, 1, 1, 1, 0]], dtype=int32)
     """
     if array.size == 0:
         return array

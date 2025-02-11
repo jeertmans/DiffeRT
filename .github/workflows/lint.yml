@@ -50,10 +50,15 @@ jobs:
       with:
         enable-cache: true
 
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+
     - name: Install Rust nightly
       uses: dtolnay/rust-toolchain@nightly
       with:
-        components: clippy,rustfmt
+        components: rustfmt
 
     - name: Install dependencies
       run: uv sync
