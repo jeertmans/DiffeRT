@@ -10,6 +10,7 @@ on:
 env:
   QT_QPA_PLATFORM: offscreen
   DISPLAY: :99
+  MPLBACKEND: qtagg
 
 jobs:
   download-scenes:
