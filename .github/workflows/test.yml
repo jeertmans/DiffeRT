@@ -44,6 +44,11 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Download Sionna scenes
+      run: |
+        uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev download-sionna-scenes
+        tree -L 2 differt/src/differt/scene/scenes
+
     - name: Run tests
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --extra tests-extended pytest
 
