@@ -6,7 +6,6 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-import pytest
 from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture

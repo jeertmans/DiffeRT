@@ -1,6 +1,5 @@
 # ruff: noqa: FURB152
 import operator
-import sys
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -11,6 +10,8 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:

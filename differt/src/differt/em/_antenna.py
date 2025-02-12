@@ -16,8 +16,8 @@ from ._constants import c, epsilon_0, mu_0
 
 @jax.jit
 def pointing_vector(
-    e: Inexact[Array, "*#batch 3"],
-    b: Inexact[Array, "*#batch 3"],
+    e: Inexact[ArrayLike, "*#batch 3"],
+    b: Inexact[ArrayLike, "*#batch 3"],
 ) -> Inexact[Array, "*batch 3"]:
     r"""
     Compute the pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
@@ -31,9 +31,9 @@ def pointing_vector(
 
         It can be either real of complex-valued.
     """
-    h = b / mu_0
+    h = jnp.asarray(b) / mu_0
 
-    return jnp.cross(e, h)
+    return jnp.cross(jnp.asarray(e), h)
 
 
 class BaseAntenna(eqx.Module):
@@ -92,7 +92,9 @@ class Antenna(BaseAntenna):
 
     @abstractmethod
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
+        self,
+        r: Float[ArrayLike, "*#batch 3"],
+        t: Float[ArrayLike, "*#batch"] | None = None,
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         r"""
         Compute electric and magnetic fields in vacuum at given position and (optional) time.
@@ -113,8 +115,8 @@ class Antenna(BaseAntenna):
     @eqx.filter_jit
     def pointing_vector(
         self,
-        r: Float[Array, "*#batch 3"],
-        t: Float[Array, "*#batch"] | None = None,
+        r: Float[ArrayLike, "*#batch 3"],
+        t: Float[ArrayLike, "*#batch"] | None = None,
     ) -> Inexact[Array, "*batch 3"]:
         r"""
         Compute the pointing vector in vacuum at given position and (optional) time.
@@ -341,7 +343,7 @@ class Dipole(Antenna):
         moment: Float[ArrayLike, "3"] | None = jnp.array([0.0, 0.0, 1.0]),
         current: Float[ArrayLike, " "] | None = 1.0,
         charge: Float[ArrayLike, " "] | None = None,
-        center: Float[Array, "3"] = jnp.array([0.0, 0.0, 0.0]),
+        center: Float[ArrayLike, "3"] = jnp.array([0.0, 0.0, 0.0]),
     ) -> None:
         super().__init__(jnp.asarray(frequency), center=center)
 
@@ -381,8 +383,11 @@ class Dipole(Antenna):
 
     @eqx.filter_jit
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
+        self,
+        r: Float[ArrayLike, "*#batch 3"],
+        t: Float[ArrayLike, "*#batch"] | None = None,
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
+        r = jnp.asarray(r)
         r_hat, r = normalize(r - self.center, keepdims=True)
         p = self.moment
         w = self.angular_frequency
@@ -407,7 +412,9 @@ class Dipole(Antenna):
         b = (factor * k_k / c) * r_x_p * (1 - 1 / j_k_r) * r_inv
 
         exp = (
-            jnp.exp(j_k_r - 1j * w * t[..., None]) if t is not None else jnp.exp(j_k_r)
+            jnp.exp(j_k_r - 1j * w * jnp.asarray(t)[..., None])
+            if t is not None
+            else jnp.exp(j_k_r)
         )
 
         e *= exp
@@ -458,7 +465,9 @@ class ShortDipole(Dipole):
 
     @eqx.filter_jit
     def fields(
-        self, r: Float[Array, "*#batch 3"], t: Float[Array, "*#batch"] | None = None
+        self,
+        r: Float[ArrayLike, "*#batch 3"],
+        t: Float[ArrayLike, "*#batch"] | None = None,
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         raise NotImplementedError
 
@@ -487,7 +496,7 @@ class RadiationPattern(BaseAntenna):
     @abstractmethod
     def polarization_vectors(
         self,
-        r: Float[Array, "*#batch 3"],
+        r: Float[ArrayLike, "*#batch 3"],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         r"""
         Compute s and p polarization vectors.
@@ -529,8 +538,8 @@ class RadiationPattern(BaseAntenna):
 
             :meth:`directive_gain`
         """
-        u, _du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
-        v, _dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
+        u, du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
+        v, dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
         x = jnp.outer(jnp.cos(u), jnp.sin(v))
         y = jnp.outer(jnp.sin(u), jnp.sin(v))
         z = jnp.outer(jnp.ones_like(u), jnp.cos(v))
@@ -630,18 +639,19 @@ class HWDipolePattern(RadiationPattern):
 
     def polarization_vectors(
         self,
-        r: Float[Array, "*#batch 3"],
+        r: Float[ArrayLike, "*#batch 3"],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:  # type: ignore
+        r = jnp.asarray(r)
         r_hat, r = normalize(r - self.center, keepdims=True)
 
         cos_theta = dot(r_hat, self.direction)
         sin_theta = jnp.sqrt(1 - cos_theta**2)
 
-        _d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
+        d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
 
         cos_theta = dot()  # type: ignore
         sin_theta = jnp.sin()  # type: ignore
-        _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
+        d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
 
 
 class ShortDipolePattern(RadiationPattern):

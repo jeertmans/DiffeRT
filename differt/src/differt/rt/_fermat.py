@@ -4,7 +4,7 @@ from typing import Any
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float
+from jaxtyping import Array, ArrayLike, Float
 
 from differt.geometry import orthogonal_basis
 from differt.utils import minimize
@@ -43,10 +43,10 @@ def _loss(  # noqa: PLR0917
 
 @eqx.filter_jit
 def fermat_path_on_planar_mirrors(
-    from_vertices: Float[Array, "*#batch 3"],
-    to_vertices: Float[Array, "*#batch 3"],
-    mirror_vertices: Float[Array, "*#batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*#batch num_mirrors 3"],
+    from_vertices: Float[ArrayLike, "*#batch 3"],
+    to_vertices: Float[ArrayLike, "*#batch 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
+    mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
     **kwargs: Any,
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
@@ -98,6 +98,11 @@ def fermat_path_on_planar_mirrors(
                 to_vertices[..., None, :],
             )
     """
+    from_vertices = jnp.asarray(from_vertices)
+    to_vertices = jnp.asarray(to_vertices)
+    mirror_vertices = jnp.asarray(mirror_vertices)
+    mirror_normals = jnp.asarray(mirror_normals)
+
     num_mirrors = mirror_vertices.shape[-2]
     num_unknowns = 2 * num_mirrors
 

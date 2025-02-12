@@ -46,7 +46,7 @@ def refractive_indices(
 @jax.jit
 def fresnel_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
-    cos_theta_i: Float[Array, " *#batch"],
+    cos_theta_i: Float[ArrayLike, " *#batch"],
 ) -> tuple[
     tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]],
     tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]],
@@ -176,6 +176,7 @@ def fresnel_coefficients(
             >>> plt.legend()  # doctest: +SKIP
             >>> plt.tight_layout()  # doctest: +SKIP
     """
+    cos_theta_i = jnp.asarray(cos_theta_i)
     n_r_squared = jax.lax.integer_pow(n_r, 2)
     cos_theta_i_squared = jax.lax.integer_pow(cos_theta_i, 2)
     n_r_squared_cos_theta_i = n_r_squared * cos_theta_i
@@ -205,7 +206,7 @@ def fresnel_coefficients(
 @jax.jit
 def reflection_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
-    cos_theta_i: Float[Array, " *#batch"],
+    cos_theta_i: Float[ArrayLike, " *#batch"],
 ) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
     r"""
     Compute the Fresnel reflection coefficients at an interface.
@@ -427,7 +428,7 @@ def reflection_coefficients(
 @eqx.filter_jit
 def refraction_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
-    cos_theta_i: Float[Array, " *#batch"],
+    cos_theta_i: Float[ArrayLike, " *#batch"],
 ) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
     """
     Compute the Fresnel refraction coefficients at an interface.

@@ -1,4 +1,3 @@
-import sys
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
@@ -12,6 +11,8 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 from differt.plotting import PlotOutput, draw_paths, reuse
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -42,8 +43,8 @@ def _cell_ids(
 
 @jax.jit
 def merge_cell_ids(
-    cell_ids_a: Int[Array, " *batch"],
-    cell_ids_b: Int[Array, " *batch"],
+    cell_ids_a: Int[ArrayLike, " *batch"],
+    cell_ids_b: Int[ArrayLike, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
     Merge two arrays of cell indices as returned by :meth:`Paths.multipath_cells`.
@@ -69,6 +70,8 @@ def merge_cell_ids(
     Returns:
         The new array group indices.
     """
+    cell_ids_a = jnp.asarray(cell_ids_a)
+    cell_ids_b = jnp.asarray(cell_ids_b)
     batch = cell_ids_a.shape
     return _cell_ids(
         jnp.stack((cell_ids_a, cell_ids_b), axis=-1).reshape(-1, 2),
@@ -250,7 +253,6 @@ class Paths(eqx.Module):
         return self.objects.shape[-1] - 2
 
     @property
-    @jax.jit
     def num_valid_paths(self) -> Int[ArrayLike, " "]:
         """The number of paths kept by :attr:`mask`.
 

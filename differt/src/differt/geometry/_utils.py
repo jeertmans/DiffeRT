@@ -8,8 +8,8 @@ from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int
 
 @jax.jit
 def pairwise_cross(
-    u: Float[Array, "m 3"],
-    v: Float[Array, "n 3"],
+    u: Float[ArrayLike, "m 3"],
+    v: Float[ArrayLike, "n 3"],
 ) -> Float[Array, "m n 3"]:
     """
     Compute the pairwise cross product between two arrays of vectors.
@@ -21,19 +21,21 @@ def pairwise_cross(
     Returns:
         A 3D tensor with all cross products.
     """
+    u = jnp.asarray(u)
+    v = jnp.asarray(v)
     return jnp.cross(u[:, None, :], v[None, :, :])
 
 
 @overload
 def normalize(
-    vector: Float[Array, "*batch 3"],
+    vectors: Float[ArrayLike, "*batch 3"],
     keepdims: Literal[False] = False,
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]: ...
 
 
 @overload
 def normalize(
-    vector: Float[Array, "*batch 3"],
+    vectors: Float[ArrayLike, "*batch 3"],
     keepdims: Literal[True],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]: ...
 
@@ -42,7 +44,7 @@ def normalize(
 # see: https://github.com/microsoft/pyright/issues/9149
 @overload
 def normalize(
-    vector: Float[Array, "*batch 3"],
+    vectors: Float[ArrayLike, "*batch 3"],
     keepdims: bool,
 ) -> (
     tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]
@@ -52,7 +54,7 @@ def normalize(
 
 @partial(jax.jit, static_argnames=("keepdims",), inline=True)
 def normalize(
-    vector: Float[Array, "*batch 3"],
+    vectors: Float[ArrayLike, "*batch 3"],
     keepdims: bool = False,
 ) -> tuple[
     Float[Array, "*batch 3"], Float[Array, " *batch"] | Float[Array, " *batch 1"]
@@ -64,7 +66,7 @@ def normalize(
     with zero-length, dividing by one instead.
 
     Args:
-        vector: An array of vectors.
+        vectors: An array of vectors.
         keepdims: If set to :data:`True`, the array of lengths
             will have the same number of dimensions as the input.
 
@@ -87,15 +89,16 @@ def normalize(
         >>> normalize(zero)  # Special behavior at 0.
         (Array([0., 0., 0.], dtype=float32), Array(0., dtype=float32))
     """
-    length = jnp.linalg.norm(vector, axis=-1, keepdims=True)
+    vectors = jnp.asarray(vectors)
+    length = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
 
-    return vector / jnp.where(length == 0.0, jnp.ones_like(length), length), (
+    return vectors / jnp.where(length == 0.0, jnp.ones_like(length), length), (
         length if keepdims else jnp.squeeze(length, axis=-1)
     )
 
 
 @partial(jax.jit, inline=True)
-def perpendicular_vectors(u: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
+def perpendicular_vectors(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*batch 3"]:
     """
     Generate a vector perpendicular to the input vectors.
 
@@ -119,6 +122,7 @@ def perpendicular_vectors(u: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3
         >>> perpendicular_vectors(u)
         Array([ 0.8164966, -0.4082483, -0.4082483], dtype=float32)
     """
+    u = jnp.asarray(u)
     z = jnp.zeros_like(u[..., 0])
     v = jnp.where(
         (jnp.abs(u[..., 0]) > jnp.abs(u[..., 1]))[..., None],
@@ -131,7 +135,7 @@ def perpendicular_vectors(u: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3
 
 @partial(jax.jit, inline=True)
 def orthogonal_basis(
-    u: Float[Array, "*batch 3"],
+    u: Float[ArrayLike, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
     """
     Generate ``v`` and ``w``, two other arrays of unit vectors that form with input ``u`` an orthogonal basis.
@@ -159,6 +163,7 @@ def orthogonal_basis(
         (Array([-0.       , -0.7071068,  0.7071068], dtype=float32),
          Array([ 0.8164966, -0.4082483, -0.4082483], dtype=float32))
     """
+    u = jnp.asarray(u)
     w = perpendicular_vectors(u)
     v = jnp.cross(w, u)
     v = v / jnp.linalg.norm(v, axis=-1, keepdims=True)
@@ -168,7 +173,7 @@ def orthogonal_basis(
 
 @partial(jax.jit, inline=True)
 def path_lengths(
-    paths: Float[Array, "*batch path_length 3"],
+    paths: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, " *batch"]:
     """
     Compute the path length of each path.
@@ -194,6 +199,7 @@ def path_lengths(
         >>> path_lengths(jnp.vstack((path, path[::-1, :])))
         Array(2., dtype=float32)
     """
+    paths = jnp.asarray(paths)
     vectors = jnp.diff(paths, axis=-2)
     lengths = jnp.linalg.norm(vectors, axis=-1)
 
@@ -308,7 +314,7 @@ def rotation_matrix_along_z_axis(
 @jax.jit
 def rotation_matrix_along_axis(
     angle: Float[ArrayLike, " "],
-    axis: Float[Array, "3"],
+    axis: Float[ArrayLike, "3"],
 ) -> Float[Array, "3 3"]:
     """
     Return a rotation matrix to rotate coordinates along a given axis.
@@ -349,6 +355,7 @@ def rotation_matrix_along_axis(
         >>> rotation_matrix_along_axis(jnp.pi, axis) @ xyz
         Array([ 7.       ,  0.0000002, -1.       ], dtype=float32)
     """
+    axis = jnp.asarray(axis)
     co = jnp.cos(angle)
     si = jnp.sin(angle)
     i = jnp.identity(3, dtype=axis.dtype)
@@ -380,7 +387,7 @@ def fibonacci_lattice(
     n: int,
     dtype: None = None,
     *,
-    frustum: Float[Array, "2 2"] | Float[Array, "2 3"],
+    frustum: Float[ArrayLike, "2 2"] | Float[ArrayLike, "2 3"],
 ) -> Float[Array, "{n} 3"]: ...
 
 
@@ -388,7 +395,7 @@ def fibonacci_lattice(
     n: int,
     dtype: DTypeLike | None = None,
     *,
-    frustum: Float[Array, "2 2"] | Float[Array, "2 3"] | None = None,
+    frustum: Float[ArrayLike, "2 2"] | Float[ArrayLike, "2 3"] | None = None,
 ) -> Float[Array, "{n} 3"]:
     """
     Return a lattice of vertices on the unit sphere.
@@ -437,6 +444,7 @@ def fibonacci_lattice(
             >>> fig  # doctest: +SKIP
     """
     if frustum is not None:
+        frustum = jnp.asarray(frustum)
         dtype = frustum.dtype
     elif dtype is not None and not jnp.issubdtype(dtype, jnp.floating):
         msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
@@ -458,7 +466,7 @@ def fibonacci_lattice(
 
 
 def assemble_paths(
-    *path_segments: Float[Array, "*#batch _num_vertices 3"],
+    *path_segments: Float[ArrayLike, "*#batch _num_vertices 3"],
 ) -> Float[Array, "*#batch path_length 3"]:
     """
     Assemble paths by concatenating path vertices along the second to last axis.
@@ -475,20 +483,19 @@ def assemble_paths(
     Returns:
         The assembled paths.
     """
-    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in path_segments))
+    arrays = [jnp.asarray(path_segment) for path_segment in path_segments]
+    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in arrays))
 
     return jnp.concatenate(
-        tuple(
-            jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in path_segments
-        ),
+        tuple(jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in arrays),
         axis=-2,
     )
 
 
 @jax.jit
 def min_distance_between_cells(
-    cell_vertices: Float[Array, "*batch 3"],
-    cell_ids: Int[Array, "*batch"],
+    cell_vertices: Float[ArrayLike, "*batch 3"],
+    cell_ids: Int[ArrayLike, "*batch"],
 ) -> Float[Array, "*batch"]:
     """
     Compute the minimal (Euclidean) distance between vertices in different cells.
@@ -505,6 +512,8 @@ def min_distance_between_cells(
     Returns:
         The array of minimal distances.
     """
+    cell_vertices = jnp.asarray(cell_vertices)
+    cell_ids = jnp.asarray(cell_ids)
 
     def scan_fun(
         _: None, vertex_and_cell_id: tuple[Float[Array, "3"], Int[Array, " "]]
@@ -532,8 +541,8 @@ def min_distance_between_cells(
 
 @overload
 def viewing_frustum(
-    viewing_vertex: Float[Array, "*#batch 3"],
-    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    viewing_vertex: Float[ArrayLike, "*#batch 3"],
+    world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
     optimize: bool = False,
     reduce: Literal[False] = False,
@@ -542,8 +551,8 @@ def viewing_frustum(
 
 @overload
 def viewing_frustum(
-    viewing_vertex: Float[Array, "*#batch 3"],
-    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    viewing_vertex: Float[ArrayLike, "*#batch 3"],
+    world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
     optimize: bool = False,
     reduce: Literal[True] = True,
@@ -552,8 +561,8 @@ def viewing_frustum(
 
 @overload
 def viewing_frustum(
-    viewing_vertex: Float[Array, "*#batch 3"],
-    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    viewing_vertex: Float[ArrayLike, "*#batch 3"],
+    world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
     optimize: bool = False,
     reduce: bool,
@@ -562,8 +571,8 @@ def viewing_frustum(
 
 @partial(jax.jit, static_argnames=("reduce",))
 def viewing_frustum(
-    viewing_vertex: Float[Array, "*#batch 3"],
-    world_vertices: Float[Array, "*#batch num_vertices 3"],
+    viewing_vertex: Float[ArrayLike, "*#batch 3"],
+    world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
     reduce: bool = False,
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
@@ -702,6 +711,8 @@ def viewing_frustum(
             ...     )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
     """
+    world_vertices = jnp.asarray(world_vertices)
+    viewing_vertex = jnp.asarray(viewing_vertex)
     xyz = world_vertices - viewing_vertex[..., None, :]
     rpa = cartesian_to_spherical(xyz)
 
@@ -766,7 +777,9 @@ def viewing_frustum(
 
 
 @jax.jit
-def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batch 3"]:
+def cartesian_to_spherical(
+    xyz: Float[ArrayLike, "*batch 3"],
+) -> Float[Array, "*batch 3"]:
     """
     Transform cartesian coordinates to spherical coordinates.
 
@@ -782,6 +795,7 @@ def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batc
 
         :func:`spherical_to_cartesian`
     """
+    xyz = jnp.asarray(xyz)
     r = jnp.linalg.norm(xyz, axis=-1)
     p = jnp.arccos(xyz[..., -1] / r)
     a = jnp.arctan2(xyz[..., 1], xyz[..., 0])
@@ -791,7 +805,7 @@ def cartesian_to_spherical(xyz: Float[Array, "*batch 3"]) -> Float[Array, "*batc
 
 @jax.jit
 def spherical_to_cartesian(
-    rpa: Float[Array, "*batch 3"] | Float[Array, "*batch 2"],
+    rpa: Float[ArrayLike, "*batch 3"] | Float[ArrayLike, "*batch 2"],
 ) -> Float[Array, "*batch 3"]:
     """
     Transform spherical coordinates to cartisian coordinates.
@@ -810,6 +824,7 @@ def spherical_to_cartesian(
 
         :func:`cartesian_to_spherical`
     """
+    rpa = jnp.asarray(rpa)
     p = rpa[..., -2]
     a = rpa[..., -1]
 

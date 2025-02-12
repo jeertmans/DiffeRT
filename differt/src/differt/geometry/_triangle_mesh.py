@@ -1,6 +1,5 @@
 # ruff: noqa: ERA001
 
-import sys
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, overload
 
@@ -15,6 +14,8 @@ from differt.plotting import PlotOutput, draw_mesh
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -25,8 +26,8 @@ else:
 
 @jax.jit
 def triangles_contain_vertices_assuming_inside_same_plane(
-    triangle_vertices: Float[Array, "*#batch 3 3"],
-    vertices: Float[Array, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
+    vertices: Float[ArrayLike, "*#batch 3"],
 ) -> Bool[Array, " *#batch"]:
     """
     Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
@@ -43,6 +44,9 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     Returns:
         A boolean array indicating whether vertices are in the corresponding triangles or not.
     """
+    triangle_vertices = jnp.asarray(triangle_vertices)
+    vertices = jnp.asarray(vertices)
+
     # [*batch 3]
     p0 = triangle_vertices[..., 0, :]
     p1 = triangle_vertices[..., 1, :]
@@ -216,7 +220,6 @@ class TriangleMesh(eqx.Module):
         return self.num_quads if self.assume_quads else self.num_triangles
 
     @property
-    @jax.jit
     def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
         """The array of indexed triangle vertices."""
         if self.triangles.size == 0:
@@ -264,7 +267,6 @@ class TriangleMesh(eqx.Module):
         )
 
     @property
-    @jax.jit
     def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
         """The triangle normals."""
         vectors = jnp.diff(self.triangle_vertices, axis=1)
@@ -273,13 +275,11 @@ class TriangleMesh(eqx.Module):
         return normalize(normals)[0]
 
     @property
-    @jax.jit
     def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
     @property
-    @jax.jit
     def bounding_box(self) -> Float[Array, "2 3"]:
         """The bounding box (min. and max. coordinates)."""
         # Using self.triangle_vertices is important because, e.g., as a result of using
@@ -289,8 +289,7 @@ class TriangleMesh(eqx.Module):
             (jnp.min(vertices, axis=0), jnp.max(vertices, axis=0)),
         )
 
-    @eqx.filter_jit
-    def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
+    def rotate(self, rotation_matrix: Float[ArrayLike, "3 3"]) -> Self:
         """
         Return a new mesh by applying a rotation matrix to all triangle coordinates.
 
@@ -303,10 +302,9 @@ class TriangleMesh(eqx.Module):
         return eqx.tree_at(
             lambda m: m.vertices,
             self,
-            (rotation_matrix @ self.vertices.T).T,
+            (jnp.asarray(rotation_matrix) @ self.vertices.T).T,
         )
 
-    @eqx.filter_jit
     def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
         """
         Return a new mesh by applying a scale factor to all triangle coordinates.
@@ -323,8 +321,7 @@ class TriangleMesh(eqx.Module):
             self.vertices * scale_factor,
         )
 
-    @eqx.filter_jit
-    def translate(self, translation: Float[Array, "3"]) -> Self:
+    def translate(self, translation: Float[ArrayLike, "3"]) -> Self:
         """
         Return a new mesh by applying a translation to all triangle coordinates.
 
@@ -353,7 +350,7 @@ class TriangleMesh(eqx.Module):
     @overload
     def set_face_colors(
         self,
-        colors: Float[Array, "#{self.num_triangles} 3"] | Float[Array, "3"],
+        colors: Float[ArrayLike, "#{self.num_triangles} 3"] | Float[ArrayLike, "3"],
         *,
         key: None = None,
     ) -> Self: ...
@@ -366,11 +363,10 @@ class TriangleMesh(eqx.Module):
         key: PRNGKeyArray,
     ) -> Self: ...
 
-    @eqx.filter_jit
     def set_face_colors(
         self,
-        colors: Float[Array, "#{self.num_triangles} 3"]
-        | Float[Array, "3"]
+        colors: Float[ArrayLike, "#{self.num_triangles} 3"]
+        | Float[ArrayLike, "3"]
         | None = None,
         *,
         key: PRNGKeyArray | None = None,
@@ -506,9 +502,8 @@ class TriangleMesh(eqx.Module):
 
             return self.set_face_colors(colors=colors)
 
-        # TODO: understand why pyright cannot determine that colors is not None
         face_colors = jnp.broadcast_to(
-            colors.reshape(-1, 3),  # type: ignore[reportOptionalMemberAccess]
+            jnp.asarray(colors).reshape(-1, 3),
             self.triangles.shape,
         )
         return eqx.tree_at(
@@ -547,11 +542,11 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def plane(
         cls,
-        vertex_a: Float[Array, "3"],
-        vertex_b: Float[Array, "3"] | None = None,
-        vertex_c: Float[Array, "3"] | None = None,
+        vertex_a: Float[ArrayLike, "3"],
+        vertex_b: Float[ArrayLike, "3"] | None = None,
+        vertex_c: Float[ArrayLike, "3"] | None = None,
         *,
-        normal: Float[Array, "3"] | None = None,
+        normal: Float[ArrayLike, "3"] | None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
     ) -> Self:
@@ -594,11 +589,17 @@ class TriangleMesh(eqx.Module):
             msg = "You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             raise ValueError(msg)
 
+        vertex_a = jnp.asarray(vertex_a)
+
         if vertex_b is not None:
+            vertex_b = jnp.asarray(vertex_b)
+            vertex_c = jnp.asarray(vertex_c)
             u = vertex_b - vertex_a
             v = vertex_c - vertex_a
             w = jnp.cross(u, v)
             normal = normalize(w)[0]
+        else:
+            normal = jnp.asarray(normal)
 
         u, v = orthogonal_basis(
             normal,
@@ -771,7 +772,6 @@ class TriangleMesh(eqx.Module):
             **kwargs,
         )
 
-    @eqx.filter_jit
     def sample(
         self,
         size: int,
