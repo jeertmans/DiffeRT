@@ -1,4 +1,5 @@
 # ruff: noqa: ERA001
+import itertools
 from collections.abc import Iterator
 
 import equinox as eqx
@@ -100,12 +101,24 @@ def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, " "]:
     return jnp.mean((pred - paths.mask.astype(pred.dtype)) ** 2)
 
 
-def train(
-    model: LOSModel,
-    dataloader: Iterator[TriangleScene],
-    *,
-    steps: int = 100,
-) -> tuple[LOSModel, Float[Array, " "]]:
+def test_dataloader(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    dataloader = train_dataloader(simple_street_canyon_scene, key=key)
+    _ = benchmark(lambda: next(dataloader))
+
+
+@pytest.mark.benchmark(group="los_model")
+def test_train_step(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    key_model, key_dataloader = jax.random.split(key)
+    model = LOSModel(key=key_model)
+    dataloader = train_dataloader(simple_street_canyon_scene, key=key_dataloader)
     optim = optax.adam(learning_rate=1e-3)
     opt_state = optim.init(eqx.filter(model, eqx.is_inexact_array))
 
@@ -125,24 +138,10 @@ def train(
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value
 
-    loss_value = jnp.array(0.0)
+    iterator = itertools.accumulate(
+        dataloader,
+        (lambda carry, scene: make_step(carry[0], carry[1], scene)),
+        initial=(model, opt_state, jnp.array(0.0)),
+    )
 
-    for _, scene in zip(range(steps), dataloader, strict=False):
-        model, opt_state, loss_value = make_step(model, opt_state, scene)
-
-    return nn.inference_mode(model), loss_value
-
-
-@pytest.mark.benchmark(group="los_model")
-def test_train_time(
-    simple_street_canyon_scene: TriangleScene,
-    benchmark: BenchmarkFixture,
-    key: PRNGKeyArray,
-) -> None:
-    def bench_fun() -> None:
-        key_model, key_dataloader = jax.random.split(key)
-        model = LOSModel(key=key_model)
-        dataloader = train_dataloader(simple_street_canyon_scene, key=key_dataloader)
-        train(model, dataloader)[1].block_until_ready()
-
-    _ = benchmark(bench_fun)
+    _ = benchmark(lambda: next(iterator)[-1].block_until_ready())  # noqa: PLW0108
