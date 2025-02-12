@@ -110,7 +110,6 @@ def test_dataloader(
     _ = benchmark(lambda: next(dataloader))
 
 
-@pytest.mark.benchmark(group="los_model")
 def test_train_step(
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
