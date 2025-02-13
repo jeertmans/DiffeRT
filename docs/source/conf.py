@@ -15,7 +15,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-import jaxtyping
 from docutils import nodes
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
@@ -23,7 +22,6 @@ from sphinx.environment import BuildEnvironment
 from sphinx.ext.intersphinx import missing_reference
 
 from differt import __version__
-from differt.scene import download_sionna_scenes
 
 project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
@@ -241,7 +239,8 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
     """
     Rename the default folder to a more readeable name.
     """
-    if obj.__name__.endswith("_sionna_scene"):
+    module = getattr(obj, "__module__", None)
+    if module and module.rsplit(".", maxsplit=1)[-1] == "_sionna":
         sig = inspect.signature(obj)
         parameters = []
 
@@ -307,6 +306,7 @@ def fix_reference(
 
 
 def setup(app: Sphinx) -> None:
+    import jaxtyping
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
     class ArrayLike(jaxtyping.Array):
@@ -314,6 +314,7 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike
 
+    from differt.scene import download_sionna_scenes
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
