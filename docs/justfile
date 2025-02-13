@@ -16,7 +16,7 @@ build builder="html" *OPTIONS="-W --keep-going":
 
 # Build docs in "draft" mode
 draft *ARGS:
-    NB_OFF="1" just build html -W --keep-going {{ ARGS }}
+    NB_OFF="1" just build html {{ ARGS }}
 
 # Check links
 linkcheck *ARGS: (draft "linkcheck" ARGS)
