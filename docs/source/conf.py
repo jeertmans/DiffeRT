@@ -306,15 +306,17 @@ def fix_reference(
 
 
 def setup(app: Sphinx) -> None:
-    import jaxtyping
+    import jaxtyping  # noqa: PLC0415
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
+
     class ArrayLike(jaxtyping.Array):
         pass
 
     jaxtyping.ArrayLike = ArrayLike
 
-    from differt.scene import download_sionna_scenes
+    from differt.scene import download_sionna_scenes  # noqa: PLC0415
+
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)

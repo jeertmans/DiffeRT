@@ -57,10 +57,7 @@ def dot(
                [145]], dtype=int32)
     """
     u = jnp.asarray(u)
-    if v is None:
-        v = u
-    else:
-        v = jnp.asarray(v)
+    v = jnp.asarray(v) if v is not None else u
 
     return jnp.sum(u * v, axis=-1, keepdims=keepdims)
 
@@ -83,19 +80,7 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
         ...     sorted_array2,
         ... )
         >>>
-        >>> arr = jnp.arange(10).reshape(5, 2)
-        >>> key = jax.random.key(1234)
-        >>> (
-        ...     key1,
-        ...     key2,
-        ... ) = jax.random.split(key, 2)
-        >>> arr = jax.random.permutation(key1, arr)
-        >>> arr
-        Array([[4, 5],
-               [8, 9],
-               [0, 1],
-               [2, 3],
-               [6, 7]], dtype=int32)
+        >>> arr = jnp.array([[4, 5], [8, 9], [0, 1], [2, 3], [6, 7]])
         >>>
         >>> sorted_array2(arr)
         Array([[0, 1],
@@ -104,18 +89,13 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
                [6, 7],
                [8, 9]], dtype=int32)
         >>>
-        >>> arr = jax.random.randint(
-        ...     key2,
-        ...     (5, 5),
-        ...     0,
-        ...     2,
-        ... )
-        >>> arr
-        Array([[1, 1, 1, 0, 1],
-               [1, 0, 1, 1, 1],
-               [1, 0, 0, 1, 1],
-               [1, 0, 0, 0, 0],
-               [1, 1, 0, 1, 0]], dtype=int32)
+        >>> arr = jnp.array([
+        ...     [1, 1, 1, 0, 1],
+        ...     [1, 0, 1, 1, 1],
+        ...     [1, 0, 0, 1, 1],
+        ...     [1, 0, 0, 0, 0],
+        ...     [1, 1, 0, 1, 0],
+        ... ])
         >>>
         >>> sorted_array2(arr)
         Array([[1, 0, 0, 0, 0],
@@ -274,7 +254,6 @@ def minimize(
 
     opt_state = optimizer.init(x0)
 
-    
     def f(
         carry: tuple[Num[Array, "*batch n"], _OptState],
         _: None,

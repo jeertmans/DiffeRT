@@ -36,7 +36,6 @@ tests = [
   "differt[all]",
   "beartype>=0.19.0",
   "chex>=0.1.84",
-  "jax>=0.5.0",  # Random number output has changed between 0.4 and 0.5
   "pytest>=7.4.3",
   "pytest-benchmark>=4.0.0",
   "pytest-codspeed>=2.2.0",

@@ -24,12 +24,11 @@ def random_tx_rx(
         base_scene,
         sample_points_in_bounding_box(bounding_box, (num_tx,), key=key_tx),
     )
-    scene = eqx.tree_at(
+    return eqx.tree_at(
         lambda s: s.receivers,
         scene,
         sample_points_in_bounding_box(bounding_box, (num_rx,), key=key_rx),
     )
-    return scene
 
 
 def random_scene(
