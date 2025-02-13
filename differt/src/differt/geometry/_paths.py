@@ -253,7 +253,7 @@ class Paths(eqx.Module):
         return self.objects.shape[-1] - 2
 
     @property
-    def num_valid_paths(self) -> Int[ArrayLike, " "]:
+    def num_valid_paths(self) -> int | Int[Array, " "]:
         """The number of paths kept by :attr:`mask`.
 
         If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
