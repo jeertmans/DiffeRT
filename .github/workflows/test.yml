@@ -57,8 +57,8 @@ jobs:
         pyversion: ['3.10', '3.11', '3.12', '3.13']
         resolution: [highest, lowest-direct]
         exclude:
-          os: windows-latest
-          pyversion: '3.13'
+          - os: windows-latest
+            pyversion: '3.13'
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
     steps:
