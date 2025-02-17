@@ -27,20 +27,31 @@ repos:
   rev: v1.1.394
   hooks:
   - id: pyright
-- repo: https://github.com/doublify/pre-commit-rust
-  rev: v1.0
-  hooks:
-  - id: cargo-check
-  - id: clippy
 - repo: local
   hooks:
-  - id: fmt
-    name: fmt
+  - id: cargo-check
+    name: cargo check
+    description: Check that Rust project can compile
+    entry: cargo +stable check
+    language: system
+    types: [rust]
+    args: []
+    pass_filenames: false
+  - id: cargo-fmt
+    name: cargo fmt
     description: Format files with cargo fmt
     entry: cargo +nightly fmt --
     language: system
     types: [rust]
     args: []
+  - id: cargo-clippy
+    name: cargo clippy
+    description: Check files with cargo clippy
+    entry: cargo +stable clippy
+    language: system
+    types: [rust]
+    args: []
+    pass_filenames: false
   - id: nbsetup
     name: nbsetup
     description: Add install preamble to Jupyter Notebooks
