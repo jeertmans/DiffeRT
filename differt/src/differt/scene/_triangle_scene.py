@@ -1,7 +1,6 @@
 # ruff: noqa: ERA001
 
 import math
-import sys
 import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -39,6 +38,8 @@ from differt.rt import (
 from differt.utils import dot
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -480,13 +481,11 @@ class TriangleScene(eqx.Module):
     """The triangle mesh."""
 
     @property
-    @jax.jit
     def num_transmitters(self) -> int:
         """The number of transmitters."""
         return self.transmitters[..., 0].size
 
     @property
-    @jax.jit
     def num_receivers(self) -> int:
         """The number of receivers."""
         return self.receivers[..., 0].size
@@ -505,7 +504,6 @@ class TriangleScene(eqx.Module):
         """
         return eqx.tree_at(lambda s: s.mesh, self, self.mesh.set_assume_quads(flag))
 
-    @eqx.filter_jit
     def with_transmitters_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
@@ -540,7 +538,6 @@ class TriangleScene(eqx.Module):
             lambda s: s.transmitters, self, jnp.stack((x, y, z), axis=-1)
         )
 
-    @eqx.filter_jit
     def with_receivers_grid(
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
@@ -573,8 +570,7 @@ class TriangleScene(eqx.Module):
 
         return eqx.tree_at(lambda s: s.receivers, self, jnp.stack((x, y, z), axis=-1))
 
-    @eqx.filter_jit
-    def rotate(self, rotation_matrix: Float[Array, "3 3"]) -> Self:
+    def rotate(self, rotation_matrix: Float[ArrayLike, "3 3"]) -> Self:
         """
         Return a new scene by applying a rotation matrix to all the objects in the scene.
 
@@ -584,6 +580,7 @@ class TriangleScene(eqx.Module):
         Returns:
             The new rotated scene.
         """
+        rotation_matrix = jnp.asarray(rotation_matrix)
         return eqx.tree_at(
             lambda s: (s.transmitters, s.receivers, s.mesh),
             self,
@@ -609,6 +606,7 @@ class TriangleScene(eqx.Module):
         Returns:
             The new scaled scene.
         """
+        scale_factor = jnp.asarray(scale_factor)
         return eqx.tree_at(
             lambda s: (s.transmitters, s.receivers, s.mesh),
             self,
@@ -619,8 +617,7 @@ class TriangleScene(eqx.Module):
             ),
         )
 
-    @eqx.filter_jit
-    def translate(self, translation: Float[Array, "3"]) -> Self:
+    def translate(self, translation: Float[ArrayLike, "3"]) -> Self:
         """
         Return a new scene by applying a translation to all the objects in the scene.
 
@@ -630,6 +627,7 @@ class TriangleScene(eqx.Module):
         Returns:
             The new translated scene.
         """
+        translation = jnp.asarray(translation)
         return eqx.tree_at(
             lambda s: (s.transmitters, s.receivers, s.mesh),
             self,
@@ -681,7 +679,7 @@ class TriangleScene(eqx.Module):
         method: Literal["exhaustive", "hybrid"] = "exhaustive",
         chunk_size: None = None,
         num_rays: int = int(1e6),
-        path_candidates: Int[Array, "num_path_candidates order"] | None = None,
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
@@ -713,7 +711,7 @@ class TriangleScene(eqx.Module):
         method: Literal["exhaustive"] = "exhaustive",
         chunk_size: int,
         num_rays: int = int(1e6),
-        path_candidates: Int[Array, "num_path_candidates order"],
+        path_candidates: Int[ArrayLike, "num_path_candidates order"],
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
@@ -744,7 +742,7 @@ class TriangleScene(eqx.Module):
         method: Literal["exhaustive", "sbr", "hybrid"] = "exhaustive",
         chunk_size: int | None = None,
         num_rays: int = int(1e6),
-        path_candidates: Int[Array, "num_path_candidates order"] | None = None,
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
         parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
@@ -934,8 +932,10 @@ class TriangleScene(eqx.Module):
 
             if self.mesh.assume_quads:
                 path_candidates = 2 * path_candidates
-        elif self.mesh.assume_quads:
-            path_candidates -= path_candidates % 2
+        else:
+            path_candidates = jnp.asarray(path_candidates)
+            if self.mesh.assume_quads:
+                path_candidates -= path_candidates % 2
 
         return _compute_paths(
             self.mesh,

@@ -9,13 +9,13 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-from jaxtyping import Array, Float, Num, PRNGKeyArray, Shaped
+from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray, Shaped
 
 
 @eqx.filter_jit
 def dot(
-    u: Shaped[Array, "*#batch n"],
-    v: Shaped[Array, "*#batch n"] | None = None,
+    u: Shaped[ArrayLike, "*#batch n"],
+    v: Shaped[ArrayLike, "*#batch n"] | None = None,
     keepdims: bool = False,
 ) -> Shaped[Array, "*batch "] | Shaped[Array, "*batch 1"]:
     """
@@ -56,14 +56,14 @@ def dot(
                [ 85],
                [145]], dtype=int32)
     """
-    if v is None:
-        v = u
+    u = jnp.asarray(u)
+    v = jnp.asarray(v) if v is not None else u
 
     return jnp.sum(u * v, axis=-1, keepdims=keepdims)
 
 
 @jax.jit
-def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
+def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
     """
     Sort a 2D array by row and (then) by column.
 
@@ -80,19 +80,7 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
         ...     sorted_array2,
         ... )
         >>>
-        >>> arr = jnp.arange(10).reshape(5, 2)
-        >>> key = jax.random.key(1234)
-        >>> (
-        ...     key1,
-        ...     key2,
-        ... ) = jax.random.split(key, 2)
-        >>> arr = jax.random.permutation(key1, arr)
-        >>> arr
-        Array([[6, 7],
-               [0, 1],
-               [8, 9],
-               [4, 5],
-               [2, 3]], dtype=int32)
+        >>> arr = jnp.array([[4, 5], [8, 9], [0, 1], [2, 3], [6, 7]])
         >>>
         >>> sorted_array2(arr)
         Array([[0, 1],
@@ -101,26 +89,22 @@ def sorted_array2(array: Shaped[Array, "m n"]) -> Shaped[Array, "m n"]:
                [6, 7],
                [8, 9]], dtype=int32)
         >>>
-        >>> arr = jax.random.randint(
-        ...     key2,
-        ...     (5, 5),
-        ...     0,
-        ...     2,
-        ... )
-        >>> arr
-        Array([[1, 1, 0, 0, 0],
-               [1, 1, 0, 1, 1],
-               [0, 0, 1, 1, 1],
-               [1, 1, 1, 1, 0],
-               [0, 1, 1, 1, 0]], dtype=int32)
+        >>> arr = jnp.array([
+        ...     [1, 1, 1, 0, 1],
+        ...     [1, 0, 1, 1, 1],
+        ...     [1, 0, 0, 1, 1],
+        ...     [1, 0, 0, 0, 0],
+        ...     [1, 1, 0, 1, 0],
+        ... ])
         >>>
         >>> sorted_array2(arr)
-        Array([[0, 0, 1, 1, 1],
-               [0, 1, 1, 1, 0],
-               [1, 1, 0, 0, 0],
-               [1, 1, 0, 1, 1],
-               [1, 1, 1, 1, 0]], dtype=int32)
+        Array([[1, 0, 0, 0, 0],
+               [1, 0, 0, 1, 1],
+               [1, 0, 1, 1, 1],
+               [1, 1, 0, 1, 0],
+               [1, 1, 1, 0, 1]], dtype=int32)
     """
+    array = jnp.asarray(array)
     if array.size == 0:
         return array
 
@@ -137,7 +121,7 @@ _P = ParamSpec("_P")
 @eqx.filter_jit
 def minimize(
     fun: Callable[Concatenate[Num[Array, " n"], _P], Num[Array, " "]],
-    x0: Num[Array, "*batch n"],
+    x0: Num[ArrayLike, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
@@ -254,6 +238,7 @@ def minimize(
         >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
+    x0 = jnp.asarray(x0)
     if x0.ndim > 1 and args:
         chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
         chex.assert_tree_shape_prefix(
@@ -287,7 +272,7 @@ def minimize(
 
 @overload
 def sample_points_in_bounding_box(
-    bounding_box: Float[Array, "2 3"],
+    bounding_box: Float[ArrayLike, "2 3"],
     shape: None = None,
     *,
     key: PRNGKeyArray,
@@ -296,7 +281,7 @@ def sample_points_in_bounding_box(
 
 @overload
 def sample_points_in_bounding_box(
-    bounding_box: Float[Array, "2 3"],
+    bounding_box: Float[ArrayLike, "2 3"],
     shape: tuple[int, ...],
     *,
     key: PRNGKeyArray,
@@ -305,7 +290,7 @@ def sample_points_in_bounding_box(
 
 @partial(jax.jit, static_argnames=("shape",))
 def sample_points_in_bounding_box(
-    bounding_box: Float[Array, "2 3"],
+    bounding_box: Float[ArrayLike, "2 3"],
     shape: tuple[int, ...] | None = None,
     *,
     key: PRNGKeyArray,
@@ -325,6 +310,7 @@ def sample_points_in_bounding_box(
     Returns:
         An array of points randomly sampled.
     """
+    bounding_box = jnp.asarray(bounding_box)
     amin = bounding_box[0, :]
     amax = bounding_box[1, :]
     scale = amax - amin
@@ -339,7 +325,7 @@ def sample_points_in_bounding_box(
 
 @jax.jit
 def safe_divide(
-    num: Num[Array, " *#batch"], den: Num[Array, " *#batch"]
+    num: Num[ArrayLike, " *#batch"], den: Num[ArrayLike, " *#batch"]
 ) -> Num[Array, " *batch"]:
     """
     Compute the elementwise division, but returns 0 when ``den`` is zero.
@@ -362,4 +348,6 @@ def safe_divide(
         Array([0. , 2. , 1.5, 0. , 2.5], dtype=float32)
     """
     # TODO: add :python: rst role for x / y in docs
+    num = jnp.asarray(num)
+    den = jnp.asarray(den)
     return jnp.where(den == 0, 0, num / den)

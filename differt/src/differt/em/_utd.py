@@ -10,6 +10,8 @@ from jaxtyping import Array, Complex, Float
 
 from differt.utils import dot
 
+# TODO: use ArrayLike instead of Array as inputs
+
 
 @partial(jax.jit, inline=True)
 def _cot(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:

@@ -49,7 +49,7 @@ def lengths_to_delays(
 
 @jax.jit
 def path_delays(
-    paths: Float[Array, "*batch path_length 3"],
+    paths: Float[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Float[Array, " *batch"]:
     """
@@ -86,9 +86,9 @@ def path_delays(
 
 @jax.jit
 def sp_directions(
-    k_i: Float[Array, "*#batch 3"],
-    k_r: Float[Array, "*#batch 3"],
-    normals: Float[Array, "*#batch 3"],
+    k_i: Float[ArrayLike, "*#batch 3"],
+    k_r: Float[ArrayLike, "*#batch 3"],
+    normals: Float[ArrayLike, "*#batch 3"],
 ) -> tuple[
     tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
     tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]],
@@ -249,6 +249,9 @@ def sp_directions(
             ... )
             >>> fig  # doctest: +SKIP
     """
+    k_i = jnp.asarray(k_i)
+    k_r = jnp.asarray(k_r)
+    normals = jnp.asarray(normals)
     e_i_s, e_i_s_norm = normalize(jnp.cross(k_i, normals), keepdims=True)
     # Alternative vectors if normal is parallel to k_i
     normal_incidence = e_i_s_norm == 0.0
@@ -266,10 +269,10 @@ def sp_directions(
 
 @jax.jit
 def sp_rotation_matrix(
-    e_a_s: Float[Array, "*#batch 3"],
-    e_a_p: Float[Array, "*#batch 3"],
-    e_b_s: Float[Array, "*#batch 3"],
-    e_b_p: Float[Array, "*#batch 3"],
+    e_a_s: Float[ArrayLike, "*#batch 3"],
+    e_a_p: Float[ArrayLike, "*#batch 3"],
+    e_b_s: Float[ArrayLike, "*#batch 3"],
+    e_b_p: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch 2 2"]:
     """
     Return the rotation matrix to convert the s and p components from one base to another.
@@ -286,6 +289,10 @@ def sp_rotation_matrix(
     Returns:
         The array of rotation matrices.
     """
+    e_a_s = jnp.asarray(e_a_s)
+    e_a_p = jnp.asarray(e_a_p)
+    e_b_s = jnp.asarray(e_b_s)
+    e_b_p = jnp.asarray(e_b_p)
     r11 = dot(e_b_s, e_a_s, keepdims=True)
     r12 = dot(e_b_s, e_a_p, keepdims=True)
     r21 = dot(e_b_p, e_a_s, keepdims=True)
@@ -300,11 +307,12 @@ def sp_rotation_matrix(
 
 @jax.jit
 def transition_matrices(
-    vertices: Float[Array, "*batch path_length 3"],
-    objects: Float[Array, "*batch path_length"],
-    interaction_types: Int[Array, "*batch path_length-2"],
-    object_normals: Float[Array, "*batch path_length 3"],
+    vertices: Float[ArrayLike, "*batch path_length 3"],
+    objects: Float[ArrayLike, "*batch path_length"],
+    interaction_types: Int[ArrayLike, "*batch path_length-2"],
+    object_normals: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, "*batch 2 2"]:
+    # ruff: noqa: D417, DOC202
     """
     Compute the transition matrix, ...
 
@@ -322,6 +330,11 @@ def transition_matrices(
     Returns:
         The array of s and p directions, before and after reflection.
     """
+    vertices = jnp.asarray(vertices)
+    objects = jnp.asarray(objects)
+    interaction_types = jnp.asarray(interaction_types)
+    object_normals = jnp.asarray(object_normals)
+
     if any(x.dtype == jnp.float64 for x in (vertices, object_normals)):
         cdtype = jnp.complex128
     else:
@@ -332,14 +345,14 @@ def transition_matrices(
 
     v = jnp.diff(vertices, axis=-2)
     k, s = normalize(v)
-    k_i, s_i = k[..., :-1, :], s[..., :-1, :]
-    k_r, s_r = k[..., +1:, :], s[..., +1:, :]
+    _k_i, _s_i = k[..., :-1, :], s[..., :-1, :]
+    _k_r, _s_r = k[..., +1:, :], s[..., +1:, :]
 
-    mat_r = ...
+    mat_r = mat  # TODO: fixme
 
-    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)  # type: ignore
+    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
 
-    return mat  # type: ignore
+    raise NotImplementedError
 
 
 @partial(jax.jit, static_argnames=("dB",))

@@ -1,4 +1,3 @@
-import sys
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
@@ -12,6 +11,8 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 from differt.plotting import PlotOutput, draw_paths, reuse
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -42,8 +43,8 @@ def _cell_ids(
 
 @jax.jit
 def merge_cell_ids(
-    cell_ids_a: Int[Array, " *batch"],
-    cell_ids_b: Int[Array, " *batch"],
+    cell_ids_a: Int[ArrayLike, " *batch"],
+    cell_ids_b: Int[ArrayLike, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
     Merge two arrays of cell indices as returned by :meth:`Paths.multipath_cells`.
@@ -69,6 +70,8 @@ def merge_cell_ids(
     Returns:
         The new array group indices.
     """
+    cell_ids_a = jnp.asarray(cell_ids_a)
+    cell_ids_b = jnp.asarray(cell_ids_b)
     batch = cell_ids_a.shape
     return _cell_ids(
         jnp.stack((cell_ids_a, cell_ids_b), axis=-1).reshape(-1, 2),
@@ -250,8 +253,7 @@ class Paths(eqx.Module):
         return self.objects.shape[-1] - 2
 
     @property
-    @jax.jit
-    def num_valid_paths(self) -> Int[ArrayLike, " "]:
+    def num_valid_paths(self) -> int | Int[Array, " "]:
         """The number of paths kept by :attr:`mask`.
 
         If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
@@ -364,24 +366,12 @@ class Paths(eqx.Module):
 
             >>> from differt.geometry import Paths
             >>>
+            >>> objects = jnp.array([
+            ...     [[1, 1, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0], [1, 1, 1], [1, 1, 1]],
+            ...     [[1, 0, 0], [1, 1, 1], [0, 0, 1], [1, 1, 0], [0, 0, 1], [1, 0, 0]],
+            ... ])
             >>> key = jax.random.key(1234)
-            >>> key_v, key_o = jax.random.split(key, 2)
-            >>> *batch, path_length = (2, 6, 3)
-            >>> vertices = jax.random.uniform(key_v, (*batch, path_length, 3))
-            >>> objects = jax.random.randint(key_o, (*batch, path_length), 0, 2)
-            >>> objects
-            Array([[[1, 1, 0],
-                    [0, 0, 1],
-                    [1, 0, 1],
-                    [1, 0, 0],
-                    [1, 1, 1],
-                    [1, 1, 1]],
-                   [[1, 0, 0],
-                    [1, 1, 1],
-                    [0, 0, 1],
-                    [1, 1, 0],
-                    [0, 0, 1],
-                    [1, 0, 0]]], dtype=int32)
+            >>> vertices = jax.random.uniform(key, (*objects.shape, 3))
             >>> paths = Paths(vertices, objects)
             >>> groups = paths.group_by_objects()
             >>> groups

@@ -42,6 +42,7 @@ Miscellaneous utilities.
    merge_cell_ids
    min_distance_between_cells
    normalize
+   pairwise_cross
    perpendicular_vectors
    orthogonal_basis
    path_lengths

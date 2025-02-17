@@ -1,6 +1,5 @@
 # ruff: noqa: ERA001
 
-import sys
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -15,6 +14,8 @@ from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
 if TYPE_CHECKING:
+    import sys
+
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -158,9 +159,9 @@ def generate_all_path_candidates_chunks_iter(
 
 @eqx.filter_jit
 def rays_intersect_triangles(
-    ray_origins: Float[Array, "*#batch 3"],
-    ray_directions: Float[Array, "*#batch 3"],
-    triangle_vertices: Float[Array, "*#batch 3 3"],
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
     epsilon: Float[ArrayLike, " "] | None = None,
 ) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]:
@@ -181,7 +182,7 @@ def rays_intersect_triangles(
 
             Such a tolerance is especially useful when rays are hitting
             triangle edges, a very common case if geometries are planes
-            split into multiple triangles.
+            split into multiple triangles. shape
 
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
@@ -245,6 +246,10 @@ def rays_intersect_triangles(
             >>> fig = scene.plot(backend="plotly", figure=fig, showlegend=False)
             >>> fig  # doctest: +SKIP
     """
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
     if epsilon is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         epsilon = 10 * jnp.finfo(dtype).eps
@@ -286,9 +291,9 @@ def rays_intersect_triangles(
 
 @eqx.filter_jit
 def rays_intersect_any_triangle(
-    ray_origins: Float[Array, "*#batch 3"],
-    ray_directions: Float[Array, "*#batch 3"],
-    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
     **kwargs: Any,
@@ -322,6 +327,10 @@ def rays_intersect_any_triangle(
     Returns:
         For each ray, whether it intersects with any of the triangles.
     """
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         hit_tol = 10.0 * jnp.finfo(dtype).eps
@@ -359,8 +368,8 @@ def rays_intersect_any_triangle(
 
 @eqx.filter_jit
 def triangles_visible_from_vertices(
-    vertices: Float[Array, "*#batch 3"],
-    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+    vertices: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     num_rays: int = int(1e6),
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
@@ -425,6 +434,9 @@ def triangles_visible_from_vertices(
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
     """
+    vertices = jnp.asarray(vertices)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
     # [*batch 3]
     ray_origins = vertices
 
@@ -467,9 +479,9 @@ def triangles_visible_from_vertices(
 
 @eqx.filter_jit
 def first_triangles_hit_by_rays(
-    ray_origins: Float[Array, "*#batch 3"],
-    ray_directions: Float[Array, "*#batch 3"],
-    triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     **kwargs: Any,
 ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
     """
@@ -493,6 +505,10 @@ def first_triangles_hit_by_rays(
         If no triangle is hit, the index is set to ``-1`` and
         the distance is set to :data:`inf<numpy.inf>`.
     """
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
 

@@ -6,7 +6,6 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-import pytest
 from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
@@ -15,22 +14,28 @@ from differt.scene._triangle_scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
 
 
-def random_scene(
+def random_tx_rx(
     base_scene: TriangleScene, num_tx: int = 10, num_rx: int = 10, *, key: PRNGKeyArray
 ) -> TriangleScene:
-    scene = base_scene
-    key_tx, key_rx, key_num_objects, key_sample_triangles = jax.random.split(key, 4)
-    bounding_box = scene.mesh.bounding_box
+    key_tx, key_rx = jax.random.split(key, 2)
+    bounding_box = base_scene.mesh.bounding_box
     scene = eqx.tree_at(
         lambda s: s.transmitters,
-        scene,
+        base_scene,
         sample_points_in_bounding_box(bounding_box, (num_tx,), key=key_tx),
     )
-    scene = eqx.tree_at(
+    return eqx.tree_at(
         lambda s: s.receivers,
         scene,
         sample_points_in_bounding_box(bounding_box, (num_rx,), key=key_rx),
     )
+
+
+def random_scene(
+    base_scene: TriangleScene, num_tx: int = 4, num_rx: int = 8, *, key: PRNGKeyArray
+) -> TriangleScene:
+    key_tx_rx, key_num_objects, key_sample_triangles = jax.random.split(key, 3)
+    scene = random_tx_rx(base_scene, num_tx, num_rx, key=key_tx_rx)
     num_objects = scene.mesh.num_objects
     num_objects = jax.random.randint(key_num_objects, (), 0, num_objects + 1)
     return eqx.tree_at(
@@ -77,13 +82,13 @@ class LOSModel(eqx.Module):
     ) -> Float[Array, " "]:
         # [num_triangles 3 num_embeds] -> [num_triangles num_embeds] -> [num_embeds]
         scene_embeds = (
-            jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)
+            jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)  # type: ignore[reportCallIssue]
         )
 
         # [2 num_embeds] -> [2*num_embeds]
-        path_embeds = jax.vmap(self.embeds)(path_vertices).reshape(-1)
+        path_embeds = jax.vmap(self.embeds)(path_vertices).reshape(-1)  # type: ignore[reportCallIssue]
 
-        logits = self.logits(jnp.concatenate([scene_embeds, path_embeds], axis=-1))
+        logits = self.logits(jnp.concatenate([scene_embeds, path_embeds], axis=-1))  # type: ignore[reportCallIssue]
         return jax.nn.sigmoid(logits)
 
 

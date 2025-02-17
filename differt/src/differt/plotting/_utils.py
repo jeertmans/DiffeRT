@@ -341,6 +341,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
             )
 
         def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
+            # ruff: noqa: DOC201
             """Actually register the backend implementation."""
 
             @wraps(impl)

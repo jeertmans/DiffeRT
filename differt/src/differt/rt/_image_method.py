@@ -5,16 +5,16 @@ from functools import partial
 import chex
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float
+from jaxtyping import Array, ArrayLike, Bool, Float
 
 from differt.utils import dot
 
 
 @partial(jax.jit, inline=True)
 def image_of_vertices_with_respect_to_mirrors(
-    vertices: Float[Array, "*#batch 3"],
-    mirror_vertices: Float[Array, "*#batch 3"],
-    mirror_normals: Float[Array, "*#batch 3"],
+    vertices: Float[ArrayLike, "*#batch 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch 3"],
+    mirror_normals: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
     Return the image of vertices with respect to mirrors.
@@ -67,6 +67,10 @@ def image_of_vertices_with_respect_to_mirrors(
         (10, 20, 30, 3)
 
     """
+    vertices = jnp.asarray(vertices)
+    mirror_vertices = jnp.asarray(mirror_vertices)
+    mirror_normals = jnp.asarray(mirror_normals)
+
     # [*batch num_mirrors ]
     incident = vertices - mirror_vertices  # incident vectors
     return (
@@ -76,10 +80,10 @@ def image_of_vertices_with_respect_to_mirrors(
 
 @partial(jax.jit, inline=True)
 def intersection_of_rays_with_planes(
-    ray_origins: Float[Array, "*#batch 3"],
-    ray_directions: Float[Array, "*#batch 3"],
-    plane_vertices: Float[Array, "*#batch 3"],
-    plane_normals: Float[Array, "*#batch 3"],
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    plane_vertices: Float[ArrayLike, "*#batch 3"],
+    plane_normals: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
     Return the intersection points between rays and (infinite) planes.
@@ -102,6 +106,11 @@ def intersection_of_rays_with_planes(
     Returns:
         An array of intersection vertices.
     """
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    plane_vertices = jnp.asarray(plane_vertices)
+    plane_normals = jnp.asarray(plane_normals)
+
     # [*batch 3]
     u = ray_directions
     v = plane_vertices - ray_origins
@@ -116,10 +125,10 @@ def intersection_of_rays_with_planes(
 
 @jax.jit
 def image_method(
-    from_vertices: Float[Array, "*#batch 3"],
-    to_vertices: Float[Array, "*#batch 3"],
-    mirror_vertices: Float[Array, "*#batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*#batch num_mirrors 3"],
+    from_vertices: Float[ArrayLike, "*#batch 3"],
+    to_vertices: Float[ArrayLike, "*#batch 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
+    mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
@@ -250,6 +259,11 @@ def image_method(
             >>> fig  # doctest: +SKIP
 
     """
+    from_vertices = jnp.asarray(from_vertices)
+    to_vertices = jnp.asarray(to_vertices)
+    mirror_vertices = jnp.asarray(mirror_vertices)
+    mirror_normals = jnp.asarray(mirror_normals)
+
     # Put 'num_mirrors' axis as leading axis
     mirror_vertices = jnp.moveaxis(mirror_vertices, -2, 0)
     mirror_normals = jnp.moveaxis(mirror_normals, -2, 0)
@@ -271,6 +285,7 @@ def image_method(
             Float[Array, "*#batch 3"], Float[Array, "*#batch 3"]
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        # ruff: noqa: DOC201
         """Perform forward pass on vertices by computing consecutive images."""
         mirror_vertices, mirror_normals = mirror_vertices_and_normals
         images = image_of_vertices_with_respect_to_mirrors(
@@ -288,6 +303,7 @@ def image_method(
             Float[Array, "*#batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        # ruff: noqa: DOC201
         """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
@@ -318,9 +334,9 @@ def image_method(
 
 @jax.jit
 def consecutive_vertices_are_on_same_side_of_mirrors(
-    vertices: Float[Array, "*#batch num_vertices 3"],
-    mirror_vertices: Float[Array, "*#batch num_mirrors 3"],
-    mirror_normals: Float[Array, "*#batch num_mirrors 3"],
+    vertices: Float[ArrayLike, "*#batch num_vertices 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
+    mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
 ) -> Bool[Array, "*#batch num_mirrors"]:
     """
     Check if consecutive vertices, but skipping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
@@ -341,6 +357,10 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
         A boolean array indicating whether pairs of consecutive vertices
         are on the same side of the corresponding mirror.
     """
+    vertices = jnp.asarray(vertices)
+    mirror_vertices = jnp.asarray(mirror_vertices)
+    mirror_normals = jnp.asarray(mirror_normals)
+
     chex.assert_axis_dimension(
         vertices, -2, mirror_vertices.shape[-2] + 2, exception_type=TypeError
     )
