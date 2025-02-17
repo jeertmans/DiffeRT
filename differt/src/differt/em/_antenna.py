@@ -538,8 +538,8 @@ class RadiationPattern(BaseAntenna):
 
             :meth:`directive_gain`
         """
-        u, du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
-        v, dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
+        u, _du = jnp.linspace(0, 2 * jnp.pi, num_points * 2, retstep=True)
+        v, _dv = jnp.linspace(0, jnp.pi, num_points, retstep=True)
         x = jnp.outer(jnp.cos(u), jnp.sin(v))
         y = jnp.outer(jnp.sin(u), jnp.sin(v))
         z = jnp.outer(jnp.ones_like(u), jnp.cos(v))
@@ -617,7 +617,7 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)  # type: ignore
+        s = self.pointing_vector(r)  # type: ignore[reportAttributeAccessIssue]
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 
@@ -640,7 +640,7 @@ class HWDipolePattern(RadiationPattern):
     def polarization_vectors(
         self,
         r: Float[ArrayLike, "*#batch 3"],
-    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:  # type: ignore
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
         r = jnp.asarray(r)
         r_hat, r = normalize(r - self.center, keepdims=True)
 
@@ -649,9 +649,10 @@ class HWDipolePattern(RadiationPattern):
 
         d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
 
-        cos_theta = dot()  # type: ignore
-        sin_theta = jnp.sin()  # type: ignore
-        d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
+        cos_theta = dot(d)
+        sin_theta = jnp.sin(d)
+        _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
+        raise NotImplementedError
 
 
 class ShortDipolePattern(RadiationPattern):

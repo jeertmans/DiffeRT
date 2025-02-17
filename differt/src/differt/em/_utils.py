@@ -312,6 +312,7 @@ def transition_matrices(
     interaction_types: Int[ArrayLike, "*batch path_length-2"],
     object_normals: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, "*batch 2 2"]:
+    # ruff: noqa: D417, DOC202
     """
     Compute the transition matrix, ...
 
@@ -344,14 +345,14 @@ def transition_matrices(
 
     v = jnp.diff(vertices, axis=-2)
     k, s = normalize(v)
-    k_i, s_i = k[..., :-1, :], s[..., :-1, :]
-    k_r, s_r = k[..., +1:, :], s[..., +1:, :]
+    _k_i, _s_i = k[..., :-1, :], s[..., :-1, :]
+    _k_r, _s_r = k[..., +1:, :], s[..., +1:, :]
 
-    mat_r = ...
+    mat_r = mat  # TODO: fixme
 
-    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)  # type: ignore
+    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
 
-    return mat
+    raise NotImplementedError
 
 
 @partial(jax.jit, static_argnames=("dB",))

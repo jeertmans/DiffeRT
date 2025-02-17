@@ -285,6 +285,7 @@ def image_method(
             Float[Array, "*#batch 3"], Float[Array, "*#batch 3"]
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        # ruff: noqa: DOC201
         """Perform forward pass on vertices by computing consecutive images."""
         mirror_vertices, mirror_normals = mirror_vertices_and_normals
         images = image_of_vertices_with_respect_to_mirrors(
@@ -302,6 +303,7 @@ def image_method(
             Float[Array, "*#batch 3"],
         ],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        # ruff: noqa: DOC201
         """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
