@@ -265,7 +265,7 @@ class Paths(eqx.Module):
     @property
     def masked_vertices(
         self,
-    ) -> Float[Array, "{self.num_valid_paths} {self.path_length} 3"]:
+    ) -> Float[Array, "num_valid_paths path_length 3"]:
         """The array of masked vertices, with batched dimensions flattened into one.
 
         If :attr:`mask` is :data:`None`, then the returned array is simply
@@ -280,7 +280,7 @@ class Paths(eqx.Module):
     @property
     def masked_objects(
         self,
-    ) -> Int[Array, "{self.num_valid_paths} {self.path_length}"]:
+    ) -> Int[Array, "num_valid_paths path_length"]:
         """The array of masked objects, with batched dimensions flattened into one.
 
         Similar to :attr:`masked_vertices`, but for :data:`objects`.
