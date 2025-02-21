@@ -220,7 +220,7 @@ class TriangleMesh(eqx.Module):
         return self.num_quads if self.assume_quads else self.num_triangles
 
     @property
-    def triangle_vertices(self) -> Float[Array, "{self.num_triangles} 3 3"]:
+    def triangle_vertices(self) -> Float[Array, "num_triangles 3 3"]:
         """The array of indexed triangle vertices."""
         if self.triangles.size == 0:
             return jnp.empty_like(self.vertices, shape=(0, 3, 3))
@@ -267,7 +267,7 @@ class TriangleMesh(eqx.Module):
         )
 
     @property
-    def normals(self) -> Float[Array, "{self.num_triangles} 3"]:
+    def normals(self) -> Float[Array, "num_triangles 3"]:
         """The triangle normals."""
         vectors = jnp.diff(self.triangle_vertices, axis=1)
         normals = jnp.cross(vectors[:, 0, :], vectors[:, 1, :])
@@ -275,7 +275,7 @@ class TriangleMesh(eqx.Module):
         return normalize(normals)[0]
 
     @property
-    def diffraction_edges(self) -> Int[Array, "{self.num_edges} 3"]:
+    def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
         """The diffraction edges."""
         raise NotImplementedError
 
@@ -350,7 +350,7 @@ class TriangleMesh(eqx.Module):
     @overload
     def set_face_colors(
         self,
-        colors: Float[ArrayLike, "#{self.num_triangles} 3"] | Float[ArrayLike, "3"],
+        colors: Float[ArrayLike, "#num_triangles 3"] | Float[ArrayLike, "3"],
         *,
         key: None = None,
     ) -> Self: ...
@@ -365,7 +365,7 @@ class TriangleMesh(eqx.Module):
 
     def set_face_colors(
         self,
-        colors: Float[ArrayLike, "#{self.num_triangles} 3"]
+        colors: Float[ArrayLike, "#num_triangles 3"]
         | Float[ArrayLike, "3"]
         | None = None,
         *,
