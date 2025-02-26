@@ -6,8 +6,8 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 conflicts = [[
-    { package = "differt-dev", extra = "cuda" },
-    { package = "differt-dev", extra = "tests-extended" },
+    { package = "differt-dev", group = "cuda" },
+    { package = "differt-dev", group = "tests-extended" },
 ]]
 
 [manifest]
@@ -732,7 +732,7 @@ plotly = [
     { name = "plotly" },
 ]
 vispy = [
-    { name = "pyopengl", marker = "sys_platform == 'darwin' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "pyopengl", marker = "sys_platform == 'darwin' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "vispy" },
 ]
 vispy-backend = [
@@ -785,9 +785,36 @@ name = "differt-dev"
 version = "1.0.0"
 source = { virtual = "." }
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 cuda = [
     { name = "jax", extra = ["cuda"] },
+]
+dev = [
+    { name = "beartype" },
+    { name = "bump-my-version" },
+    { name = "chex" },
+    { name = "differt", extra = ["all"] },
+    { name = "maturin-import-hook" },
+    { name = "myst-nb" },
+    { name = "pillow" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-codspeed" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-missing-modules" },
+    { name = "pytest-xdist" },
+    { name = "scipy" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-book-theme" },
+    { name = "sphinx-copybutton" },
+    { name = "sphinx-design" },
+    { name = "sphinx-plotly-directive" },
+    { name = "sphinx-remove-toctrees" },
+    { name = "sphinxcontrib-apidoc" },
+    { name = "sphinxcontrib-bibtex" },
+    { name = "sphinxext-opengraph" },
 ]
 docs = [
     { name = "beartype" },
@@ -840,55 +867,84 @@ tests-extended = [
     { name = "sionna", marker = "python_full_version < '3.12' and sys_platform == 'linux'" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "bump-my-version" },
-    { name = "differt-dev", extra = ["docs", "tests"] },
-    { name = "maturin-import-hook" },
-    { name = "pre-commit" },
-]
-
 [package.metadata]
-requires-dist = [
-    { name = "beartype", marker = "extra == 'docs'", specifier = ">=0.19.0" },
-    { name = "beartype", marker = "extra == 'tests'", specifier = ">=0.19.0" },
-    { name = "chex", marker = "extra == 'tests'", specifier = ">=0.1.84" },
-    { name = "differt", extras = ["all"], marker = "extra == 'docs'", editable = "differt" },
-    { name = "differt", extras = ["all"], marker = "extra == 'icmlcn2025'", editable = "differt" },
-    { name = "differt", extras = ["all"], marker = "extra == 'tests'", editable = "differt" },
-    { name = "differt-dev", extras = ["tests"], marker = "extra == 'tests-extended'" },
-    { name = "e3x", marker = "extra == 'icmlcn2025'", specifier = ">=1.0.2" },
-    { name = "jax", extras = ["cuda"], marker = "extra == 'cuda'", specifier = ">=0.5.0" },
-    { name = "line-profiler", extras = ["ipython"], marker = "extra == 'prof'", specifier = ">=4.1.3" },
-    { name = "myst-nb", marker = "extra == 'docs'", specifier = ">=0.17.2" },
-    { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux' and extra == 'tests-extended'", specifier = ">=0.19.0" },
-    { name = "pillow", marker = "extra == 'docs'", specifier = ">=10.1.0" },
-    { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.4.3" },
-    { name = "pytest-benchmark", marker = "extra == 'tests'", specifier = ">=4.0.0" },
-    { name = "pytest-codspeed", marker = "extra == 'tests'", specifier = ">=2.2.0" },
-    { name = "pytest-cov", marker = "extra == 'tests'", specifier = ">=4.1.0" },
-    { name = "pytest-env", marker = "extra == 'tests'", specifier = ">=1.1.3" },
-    { name = "pytest-missing-modules", marker = "extra == 'tests'", specifier = ">=0.2.0" },
-    { name = "pytest-xdist", marker = "extra == 'tests'", specifier = ">=3.3.1" },
-    { name = "scipy", marker = "extra == 'tests'", specifier = ">=1.12.0" },
-    { name = "sionna", marker = "python_full_version < '3.12' and sys_platform == 'linux' and extra == 'tests-extended'", specifier = "==0.19.1" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=1.23" },
-    { name = "sphinx-book-theme", marker = "extra == 'docs'", specifier = ">=1.1.3" },
-    { name = "sphinx-copybutton", marker = "extra == 'docs'", specifier = ">=0.5.2" },
-    { name = "sphinx-design", marker = "extra == 'docs'", specifier = ">=0.5.0" },
-    { name = "sphinx-plotly-directive", marker = "extra == 'docs'", specifier = ">=0.1.3" },
-    { name = "sphinx-remove-toctrees", marker = "extra == 'docs'", specifier = ">=0.0.3" },
-    { name = "sphinxcontrib-apidoc", marker = "extra == 'docs'", specifier = ">=0.4.0" },
-    { name = "sphinxcontrib-bibtex", marker = "extra == 'docs'", specifier = ">=2.6.0" },
-    { name = "sphinxext-opengraph", marker = "extra == 'docs'", specifier = ">=0.9.0" },
-]
 
 [package.metadata.requires-dev]
+cuda = [{ name = "jax", extras = ["cuda"], specifier = ">=0.5.0" }]
 dev = [
+    { name = "beartype", specifier = ">=0.19.0" },
     { name = "bump-my-version", specifier = ">=0.20.3" },
-    { name = "differt-dev", extras = ["docs", "tests"] },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", extras = ["all"], editable = "differt" },
     { name = "maturin-import-hook", specifier = ">=0.2.0" },
+    { name = "myst-nb", specifier = ">=0.17.2" },
+    { name = "pillow", specifier = ">=10.1.0" },
     { name = "pre-commit", specifier = ">=3.5.0" },
+    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-codspeed", specifier = ">=2.2.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
+    { name = "sphinx-autodoc-typehints", specifier = ">=1.23" },
+    { name = "sphinx-book-theme", specifier = ">=1.1.3" },
+    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
+    { name = "sphinx-design", specifier = ">=0.5.0" },
+    { name = "sphinx-plotly-directive", specifier = ">=0.1.3" },
+    { name = "sphinx-remove-toctrees", specifier = ">=0.0.3" },
+    { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
+    { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
+    { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
+]
+docs = [
+    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "differt", extras = ["all"], editable = "differt" },
+    { name = "myst-nb", specifier = ">=0.17.2" },
+    { name = "pillow", specifier = ">=10.1.0" },
+    { name = "sphinx-autodoc-typehints", specifier = ">=1.23" },
+    { name = "sphinx-book-theme", specifier = ">=1.1.3" },
+    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
+    { name = "sphinx-design", specifier = ">=0.5.0" },
+    { name = "sphinx-plotly-directive", specifier = ">=0.1.3" },
+    { name = "sphinx-remove-toctrees", specifier = ">=0.0.3" },
+    { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
+    { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
+    { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
+]
+icmlcn2025 = [
+    { name = "differt", extras = ["all"], editable = "differt" },
+    { name = "e3x", specifier = ">=1.0.2" },
+]
+prof = [{ name = "line-profiler", extras = ["ipython"], specifier = ">=4.1.3" }]
+tests = [
+    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", extras = ["all"], editable = "differt" },
+    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-codspeed", specifier = ">=2.2.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
+]
+tests-extended = [
+    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", extras = ["all"], editable = "differt" },
+    { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'", specifier = ">=0.19.0" },
+    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-codspeed", specifier = ">=2.2.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
+    { name = "sionna", marker = "python_full_version < '3.12' and sys_platform == 'linux'", specifier = "==0.19.1" },
 ]
 
 [[package]]
@@ -1058,7 +1114,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jax" },
     { name = "msgpack" },
-    { name = "numpy", marker = "python_full_version >= '3.11' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "numpy", marker = "python_full_version >= '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "optax" },
     { name = "orbax-checkpoint" },
     { name = "pyyaml" },
@@ -2081,7 +2137,7 @@ wheels = [
 
 [package.optional-dependencies]
 ipython = [
-    { name = "ipython", marker = "python_full_version < '4.1' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "ipython", marker = "python_full_version < '4.1' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 
 [[package]]
@@ -2233,7 +2289,7 @@ version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
-    { name = "tomli", marker = "python_full_version < '3.11' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "tomli", marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/93/5f/9d426545c49926f4212fbe6244bc397508a29f65e35fe307835c07c0be7b/maturin_import_hook-0.2.0.tar.gz", hash = "sha256:e8a81333179faf7b5f413e44c2a1c89604fefff433679275f724950b0a632adf", size = 31071 }
 wheels = [
@@ -4112,7 +4168,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alabaster" },
     { name = "babel" },
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "docutils" },
     { name = "imagesize" },
     { name = "jinja2" },
@@ -4126,7 +4182,7 @@ dependencies = [
     { name = "sphinxcontrib-jsmath" },
     { name = "sphinxcontrib-qthelp" },
     { name = "sphinxcontrib-serializinghtml" },
-    { name = "tomli", marker = "python_full_version < '3.11' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "tomli", marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/be0b61178fe2cdcb67e2a92fc9ebb488e3c51c4f74a36a7824c0adf23425/sphinx-8.1.3.tar.gz", hash = "sha256:43c1911eecb0d3e161ad78611bc905d1ad0e523e4ddc202a58a821773dc4c927", size = 8184611 }
 wheels = [
@@ -4237,7 +4293,7 @@ dependencies = [
     { name = "docutils" },
     { name = "pybtex" },
     { name = "pybtex-docutils" },
-    { name = "setuptools", marker = "python_full_version >= '3.12' or (extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "setuptools", marker = "python_full_version >= '3.12' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "sphinx" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c1/ce/054a8ec04063f9a27772fea7188f796edbfa382e656d3b76428323861f0e/sphinxcontrib_bibtex-2.6.3.tar.gz", hash = "sha256:7c790347ef1cb0edf30de55fc324d9782d085e89c52c2b8faafa082e08e23946", size = 117177 }
@@ -4307,7 +4363,7 @@ name = "sqlalchemy"
 version = "2.0.38"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "greenlet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'WIN32') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'ppc64le') or (python_full_version < '3.14' and platform_machine == 'win32') or (python_full_version < '3.14' and platform_machine == 'x86_64') or (platform_machine != 'AMD64' and platform_machine != 'WIN32' and platform_machine != 'aarch64' and platform_machine != 'amd64' and platform_machine != 'ppc64le' and platform_machine != 'win32' and platform_machine != 'x86_64' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'AMD64' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'WIN32' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'aarch64' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'amd64' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'ppc64le' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'win32' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended') or (platform_machine == 'x86_64' and extra == 'extra-11-differt-dev-cuda' and extra == 'extra-11-differt-dev-tests-extended')" },
+    { name = "greenlet", marker = "(python_full_version < '3.14' and platform_machine == 'AMD64') or (python_full_version < '3.14' and platform_machine == 'WIN32') or (python_full_version < '3.14' and platform_machine == 'aarch64') or (python_full_version < '3.14' and platform_machine == 'amd64') or (python_full_version < '3.14' and platform_machine == 'ppc64le') or (python_full_version < '3.14' and platform_machine == 'win32') or (python_full_version < '3.14' and platform_machine == 'x86_64') or (platform_machine != 'AMD64' and platform_machine != 'WIN32' and platform_machine != 'aarch64' and platform_machine != 'amd64' and platform_machine != 'ppc64le' and platform_machine != 'win32' and platform_machine != 'x86_64' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'AMD64' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'WIN32' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'aarch64' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'amd64' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'ppc64le' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'win32' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (platform_machine == 'x86_64' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e4/08/9a90962ea72acd532bda71249a626344d855c4032603924b1b547694b837/sqlalchemy-2.0.38.tar.gz", hash = "sha256:e5a4d82bdb4bf1ac1285a68eab02d253ab73355d9f0fe725a97e1e0fa689decb", size = 9634782 }
