@@ -92,7 +92,7 @@ jobs:
         path: differt/src/differt/scene/scenes
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --extra tests-extended pytest
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group tests-extended pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
@@ -187,7 +187,7 @@ jobs:
     - name: Install dependencies for profiling
       run: |
         rm -rf differt-core/python/differt_core/*.so
-        uv pip install -r pyproject.toml --extra tests \
+        uv pip install -r pyproject.toml --group tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
@@ -206,7 +206,7 @@ jobs:
     - name: Re-install dependencies
       run: |
         rm -rf differt-core/python/differt_core/*.so
-        uv pip install -r pyproject.toml --extra tests \
+        uv pip install -r pyproject.toml --group tests \
         --python='${{ steps.setup-python.outputs.python-path }}' \
         --config-settings=build-args='--profile profiling' --reinstall-package differt_core
       env:
@@ -262,7 +262,7 @@ jobs:
       uses: taiki-e/install-action@just
 
     - name: Install dependencies
-      run: just install --locked --no-dev --extra docs
+      run: just install --locked --no-dev --group docs
 
     - name: Check links in documentation
       run: just docs/linkcheck
