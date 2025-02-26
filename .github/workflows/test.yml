@@ -178,6 +178,7 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+      id: rust-toolchain
       with:
         components: llvm-tools
 
@@ -185,37 +186,26 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Install dependencies for profiling
-      run: |
-        rm -rf differt-core/python/differt_core/*.so
-        uv pip install -r pyproject.toml --group tests \
-        --python='${{ steps.setup-python.outputs.python-path }}' \
-        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
+      run: uv sync --group tests
+
+    - name: Build PGO wheel
+      id: pgo-wheel
+      uses: ./.github/actions/build-pgo-wheel
+      with:
+        interpreter: ${{ steps.setup-python.outputs.python-version }}
+        rust-toolchain: ${{ steps.rust-toolchain.outputs.name }}
       env:
-        RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
+        # make sure profiling information is present
+        CARGO_PROFILE_RELEASE_DEBUG: "line-tables-only"
+        CARGO_PROFILE_RELEASE_STRIP: false
 
-    - name: Detect Rust host
-      run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
-      shell: bash
-
-    - name: Generate profile data
-      run: pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
-
-    - name: Merge PGO data
-      run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
-
-    - name: Re-install dependencies
-      run: |
-        rm -rf differt-core/python/differt_core/*.so
-        uv pip install -r pyproject.toml --group tests \
-        --python='${{ steps.setup-python.outputs.python-path }}' \
-        --config-settings=build-args='--profile profiling' --reinstall-package differt_core
-      env:
-        RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
+    - name: Install PGO wheel
+      run: uv pip install ${{ steps.pgo-wheel.outputs.wheel }} --force-reinstall
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v3
       with:
-        run: pytest differt/tests/benchmarks --jaxtyping-packages="" --codspeed
+        run: uv run --group=codspeed pytest differt/tests/benchmarks --jaxtyping-packages="" --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest

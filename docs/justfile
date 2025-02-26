@@ -12,7 +12,7 @@ clean-autosummary:
 
 # Build docs
 build builder="html" *OPTIONS="-W --keep-going":
-    uv run --extra docs sphinx-build -M {{ builder }} source build {{ OPTIONS }}
+    uv run --group docs sphinx-build -M {{ builder }} source build {{ OPTIONS }}
 
 # Build docs in "draft" mode
 draft *ARGS:
