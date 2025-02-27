@@ -35,16 +35,18 @@ runs:
       RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
   - name: Detect Rust host
-    run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
     shell: bash
+    run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
 
   - name: Generate profile data
+    shell: bash
     run: |
       uv sync --group tests
       uv pip install differt-core --no-index --no-deps --find-links pgo-wheel --force-reinstall
       uv run pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
 
   - name: Merge PGO data
+    shell: bash
     run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
   - name: Build PGO wheel
@@ -62,5 +64,5 @@ runs:
 
   - name: Find and return path to PGO wheel
     id: pgo_wheel
-    run: echo "path=$(ls dist/*.whl)" | tee -a "$GITHUB_OUTPUT"
     shell: bash
+    run: echo "path=$(ls dist/*.whl)" | tee -a "$GITHUB_OUTPUT"
