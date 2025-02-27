@@ -4,6 +4,7 @@ cuda = [
   "jax[cuda]>=0.5.0",
 ]
 dev = [
+  {include-group = "codspeed"},
   {include-group = "docs"},
   {include-group = "tests"},
   "bump-my-version>=0.20.3",
