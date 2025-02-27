@@ -14,7 +14,7 @@ bench: bench-python bench-rust
 [group('python')]
 [group('test')]
 bench-python *ARGS:
-    uv run --extra tests pytest -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" {{ ARGS }}
+    uv run --group tests pytest -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" {{ ARGS }}
 
 # Benchmark Rust code
 [group('rust')]
@@ -93,7 +93,7 @@ test: test-python test-rust
 [group('python')]
 [group('test')]
 test-python *ARGS:
-    uv run --extra tests pytest {{ ARGS }}
+    uv run --group tests pytest {{ ARGS }}
 
 # Test Rust code
 [group('rust')]
