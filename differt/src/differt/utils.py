@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
-from typing import Any, Concatenate, ParamSpec, overload
+from typing import Any, Concatenate, ParamSpec
 
 import chex
 import equinox as eqx
@@ -108,19 +108,20 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
     if array.size == 0:
         return array
 
-    return array[jnp.lexsort(array.T[::-1])]  # type: ignore[reportArgumentType]
+    return array[jnp.lexsort(array.T[::-1])]
 
 
 # Redefined here, because chex uses deprecated type hints
 # TODO: fixme when google/chex#361 is resolved.
-_OptState = chex.Array | Iterable["_OptState"] | Mapping[Any, "_OptState"]
+ArrayTree = chex.Array | Iterable["ArrayTree"] | Mapping[Any, "ArrayTree"]
+OptState = ArrayTree
 # TODO: fixme when Python >= 3.11
-_P = ParamSpec("_P")
+P = ParamSpec("P")
 
 
 @eqx.filter_jit
 def minimize(
-    fun: Callable[Concatenate[Num[Array, " n"], _P], Num[Array, " "]],
+    fun: Callable[Concatenate[Num[Array, " n"], P], Num[Array, " "]],
     x0: Num[ArrayLike, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
@@ -255,9 +256,9 @@ def minimize(
     opt_state = optimizer.init(x0)
 
     def f(
-        carry: tuple[Num[Array, "*batch n"], _OptState],
+        carry: tuple[Num[Array, "*batch n"], OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], _OptState], Num[Array, " *batch"]]:
+    ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
         x, opt_state = carry
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state)
@@ -270,41 +271,19 @@ def minimize(
     return x, losses[-1]
 
 
-@overload
-def sample_points_in_bounding_box(
-    bounding_box: Float[ArrayLike, "2 3"],
-    shape: None = None,
-    *,
-    key: PRNGKeyArray,
-) -> Float[Array, "3"]: ...
-
-
-@overload
-def sample_points_in_bounding_box(
-    bounding_box: Float[ArrayLike, "2 3"],
-    shape: tuple[int, ...],
-    *,
-    key: PRNGKeyArray,
-) -> Float[Array, "3"]: ...
-
-
 @partial(jax.jit, static_argnames=("shape",))
 def sample_points_in_bounding_box(
     bounding_box: Float[ArrayLike, "2 3"],
-    shape: tuple[int, ...] | None = None,
+    shape: tuple[int, ...] = (),
     *,
     key: PRNGKeyArray,
-) -> (
-    Float[Array, "*shape 3"] | Float[Array, "3"]
-):  # TODO: use symbolic expression to link to 'shape' parameter
+) -> Float[Array, "{*shape} 3"]:
     """
     Sample point(s) in a 3D bounding box.
 
     Args:
         bounding_box: The bounding box (min. and max. coordinates).
-        shape: The sample shape or :data:`None`. If :data:`None`,
-            the returned array is 1D. Otherwise, the shape
-            of the returned array is ``(*shape, 3)``.
+        shape: The sample shape.
         key: The :func:`jax.random.PRNGKey` to be used.
 
     Returns:
@@ -314,9 +293,6 @@ def sample_points_in_bounding_box(
     amin = bounding_box[0, :]
     amax = bounding_box[1, :]
     scale = amax - amin
-
-    if shape is None:
-        shape = ()
 
     r = jax.random.uniform(key, shape=(*shape, 3))
 
