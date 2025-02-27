@@ -880,7 +880,7 @@ tests-extended = [
 codspeed = [{ name = "pytest-codspeed", specifier = ">=2.2.0" }]
 cuda = [{ name = "jax", extras = ["cuda"], specifier = ">=0.5.0" }]
 dev = [
-    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "beartype", specifier = ">=0.20" },
     { name = "bump-my-version", specifier = ">=0.20.3" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", extras = ["all"], editable = "differt" },
@@ -908,7 +908,7 @@ dev = [
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
 ]
 docs = [
-    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "beartype", specifier = ">=0.20" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "myst-nb", specifier = ">=0.17.2" },
     { name = "pillow", specifier = ">=10.1.0" },
@@ -929,7 +929,7 @@ icmlcn2025 = [
 ]
 prof = [{ name = "line-profiler", extras = ["ipython"], specifier = ">=4.1.3" }]
 tests = [
-    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "beartype", specifier = ">=0.20" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "pytest", specifier = ">=7.4.3" },
@@ -941,7 +941,7 @@ tests = [
     { name = "scipy", specifier = ">=1.12.0" },
 ]
 tests-extended = [
-    { name = "beartype", specifier = ">=0.19.0" },
+    { name = "beartype", specifier = ">=0.20" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'", specifier = ">=0.19.0" },
