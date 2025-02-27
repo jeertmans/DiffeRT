@@ -113,8 +113,9 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
 
 # Redefined here, because chex uses deprecated type hints
 # TODO: fixme when google/chex#361 is resolved.
-ArrayTree = chex.Array | Iterable["ArrayTree"] | Mapping[Any, "ArrayTree"]
-OptState = ArrayTree
+# TODO: changme because beartype>=0.20 complains that it cannot import ArrayTree,
+# and I don't see how to fix it.
+OptState = Any
 # TODO: fixme when Python >= 3.11
 P = ParamSpec("P")
 
