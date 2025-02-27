@@ -278,7 +278,7 @@ def sample_points_in_bounding_box(
     shape: tuple[int, ...] = (),
     *,
     key: PRNGKeyArray,
-) -> Float[Array, "{*shape} 3"]:
+) -> Float[Array, "*shape 3"]:
     """
     Sample point(s) in a 3D bounding box.
 
