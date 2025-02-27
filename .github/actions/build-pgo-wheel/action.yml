@@ -28,6 +28,7 @@ runs:
         --profile profiling
         --out pgo-wheel
         --interpreter ${{ inputs.interpreter }}
+      docker-options: -e CI
       manylinux: auto
       rust-toolchain: ${{ inputs.rust-toolchain }}
       working-directory: differt-core
@@ -56,6 +57,7 @@ runs:
         --release
         --out dist
         --interpreter ${{ inputs.interpreter }}
+      docker-options: -e CI
       manylinux: auto
       rust-toolchain: ${{ inputs.rust-toolchain }}
       working-directory: differt-core
