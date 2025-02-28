@@ -43,7 +43,7 @@ runs:
     shell: bash
     run: |
       uv sync --group tests
-      uv pip install differt-core --no-index --no-deps --find-links pgo-wheel --force-reinstall
+      uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
       uv run pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
 
   - name: Merge PGO data
@@ -67,4 +67,4 @@ runs:
   - name: Find and return path to PGO wheel
     id: pgo_wheel
     shell: bash
-    run: echo "path=$(ls dist/*.whl)" | tee -a "$GITHUB_OUTPUT"
+    run: echo "path=$(ls differt-core/dist/*.whl)" | tee -a "$GITHUB_OUTPUT"
