@@ -12,9 +12,11 @@ on:
     inputs:
       publish-differt:
         type: boolean
+        default: false
         description: Publish differt
       publish-differt-core:
         type: boolean
+        default: false
         description: Publish differt-core
 
 permissions:
