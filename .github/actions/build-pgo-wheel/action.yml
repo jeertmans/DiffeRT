@@ -4,9 +4,11 @@ description: Builds a PGO-optimized wheel
 inputs:
   interpreter:
     description: Interpreter to build the wheel for
+    default: false
     required: true
   rust-toolchain:
     description: Rust toolchain to use
+    default: false
     required: true
 outputs:
   wheel:
