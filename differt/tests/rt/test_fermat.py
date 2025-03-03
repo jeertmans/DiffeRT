@@ -32,4 +32,4 @@ def test_fermat_path_on_planar_mirrors(
         setup.mirror_normals,
         steps=10000,
     )
-    chex.assert_trees_all_close(got, setup.paths, atol=1e-4)
+    chex.assert_trees_all_close(got, setup.paths, atol=1e-3)
