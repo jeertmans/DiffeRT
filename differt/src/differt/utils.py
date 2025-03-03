@@ -1,6 +1,6 @@
 """General purpose utilities."""
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable
 from functools import partial
 from typing import Any, Concatenate, ParamSpec
 
