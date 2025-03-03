@@ -47,7 +47,7 @@ runs:
       uv run pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
 
   - name: Merge PGO data
-    shell: bash
+    shell: pwsh
     run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
   - name: Build PGO wheel
