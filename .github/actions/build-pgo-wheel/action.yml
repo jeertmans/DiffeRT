@@ -48,7 +48,7 @@ runs:
 
   - name: Merge PGO data
     shell: pwsh
-    run: rustup run stable bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
+    run: rustup run ${{ inputs.rust-toolchain }} bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
   - name: Build PGO wheel
     uses: PyO3/maturin-action@v1

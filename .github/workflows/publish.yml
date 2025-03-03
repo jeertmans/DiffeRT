@@ -235,7 +235,7 @@ jobs:
         working-directory: differt-core
 
   build-differt:
-    name: Build DiffeRT
+    name: Build differt wheels and sdist
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -264,7 +264,7 @@ jobs:
 
   release-differt:
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
-    name: Release DiffeRT
+    name: Release differt
     runs-on: ubuntu-latest
     needs: [build-differt]
     environment: release
