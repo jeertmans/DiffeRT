@@ -35,6 +35,10 @@ runs:
     env:
       RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
+  - name: Detect Rust host
+    shell: bash
+    run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
+
   - name: Generate profile data
     shell: bash
     run: |
