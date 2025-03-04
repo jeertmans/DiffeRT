@@ -26,7 +26,7 @@ permissions:
 jobs:
   build-differt-core-wheels:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.target }} - ${{ matrix.interpreter || 'all' }}${{ matrix.os == 'linux' && format(' - {0}', matrix.manylinux == 'auto' && 'manylinux' || matrix.manylinux) || '' }})
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +135,7 @@ jobs:
 
   build-differt-core-pgo-wheels:
     name: Build PGO wheels on ${{ matrix.os }} (${{ matrix.interpreter }}
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
     strategy:
       fail-fast: false
       matrix:
@@ -206,7 +206,7 @@ jobs:
         path: differt-core/dist
 
   release-differt-core:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt-core
+    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish-differt-core)
     name: Release differt-core
     runs-on: ubuntu-latest
     needs: [build-differt-core-sdist, build-differt-core-wheels, build-differt-core-pgo-wheels]
@@ -266,7 +266,7 @@ jobs:
         path: differt/dist/differt-*.whl
 
   release-differt:
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
+    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish-differt)
     name: Release differt
     runs-on: ubuntu-latest
     needs: [build-differt]
