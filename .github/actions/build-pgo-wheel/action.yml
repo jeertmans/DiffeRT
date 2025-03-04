@@ -35,20 +35,18 @@ runs:
     env:
       RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
 
-  - name: Detect Rust host
-    shell: bash
-    run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
-
   - name: Generate profile data
     shell: bash
     run: |
       uv sync --group tests
       uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
       uv run pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
+      RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2)
+      rustup run ${{ inputs.rust-toolchain }} bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/$RUST_HOST/bin/llvm-profdata >> "$GITHUB_ENV"'
 
   - name: Merge PGO data
     shell: pwsh
-    run: rustup run ${{ inputs.rust-toolchain }} bash -c '$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
+    run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata'
 
   - name: Build PGO wheel
     uses: PyO3/maturin-action@v1
