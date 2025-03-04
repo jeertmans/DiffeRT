@@ -25,7 +25,7 @@ runs:
     uses: PyO3/maturin-action@v1
     with:
       args: >
-        --profile profiling
+        --release
         --out pgo-wheel
         --interpreter ${{ inputs.interpreter }}
       docker-options: -e CI
@@ -44,7 +44,7 @@ runs:
     run: |
       uv sync --group tests
       uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
-      uv run pytest --dist=no -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" differt/tests/benchmarks
+      uv run pytest --jaxtyping-packages="" differt/tests/benchmarks
       RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2)
       rustup run ${{ inputs.rust-toolchain }} bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/$RUST_HOST/bin/llvm-profdata >> "$GITHUB_ENV"'
 
