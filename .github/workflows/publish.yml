@@ -134,7 +134,7 @@ jobs:
         path: differt-core/dist
 
   build-differt-core-pgo-wheels:
-    name: Build PGO wheels on ${{ matrix.os }} (${{ matrix.interpreter }}
+    name: Build PGO wheels on ${{ matrix.os }} (${{ matrix.interpreter }})
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
     strategy:
       fail-fast: false
