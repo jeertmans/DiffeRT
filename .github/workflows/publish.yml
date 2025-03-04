@@ -35,68 +35,68 @@ jobs:
         manylinux: [auto]
         include:
           # manylinux for various platforms, plus x86_64 pypy
-          - os: linux
-            manylinux: auto
-            target: i686
-          - os: linux
-            manylinux: auto
-            target: aarch64
-          - os: linux
-            manylinux: auto
-            target: armv7
-            interpreter: 3.10 3.11 3.12 3.13
-          - os: linux
-            manylinux: auto
-            target: ppc64le
-            interpreter: 3.10 3.11 3.12 3.13
-          - os: linux
-            manylinux: auto
-            target: s390x
-            interpreter: 3.10 3.11 3.12 3.13
-          - os: linux
-            manylinux: auto
-            target: x86_64
-            interpreter: pypy pypy3.10 pypy3.11
+        - os: linux
+          manylinux: auto
+          target: i686
+        - os: linux
+          manylinux: auto
+          target: aarch64
+        - os: linux
+          manylinux: auto
+          target: armv7
+          interpreter: 3.10 3.11 3.12 3.13
+        - os: linux
+          manylinux: auto
+          target: ppc64le
+          interpreter: 3.10 3.11 3.12 3.13
+        - os: linux
+          manylinux: auto
+          target: s390x
+          interpreter: 3.10 3.11 3.12 3.13
+        - os: linux
+          manylinux: auto
+          target: x86_64
+          interpreter: pypy pypy3.10 pypy3.11
 
           # musllinux
-          - os: linux
-            manylinux: musllinux_1_1
-            target: x86_64
-          - os: linux
-            manylinux: musllinux_1_1
-            target: aarch64
-          - os: linux
-            manylinux: musllinux_1_1
-            target: armv7
+        - os: linux
+          manylinux: musllinux_1_1
+          target: x86_64
+        - os: linux
+          manylinux: musllinux_1_1
+          target: aarch64
+        - os: linux
+          manylinux: musllinux_1_1
+          target: armv7
 
           # macos;
           # all versions x86_64
           # arm pypy and older pythons which can't be run on the arm hardware for PGO
-          - os: macos
-            target: x86_64
-          - os: macos
-            target: aarch64
-            interpreter: pypy3.10 pypy3.11
+        - os: macos
+          target: x86_64
+        - os: macos
+          target: aarch64
+          interpreter: pypy3.10 pypy3.11
 
           # windows;
           # x86_64 pypy builds are not PGO optimized
           # i686 not supported by pypy
           # aarch64 only 3.11 and up, also not PGO optimized
-          - os: windows
-            target: x86_64
-            interpreter: pypy3.10 pypy3.11
-          - os: windows
-            target: i686
-            python-architecture: x86
-            interpreter: 3.10 3.11 3.12 3.13
-          - os: windows
-            target: aarch64
-            interpreter: 3.11 3.12 3.13
+        - os: windows
+          target: x86_64
+          interpreter: pypy3.10 pypy3.11
+        - os: windows
+          target: i686
+          python-architecture: x86
+          interpreter: 3.10 3.11 3.12 3.13
+        - os: windows
+          target: aarch64
+          interpreter: 3.11 3.12 3.13
 
         exclude:
           # See above; disabled for now.
-          - os: windows
-            target: aarch64
+        - os: windows
+          target: aarch64
 
     runs-on: ${{ (matrix.os == 'linux' && 'ubuntu') || matrix.os }}-latest
     steps:
@@ -106,8 +106,8 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-          python-version: '3.13'
-          architecture: ${{ matrix.python-architecture || 'x64' }}
+        python-version: '3.13'
+        architecture: ${{ matrix.python-architecture || 'x64' }}
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
@@ -140,18 +140,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [linux, windows, macos]
-        interpreter: ['3.10', '3.11', '3.12', '3.13', '3.13t']
+        interpreter: ['3.10', '3.11', '3.12', '3.13', 3.13t]
         include:
           # standard runners with override for macos arm
-          - os: linux
-            runs-on: ubuntu-latest
-          - os: windows
-            ls: dir
-            runs-on: windows-latest
-          - os: macos
-            runs-on: macos-latest
+        - os: linux
+          runs-on: ubuntu-latest
+        - os: windows
+          ls: dir
+          runs-on: windows-latest
+        - os: macos
+          runs-on: macos-latest
         exclude:
-          - interpreter: 3.13t  # Needs rust-numpy 0.24
+        - interpreter: 3.13t    # Needs rust-numpy 0.24
 
     runs-on: ${{ matrix.runs-on }}
     steps:
