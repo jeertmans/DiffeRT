@@ -4,11 +4,18 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from differt.em import materials
+from differt.em import (
+    Dipole,
+    materials,
+    pointing_vector,
+    reflection_coefficients,
+    sp_directions,
+)
 from differt.geometry import (
     TriangleMesh,
     assemble_paths,
     fibonacci_lattice,
+    normalize,
 )
 from differt.rt import (
     first_triangles_hit_by_rays,
@@ -16,6 +23,7 @@ from differt.rt import (
     rays_intersect_triangles,
 )
 from differt.scene import TriangleScene
+from differt.utils import dot
 
 
 @pytest.mark.slow
@@ -209,3 +217,174 @@ def test_itu_materials() -> None:
                 sionna_mat.conductivity,
                 custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
             )
+
+
+@pytest.mark.slow
+@pytest.mark.filterwarnings("ignore:divide by zero encountered in log10:RuntimeWarning")
+def test_coverage_maps() -> None:
+    sionna = pytest.importorskip("sionna")
+    file = sionna.rt.scene.simple_street_canyon
+
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = TriangleScene.load_xml(file)
+    ant = Dipole(2.4e9)
+    sionna_scene.frequency = ant.frequency
+
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="dipole",
+        polarization="cross",
+    )
+
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="dipole",
+        polarization="cross",
+    )
+
+    tx = sionna.rt.Transmitter(
+        name="tx", position=[-33.0, 0.0, 32.0], look_at=[20.0, 0.0, 32.0]
+    )
+
+    sionna_scene.add(tx)
+
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 1.5])
+
+    sionna_scene.add(rx)
+    tx.look_at(rx)
+
+    # Compute coverage map
+    max_depth = 0
+    cm = sionna_scene.coverage_map(max_depth=max_depth, cm_cell_size=[5.0, 5.0])
+    sionna_path_gain = cm.path_gain[0, :, :].numpy()
+    db = 10 * jnp.log10(sionna_path_gain)
+    vmin = -50
+    vmax = -110
+    vmin = vmax = None
+    cm.show(vmin=vmin, vmax=vmax)
+    import matplotlib.pyplot as plt
+
+    plt.savefig("coverage_map.png")
+
+    sionna_path_gain = cm.path_gain[0, :, :].numpy()
+
+    transmitter = tx.position.numpy()
+    receivers = cm.cell_centers.numpy()
+    differt_scene = eqx.tree_at(
+        lambda s: (s.transmitters, s.receivers),
+        differt_scene,
+        replace=(jnp.asarray(transmitter), jnp.asarray(receivers)),
+    )
+
+    print(f"{differt_scene.transmitters = }")
+
+    E = jnp.zeros_like(receivers, dtype=jnp.complex64)
+    B = jnp.zeros_like(E)
+
+    print(f"{differt_scene = }")
+
+    eta_r = jnp.array([
+        materials[mat_name.removeprefix("mat-")].relative_permittivity(ant.frequency)
+        for mat_name in differt_scene.mesh.material_names
+    ])
+    n_r = jnp.sqrt(eta_r)
+
+    max_depth = 0
+
+    for order in range(max_depth + 1):
+        for paths in differt_scene.compute_paths(order=order, chunk_size=1_000):
+            E_i, B_i = ant.fields(paths.vertices[..., 1, :])
+
+            print(f"{E_i.shape = }")
+
+            if order > 0:
+                # [*batch num_path_candidates order]
+                obj_indices = paths.objects[..., 1:-1]
+                # [*batch num_path_candidates order]
+                mat_indices = jnp.take(
+                    differt_scene.mesh.face_materials, obj_indices, axis=0
+                )
+                # [*batch num_path_candidates order 3]
+                obj_normals = jnp.take(differt_scene.mesh.normals, obj_indices, axis=0)
+                # [*batch num_path_candidates order]
+                obj_n_r = jnp.take(n_r, mat_indices, axis=0)
+                # [*batch num_path_candidates order+1 3]
+                path_segments = jnp.diff(paths.vertices, axis=-2)
+                # [*batch num_path_candidates order+1 3],
+                # [*batch num_path_candidates order+1 1]
+                k, s = normalize(path_segments, keepdims=True)
+                # [*batch num_path_candidates order 3]
+                k_i = k[..., :-1, :]
+                k_r = k[..., +1:, :]
+                # [*batch num_path_candidates order 3]
+                (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
+                # [*batch num_path_candidates order 1]
+                cos_theta = dot(obj_normals, -k_i, keepdims=True)
+                # [*batch num_path_candidates order 1]
+                r_s, r_p = reflection_coefficients(obj_n_r[..., None], cos_theta)
+                # [*batch num_path_candidates 1]
+                r_s = jnp.prod(r_s, axis=-2)
+                r_p = jnp.prod(r_p, axis=-2)
+                # [*batch num_path_candidates order 3]
+                (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
+                # [*batch num_path_candidates 1]
+                E_i_s = dot(E_i, e_i_s[..., 0, :], keepdims=True)
+                E_i_p = dot(E_i, e_i_p[..., 0, :], keepdims=True)
+                B_i_s = dot(B_i, e_i_s[..., 0, :], keepdims=True)
+                B_i_p = dot(B_i, e_i_p[..., 0, :], keepdims=True)
+                # [*batch num_path_candidates 1]
+                E_r_s = r_s * E_i_s
+                E_r_p = r_p * E_i_p
+                B_r_s = r_s * B_i_s
+                B_r_p = r_p * B_i_p
+                # [*batch num_path_candidates 3]
+                E_r = E_r_s * e_r_s[..., -1, :] + E_r_p * e_r_p[..., -1, :]
+                B_r = B_r_s * e_r_s[..., -1, :] + B_r_p * e_r_p[..., -1, :]
+                # [*batch num_path_candidates 1]
+                s_tot = s.sum(axis=-2)
+                spreading_factor = s[..., 0, :] / s_tot  # Far-field approximation
+                phase_shift = jnp.exp(1j * s_tot * ant.wavenumber)
+                # [*batch num_path_candidates 3]
+                E_r *= spreading_factor * phase_shift
+                B_r *= spreading_factor * phase_shift
+            else:
+                # [*batch num_path_candidates 3]
+                E_r = E_i
+                B_r = B_i
+
+            # [*batch 3]
+            E += jnp.sum(E_r, axis=-2, where=paths.mask[..., None])
+            B += jnp.sum(B_r, axis=-2, where=paths.mask[..., None])
+
+    S = pointing_vector(E, B)
+    P = ant.aperture * jnp.linalg.norm(S, axis=-1)
+    differt_path_gain = P / ant.reference_power
+
+    plt.figure()
+    plt.imshow(10 * jnp.log10(differt_path_gain), origin="lower", vmin=vmin, vmax=vmax)
+    plt.colorbar(label="Path gain [dB]")
+
+    plt.xlabel("Cell index (X-axis)")
+    plt.ylabel("Cell index (Y-axis)")
+    plt.title("Path gain")
+    plt.savefig("differt_path_gain.png")
+
+    tol = 0.05
+    chex.assert_trees_all_equal_comparator(
+        lambda x, y: ((x == 0) ^ (y == 0)).sum() <= x.size * tol,
+        lambda x,
+        y,: f"Arrays {x} and {y} differ by more than {100 * tol:.2f}% of their elements.",
+        sionna_path_gain,
+        differt_path_gain,
+    )
+
+    chex.assert_trees_all_close(
+        sionna_path_gain,
+        differt_path_gain,
+    )
