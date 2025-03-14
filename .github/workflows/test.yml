@@ -54,11 +54,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.10', '3.11', '3.12', '3.13']
+        pyversion: ['3.10', '3.11', '3.12', '3.13', '3.13t']
         resolution: [highest, lowest-direct]
         exclude:
         - os: windows-latest
           pyversion: '3.13'
+        - os: windows-latest
+          pyversion: '3.13t'
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
     steps:

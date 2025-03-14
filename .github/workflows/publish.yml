@@ -150,8 +150,6 @@ jobs:
           runs-on: windows-latest
         - os: macos
           runs-on: macos-latest
-        exclude:
-        - interpreter: 3.13t    # Needs rust-numpy 0.24
 
     runs-on: ${{ matrix.runs-on }}
     steps:
