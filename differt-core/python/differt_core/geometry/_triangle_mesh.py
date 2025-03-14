@@ -1,5 +1,5 @@
 __all__ = ("TriangleMesh",)
 
-from differt_core import _lowlevel
+from differt_core import _differt_core
 
-TriangleMesh = _lowlevel.geometry.triangle_mesh.TriangleMesh
+TriangleMesh = _differt_core.geometry.triangle_mesh.TriangleMesh

@@ -1,7 +1,7 @@
 __all__ = ("Material", "Shape", "SionnaScene")
 
-from differt_core import _lowlevel
+from differt_core import _differt_core
 
-Material = _lowlevel.scene.sionna.Material
-Shape = _lowlevel.scene.sionna.Shape
-SionnaScene = _lowlevel.scene.sionna.SionnaScene
+Material = _differt_core.scene.sionna.Material
+Shape = _differt_core.scene.sionna.Shape
+SionnaScene = _differt_core.scene.sionna.SionnaScene

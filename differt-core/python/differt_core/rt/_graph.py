@@ -7,13 +7,13 @@ __all__ = (
     "DiGraph",
 )
 
-from differt_core import _lowlevel
+from differt_core import _differt_core
 
 AllPathsFromCompleteGraphChunksIter = (
-    _lowlevel.rt.graph.AllPathsFromCompleteGraphChunksIter
+    _differt_core.rt.graph.AllPathsFromCompleteGraphChunksIter
 )
-AllPathsFromCompleteGraphIter = _lowlevel.rt.graph.AllPathsFromCompleteGraphIter
-AllPathsFromDiGraphChunksIter = _lowlevel.rt.graph.AllPathsFromDiGraphChunksIter
-AllPathsFromDiGraphIter = _lowlevel.rt.graph.AllPathsFromDiGraphIter
-CompleteGraph = _lowlevel.rt.graph.CompleteGraph
-DiGraph = _lowlevel.rt.graph.DiGraph
+AllPathsFromCompleteGraphIter = _differt_core.rt.graph.AllPathsFromCompleteGraphIter
+AllPathsFromDiGraphChunksIter = _differt_core.rt.graph.AllPathsFromDiGraphChunksIter
+AllPathsFromDiGraphIter = _differt_core.rt.graph.AllPathsFromDiGraphIter
+CompleteGraph = _differt_core.rt.graph.CompleteGraph
+DiGraph = _differt_core.rt.graph.DiGraph

@@ -7,7 +7,7 @@ pub mod scene;
 /// Core of DiffeRT module, implemented in Rust.
 #[cfg(not(tarpaulin_include))]
 #[pymodule]
-fn _lowlevel(m: Bound<'_, PyModule>) -> PyResult<()> {
+fn _differt_core(m: Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     let mut version = env!("CARGO_PKG_VERSION").to_string();
