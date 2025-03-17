@@ -37,7 +37,7 @@ prof = [
   "line-profiler[ipython]>=4.1.3",
 ]
 tests = [
-  "differt[all]",
+  "differt",
   "beartype>=0.20",
   "chex>=0.1.84",
   "pytest>=7.4.3",
@@ -50,6 +50,7 @@ tests = [
 ]
 tests-extended = [
   {include-group = "tests"},
+  "differt[all]",
   "open3d-cpu>=0.19.0;python_version<'3.13' and sys_platform=='linux'",
   "sionna==0.19.1;python_version<'3.12' and sys_platform=='linux'",
 ]
