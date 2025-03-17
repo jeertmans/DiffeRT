@@ -59,8 +59,7 @@ jobs:
         exclude:
         - os: windows-latest
           pyversion: '3.13'
-        - os: windows-latest
-          pyversion: '3.13t'
+        - pyversion: '3.13t'  # Qt bindings not available for this version
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
     steps:
