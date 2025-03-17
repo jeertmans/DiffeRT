@@ -82,13 +82,13 @@ class LOSModel(eqx.Module):
     ) -> Float[Array, " "]:
         # [num_triangles 3 num_embeds] -> [num_triangles num_embeds] -> [num_embeds]
         scene_embeds = (
-            jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)  # type: ignore[reportCallIssue]
+            jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)
         )
 
         # [2 num_embeds] -> [2*num_embeds]
-        path_embeds = jax.vmap(self.embeds)(path_vertices).reshape(-1)  # type: ignore[reportCallIssue]
+        path_embeds = jax.vmap(self.embeds)(path_vertices).reshape(-1)
 
-        logits = self.logits(jnp.concatenate([scene_embeds, path_embeds], axis=-1))  # type: ignore[reportCallIssue]
+        logits = self.logits(jnp.concatenate([scene_embeds, path_embeds], axis=-1))
         return jax.nn.sigmoid(logits)
 
 
