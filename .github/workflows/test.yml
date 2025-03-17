@@ -193,7 +193,7 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Install dependencies for profiling
-      run: uv sync --group tests
+      run: uv sync --no-dev --group tests
 
     - name: Build PGO wheel
       id: pgo-wheel

@@ -42,7 +42,7 @@ runs:
   - name: Generate profile data
     shell: bash
     run: |
-      uv sync --group tests
+      uv sync --no-dev --group tests
       uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
       uv run pytest --jaxtyping-packages="" differt/tests/benchmarks
       RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2)
