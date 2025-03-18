@@ -140,7 +140,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [linux, windows, macos]
-        interpreter: ['3.10', '3.11', '3.12', '3.13']  # 3.13t is not possible due to jaxlib
+        interpreter: ['3.10', '3.11', '3.12', '3.13', 3.13t]
         include:
           # standard runners with override for macos arm
         - os: linux
@@ -150,6 +150,11 @@ jobs:
           runs-on: windows-latest
         - os: macos
           runs-on: macos-latest
+        exclude:  # jaxlib wheels not available
+        - os: windows
+          interpreter: '3.13t'
+        - os: macos
+          interpreter: '3.13t'
 
     runs-on: ${{ matrix.runs-on }}
     steps:
@@ -175,7 +180,7 @@ jobs:
         rust-toolchain: ${{ steps.rust-toolchain.outputs.name }}
 
     - name: List dist directory
-      run: ${{ (matrix.os == 'windows' && 'dir') || 'ls -lh' }} differt-core/dist/
+      run: ${{ matrix.ls || 'ls -lh' }} differt-core/dist/
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
@@ -227,7 +232,6 @@ jobs:
       uses: actions/attest-build-provenance@v2
       with:
         subject-path: differt-core/dist/differt-core-wheels-*
-
     - name: Publish to PyPI
       uses: PyO3/maturin-action@v1
       with:
