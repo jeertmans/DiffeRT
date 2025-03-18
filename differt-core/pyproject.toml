@@ -35,6 +35,6 @@ include = [
   {path = "LICENSE.md", format = "sdist"},
   {path = "README.md", format = "sdist"},
 ]
-module-name = "differt_core._lowlevel"
+module-name = "differt_core._differt_core"
 python-source = "python"
 strip = true
