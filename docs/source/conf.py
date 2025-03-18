@@ -43,6 +43,7 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx.ext.todo",
     # Additional
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
