@@ -140,7 +140,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [linux, windows, macos]
-        interpreter: ['3.10', '3.11', '3.12', '3.13', 3.13t]
+        interpreter: ['3.10', '3.11', '3.12', '3.13']  # 3.13t is not possible due to jaxlib
         include:
           # standard runners with override for macos arm
         - os: linux
