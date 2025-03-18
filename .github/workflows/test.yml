@@ -116,14 +116,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v5
-      if: ! endsWith(matrix.pyversion, 't')
-      with:
-        python-version: ${{ matrix.pyversion }}
-
-    - name: Setup Python
       uses: Quansight-Labs/setup-python@v5
-      if: endsWith(matrix.pyversion, 't')
       with:
         python-version: ${{ matrix.pyversion }}
 
