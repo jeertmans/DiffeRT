@@ -350,9 +350,13 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    def append(self, other: Self) -> "TriangleMesh":
+    def append(self, other: "TriangleMesh") -> "TriangleMesh":
         """
         Return a new mesh by appending another mesh to this one.
+
+        .. tip::
+
+            For convenience, you can also use the ``+`` operator.
 
         .. todo::
 
