@@ -152,9 +152,11 @@ jobs:
           runs-on: macos-latest
         exclude:  # jaxlib wheels not available
         - os: windows
-          interpreter: '3.13t'
+          interpreter: 3.13t
         - os: macos
-          interpreter: '3.13t'
+          interpreter: 3.13t
+        - os: windows # TODO: fixme
+        - interpreter: 3.13t    # TODO: fixme
 
     runs-on: ${{ matrix.runs-on }}
     steps:
