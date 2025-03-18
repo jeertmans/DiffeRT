@@ -139,8 +139,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [linux, windows, macos]
-        interpreter: ['3.10', '3.11', '3.12', '3.13', 3.13t]
+        os: [linux, macos]  # TODO: put back Windows
+        interpreter: ['3.10', '3.11', '3.12', '3.13']  # TODO: put back 3.13t
         include:
           # standard runners with override for macos arm
         - os: linux
@@ -150,13 +150,11 @@ jobs:
           runs-on: windows-latest
         - os: macos
           runs-on: macos-latest
-        exclude:  # jaxlib wheels not available
-        - os: windows
-          interpreter: 3.13t
-        - os: macos
-          interpreter: 3.13t
-        - os: windows # TODO: fixme
-        - interpreter: 3.13t    # TODO: fixme
+        # exclude:  # jaxlib wheels not available
+        # - os: windows
+        #   interpreter: 3.13t
+        # - os: macos
+        #   interpreter: 3.13t
 
     runs-on: ${{ matrix.runs-on }}
     steps:
