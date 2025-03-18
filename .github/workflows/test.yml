@@ -56,7 +56,15 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
         pyversion: ['3.10', '3.11', '3.12', '3.13', '3.13t']
         resolution: [highest, lowest-direct]
-        group: [tests-extended]
+        include:
+        - pyversion: '3.13t'    # Qt bindings not available for this version
+          group: tests
+        exclude:  # jaxlib wheels not available
+        - os: macos-latest
+          pyversion: '3.13t'
+        - os: windows-latest
+          pyversion: '3.13t'
+
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
     steps:
@@ -90,7 +98,7 @@ jobs:
         path: differt/src/differt/scene/scenes
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group }} pytest
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
