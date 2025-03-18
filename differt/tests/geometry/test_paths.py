@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -269,13 +270,29 @@ class TestPaths:
 
         assert got == paths.num_valid_paths
 
-    def test_reduce(self, key: PRNGKeyArray) -> None:
-        paths = random_paths(4, 10, num_objects=3, with_mask=True, key=key)
+    @pytest.mark.parametrize(
+        ("batch", "axis", "expected_shape"),
+        [
+            ((), None, ()),
+            ((10,), None, ()),
+            ((5, 20), -1, (5,)),
+            ((15, 20), (0, 1), ()),
+        ],
+    )
+    def test_reduce(
+        self,
+        batch: tuple[int, ...],
+        axis: Sequence[int] | int | None,
+        expected_shape: tuple[int, ...],
+        key: PRNGKeyArray,
+    ) -> None:
+        paths = random_paths(4, *batch, num_objects=3, with_mask=True, key=key)
 
-        expected = path_lengths(paths.vertices).sum(where=paths.mask)
+        expected = path_lengths(paths.vertices).sum(axis=axis, where=paths.mask)
 
-        got = paths.reduce(path_lengths)
+        got = paths.reduce(path_lengths, axis=axis)
 
+        chex.assert_shape(got, expected_shape)
         chex.assert_trees_all_equal(got, expected)
 
     @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
