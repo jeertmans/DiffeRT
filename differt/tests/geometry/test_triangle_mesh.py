@@ -83,6 +83,17 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
+    def test_init_with_non_unique_material_names(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=r"Material names must be unique, got \('concrete', 'glass', 'concrete'\)\.",
+        ):
+            _ = TriangleMesh(
+                vertices=jnp.zeros((3, 3)),
+                triangles=jnp.zeros((1, 3), dtype=int),
+                material_names=["concrete", "glass", "concrete"],
+            )
+
     def test_num_triangles(self, two_buildings_mesh: TriangleMesh) -> None:
         assert two_buildings_mesh.num_triangles == 24
 
@@ -310,6 +321,78 @@ class TestTriangleMesh:
 
     def test_not_empty(self, two_buildings_mesh: TriangleMesh) -> None:
         assert not two_buildings_mesh.is_empty
+
+    @pytest.mark.parametrize(
+        "self_empty",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_empty",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "self_assume_quads",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_assume_quads",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "self_colors",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_colors",
+        [False, True],
+    )
+    def test_append(
+        self,
+        self_empty: bool,
+        other_empty: bool,
+        self_assume_quads: bool,
+        other_assume_quads: bool,
+        self_colors: bool,
+        other_colors: bool,
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+    ) -> None:
+        # TODO: Test merging material names.
+        s = (
+            TriangleMesh.empty() if self_empty else two_buildings_mesh
+        ).set_assume_quads(self_assume_quads)
+        o = (
+            TriangleMesh.empty() if other_empty else two_buildings_mesh
+        ).set_assume_quads(other_assume_quads)
+
+        key_s, key_o = jax.random.split(key)
+
+        if self_colors and not self_empty:
+            s = s.set_face_colors(key=key_s)  # type: ignore[reportCallIssue]
+        if other_colors and not other_empty:
+            o = o.set_face_colors(key=key_o)  # type: ignore[reportCallIssue]
+
+        mesh = s + o
+
+        assert mesh.num_triangles == (s.num_triangles + o.num_triangles)
+
+        if (  # noqa: PLR0916
+            (self_assume_quads and not self_empty)
+            and (other_empty or other_assume_quads)
+        ) or (
+            (other_assume_quads and not other_empty)
+            and (self_empty or self_assume_quads)
+        ):
+            assert mesh.num_objects == mesh.num_quads
+        else:
+            assert mesh.num_objects == mesh.num_triangles
+
+        if (self_colors and not self_empty) or (other_colors and not other_empty):
+            assert mesh.face_colors is not None
+        else:
+            assert mesh.face_colors is None
+
+        chex.assert_trees_all_equal(mesh, s.append(o))
 
     @pytest.mark.parametrize(
         ("shape", "expectation"),

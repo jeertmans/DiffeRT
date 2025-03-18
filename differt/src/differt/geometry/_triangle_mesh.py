@@ -115,7 +115,7 @@ class TriangleMesh(eqx.Module):
     material_names: tuple[str, ...] = eqx.field(
         converter=tuple, default_factory=tuple, static=True
     )
-    """The list of material names."""
+    """The list of material names (must be unique)."""
     object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
@@ -142,6 +142,9 @@ class TriangleMesh(eqx.Module):
     def __check_init__(self) -> None:  # noqa: PLW3201
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
+            raise ValueError(msg)
+        if len(set(self.material_names)) != len(self.material_names):
+            msg = f"Material names must be unique, got {self.material_names!r}."
             raise ValueError(msg)
 
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
@@ -346,6 +349,139 @@ class TriangleMesh(eqx.Module):
             A new empty scene.
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
+
+    def append(self, other: "TriangleMesh") -> "TriangleMesh":
+        """
+        Return a new mesh by appending another mesh to this one.
+
+        .. tip::
+
+            For convenience, you can also use the ``+`` operator.
+
+        .. todo::
+
+            Document how optional arguments are merged,
+            as well as the behavior of :attr:`assume_quads`,
+            and the specific case of empty meshes.
+
+        Args:
+            other: The mesh to append.
+
+        Returns:
+            The new mesh.
+
+        Examples:
+            The following example shows how to create a mesh of nested cubes.
+
+            .. plotly::
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.empty()
+                >>> for i in range(3):
+                ...     size = 1.0 / (i + 1)
+                ...     mesh += TriangleMesh.box(length=size, width=size, height=size)
+                >>> mesh = mesh.set_assume_quads().set_face_colors(
+                ...     key=jax.random.key(1234)
+                ... )
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        if self.is_empty:
+            return eqx.tree_at(lambda _: (), other, ())
+        if other.is_empty:
+            return eqx.tree_at(lambda _: (), self, ())
+
+        vertices = jnp.concatenate((self.vertices, other.vertices), axis=0)
+        triangles = jnp.concatenate(
+            (self.triangles, other.triangles + self.vertices.shape[0]), axis=0
+        )
+
+        if self.face_colors is not None and other.face_colors is not None:
+            face_colors = jnp.concatenate((self.face_colors, other.face_colors), axis=0)
+        elif self.face_colors is not None:
+            face_colors = jnp.concatenate(
+                (
+                    self.face_colors,
+                    jnp.zeros_like(self.face_colors, shape=(other.num_triangles, 3)),
+                ),
+                axis=0,
+            )
+        elif other.face_colors is not None:
+            face_colors = jnp.concatenate(
+                (
+                    jnp.zeros_like(other.face_colors, shape=(self.num_triangles, 3)),
+                    other.face_colors,
+                ),
+                axis=0,
+            )
+        else:
+            face_colors = None
+
+        material_names = dict.fromkeys(self.material_names) | dict.fromkeys(
+            other.material_names
+        )
+        material_indices = {
+            material_name: i for i, material_name in enumerate(material_names)
+        }
+        other_face_materials_renumbered = jnp.array([
+            material_indices[name] for name in other.material_names
+        ])
+        material_names = tuple(material_names)
+
+        if self.face_materials is not None and other.face_materials is not None:
+            face_materials = jnp.concatenate(
+                (
+                    self.face_materials,
+                    jnp.where(
+                        other.face_materials != -1,
+                        other_face_materials_renumbered[other.face_materials],
+                        other.face_materials,
+                    ),
+                ),
+                axis=0,
+            )
+        elif self.face_materials is not None:
+            face_materials = jnp.concatenate(
+                (
+                    self.face_materials,
+                    jnp.full_like(self.face_materials, -1, shape=other.num_triangles),
+                ),
+                axis=0,
+            )
+        elif other.face_materials is not None:
+            face_materials = jnp.concatenate(
+                (
+                    jnp.full_like(other.face_materials, -1, shape=self.num_triangles),
+                    jnp.where(
+                        other.face_materials != -1,
+                        other_face_materials_renumbered[other.face_materials],
+                        other.face_materials,
+                    ),
+                ),
+                axis=0,
+            )
+        else:
+            face_materials = None
+
+        object_bounds = (
+            jnp.concatenate(
+                (self.object_bounds, other.object_bounds + other.num_triangles), axis=0
+            )
+            if (self.object_bounds is not None and other.object_bounds is not None)
+            else None
+        )
+        assume_quads = self.assume_quads and other.assume_quads
+        return TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_colors=face_colors,
+            face_materials=face_materials,
+            object_bounds=object_bounds,
+            assume_quads=assume_quads,
+        )
+
+    __add__ = append
 
     @overload
     def set_face_colors(
