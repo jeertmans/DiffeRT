@@ -78,8 +78,57 @@ pub(crate) struct Material {
     ///
     /// This can be, e.g., an ITU identifier.
     pub(crate) id: String,
-    /// tuple[float, float, float]: The material color, used when plotted.
+    /// tuple[float, float, float]: The material color, used for plotting.
     pub(crate) rgb: [f32; 3],
+    /// typing.Optional[float]: The material thickness, optional.
+    pub(crate) thickness: Option<f32>,
+}
+
+
+fn deserialize_type<'de, D>(deserializer: D) -> Result<&'de str, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    struct TypeString<'source> {
+        #[serde(rename(deserialize = "@name"))]
+        name: &'source str,
+        #[serde(rename(deserialize = "@value"))]
+        value: &'source str,
+    }
+
+    let TypeString { name, value } = TypeString::deserialize(deserializer)?;
+
+    if name == "type" {
+        Ok(value)
+    } else {
+        Err(de::Error::custom(
+            "name of <string> element must be 'type'",
+        ))
+    }
+}
+
+fn deserialize_thickness<'de, D>(deserializer: D) -> Result<f32, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    struct ThicknessString<'source> {
+        #[serde(rename(deserialize = "@name"))]
+        name: &'source str,
+        #[serde(rename(deserialize = "@value"))]
+        value: f32,
+    }
+
+    let ThicknessString { name, value } = ThicknessString::deserialize(deserializer)?;
+
+    if name == "thickness" {
+        Ok(value)
+    } else {
+        Err(de::Error::custom(
+            "name of <float> element must be 'thickness'",
+        ))
+    }
 }
 
 impl<'de> Deserialize<'de> for Material {
@@ -93,23 +142,33 @@ impl<'de> Deserialize<'de> for Material {
             id: String,
             #[serde(rename = "$value")]
             rgb: PossiblyNestedRgb,
+            #[serde(
+                rename(deserialize = "@float"),
+                deserialize_with = "deserialize_thickness"
+            )]
+            thickness: Option<f32>,
         }
 
         #[derive(Deserialize)]
-        struct Rgb {
+        struct Rgb<'source> {
             #[serde(rename(deserialize = "@value"))]
-            value: String,
+            value: &'source str,
         }
+
 
         #[derive(Deserialize)]
         #[serde(rename_all = "snake_case")]
-        enum PossiblyNestedRgb {
+        enum PossiblyNestedRgb<'source> {
             Rgb {
                 #[serde(rename(deserialize = "@value"))]
-                value: String,
+                value: &'source str,
             },
             Bsdf {
-                rgb: Rgb,
+                rgb: Rgb<'source>,
+            },
+            Type {
+                #[serde(rename(deserialize = "@value"))]
+                value: &'source str,
             },
         }
 
@@ -124,6 +183,25 @@ impl<'de> Deserialize<'de> for Material {
                 id,
                 rgb: PossiblyNestedRgb::Bsdf { rgb: Rgb { value } },
             } => (id, value),
+            Type {
+                id,
+                rgb: Type { value: Rgb { value } },
+            } => {
+                let rgb = match r#type {
+                    "diffuse" => [0.8, 0.8, 0.8],
+                    "mirror" => [0.8, 0.8, 0.8],
+                    "glass" => [0.8, 0.8, 0.8],
+                    "plastic" => [0.8, 0.8, 0.8],
+                    "metal" => [0.8, 0.8, 0.8],
+                    "emissive" => [0.8, 0.8, 0.8],
+                    _ => {
+                        return Err(de::Error::custom(
+                            "value of <type> element must be 'diffuse', 'mirror', 'glass', 'plastic', 'metal' or 'emissive'",
+                        ))
+                    },
+                };
+
+            } (id, value),
         };
 
         match rgb.split_ascii_whitespace().collect::<Vec<_>>().as_slice() {
@@ -159,11 +237,11 @@ pub(crate) struct Shape {
     /// str: The path to the shape file.
     ///
     /// This path is relative to the scene config file.
-    #[serde(rename(deserialize = "string"), deserialize_with = "deserialize_file")]
+    #[serde(rename(deserialize = "@string"), deserialize_with = "deserialize_file")]
     pub(crate) file: String,
     /// str: The material ID attached to this object.
     #[serde(
-        rename(deserialize = "ref"),
+        rename(deserialize = "@ref"),
         deserialize_with = "deserialize_material_id"
     )]
     pub(crate) material_id: String,

@@ -59,11 +59,13 @@ jobs:
         include:
         - pyversion: 3.13t      # Qt bindings not available for this version
           group: tests
-        exclude:  # jaxlib wheels not available
-        - os: macos-latest
+        exclude:
+        - os: macos-latest  # jaxlib wheels not available
           pyversion: 3.13t
-        - os: windows-latest
+        - os: windows-latest  # jaxlib wheels not available
           pyversion: 3.13t
+        - os: windows-latest  # bugs with NumPy
+          pyversion: '3.13'
 
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
