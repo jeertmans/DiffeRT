@@ -22,6 +22,8 @@ SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
 
 def download_sionna_scenes(
     branch_or_tag: str = "main",
+    repo: str = "NVlabs/sionna-rt",
+    scenes_folder: str = "src/sionna/rt/scenes/",
     *,
     folder: str | Path = SIONNA_SCENES_FOLDER,
     cached: bool = True,
@@ -44,6 +46,11 @@ def download_sionna_scenes(
 
     Args:
         branch_or_tag: The branch or tag version of the Sionna repository.
+        repo: The repository ``{owner}/{name}`` on GitHub from which to download the scenes.
+
+            E.g., you can change this if you want to use a fork instead.
+        scenes_folder: The folder where the scenes are stored in the
+            repository.
         folder: Where to extract the scene files, i.e., the content
             of ``sionna/rt/scenes/``.
         cached: Whether to avoid downloading again if the target folder
@@ -66,7 +73,7 @@ def download_sionna_scenes(
 
             folder.rmdir()
 
-        url = f"https://codeload.github.com/NVlabs/sionna/tar.gz/{branch_or_tag}"
+        url = f"https://codeload.github.com/{repo}/tar.gz/{branch_or_tag}"
 
         response = requests.get(url, stream=True, timeout=timeout)
 
@@ -75,8 +82,8 @@ def download_sionna_scenes(
 
         def members(tar: tarfile.TarFile) -> Iterator[tarfile.TarInfo]:
             for member in tar.getmembers():
-                if (index := member.path.find("sionna/rt/scenes/")) >= 0:
-                    member.path = member.path[index + 17 :]
+                if (index := member.path.find(scenes_folder)) >= 0:
+                    member.path = member.path[index + len(scenes_folder) :]
                     yield member
 
         with (
@@ -180,6 +187,20 @@ def main() -> None:  # pragma: no cover
         default="main",
         nargs="?",
         help="branch or tag version of the Sionna repository.",
+    )
+    parser.add_argument(
+        "-r",
+        "--repo",
+        type=str,
+        default="NVlabs/sionna-rt",
+        help="the repository '{owner}/{name}' on GitHub from which to download the scenes.",
+    )
+    parser.add_argument(
+        "-s",
+        "--scenes-folder",
+        type=Path,
+        default="src/sionna/rt/scenes",
+        help="the folder where the scenes are stored in the repository.",
     )
     parser.add_argument(
         "--folder",
