@@ -10,9 +10,6 @@ on:
     - '*'
   workflow_dispatch:
     inputs:
-      dry-run:
-        type: boolean
-        description: Dry run
       publish-differt:
         type: boolean
         description: Publish differt
@@ -24,81 +21,24 @@ permissions:
   contents: read
 
 jobs:
-  build-differt-core-wheels:
-    name: Build wheels on ${{ matrix.os }} (${{ matrix.target }} - ${{ matrix.interpreter || 'all' }}${{ matrix.os == 'linux' && format(' - {0}', matrix.manylinux == 'auto' && 'manylinux' || matrix.manylinux) || '' }})
-    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
+  build-differt-core-linux-wheels:
+    name: Build linux-${{ matrix.platform.target}} wheels for differt-core
+    runs-on: ${{ matrix.platform.runner }}
     strategy:
-      fail-fast: false
       matrix:
-        os: [linux, macos, windows]
-        target: [x86_64, aarch64]
-        manylinux: [auto]
-        include:
-          # manylinux for various platforms, plus x86_64 pypy
-        - os: linux
-          manylinux: auto
-          target: i686
-        - os: linux
-          manylinux: auto
+        platform:
+        - runner: ubuntu-22.04
+          target: x86_64
+        - runner: ubuntu-22.04
+          target: x86
+        - runner: ubuntu-22.04
           target: aarch64
-        - os: linux
-          manylinux: auto
+        - runner: ubuntu-22.04
           target: armv7
-          interpreter: 3.10 3.11 3.12 3.13
-        - os: linux
-          manylinux: auto
-          target: ppc64le
-          interpreter: 3.10 3.11 3.12 3.13
-        - os: linux
-          manylinux: auto
+        - runner: ubuntu-22.04
           target: s390x
-          interpreter: 3.10 3.11 3.12 3.13
-        - os: linux
-          manylinux: auto
-          target: x86_64
-          interpreter: pypy pypy3.10 pypy3.11
-
-          # musllinux
-        - os: linux
-          manylinux: musllinux_1_1
-          target: x86_64
-        - os: linux
-          manylinux: musllinux_1_1
-          target: aarch64
-        - os: linux
-          manylinux: musllinux_1_1
-          target: armv7
-
-          # macos;
-          # all versions x86_64
-          # arm pypy and older pythons which can't be run on the arm hardware for PGO
-        - os: macos
-          target: x86_64
-        - os: macos
-          target: aarch64
-          interpreter: pypy3.10 pypy3.11
-
-          # windows;
-          # x86_64 pypy builds are not PGO optimized
-          # i686 not supported by pypy
-          # aarch64 only 3.11 and up, also not PGO optimized
-        - os: windows
-          target: x86_64
-          interpreter: pypy3.10 pypy3.11
-        - os: windows
-          target: i686
-          python-architecture: x86
-          interpreter: 3.10 3.11 3.12 3.13
-        - os: windows
-          target: aarch64
-          interpreter: 3.11 3.12 3.13
-
-        exclude:
-          # See above; disabled for now.
-        - os: windows
-          target: aarch64
-
-    runs-on: ${{ (matrix.os == 'linux' && 'ubuntu') || matrix.os }}-latest
+        - runner: ubuntu-22.04
+          target: ppc64le
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -106,86 +46,125 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
-        architecture: ${{ matrix.python-architecture || 'x64' }}
+        python-version: 3.x
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
-        args: --release --out dist --interpreter ${{ matrix.interpreter || '3.10 3.11 3.12 3.13 pypy3.10 pypy3.11' }}
-        docker-options: -e CI
-        manylinux: ${{ matrix.manylinux }}
-        rust-toolchain: stable
-        target: ${{ matrix.target }}
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist --find-interpreter
+        sccache: 'true'
+        manylinux: auto
         working-directory: differt-core
-
-    - name: List dist directory
-      run: ${{ (matrix.os == 'windows' && 'dir') || 'ls -lh' }} differt-core/dist/
-
-    - name: Install Twine and check long description
-      run: |
-        pip install -U twine
-        twine check --strict differt-core/dist/*
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: differt-core-wheels-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.interpreter || 'all' }}-${{ matrix.manylinux }}
+        name: differt-core-wheels-linux-${{ matrix.platform.target }}
         path: differt-core/dist
 
-  build-differt-core-pgo-wheels:
-    name: Build PGO wheels on ${{ matrix.os }} (${{ matrix.interpreter }})
-    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event.inputs.publish-differt-core || github.event.inputs.dry-run
+  build-differt-core-musllinux-wheels:
+    name: Build musl-${{ matrix.platform.target}} wheels for differt-core
+    runs-on: ${{ matrix.platform.runner }}
     strategy:
-      fail-fast: false
       matrix:
-        os: [linux, macos]  # TODO: put back Windows
-        interpreter: ['3.10', '3.11', '3.12', '3.13']  # TODO: put back 3.13t
-        include:
-          # standard runners with override for macos arm
-        - os: linux
-          runs-on: ubuntu-latest
-        - os: windows
-          ls: dir
-          runs-on: windows-latest
-        - os: macos
-          runs-on: macos-latest
-        # exclude:  # jaxlib wheels not available
-        # - os: windows
-        #   interpreter: 3.13t
-        # - os: macos
-        #   interpreter: 3.13t
-
-    runs-on: ${{ matrix.runs-on }}
+        platform:
+        - runner: ubuntu-22.04
+          target: x86_64
+        - runner: ubuntu-22.04
+          target: x86
+        - runner: ubuntu-22.04
+          target: aarch64
+        - runner: ubuntu-22.04
+          target: armv7
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup uv
-      uses: astral-sh/setup-uv@v5
+    - name: Install Python
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.interpreter }}
+        python-version: 3.x
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      id: rust-toolchain
+    - name: Build wheels
+      uses: PyO3/maturin-action@v1
       with:
-        components: llvm-tools
-
-    - name: Build PGO wheel
-      id: pgo-wheel
-      uses: ./.github/actions/build-pgo-wheel
-      with:
-        interpreter: ${{ matrix.interpreter }}
-        rust-toolchain: ${{ steps.rust-toolchain.outputs.name }}
-
-    - name: List dist directory
-      run: ${{ matrix.ls || 'ls -lh' }} differt-core/dist/
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist --find-interpreter
+        sccache: 'true'
+        manylinux: musllinux_1_2
+        working-directory: differt-core
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: differt-core-wheels-${{ matrix.os }}-${{ matrix.interpreter }}
+        name: differt-core-wheels-musllinux-${{ matrix.platform.target }}
+        path: differt-core/dist
+
+  build-differt-core-windows-wheels:
+    name: Build windows-${{ matrix.platform.target}} wheels for differt-core
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+        - runner: windows-latest
+          target: x64
+        - runner: windows-latest
+          target: x86
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+
+    - name: Build wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist --find-interpreter
+        sccache: 'true'
+        working-directory: differt-core
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: differt-core-wheels-windows-${{ matrix.platform.target }}
+        path: differt-core/dist
+
+  build-differt-core-macos-wheels:
+    name: Build macos-${{ matrix.platform.target}} wheels for differt-core
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+        - runner: macos-13
+          target: x86_64
+        - runner: macos-14
+          target: aarch64
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+
+    - name: Build wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist --find-interpreter
+        sccache: 'true'
+        working-directory: differt-core
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: differt-core-wheels-macos-${{ matrix.platform.target }}
         path: differt-core/dist
 
   build-differt-core-sdist:
@@ -209,10 +188,10 @@ jobs:
         path: differt-core/dist
 
   release-differt-core:
-    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish-differt-core)
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt-core
     name: Release differt-core
     runs-on: ubuntu-latest
-    needs: [build-differt-core-sdist, build-differt-core-wheels, build-differt-core-pgo-wheels]
+    needs: [build-differt-core-linux-wheels, build-differt-core-musllinux-wheels, build-differt-core-windows-wheels, build-differt-core-macos-wheels, build-differt-core-sdist]
     environment: release
     permissions:
       id-token: write
@@ -232,6 +211,7 @@ jobs:
       uses: actions/attest-build-provenance@v2
       with:
         subject-path: differt-core/dist/differt-core-wheels-*
+
     - name: Publish to PyPI
       uses: PyO3/maturin-action@v1
       with:
@@ -240,7 +220,7 @@ jobs:
         working-directory: differt-core
 
   build-differt:
-    name: Build differt wheels and sdist
+    name: Build DiffeRT
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -268,8 +248,8 @@ jobs:
         path: differt/dist/differt-*.whl
 
   release-differt:
-    if: success() && (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publish-differt)
-    name: Release differt
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.publish-differt
+    name: Release DiffeRT
     runs-on: ubuntu-latest
     needs: [build-differt]
     environment: release
