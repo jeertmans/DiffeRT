@@ -23,7 +23,7 @@ SIONNA_SCENES_FOLDER = Path(__file__).parent / "scenes"
 def download_sionna_scenes(
     branch_or_tag: str = "main",
     repo: str = "NVlabs/sionna-rt",
-    scenes_folder: str = "src/sionna/rt/scenes",
+    scenes_folder: str = "src/sionna/rt/scenes/",
     *,
     folder: str | Path = SIONNA_SCENES_FOLDER,
     cached: bool = True,
@@ -83,7 +83,7 @@ def download_sionna_scenes(
         def members(tar: tarfile.TarFile) -> Iterator[tarfile.TarInfo]:
             for member in tar.getmembers():
                 if (index := member.path.find(scenes_folder)) >= 0:
-                    member.path = member.path[index + 17 :]
+                    member.path = member.path[index + len(scenes_folder) :]
                     yield member
 
         with (
