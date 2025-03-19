@@ -9,6 +9,7 @@ from differt.geometry import (
     TriangleMesh,
     assemble_paths,
     fibonacci_lattice,
+    path_lengths,
 )
 from differt.rt import (
     first_triangles_hit_by_rays,
@@ -110,6 +111,8 @@ def test_ray_casting() -> None:
 
 @pytest.mark.slow
 def test_simple_street_canyon() -> None:
+    mi = pytest.importorskip("mitsuba")
+    mi.set_variant("llvm_ad_mono_polarized")
     sionna = pytest.importorskip("sionna")
     file = sionna.rt.scene.simple_street_canyon
 
@@ -147,20 +150,21 @@ def test_simple_street_canyon() -> None:
     differt_scene = eqx.tree_at(
         lambda s: s.transmitters,
         differt_scene,
-        replace=jnp.asarray(tx.position.numpy()),
+        replace=tx.position.jax().reshape(3),
     )
 
     differt_scene = eqx.tree_at(
         lambda s: s.receivers,
         differt_scene,
-        replace=jnp.asarray(rx.position.numpy()),
+        replace=rx.position.jax().reshape(3),
     )
 
     max_order = 4
 
-    sionna_paths = sionna_scene.compute_paths(max_depth=max_order, method="exhaustive")
-    sionna_path_objects = sionna_paths.objects.numpy()
-    sionna_path_vertices = sionna_paths.vertices.numpy()
+    sionna_solver = sionna.rt.PathSolver()
+    sionna_paths = sionna_solver(sionna_scene, max_depth=max_order, refraction=False)
+    sionna_path_objects = sionna_paths.objects.jax()
+    sionna_path_vertices = sionna_paths.vertices.jax()
 
     max_depth = sionna_path_objects.shape[0]  # May differ from 'max_order'
 
@@ -168,44 +172,50 @@ def test_simple_street_canyon() -> None:
         paths = differt_scene.compute_paths(order=order)
         select = (sionna_path_objects == -1).sum(axis=0) == (max_depth - order)
         vertices = sionna_path_vertices[:order, select, :]
-        vertices = np.moveaxis(vertices, 0, -2)
+        vertices = jnp.moveaxis(vertices, 0, -2)
         vertices = assemble_paths(
             differt_scene.transmitters.reshape(1, 3),
-            jnp.asarray(vertices),
+            vertices,
             differt_scene.receivers.reshape(1, 3),
         )
+        got_path_lengths = path_lengths(paths.masked_vertices)
+        expected_path_lengths = path_lengths(vertices)
+        # We check the sum of path lengths because Sionna orders the paths differently,
+        # so we cannot compare them directly.
         chex.assert_trees_all_close(
-            paths.masked_vertices,
-            vertices,
+            got_path_lengths.sum(),
+            expected_path_lengths.sum(),
             atol=1e-5,
-            custom_message=f"Mismatch for paths {order = }.",
+            custom_message=f"Mismatch for paths {order = }, differt = {paths.masked_vertices!r}, sionna = {vertices!r}.",
         )
 
 
 def test_itu_materials() -> None:
+    mi = pytest.importorskip("mitsuba")
+    mi.set_variant("llvm_ad_mono_polarized")
     sionna = pytest.importorskip("sionna")
-    sionna_scene = sionna.rt.scene.Scene("__empty__")
 
     for mat_name, differt_mat in materials.items():
         if not mat_name.startswith("itu_"):
             continue
-
         if mat_name == "itu_vacuum":
-            sionna_mat = sionna_scene.get("vacuum")
-        else:
-            sionna_mat = sionna_scene.get(mat_name)
+            continue  # Sionna removed it
 
         for f in np.logspace(9 - 2, 9 + 3, 21):
-            sionna_scene.frequency = f
+            try:
+                sionna_mat_relative_permittivity, sionna_mat_conductivity = sionna.rt.radio_materials.itu.itu_material(mat_name.removeprefix("itu_"), f)
 
-            chex.assert_trees_all_close(
-                differt_mat.relative_permittivity(f),
-                sionna_mat.relative_permittivity,
-                custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
-            )
+                chex.assert_trees_all_close(
+                    differt_mat.relative_permittivity(f),
+                    sionna_mat_relative_permittivity,
+                    custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
+                )
 
-            chex.assert_trees_all_close(
-                differt_mat.conductivity(f),
-                sionna_mat.conductivity,
-                custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
-            )
+                chex.assert_trees_all_close(
+                    differt_mat.conductivity(f),
+                    sionna_mat_conductivity,
+                    custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
+                )
+            except ValueError as e:
+                # Sionna now raises an error if any of the materials is not defined at the given frequency
+                assert str(e) == f"Properties of ITU material {mat_name.removeprefix('itu_')!r} are not defined for this frequency"

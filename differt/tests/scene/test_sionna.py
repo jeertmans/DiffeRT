@@ -63,6 +63,7 @@ class TestSionnaScene:
     def test_load_xml(self, sionna_folder: Path) -> None:
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             file = get_sionna_scene(scene_name, folder=sionna_folder)
+            print(f"{file = }")
             scene = SionnaScene.load_xml(file)
 
             assert len(scene.shapes) > 0
