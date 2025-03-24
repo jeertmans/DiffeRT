@@ -112,7 +112,7 @@ def test_ray_casting() -> None:
 @pytest.mark.slow
 def test_simple_street_canyon() -> None:
     mi = pytest.importorskip("mitsuba")
-    mi.set_variant("llvm_ad_mono_polarized")
+    mi.set_variant("scalar_rgb")
     sionna = pytest.importorskip("sionna")
     file = sionna.rt.scene.simple_street_canyon
 
@@ -192,7 +192,7 @@ def test_simple_street_canyon() -> None:
 
 def test_itu_materials() -> None:
     mi = pytest.importorskip("mitsuba")
-    mi.set_variant("llvm_ad_mono_polarized")
+    mi.set_variant("scalar_rgb")
     sionna = pytest.importorskip("sionna")
 
     for mat_name, differt_mat in materials.items():
