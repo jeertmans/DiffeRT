@@ -57,6 +57,8 @@ jobs:
         pyversion: ['3.10', '3.11', '3.12', '3.13', 3.13t]
         resolution: [highest, lowest-direct]
         include:
+        - pyversion: 3.13      # Sionna not available
+          group: tests
         - pyversion: 3.13t      # Qt bindings not available for this version
           group: tests
         exclude:
