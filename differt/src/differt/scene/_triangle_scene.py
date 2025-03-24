@@ -189,6 +189,9 @@ def _compute_paths(
             axis=-1
         )  # Any path segment being too small
 
+        # TODO: check if we should invalidate non-finite paths
+        # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small
 
         return full_paths, mask

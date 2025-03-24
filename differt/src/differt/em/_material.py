@@ -42,6 +42,8 @@ class Material(eqx.Module):
     Returns:
         A tuple containing the relative permittivity and conductivity of the material.
     """
+    thickness: Float[ArrayLike, ""] | None = eqx.field(default=None)
+    """The thickness of the material."""
     aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """
     A tuple of name aliases for the material.

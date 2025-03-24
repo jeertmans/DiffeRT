@@ -812,6 +812,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-env" },
     { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
     { name = "pytest-xdist" },
     { name = "scipy" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
@@ -862,6 +863,7 @@ tests = [
     { name = "pytest-cov" },
     { name = "pytest-env" },
     { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
     { name = "pytest-xdist" },
     { name = "scipy" },
 ]
@@ -875,6 +877,7 @@ tests-extended = [
     { name = "pytest-cov" },
     { name = "pytest-env" },
     { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
     { name = "pytest-xdist" },
     { name = "scipy" },
     { name = "sionna" },
@@ -902,6 +905,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-env", specifier = ">=1.1.3" },
     { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "scipy", specifier = ">=1.12.0" },
     { name = "sphinx", specifier = ">=8.1.3" },
@@ -946,6 +950,7 @@ tests = [
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-env", specifier = ">=1.1.3" },
     { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "scipy", specifier = ">=1.12.0" },
 ]
@@ -960,6 +965,7 @@ tests-extended = [
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-env", specifier = ">=1.1.3" },
     { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "scipy", specifier = ">=1.12.0" },
     { name = "sionna", specifier = "==1.0.1" },
@@ -3624,6 +3630,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/69/5161e1cf918baccdac65db7cbef78e1cfe29ee3b83fcb4a2f3568d8573a0/pytest_missing_modules-0.2.1.tar.gz", hash = "sha256:747a6acb975904c79d26410f0e0119cfcf6144cfdc5c2a70cc1f0955a57458e1", size = 10192 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/55/40d10c08a8e77d9ee549dfaa75d0056b4328374956e124cbdd4b77b73f78/pytest_missing_modules-0.2.1-py3-none-any.whl", hash = "sha256:ad8827b4ab01049dd552bbd2875b844dacb1e6c61e01d216f90f566e9096d14b", size = 5536 },
+]
+
+[[package]]
+name = "pytest-subtests"
+version = "0.14.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/4c/ba9eab21a2250c2d46c06c0e3cd316850fde9a90da0ac8d0202f074c6817/pytest_subtests-0.14.1.tar.gz", hash = "sha256:350c00adc36c3aff676a66135c81aed9e2182e15f6c3ec8721366918bbbf7580", size = 17632 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/b7/7ca948d35642ae72500efda6ba6fa61dcb6683feb596d19c4747c63c0789/pytest_subtests-0.14.1-py3-none-any.whl", hash = "sha256:e92a780d98b43118c28a16044ad9b841727bd7cb6a417073b38fd2d7ccdf052d", size = 8833 },
 ]
 
 [[package]]

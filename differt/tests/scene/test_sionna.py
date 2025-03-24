@@ -3,6 +3,7 @@ from pathlib import Path
 from timeit import timeit
 
 import pytest
+from pytest_subtests import SubTests
 
 from differt.scene._sionna import (
     download_sionna_scenes,
@@ -60,14 +61,14 @@ def test_get_existing_sionna_scene(scene_name: str, sionna_folder: Path) -> None
 
 
 class TestSionnaScene:
-    def test_load_xml(self, sionna_folder: Path) -> None:
+    def test_load_xml(self, sionna_folder: Path, subtests: SubTests) -> None:
         for scene_name in list_sionna_scenes(folder=sionna_folder):
-            file = get_sionna_scene(scene_name, folder=sionna_folder)
-            print(f"{file = }")
-            scene = SionnaScene.load_xml(file)
+            with subtests.test(scene_name=scene_name):
+                file = get_sionna_scene(scene_name, folder=sionna_folder)
+                scene = SionnaScene.load_xml(file)
 
-            assert len(scene.shapes) > 0
-            assert len(scene.materials) > 0
+                assert len(scene.shapes) > 0
+                assert len(scene.materials) > 0
 
-            for shape in scene.shapes.values():
-                assert shape.material_id in scene.materials
+                for shape in scene.shapes.values():
+                    assert shape.material_id in scene.materials

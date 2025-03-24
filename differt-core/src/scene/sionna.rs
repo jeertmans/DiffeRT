@@ -74,60 +74,46 @@ where
 #[pyclass(get_all)]
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Material {
-    /// str: The material ID.
+    /// str: The material name.
     ///
     /// This can be, e.g., an ITU identifier.
+    pub(crate) name: String,
+    /// str: The material ID.
+    ///
+    /// This is used to match the material id used in shapes.
     pub(crate) id: String,
     /// tuple[float, float, float]: The material color, used for plotting.
-    pub(crate) rgb: [f32; 3],
-    /// typing.Optional[float]: The material thickness, optional.
+    ///
+    /// The color is obtained from a---possibly-nested---``<rgb>`` element,
+    /// or from a ``<string>`` element with a ``type`` attribute. In the latter
+    /// case, the color is chosen from a predefined list of colors.
+    pub(crate) color: [f32; 3],
+    /// typing.Optional[float]: The thickness of the material.
     pub(crate) thickness: Option<f32>,
 }
 
-
-fn deserialize_type<'de, D>(deserializer: D) -> Result<&'de str, D::Error>
+fn deserialize_rgb<'de, D>(deserializer: D) -> Result<[f32; 3], D::Error>
 where
     D: de::Deserializer<'de>,
 {
-    #[derive(Deserialize)]
-    struct TypeString<'source> {
-        #[serde(rename(deserialize = "@name"))]
-        name: &'source str,
-        #[serde(rename(deserialize = "@value"))]
-        value: &'source str,
-    }
+    let value = <String>::deserialize(deserializer)?;
 
-    let TypeString { name, value } = TypeString::deserialize(deserializer)?;
-
-    if name == "type" {
-        Ok(value)
-    } else {
-        Err(de::Error::custom(
-            "name of <string> element must be 'type'",
-        ))
-    }
-}
-
-fn deserialize_thickness<'de, D>(deserializer: D) -> Result<f32, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    #[derive(Deserialize)]
-    struct ThicknessString<'source> {
-        #[serde(rename(deserialize = "@name"))]
-        name: &'source str,
-        #[serde(rename(deserialize = "@value"))]
-        value: f32,
-    }
-
-    let ThicknessString { name, value } = ThicknessString::deserialize(deserializer)?;
-
-    if name == "thickness" {
-        Ok(value)
-    } else {
-        Err(de::Error::custom(
-            "name of <float> element must be 'thickness'",
-        ))
+    match value
+        .split_ascii_whitespace()
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [r_str, g_str, b_str] => {
+            let r = r_str.parse().map_err(de::Error::custom)?;
+            let g = g_str.parse().map_err(de::Error::custom)?;
+            let b = b_str.parse().map_err(de::Error::custom)?;
+            Ok([r, g, b])
+        },
+        _ => {
+            Err(de::Error::custom(
+                "value of <rgb> element must contain three floats",
+            ))
+        },
     }
 }
 
@@ -136,85 +122,129 @@ impl<'de> Deserialize<'de> for Material {
     where
         D: de::Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        struct RawMaterial {
-            #[serde(rename(deserialize = "@id"))]
-            id: String,
-            #[serde(rename = "$value")]
-            rgb: PossiblyNestedRgb,
-            #[serde(
-                rename(deserialize = "@float"),
-                deserialize_with = "deserialize_thickness"
-            )]
-            thickness: Option<f32>,
+        #[derive(Debug, Deserialize)]
+        struct Rgb {
+            #[serde(rename(deserialize = "@value"), deserialize_with = "deserialize_rgb")]
+            color: [f32; 3],
         }
 
-        #[derive(Deserialize)]
-        struct Rgb<'source> {
-            #[serde(rename(deserialize = "@value"))]
-            value: &'source str,
-        }
-
-
-        #[derive(Deserialize)]
+        #[derive(Debug, Deserialize)]
         #[serde(rename_all = "snake_case")]
-        enum PossiblyNestedRgb<'source> {
-            Rgb {
-                #[serde(rename(deserialize = "@value"))]
-                value: &'source str,
+        struct Bsdf {
+            #[serde(rename = "rgb")]
+            rgb: Rgb,
+        }
+
+        #[derive(Debug)]
+        enum Type {
+            Struct { value: String },
+        }
+
+        quick_xml::impl_deserialize_for_internally_tagged_enum! {
+            Type, "@name",
+            ("type"    => Struct {
+                #[serde(rename = "@value")]
+                 value: String }),
+        }
+
+        #[derive(Debug)]
+        enum Thickness {
+            Struct { value: f32 },
+        }
+
+        quick_xml::impl_deserialize_for_internally_tagged_enum! {
+            Thickness, "@name",
+            ("thickness"    => Struct {
+                #[serde(rename = "@value")]
+                value: f32,
+            }),
+        }
+
+        #[derive(Debug)]
+        enum RawMaterial {
+            TwoSided {
+                id: String,
+                bsdf: Bsdf,
+                //thickness: Option<f32>,
             },
-            Bsdf {
-                rgb: Rgb<'source>,
+            ItuRadioMaterial {
+                id: String,
+                r#type: Type,
+                thickness: Option<Thickness>,
             },
-            Type {
-                #[serde(rename(deserialize = "@value"))]
-                value: &'source str,
-            },
+        }
+
+        quick_xml::impl_deserialize_for_internally_tagged_enum! {
+            RawMaterial, "@type",
+            ("twosided"    => TwoSided {
+                #[serde(rename = "@id")]
+                id: String,
+                bsdf: Bsdf,
+            }),
+            ("itu-radio-material"  => ItuRadioMaterial {
+                #[serde(rename = "@id")]
+                id: String,
+                #[serde(rename = "string")]
+                r#type: Type,
+                #[serde(skip)]
+                thickness: Option<Thickness>,
+            }),
         }
 
         let raw_mat = RawMaterial::deserialize(deserializer)?;
 
-        let (id, rgb) = match raw_mat {
-            RawMaterial {
+        match raw_mat {
+            RawMaterial::TwoSided {
                 id,
-                rgb: PossiblyNestedRgb::Rgb { value },
-            } => (id, value),
-            RawMaterial {
-                id,
-                rgb: PossiblyNestedRgb::Bsdf { rgb: Rgb { value } },
-            } => (id, value),
-            Type {
-                id,
-                rgb: Type { value: Rgb { value } },
+                bsdf: Bsdf { rgb: Rgb { color } },
             } => {
-                let rgb = match r#type {
-                    "diffuse" => [0.8, 0.8, 0.8],
-                    "mirror" => [0.8, 0.8, 0.8],
-                    "glass" => [0.8, 0.8, 0.8],
-                    "plastic" => [0.8, 0.8, 0.8],
-                    "metal" => [0.8, 0.8, 0.8],
-                    "emissive" => [0.8, 0.8, 0.8],
+                Ok(Material {
+                    name: id.strip_prefix("mat-").unwrap_or(&id).to_string(),
+                    id,
+                    color,
+                    thickness: None,
+                })
+            },
+            RawMaterial::ItuRadioMaterial {
+                id,
+                r#type: Type::Struct { value: r#type },
+                thickness,
+            } => {
+                let color = match r#type.as_str() {
+                    // Copied from Sionna-RT's code, to match their colors:
+                    // https://github.com/NVlabs/sionna-rt/blob/main/src/sionna/rt/radio_materials/itu_material.py
+                    // v1.0.0
+                    "marble" => [0.701, 0.644, 0.485],
+                    "concrete" => [0.539, 0.539, 0.539],
+                    "wood" => [0.266, 0.109, 0.060],
+                    "metal" => [0.220, 0.220, 0.254],
+                    "brick" => [0.402, 0.112, 0.087],
+                    "glass" => [0.168, 0.139, 0.509],
+                    "floorboard" => [0.539, 0.386, 0.025],
+                    "ceiling_board" => [0.376, 0.539, 0.117],
+                    "chipboard" => [0.509, 0.159, 0.323],
+                    "plasterboard" => [0.051, 0.539, 0.133],
+                    "plywood" => [0.136, 0.076, 0.539],
+                    "very_dry_ground" => [0.539, 0.319, 0.223],
+                    "medium_dry_ground" => [0.539, 0.181, 0.076],
+                    "wet_ground" => [0.539, 0.027, 0.147],
                     _ => {
-                        return Err(de::Error::custom(
-                            "value of <type> element must be 'diffuse', 'mirror', 'glass', 'plastic', 'metal' or 'emissive'",
-                        ))
+                        log::warn!(
+                            "unknown material type: {type:#?}, using default color, i.e., black",
+                        );
+                        [0.0, 0.0, 0.0]
                     },
                 };
-
-            } (id, value),
-        };
-
-        match rgb.split_ascii_whitespace().collect::<Vec<_>>().as_slice() {
-            [r_str, g_str, b_str] => {
-                let r = r_str.parse().map_err(de::Error::custom)?;
-                let g = g_str.parse().map_err(de::Error::custom)?;
-                let b = b_str.parse().map_err(de::Error::custom)?;
-                Ok(Material { id, rgb: [r, g, b] })
-            },
-            _ => {
-                Err(de::Error::custom(
-                    "value of <rgb> element must contain three floats",
-                ))
+                Ok(Material {
+                    name: format!("itu_{type}"),
+                    id,
+                    color,
+                    thickness: thickness.map(|t| {
+                        match t {
+                            Thickness::Struct { value: thickness } => thickness,
+                        }
+                    }),
+                })
             },
         }
     }
@@ -237,11 +267,11 @@ pub(crate) struct Shape {
     /// str: The path to the shape file.
     ///
     /// This path is relative to the scene config file.
-    #[serde(rename(deserialize = "@string"), deserialize_with = "deserialize_file")]
+    #[serde(rename(deserialize = "string"), deserialize_with = "deserialize_file")]
     pub(crate) file: String,
     /// str: The material ID attached to this object.
     #[serde(
-        rename(deserialize = "@ref"),
+        rename(deserialize = "ref"),
         deserialize_with = "deserialize_material_id"
     )]
     pub(crate) material_id: String,
@@ -296,7 +326,10 @@ impl SionnaScene {
     pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
-            PyValueError::new_err(format!("An error occurred while reading XML file: {}", err))
+            PyValueError::new_err(format!(
+                "An error occurred while reading XML file {file:#?}: {}",
+                err
+            ))
         })
     }
 }

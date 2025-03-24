@@ -27,7 +27,7 @@ jobs:
     - name: Generate cache key
       id: cache-key
       run: |
-        echo "result=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H 'Accept: application/vnd.github.VERSION.sha' 'https://api.github.com/repos/NVlabs/sionna/commits/main')" >> $GITHUB_OUTPUT
+        echo "result=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H 'Accept: application/vnd.github.VERSION.sha' 'https://api.github.com/repos/NVlabs/sionna-rt/commits/main')" >> $GITHUB_OUTPUT
 
     - name: Cache scenes
       id: cache-scenes
