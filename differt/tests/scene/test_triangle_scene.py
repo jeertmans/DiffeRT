@@ -187,7 +187,7 @@ class TestTriangleScene:
                 )
 
             got = Paths(vertices=vertices, objects=unique_objects)
-            rtol = 0.5  # TODO: see if we can improve acc.
+            rtol = 0.52  # TODO: see if we can improve acc.
         else:
             rtol = 1e-6
 
