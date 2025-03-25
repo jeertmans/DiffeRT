@@ -79,10 +79,8 @@ jobs:
         enable-cache: true
 
     - name: Install LLVM dependencies
-      if: matrix.group != 'tests'
-      uses: KyleMayes/install-llvm-action@v2
-      with:
-        version: '10.0'
+      if: (matrix.os == 'ubuntu-latest') && (matrix.group != 'tests')
+      run: sudo apt-get install llvm
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'

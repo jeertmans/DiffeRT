@@ -880,7 +880,7 @@ tests-extended = [
     { name = "pytest-subtests" },
     { name = "pytest-xdist" },
     { name = "scipy" },
-    { name = "sionna", marker = "(python_full_version < '3.13' and sys_platform == 'darwin') or (python_full_version < '3.13' and sys_platform == 'linux')" },
+    { name = "sionna", marker = "python_full_version < '3.13' and sys_platform == 'linux'" },
 ]
 
 [package.metadata]
@@ -968,7 +968,7 @@ tests-extended = [
     { name = "pytest-subtests", specifier = ">=0.14.1" },
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "scipy", specifier = ">=1.12.0" },
-    { name = "sionna", marker = "(python_full_version < '3.13' and sys_platform == 'darwin') or (python_full_version < '3.13' and sys_platform == 'linux')", specifier = "==1.0.1" },
+    { name = "sionna", marker = "python_full_version < '3.13' and sys_platform == 'linux'", specifier = "==1.0.1" },
 ]
 
 [[package]]
