@@ -43,6 +43,7 @@ check:
 clean:
     cargo clean
     rm -rf dist
+    rm -rf differt-core/python/differt_core/*.so
 
 # Force reloading CUDA after suspend, see: https://github.com/ami-iit/jaxsim/issues/50#issuecomment-2022483137
 [group('dev')]

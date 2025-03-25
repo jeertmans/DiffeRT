@@ -6,8 +6,10 @@ class SionnaScene:
     def load_xml(cls, file: str) -> SionnaScene: ...
 
 class Material:
+    name: str
     id: str
-    rgb: tuple[float, float, float]
+    color: tuple[float, float, float]
+    thickness: float | None
 
 class Shape:
     type: str

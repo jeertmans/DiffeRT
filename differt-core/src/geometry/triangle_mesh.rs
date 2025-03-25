@@ -281,7 +281,10 @@ impl TriangleMesh {
     pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
         let mut obj: RawObj = parse_obj(input).map_err(|err| {
-            PyValueError::new_err(format!("An error occurred while reading obj file: {}", err))
+            PyValueError::new_err(format!(
+                "An error occurred while reading obj file {filename:#?}: {}",
+                err
+            ))
         })?;
 
         for material_file in obj.material_libraries.iter_mut() {
@@ -317,7 +320,7 @@ impl TriangleMesh {
 
         let header = vertex_parser.read_header(&mut input).map_err(|err| {
             PyValueError::new_err(format!(
-                "An error occurred while reading the header of ply file: {}",
+                "An error occurred while reading the header of ply file {filename:#?}: {}",
                 err
             ))
         })?;
@@ -334,7 +337,7 @@ impl TriangleMesh {
                             .map_err(|err| {
                                 PyValueError::new_err(format!(
                                     "An error occurred while reading the vertex elements of ply \
-                                     file: {}",
+                                     file {filename:#?}: {}",
                                     err
                                 ))
                             })?
@@ -349,7 +352,7 @@ impl TriangleMesh {
                             .map_err(|err| {
                                 PyValueError::new_err(format!(
                                     "An error occurred while reading the face elements of PLY \
-                                     file: {}",
+                                     file {filename:#?}: {}",
                                     err
                                 ))
                             })?
@@ -423,14 +426,16 @@ impl From<RawObj> for TriangleMesh {
                             },
                             Err(e) => {
                                 log::warn!(
-                                    "An error occurred when parsing MTL file {material_file}: {e}."
+                                    "An error occurred when parsing MTL file {material_file:#?}: \
+                                     {e}."
                                 );
                             },
                         }
                     },
                     Err(e) => {
                         log::warn!(
-                            "An error occurred when trying to read MTL file {material_file}: {e}."
+                            "An error occurred when trying to read MTL file {material_file:#?}: \
+                             {e}."
                         );
                     },
                 }
@@ -460,7 +465,7 @@ impl From<RawObj> for TriangleMesh {
                     }
                 } else {
                     log::warn!(
-                        "Material {material_name} was listed in OBJ material libraries, but is \
+                        "Material {material_name:#?} was listed in OBJ material libraries, but is \
                          not present is mesh groups."
                     );
                 }

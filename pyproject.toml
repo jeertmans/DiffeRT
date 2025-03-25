@@ -45,6 +45,7 @@ tests = [
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
   "pytest-missing-modules>=0.2.0",
+  "pytest-subtests>=0.14.1",
   "pytest-xdist>=3.3.1",
   "scipy>=1.12.0",
 ]
@@ -52,7 +53,7 @@ tests-extended = [
   {include-group = "tests"},
   "differt[all]",
   "open3d-cpu>=0.19.0;python_version<'3.13' and sys_platform=='linux'",
-  "sionna==0.19.1;python_version<'3.12' and sys_platform=='linux'",
+  "sionna==1.0.1;python_version<'3.13' and sys_platform=='linux'",
 ]
 
 [project]

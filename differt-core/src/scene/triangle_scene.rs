@@ -60,10 +60,14 @@ impl TriangleScene {
                 },
             };
 
-            let color = sionna.materials.get(&shape.material_id).map(|mat| mat.rgb);
+            let material = sionna.materials.get(&shape.material_id);
+
+            let color = material.map(|mat| mat.color);
+
+            let material_name = material.map(|mat| mat.name.clone());
 
             other_mesh.set_face_color(color.as_ref());
-            other_mesh.set_face_material(Some(shape.material_id));
+            other_mesh.set_face_material(material_name);
 
             mesh.append(&mut other_mesh);
         }
