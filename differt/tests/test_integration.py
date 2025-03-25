@@ -1,8 +1,11 @@
+from contextlib import nullcontext as does_not_raise
+
 import chex
 import equinox as eqx
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from pytest_subtests import SubTests
 
 from differt.em import materials
 from differt.geometry import (
@@ -190,7 +193,7 @@ def test_simple_street_canyon() -> None:
         )
 
 
-def test_itu_materials() -> None:
+def test_itu_materials(subtests: SubTests) -> None:
     mi = pytest.importorskip("mitsuba")
     mi.set_variant("llvm_ad_mono_polarized")
     sionna = pytest.importorskip("sionna")
@@ -201,9 +204,29 @@ def test_itu_materials() -> None:
         if mat_name == "itu_vacuum":
             continue  # Sionna removed it
 
-        for f in np.logspace(9 - 2, 9 + 3, 21):
-            try:
-                sionna_mat_relative_permittivity, sionna_mat_conductivity = sionna.rt.radio_materials.itu.itu_material(mat_name.removeprefix("itu_"), f)
+        # We multiply by 1.1 to avoid checking on freq. limits, because Sionna will fail
+        for f in 1.1 * np.logspace(9 - 2, 9 + 3, 21):
+            differt_mat_relative_permittivity = differt_mat.relative_permittivity(f)
+            differt_mat_conductivity = differt_mat.conductivity(f)
+
+            if (differt_mat_relative_permittivity, differt_mat_conductivity) == (
+                -1.0,
+                -1.0,
+            ):
+                # Sionna now raises an error if any of the materials is not defined at the given frequency
+                expectation = pytest.raises(
+                    ValueError,
+                    match=f"Properties of ITU material {mat_name.removeprefix('itu_')!r} are not defined for this frequency",
+                )
+            else:
+                expectation = does_not_raise()
+
+            with subtests.test(f"{mat_name} @ {f / 1e9} GHz"), expectation:
+                sionna_mat_relative_permittivity, sionna_mat_conductivity = (
+                    sionna.rt.radio_materials.itu.itu_material(
+                        mat_name.removeprefix("itu_"), f
+                    )
+                )
 
                 chex.assert_trees_all_close(
                     differt_mat.relative_permittivity(f),
@@ -216,6 +239,3 @@ def test_itu_materials() -> None:
                     sionna_mat_conductivity,
                     custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
                 )
-            except ValueError as e:
-                # Sionna now raises an error if any of the materials is not defined at the given frequency
-                assert str(e) == f"Properties of ITU material {mat_name.removeprefix('itu_')!r} are not defined for this frequency"

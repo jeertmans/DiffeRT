@@ -57,8 +57,6 @@ jobs:
         pyversion: ['3.10', '3.11', '3.12', '3.13', 3.13t]
         resolution: [highest, lowest-direct]
         include:
-        - pyversion: 3.13      # Sionna not available
-          group: tests
         - pyversion: 3.13t      # Qt bindings not available for this version
           group: tests
         exclude:
@@ -79,6 +77,12 @@ jobs:
       uses: astral-sh/setup-uv@v5
       with:
         enable-cache: true
+
+    - name: Install LLVM dependencies
+      if: matrix.group != 'tests'
+      uses: KyleMayes/install-llvm-action@v2
+      with:
+        version: '10.0'
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
