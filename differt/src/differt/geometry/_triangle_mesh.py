@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, overload
 
 import equinox as eqx
@@ -646,6 +647,67 @@ class TriangleMesh(eqx.Module):
             lambda m: m.face_colors,
             self,
             face_colors,
+            is_leaf=lambda x: x is None,
+        )
+
+    def set_materials(self, *names: str) -> Self:
+        """
+        Return a copy of this mesh, with new face materials from material names.
+
+        If a material name is not in :attr:`material_names`, it is added.
+
+        Args:
+            names: The material names.
+                If one name is provided, it will be applied to all triangles.
+        
+        Returns:
+            A new mesh with updated face materials.
+        """
+        if len(names) not in {1, self.num_triangles, self.num_objects}:
+            if self.assume_quads:
+                msg = f"Expected either 1, {self.num_triangles}, or {self.num_objects} names, got {len(names)}."
+            else:
+                msg = f"Expected either 1, or {self.num_triangles} names, got {len(names)}."
+            raise ValueError(msg)
+        material_names = dict.fromkeys(self.material_names)
+        if all(name in material_names for name in names):
+            face_materials = jnp.array([material_names[name] for name in names])
+            return self.set_face_materials(face_materials)
+        
+        material_names = material_names | dict.fromkeys(names)
+        material_names = {name: i for i, name in enumerate(material_names)}
+
+        face_materials = jnp.array([material_names[name] for name in names])
+        self = replace(self, material_names=tuple(material_names))
+        return self.set_face_materials(face_materials)
+
+
+    def set_face_materials(
+        self,
+        materials: Int[ArrayLike, " "]
+        | Int[ArrayLike, "#num_triangles"]
+    ) -> Self:
+        """
+        Return a copy of this mesh, with new face materials.
+
+        Args:
+            face_materials: The material indices.
+                If one material is provided, it will be applied to all triangles.
+
+                No check is performed to verify that material indices are actually
+                in bounds of :attr:`material_names`.
+
+        Returns:
+            A new mesh with updated face materials.
+        """
+        face_materials = jnp.broadcast_to(
+            jnp.asarray(materials),
+            self.num_triangles,
+        )
+        return eqx.tree_at(
+            lambda m: m.face_materials,
+            self,
+            face_materials,
             is_leaf=lambda x: x is None,
         )
 

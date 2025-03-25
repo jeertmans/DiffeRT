@@ -440,6 +440,22 @@ class TestTriangleMesh:
         ):
             _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[reportCallIssue]
 
+    def test_set_face_materials(
+        self,
+    ) -> None:
+        mesh = TriangleMesh.box(with_top=True)
+        assert mesh.face_materials is None
+        assert len(mesh.material_names) == 0
+
+        mesh = mesh.set_materials("concrete")
+        assert mesh.face_materials is not None
+        assert len(mesh.material_names) == 12
+        mesh = mesh.set_materials(*["glass"] * 12)
+        mesh = mesh.set_assume_quads()
+        mesh = mesh.set_materials("metal", "glass", "concrete", "brick", "wood", "plastic")
+        assert mesh.material_names == ("glass", "metal", "concrete", "brick", "wood", "plastic")
+        mesh = mesh.set_materials("concrete")
+
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
