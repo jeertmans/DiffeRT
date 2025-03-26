@@ -1,5 +1,7 @@
 # ruff: noqa: ERA001
 
+from collections.abc import Callable, Iterator
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from collections.abc import Iterator, Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, overload
@@ -85,6 +87,85 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
     # The vertices are contained if all signs are the same
     return all_pos | all_neg
+
+
+_Index = slice | Int[ArrayLike, " "] | Int[Array, " n"] | Bool[Array, " num_triangles"]
+_T = TypeVar("_T", bound="TriangleMesh")
+
+
+class _TriangleMeshVerticesUpdateHelper(Generic[_T]):
+    """A helper class to update vertices of a triangle mesh."""
+
+    __slots__ = ("mesh",)
+
+    def __init__(self, mesh: _T) -> None:
+        self.mesh = mesh
+
+    def __getitem__(self, index: _Index) -> "_TriangleMeshVerticesUpdateRef[_T]":
+        return _TriangleMeshVerticesUpdateRef(self.mesh, index)
+
+    def __repr__(self) -> str:
+        return f"_TriangleMeshVerticesUpdateHelper({self.mesh!r})"
+
+
+class _TriangleMeshVerticesUpdateRef(Generic[_T]):
+    """A reference to update vertices of a triangle mesh."""
+
+    __slots__ = ("index", "mesh")
+
+    def __init__(self, mesh: _T, index: _Index) -> None:
+        self.mesh = mesh
+        self.index = index
+
+    def __repr__(self) -> str:
+        return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
+
+    def _triangles_index(self, **kwargs: Any) -> _Index:
+        if self.index == slice(None):
+            # TODO: check if we can use fast path but avoid updating vertices
+            # that are not referenced by any triangle
+            return self.index  # Fast path
+        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
+        return jnp.unique(
+            index, size=len(index), fill_value=self.mesh.vertices.shape[0]
+        )
+
+    def apply(
+        self,
+        func: Callable[
+            [Float[ArrayLike, "num_indexed_triangles 3"]],
+            Float[Array, "num_indexed_triangles 3"],
+        ],
+        **kwargs: Any,
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].apply(
+                func, indices_are_sorted=True, unique_indices=True
+            ),
+        )
+
+    def add(self, values: Any, **kwargs: Any) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].add(
+                values, indices_are_sorted=True, unique_indices=True
+            ),
+        )
+
+    def mul(self, values: Any, **kwargs: Any) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].mul(
+                values, indices_are_sorted=True, unique_indices=True
+            ),
+        )
 
 
 class TriangleMesh(eqx.Module):
@@ -292,6 +373,92 @@ class TriangleMesh(eqx.Module):
         return jnp.vstack(
             (jnp.min(vertices, axis=0), jnp.max(vertices, axis=0)),
         )
+
+    @property
+    def at(self):  # noqa: ANN202
+        """Helper property for updating a subset of triangle vertices.
+
+        This ``at`` property is used to update vertices of a triangle mesh,
+        based on triangles indices,
+        similar to how the ``at`` property is used in :attr:`jax.numpy.ndarray.at`.
+
+        In particular, the following methods are available:
+
+        - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
+        - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
+        - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values.
+
+        E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
+
+        Each method takes additional keyword parameters that are passed to the methods
+        of :attr:`jax.numpy.ndarray.at`. Because the vertices of a triangle mesh may be shared
+        between multiple triangles, this method prevents update the same vertice multiple times
+        by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
+        will not result in duplicate updates.
+
+        Warning:
+            As duplicate vertices are ignored, the number of update vertices is not
+            necessarily equal to the number of triangles selected times three. Moreover,
+            vertices are re-ordered when duplicates are removed. As a results, you should
+            not apply any update that depends on the order of or the number of updated
+            the vertices.
+
+        Examples:
+            The following example shows how to translate the first two (triangle) faces.
+
+            .. plotly::
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = (
+                ...     sum(
+                ...         TriangleMesh.box().iter_objects(),
+                ...         start=TriangleMesh.empty(),
+                ...     )
+                ...     .at[0:2]
+                ...     .add([1.0, 1.0, 0.0])
+                ... )
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            In the above example, splitting the cube mesh into separate objects is necessary,
+            as the vertices of the cube are shared between the faces. If the cube was not split,
+            the translation would be applied to all the faces that share the vertices of the first two faces.
+
+            .. plotly::
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box().at[0:2].add([1.0, 1.0, 0.0])
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Finally, the :attr:`at` property is lazily evaluated, so checking that the index
+            is valid is not performed until a method is called.
+
+            >>> from differt.geometry import TriangleMesh
+            >>>
+            >>> mesh = TriangleMesh.box()
+            >>> mesh.at
+            _TriangleMeshVerticesUpdateHelper(TriangleMesh(
+              vertices=f32[8,3],
+              triangles=i32[10,3],
+              material_names=(),
+              object_bounds=i32[5,2]
+            ))
+            >>> mesh.at[[True, False]]
+            _TriangleMeshVerticesUpdateRef(TriangleMesh(
+              vertices=f32[8,3],
+              triangles=i32[10,3],
+              material_names=(),
+              object_bounds=i32[5,2]
+            ), [True, False])
+            >>> mesh.at[[True, False]].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            IndexError: boolean index did not match shape of indexed array in index 0:
+            got (2,), expected (10,)
+        """
+        return _TriangleMeshVerticesUpdateHelper(self)
 
     def rotate(self, rotation_matrix: Float[ArrayLike, "3 3"]) -> Self:
         """

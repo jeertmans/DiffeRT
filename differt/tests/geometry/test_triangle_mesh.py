@@ -2,6 +2,7 @@ import logging
 import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
+from typing import Any, Literal
 
 import chex
 import equinox as eqx
@@ -279,6 +280,45 @@ class TestTriangleMesh:
         dz = height * 0.5
 
         assert mesh.bounding_box.tolist() == [[-dx, -dy, -dz], [+dx, +dy, +dz]]
+
+    @pytest.mark.parametrize(
+        "index",
+        [
+            slice(None),
+            jnp.arange(24),
+            jnp.array([0, 1, 2]),
+            jnp.ones(24, dtype=bool),
+            jnp.array([0, 3, 3, 4, 4, 5]),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "func_or_values"),
+        [("apply", lambda x: 1 / x), ("add", [1.0, 3.0, 6.0]), ("mul", 2.0)],
+    )
+    def test_at_update(
+        self,
+        index: slice | Array,
+        method: Literal["apply", "add", "mul"],
+        func_or_values: Any,
+        two_buildings_mesh: TriangleMesh,
+    ) -> None:
+        got = getattr(two_buildings_mesh.at[index], method)(func_or_values)
+
+        if index != slice(None):
+            if isinstance(index, Array) and index.dtype != jnp.bool:
+                index = jnp.unique(index)
+            index = two_buildings_mesh.triangles[index, :].reshape(-1)
+            index = jnp.unique(index)
+
+        vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
+            func_or_values
+        )
+        expected = eqx.tree_at(
+            lambda m: m.vertices,
+            two_buildings_mesh,
+            vertices,
+        )
+        chex.assert_trees_all_equal(got, expected)
 
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
