@@ -401,7 +401,7 @@ class TriangleMesh(eqx.Module):
             the vertices.
 
         Examples:
-            The following example shows how to translate the first two faces.
+            The following example shows how to translate the first two (triangle) faces.
 
             .. plotly::
 
@@ -420,7 +420,7 @@ class TriangleMesh(eqx.Module):
 
             In the above example, splitting the cube mesh into separate objects is necessary,
             as the vertices of the cube are shared between the faces. If the cube was not split,
-            the translation would be applied to all faces that share the vertices of the first two faces.
+            the translation would be applied to all the faces that share the vertices of the first two faces.
 
             .. plotly::
 
