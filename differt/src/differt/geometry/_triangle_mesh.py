@@ -413,7 +413,7 @@ class TriangleMesh(eqx.Module):
                 ...         start=TriangleMesh.empty(),
                 ...     )
                 ...     .at[0:2]
-                ...     .add([1.0, 0.0, 0.0])
+                ...     .add([1.0, 1.0, 0.0])
                 ... )
                 >>> fig = mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
