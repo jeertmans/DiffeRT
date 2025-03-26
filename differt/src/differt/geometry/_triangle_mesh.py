@@ -429,6 +429,31 @@ class TriangleMesh(eqx.Module):
                 >>> mesh = TriangleMesh.box().at[0:2].add([1.0, 1.0, 0.0])
                 >>> fig = mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
+
+            Finally, the :attr:`at` property is lazily evaluated, so checking that the index
+            is valid is not performed until a method is called.
+
+            >>> from differt.geometry import TriangleMesh
+            >>>
+            >>> mesh = TriangleMesh.box()
+            >>> mesh.at
+            _TriangleMeshVerticesUpdateHelper(TriangleMesh(
+              vertices=f32[8,3],
+              triangles=i32[10,3],
+              material_names=(),
+              object_bounds=i32[5,2]
+            ))
+            >>> mesh.at[[True, False]]
+            _TriangleMeshVerticesUpdateRef(TriangleMesh(
+              vertices=f32[8,3],
+              triangles=i32[10,3],
+              material_names=(),
+              object_bounds=i32[5,2]
+            ), [True, False])
+            >>> mesh.at[[True, False]].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
+            Traceback (most recent call last):
+            IndexError: boolean index did not match shape of indexed array in index 0:
+            got (2,), expected (10,)
         """
         return _TriangleMeshVerticesUpdateHelper(self)
 
