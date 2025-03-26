@@ -1,10 +1,8 @@
 # ruff: noqa: ERA001
 
 from collections.abc import Callable, Iterator
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
-from collections.abc import Iterator, Sequence
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 import equinox as eqx
 import jax
@@ -128,6 +126,22 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
+        )
+
+    def set(self, values: Any, **kwargs: Any) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].set(
+                values, indices_are_sorted=True, unique_indices=True
+            ),
+        )
+
+    def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+        index = self._triangles_index(**kwargs)
+        return self.mesh.vertices.at[index, :].get(
+            indices_are_sorted=True, unique_indices=True
         )
 
     def apply(
@@ -384,9 +398,11 @@ class TriangleMesh(eqx.Module):
 
         In particular, the following methods are available:
 
+        - ``set(values, **kwargs)``: Set the vertices of selected triangles to some values;
         - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
         - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
-        - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values.
+        - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values;
+        - ``get(values, **kwargs)``: Get the vertices of selected triangles.
 
         E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
 
@@ -826,9 +842,12 @@ class TriangleMesh(eqx.Module):
         Args:
             names: The material names.
                 If one name is provided, it will be applied to all triangles.
-        
+
         Returns:
             A new mesh with updated face materials.
+
+        Raises:
+            ValueError: If the number of names is not 1, :attr:`num_triangles`, or :attr:`num_objects` (if :attr:`assume_quads` is set to :data:`True`).
         """
         if len(names) not in {1, self.num_triangles, self.num_objects}:
             if self.assume_quads:
@@ -838,27 +857,29 @@ class TriangleMesh(eqx.Module):
             raise ValueError(msg)
         material_names = dict.fromkeys(self.material_names)
         if all(name in material_names for name in names):
+            material_names = {name: i for i, name in enumerate(material_names)}
             face_materials = jnp.array([material_names[name] for name in names])
+            if self.assume_quads and len(names) == self.num_quads:
+                face_materials = jnp.repeat(face_materials, 2)
             return self.set_face_materials(face_materials)
-        
+
         material_names = material_names | dict.fromkeys(names)
         material_names = {name: i for i, name in enumerate(material_names)}
 
         face_materials = jnp.array([material_names[name] for name in names])
-        self = replace(self, material_names=tuple(material_names))
-        return self.set_face_materials(face_materials)
-
+        if self.assume_quads and len(names) == self.num_quads:
+            face_materials = jnp.repeat(face_materials, 2)
+        mesh = replace(self, material_names=tuple(material_names))
+        return mesh.set_face_materials(face_materials)
 
     def set_face_materials(
-        self,
-        materials: Int[ArrayLike, " "]
-        | Int[ArrayLike, "#num_triangles"]
+        self, materials: Int[ArrayLike, " "] | Int[ArrayLike, "#num_triangles"]
     ) -> Self:
         """
         Return a copy of this mesh, with new face materials.
 
         Args:
-            face_materials: The material indices.
+            materials: The material indices.
                 If one material is provided, it will be applied to all triangles.
 
                 No check is performed to verify that material indices are actually

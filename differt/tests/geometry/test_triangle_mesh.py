@@ -298,7 +298,7 @@ class TestTriangleMesh:
     def test_at_update(
         self,
         index: slice | Array,
-        method: Literal["apply", "add", "mul"],
+        method: Literal["set", "apply", "add", "mul", "get"],
         func_or_values: Any,
         two_buildings_mesh: TriangleMesh,
     ) -> None:
@@ -313,11 +313,14 @@ class TestTriangleMesh:
         vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
             func_or_values
         )
-        expected = eqx.tree_at(
-            lambda m: m.vertices,
-            two_buildings_mesh,
-            vertices,
-        )
+        if method == "get":
+            expected = vertices
+        else:
+            expected = eqx.tree_at(
+                lambda m: m.vertices,
+                two_buildings_mesh,
+                vertices,
+            )
         chex.assert_trees_all_equal(got, expected)
 
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
@@ -489,11 +492,26 @@ class TestTriangleMesh:
 
         mesh = mesh.set_materials("concrete")
         assert mesh.face_materials is not None
-        assert len(mesh.material_names) == 12
+        assert len(mesh.material_names) == 1
+        chex.assert_trees_all_equal(mesh.face_materials, jnp.zeros(12, dtype=int))
         mesh = mesh.set_materials(*["glass"] * 12)
+        chex.assert_trees_all_equal(mesh.face_materials, jnp.ones(12, dtype=int))
+        assert len(mesh.material_names) == 2
         mesh = mesh.set_assume_quads()
-        mesh = mesh.set_materials("metal", "glass", "concrete", "brick", "wood", "plastic")
-        assert mesh.material_names == ("glass", "metal", "concrete", "brick", "wood", "plastic")
+        mesh = mesh.set_materials(
+            "metal", "glass", "concrete", "brick", "wood", "plastic"
+        )
+        assert mesh.material_names == (
+            "concrete",
+            "glass",
+            "metal",
+            "brick",
+            "wood",
+            "plastic",
+        )
+        mesh = mesh.set_materials(
+            "metal", "glass", "concrete", "brick", "wood", "plastic"
+        )
         mesh = mesh.set_materials("concrete")
 
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
