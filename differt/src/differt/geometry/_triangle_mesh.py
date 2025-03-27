@@ -469,7 +469,7 @@ class TriangleMesh(eqx.Module):
               triangles=i32[10,3],
               material_names=(),
               object_bounds=i32[5,2]
-            ), bool[2])
+            ), Array([ True, False], dtype=bool))
             >>> mesh.at[index].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
             IndexError: boolean index did not match shape of indexed array in index 0:
