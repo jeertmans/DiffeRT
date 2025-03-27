@@ -124,7 +124,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: Quansight-Labs/setup-python@v5
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.pyversion }}
 
