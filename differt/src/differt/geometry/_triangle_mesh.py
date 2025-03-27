@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001
 
 from collections.abc import Callable, Iterator
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 import equinox as eqx
@@ -125,6 +126,22 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
+        )
+
+    def set(self, values: Any, **kwargs: Any) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].set(
+                values, indices_are_sorted=True, unique_indices=True
+            ),
+        )
+
+    def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+        index = self._triangles_index(**kwargs)
+        return self.mesh.vertices.at[index, :].get(
+            indices_are_sorted=True, unique_indices=True
         )
 
     def apply(
@@ -381,9 +398,11 @@ class TriangleMesh(eqx.Module):
 
         In particular, the following methods are available:
 
+        - ``set(values, **kwargs)``: Set the vertices of selected triangles to some values;
         - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
         - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
-        - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values.
+        - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values;
+        - ``get(values, **kwargs)``: Get the vertices of selected triangles.
 
         E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
 
@@ -443,14 +462,15 @@ class TriangleMesh(eqx.Module):
               material_names=(),
               object_bounds=i32[5,2]
             ))
-            >>> mesh.at[[True, False]]
+            >>> index = jnp.array([True, False])
+            >>> mesh.at[index]
             _TriangleMeshVerticesUpdateRef(TriangleMesh(
               vertices=f32[8,3],
               triangles=i32[10,3],
               material_names=(),
               object_bounds=i32[5,2]
-            ), [True, False])
-            >>> mesh.at[[True, False]].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
+            ), Array([ True, False], dtype=bool))
+            >>> mesh.at[index].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
             IndexError: boolean index did not match shape of indexed array in index 0:
             got (2,), expected (10,)
@@ -515,7 +535,7 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    def append(self, other: "TriangleMesh") -> "TriangleMesh":
+    def append(self, other: "TriangleMesh") -> Self:
         """
         Return a new mesh by appending another mesh to this one.
 
@@ -523,11 +543,25 @@ class TriangleMesh(eqx.Module):
 
             For convenience, you can also use the ``+`` operator.
 
-        .. todo::
+        .. note::
 
-            Document how optional arguments are merged,
-            as well as the behavior of :attr:`assume_quads`,
-            and the specific case of empty meshes.
+            The following rules are applied when merging two meshes:
+            - The vertices are concatenated;
+            - The triangles are concatenated, and the indices of the second mesh are updated;
+            - The face colors are concatenated. If one mesh has colors while the other does not,
+              then mesh with no colors will have its face colors set to black (0, 0, 0);
+            - The face materials are concatenated. If ``other`` has face materials not included
+              in ``self``, then the face materials from ``other`` are renumbered.
+              If one mesh has colors while the other does not,
+              then mesh with no colors will have its face materials set to ``-1``;
+            - The material names are merged, keeping only unique names;
+            - The object bounds are concatenated only if both meshes have them set,
+              otherwise, the object bounds are set to :data:`None`;
+            - The :attr:`assume_quads` flag is set to :data:`True` if both meshes have it set to :data:`True`.
+
+            Two important exceptions are:
+            - If one mesh is empty, a copy of the other mesh is returned as is;
+            - If both meshes are empty, then a copy of ``self`` is returned.
 
         Args:
             other: The mesh to append.
@@ -552,10 +586,10 @@ class TriangleMesh(eqx.Module):
                 >>> fig = mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
         """
-        if self.is_empty:
-            return eqx.tree_at(lambda _: (), other, ())
         if other.is_empty:
             return eqx.tree_at(lambda _: (), self, ())
+        if self.is_empty:
+            return eqx.tree_at(lambda _: (), other, ())
 
         vertices = jnp.concatenate((self.vertices, other.vertices), axis=0)
         triangles = jnp.concatenate(
@@ -637,13 +671,18 @@ class TriangleMesh(eqx.Module):
             else None
         )
         assume_quads = self.assume_quads and other.assume_quads
-        return TriangleMesh(
-            vertices=vertices,
-            triangles=triangles,
-            face_colors=face_colors,
-            face_materials=face_materials,
-            object_bounds=object_bounds,
-            assume_quads=assume_quads,
+        mesh = replace(self, material_names=material_names, assume_quads=assume_quads)
+        return eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.object_bounds,
+            ),
+            mesh,
+            (vertices, triangles, face_colors, face_materials, object_bounds),
+            is_leaf=lambda x: x is None,
         )
 
     __add__ = append
@@ -811,6 +850,72 @@ class TriangleMesh(eqx.Module):
             lambda m: m.face_colors,
             self,
             face_colors,
+            is_leaf=lambda x: x is None,
+        )
+
+    def set_materials(self, *names: str) -> Self:
+        """
+        Return a copy of this mesh, with new face materials from material names.
+
+        If a material name is not in :attr:`material_names`, it is added.
+
+        Args:
+            names: The material names.
+                If one name is provided, it will be applied to all triangles.
+
+        Returns:
+            A new mesh with updated face materials.
+
+        Raises:
+            ValueError: If the number of names is not 1, :attr:`num_triangles`, or :attr:`num_objects` (if :attr:`assume_quads` is set to :data:`True`).
+        """
+        if len(names) not in {1, self.num_triangles, self.num_objects}:
+            if self.assume_quads:
+                msg = f"Expected either 1, {self.num_triangles}, or {self.num_objects} names, got {len(names)}."
+            else:
+                msg = f"Expected either 1, or {self.num_triangles} names, got {len(names)}."
+            raise ValueError(msg)
+        material_names = dict.fromkeys(self.material_names)
+        if all(name in material_names for name in names):
+            material_names = {name: i for i, name in enumerate(material_names)}
+            face_materials = jnp.array([material_names[name] for name in names])
+            if self.assume_quads and len(names) == self.num_quads:
+                face_materials = jnp.repeat(face_materials, 2)
+            return self.set_face_materials(face_materials)
+
+        material_names = material_names | dict.fromkeys(names)
+        material_names = {name: i for i, name in enumerate(material_names)}
+
+        face_materials = jnp.array([material_names[name] for name in names])
+        if self.assume_quads and len(names) == self.num_quads:
+            face_materials = jnp.repeat(face_materials, 2)
+        mesh = replace(self, material_names=tuple(material_names))
+        return mesh.set_face_materials(face_materials)
+
+    def set_face_materials(
+        self, materials: Int[ArrayLike, " "] | Int[ArrayLike, "#num_triangles"]
+    ) -> Self:
+        """
+        Return a copy of this mesh, with new face materials.
+
+        Args:
+            materials: The material indices.
+                If one material is provided, it will be applied to all triangles.
+
+                No check is performed to verify that material indices are actually
+                in bounds of :attr:`material_names`.
+
+        Returns:
+            A new mesh with updated face materials.
+        """
+        face_materials = jnp.broadcast_to(
+            jnp.asarray(materials),
+            self.num_triangles,
+        )
+        return eqx.tree_at(
+            lambda m: m.face_materials,
+            self,
+            face_materials,
             is_leaf=lambda x: x is None,
         )
 
