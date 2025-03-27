@@ -535,7 +535,7 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    def append(self, other: "TriangleMesh") -> "TriangleMesh":
+    def append(self, other: "TriangleMesh") -> Self:
         """
         Return a new mesh by appending another mesh to this one.
 
@@ -543,11 +543,25 @@ class TriangleMesh(eqx.Module):
 
             For convenience, you can also use the ``+`` operator.
 
-        .. todo::
+        .. note::
 
-            Document how optional arguments are merged,
-            as well as the behavior of :attr:`assume_quads`,
-            and the specific case of empty meshes.
+            The following rules are applied when merging two meshes:
+            - The vertices are concatenated;
+            - The triangles are concatenated, and the indices of the second mesh are updated;
+            - The face colors are concatenated. If one mesh has colors while the other does not,
+              then mesh with no colors will have its face colors set to black (0, 0, 0);
+            - The face materials are concatenated. If ``other`` has face materials not included
+              in ``self``, then the face materials from ``other`` are renumbered.
+              If one mesh has colors while the other does not,
+              then mesh with no colors will have its face materials set to ``-1``;
+            - The material names are merged, keeping only unique names;
+            - The object bounds are concatenated only if both meshes have them set,
+              otherwise, the object bounds are set to :data:`None`;
+            - The :attr:`assume_quads` flag is set to :data:`True` if both meshes have it set to :data:`True`.
+
+            Two important exceptions are:
+            - If one mesh is empty, a copy of the other mesh is returned as is;
+            - If both meshes are empty, then a copy of ``self`` is returned.
 
         Args:
             other: The mesh to append.
@@ -572,10 +586,10 @@ class TriangleMesh(eqx.Module):
                 >>> fig = mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
         """
-        if self.is_empty:
-            return eqx.tree_at(lambda _: (), other, ())
         if other.is_empty:
             return eqx.tree_at(lambda _: (), self, ())
+        if self.is_empty:
+            return eqx.tree_at(lambda _: (), other, ())
 
         vertices = jnp.concatenate((self.vertices, other.vertices), axis=0)
         triangles = jnp.concatenate(
@@ -657,13 +671,18 @@ class TriangleMesh(eqx.Module):
             else None
         )
         assume_quads = self.assume_quads and other.assume_quads
-        return TriangleMesh(
-            vertices=vertices,
-            triangles=triangles,
-            face_colors=face_colors,
-            face_materials=face_materials,
-            object_bounds=object_bounds,
-            assume_quads=assume_quads,
+        mesh = replace(self, material_names=material_names, assume_quads=assume_quads)
+        return eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.object_bounds,
+            ),
+            mesh,
+            (vertices, triangles, face_colors, face_materials, object_bounds),
+            is_leaf=lambda x: x is None,
         )
 
     __add__ = append
