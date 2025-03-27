@@ -462,14 +462,15 @@ class TriangleMesh(eqx.Module):
               material_names=(),
               object_bounds=i32[5,2]
             ))
-            >>> mesh.at[[True, False]]
+            >>> index = jnp.array([True, False])
+            >>> mesh.at[index]
             _TriangleMeshVerticesUpdateRef(TriangleMesh(
               vertices=f32[8,3],
               triangles=i32[10,3],
               material_names=(),
               object_bounds=i32[5,2]
-            ), [True, False])
-            >>> mesh.at[[True, False]].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
+            ), bool[2])
+            >>> mesh.at[index].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
             IndexError: boolean index did not match shape of indexed array in index 0:
             got (2,), expected (10,)
