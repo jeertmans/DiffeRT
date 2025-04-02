@@ -49,7 +49,7 @@ else:
 
 
 @eqx.filter_jit
-def _compute_paths(
+def _compute_paths(  # noqa: PLR0915
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -59,6 +59,8 @@ def _compute_paths(
     epsilon: Float[ArrayLike, " "] | None,
     hit_tol: Float[ArrayLike, " "] | None,
     min_len: Float[ArrayLike, " "] | None,
+    smoothing_factor: Float[ArrayLike, " "] | None,
+    confidence_threshold: Float[ArrayLike, " "] = 0.5,
 ) -> Paths:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
@@ -192,7 +194,11 @@ def _compute_paths(
         # TODO: check if we should invalidate non-finite paths
         # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
-        mask = inside_triangles & valid_reflections & ~blocked & ~too_small
+        if smoothing_factor:  # TODO: implement me
+            confidence = jnp.ones_like(too_small, dtype=full_paths.dtype)
+            mask = confidence > confidence_threshold
+        else:
+            mask = inside_triangles & valid_reflections & ~blocked & ~too_small
 
         return full_paths, mask
 
@@ -688,6 +694,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths: ...
 
     @overload
@@ -704,6 +712,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -720,6 +730,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths: ...
 
     @overload
@@ -736,6 +748,8 @@ class TriangleScene(eqx.Module):
         hit_tol: None = None,
         min_len: None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
     def compute_paths(  # noqa: C901
@@ -751,6 +765,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths | SizedIterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -837,6 +853,16 @@ class TriangleScene(eqx.Module):
                 to be considered in the vicinity of the ray path.
 
                 Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
+            smoothing_factor: If set, intermediate hard conditions are replaced with smoothed ones,
+                as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+                of the smoothing function. The, valid paths are identified using
+                ``confidence > confidence_threshold`` where ``confidence`` is a real value
+                between 0 and 1 that indicates the confidence that a path is valid.
+
+                  .. warning::
+
+                    Currently, only the ``'exhaustive'`` method is supported.
+            confidence_threshold: A threshold value for deciding which paths are valid.
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -865,6 +891,10 @@ class TriangleScene(eqx.Module):
             msg = "Argument 'chunk_size' is ignored when 'path_candidates' is provided."
             warnings.warn(msg, UserWarning, stacklevel=2)
             chunk_size = None
+        if (method == "exhaustive") and (smoothing_factor is not None):
+            msg = "Argument 'smoothing' is currently ignored when 'method' is not set to 'exhaustive'."
+            warnings.warn(msg, UserWarning, stacklevel=2)
+            smoothing_factor = None
 
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
@@ -921,6 +951,8 @@ class TriangleScene(eqx.Module):
                     epsilon=epsilon,
                     hit_tol=hit_tol,
                     min_len=min_len,
+                    smoothing_factor=smoothing_factor,
+                    confidence_threshold=confidence_threshold,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -949,6 +981,8 @@ class TriangleScene(eqx.Module):
             epsilon=epsilon,
             hit_tol=hit_tol,
             min_len=min_len,
+            smoothing_factor=smoothing_factor,
+            confidence_threshold=confidence_threshold,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(
