@@ -35,7 +35,7 @@ from differt.rt import (
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
-from differt.utils import dot
+from differt.utils import dot, smoothing_function
 
 if TYPE_CHECKING:
     import sys
@@ -145,16 +145,37 @@ def _compute_paths(  # noqa: PLR0915
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
         if mesh.assume_quads:
-            inside_triangles = (
-                rays_intersect_triangles(
-                    ray_origins[..., :-1, None, :],
-                    ray_directions[..., :-1, None, :],
-                    quad_vertices,  # type: ignore[reportArgumentType]
-                    epsilon=epsilon,
-                )[1]
-                .any(axis=-1)
-                .all(axis=-1)
-            )  # Reduce on 'order' axis and on the two triangles (per quad)
+            if smoothing_factor is not None:
+                inside_triangles = (
+                    rays_intersect_triangles(
+                        ray_origins[..., :-1, None, :],
+                        ray_directions[..., :-1, None, :],
+                        quad_vertices,  # type: ignore[reportArgumentType]
+                        epsilon=epsilon,
+                        smoothing_factor=smoothing_factor,
+                    )[1]
+                    .max(axis=-1)
+                    .min(axis=-1)
+                )  # Reduce on 'order' axis and on the two triangles (per quad)
+            else:
+                inside_triangles = (
+                    rays_intersect_triangles(
+                        ray_origins[..., :-1, None, :],
+                        ray_directions[..., :-1, None, :],
+                        quad_vertices,  # type: ignore[reportArgumentType]
+                        epsilon=epsilon,
+                    )[1]
+                    .any(axis=-1)
+                    .all(axis=-1)
+                )  # Reduce on 'order' axis and on the two triangles (per quad)
+        elif smoothing_factor is not None:
+            inside_triangles = rays_intersect_triangles(
+                ray_origins[..., :-1, :],
+                ray_directions[..., :-1, :],
+                triangle_vertices,
+                epsilon=epsilon,
+                smoothing_factor=smoothing_factor,
+            )[1].min(axis=-1)  # Reduce on 'order' axis
         else:
             inside_triangles = rays_intersect_triangles(
                 ray_origins[..., :-1, :],
@@ -166,36 +187,62 @@ def _compute_paths(  # noqa: PLR0915
         # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
-        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
-            full_paths,
-            mirror_vertices,
-            mirror_normals,
-        ).all(axis=-1)  # Reduce on 'order'
+        if smoothing_factor is not None:
+            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+                full_paths,
+                mirror_vertices,
+                mirror_normals,
+                smoothing_factor=smoothing_factor,
+            ).min(axis=-1)  # Reduce on 'order'
+        else:
+            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+                full_paths,
+                mirror_vertices,
+                mirror_normals,
+            ).all(axis=-1)  # Reduce on 'order'
 
         # 3.3 - Identify paths that are blocked by other objects
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
-        blocked = rays_intersect_any_triangle(
-            ray_origins,
-            ray_directions,
-            mesh.triangle_vertices,
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-        ).any(axis=-1)  # Reduce on 'order'
+        if smoothing_factor is not None:
+            blocked = rays_intersect_any_triangle(
+                ray_origins,
+                ray_directions,
+                mesh.triangle_vertices,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+                smoothing_factor=smoothing_factor,
+            ).max(axis=-1)  # Reduce on 'order'
+        else:
+            blocked = rays_intersect_any_triangle(
+                ray_origins,
+                ray_directions,
+                mesh.triangle_vertices,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+            ).any(axis=-1)  # Reduce on 'order'
 
         # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
         ray_lengths = dot(ray_directions)  # Squared norm
 
-        too_small = (ray_lengths < min_len).any(
-            axis=-1
-        )  # Any path segment being too small
+        if smoothing_factor is not None:
+            too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
+                axis=-1
+            )  # Any path segment being too small
+        else:
+            too_small = (ray_lengths < min_len).any(
+                axis=-1
+            )  # Any path segment being too small
 
         # TODO: check if we should invalidate non-finite paths
         # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
         if smoothing_factor:  # TODO: implement me
-            confidence = jnp.ones_like(too_small, dtype=full_paths.dtype)
+            confidence = jnp.stack(
+                (inside_triangles, valid_reflections, 1.0 - blocked, 1.0 - too_small),
+                axis=-1,
+            ).min(axis=-1)
             mask = confidence > confidence_threshold
         else:
             mask = inside_triangles & valid_reflections & ~blocked & ~too_small
@@ -858,6 +905,8 @@ class TriangleScene(eqx.Module):
                 of the smoothing function. The, valid paths are identified using
                 ``confidence > confidence_threshold`` where ``confidence`` is a real value
                 between 0 and 1 that indicates the confidence that a path is valid.
+
+                For more details, refer to :ref:`smoothing`.
 
                   .. warning::
 

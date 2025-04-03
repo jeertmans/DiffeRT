@@ -9,6 +9,7 @@ from differt.utils import (
     minimize,
     safe_divide,
     sample_points_in_bounding_box,
+    smoothing_function,
     sorted_array2,
 )
 
@@ -158,4 +159,29 @@ def test_safe_divide(key: PRNGKeyArray) -> None:
     expected = jnp.where(y != 0, x / y, 0)
 
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
+    chex.assert_trees_all_equal(got, expected)
+
+
+def test_smoothing_function(key: PRNGKeyArray) -> None:
+    key_x, key_smoothing_factor = jax.random.split(key, 2)
+    x = jax.random.normal(key_x, (40, 1, 10)) * 1000.0
+    x[0, 0, 0] = 0.0  # Make first entry be a zero
+    smoothing_factor = jax.random.randint(
+        key_smoothing_factor, (20, 1), minval=0, maxval=100
+    )
+
+    got = smoothing_function(x, smoothing_factor)
+    expected = jax.nn.sigmoid(x * smoothing_factor)
+
+    chex.assert_trees_all_equal(got, expected)
+
+    x_limits = jnp.array([-1e8, 0.0, +1e8])
+
+    got = smoothing_function(x_limits, smoothing_factor)
+    expected = jnp.array([0.0, 0.5, 1.0])
+
+    chex.assert_trees_all_close(got, expected)
+
+    got = smoothing_function(x, jnp.inf)
+    expected = jnp.where(x == 0.0, 0.5, jnp.sign(x))
     chex.assert_trees_all_equal(got, expected)

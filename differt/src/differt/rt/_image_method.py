@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001
 
 from functools import partial
+from typing import overload
 
 import chex
 import jax
@@ -332,12 +333,34 @@ def image_method(
     return jnp.moveaxis(paths, 0, -2)  # Put 'num_mirrors' axis at the end
 
 
+@overload
+def consecutive_vertices_are_on_same_side_of_mirrors(
+    vertices: Float[ArrayLike, "*#batch num_vertices 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
+    mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
+    *,
+    smoothing_factor: None = None,
+) -> Bool[Array, "*#batch num_mirrors"]: ...
+
+
+@overload
+def consecutive_vertices_are_on_same_side_of_mirrors(
+    vertices: Float[ArrayLike, "*#batch num_vertices 3"],
+    mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
+    mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
+    *,
+    smoothing_factor: Float[ArrayLike, " "],
+) -> Float[Array, "*#batch num_mirrors"]: ...
+
+
 @jax.jit
 def consecutive_vertices_are_on_same_side_of_mirrors(
     vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
-) -> Bool[Array, "*#batch num_mirrors"]:
+    *,
+    smoothing_factor: Float[ArrayLike, " "] | None = None,
+) -> Bool[Array, "*#batch num_mirrors"] | Float[Array, "*#batch num_mirrors"]:
     """
     Check if consecutive vertices, but skipping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.
 
@@ -352,6 +375,12 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
             to be a valid vertex.
         mirror_normals: An array of mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
+        smoothing_factor: If set, hard conditions are replaced with smoothed ones,
+            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            of the smoothing function. The output value is now a real value
+            between 0 (:data:`False`) and 1 (:data:`True`).
+
+            For more details, refer to :ref:`smoothing`.
 
     Returns:
         A boolean array indicating whether pairs of consecutive vertices
@@ -375,4 +404,6 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     dot_prev = dot(d_prev, mirror_normals)
     dot_next = dot(d_next, mirror_normals)
 
+    if smoothing_factor:
+        return dot_prev  # TODO: fixme
     return jnp.sign(dot_prev) == jnp.sign(dot_next)

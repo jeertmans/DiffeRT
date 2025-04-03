@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import equinox as eqx
 import jax
@@ -10,7 +10,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.geometry import fibonacci_lattice, viewing_frustum
-from differt.utils import dot
+from differt.utils import dot, smoothing_function
 from differt_core.rt import CompleteGraph
 
 if TYPE_CHECKING:
@@ -157,6 +157,28 @@ def generate_all_path_candidates_chunks_iter(
     return SizedIterator(m, size=it.__len__)
 
 
+@overload
+def rays_intersect_triangles(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
+    *,
+    epsilon: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: Float[ArrayLike, " "],
+) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]: ...
+
+
+@overload
+def rays_intersect_triangles(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
+    *,
+    epsilon: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: None = None,
+) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]: ...
+
+
 @eqx.filter_jit
 def rays_intersect_triangles(
     ray_origins: Float[ArrayLike, "*#batch 3"],
@@ -164,7 +186,8 @@ def rays_intersect_triangles(
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
     epsilon: Float[ArrayLike, " "] | None = None,
-) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]:
+    smoothing_factor: Float[ArrayLike, " "] | None = None,
+) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"] | Float[Array, "*batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
 
@@ -186,6 +209,12 @@ def rays_intersect_triangles(
 
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
+        smoothing_factor: If set, hard conditions are replaced with smoothed ones,
+            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            of the smoothing function. The second output value is now a real value
+            between 0 (:data:`False`) and 1 (:data:`True`).
+
+            For more details, refer to :ref:`smoothing`.
 
     Returns:
         For each ray, return the scale factor of ``ray_directions`` for the
@@ -250,6 +279,8 @@ def rays_intersect_triangles(
     ray_directions = jnp.asarray(ray_directions)
     triangle_vertices = jnp.asarray(triangle_vertices)
 
+    # TODO: implement smoothing
+
     if epsilon is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         epsilon = 10 * jnp.finfo(dtype).eps
@@ -289,6 +320,28 @@ def rays_intersect_triangles(
     return t, hit
 
 
+@overload
+def rays_intersect_any_triangle(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    *,
+    hit_tol: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: Float[ArrayLike, " "],
+) -> Bool[Array, "*batch"]: ...
+
+
+@overload
+def rays_intersect_any_triangle(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    *,
+    hit_tol: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: None = None,
+) -> Float[Array, "*batch"]: ...
+
+
 @eqx.filter_jit
 def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
@@ -296,8 +349,9 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: Float[ArrayLike, " "] | None = None,
     **kwargs: Any,
-) -> Bool[Array, " *batch"]:
+) -> Bool[Array, " *batch"] | Float[Array, "*batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
 
@@ -321,6 +375,12 @@ def rays_intersect_any_triangle(
 
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
+        smoothing_factor: If set, hard conditions are replaced with smoothed ones,
+            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            of the smoothing function. The second output value is now a real value
+            between 0 (:data:`False`) and 1 (:data:`True`).
+
+            For more details, refer to :ref:`smoothing`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -346,18 +406,38 @@ def rays_intersect_any_triangle(
         triangle_vertices.shape[1:-2],
     )
 
-    def scan_fun(
-        intersect: Bool[Array, " *batch"],
-        triangle_vertices: Float[Array, "*#batch 3 3"],
-    ) -> tuple[Bool[Array, " *batch"], None]:
-        t, hit = rays_intersect_triangles(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            **kwargs,
-        )
-        intersect = intersect | ((t < hit_threshold) & hit)
-        return intersect, None
+    if smoothing_factor is not None:
+
+        def scan_fun(
+            intersect: Bool[Array, " *batch"],
+            triangle_vertices: Float[Array, "*#batch 3 3"],
+        ) -> tuple[Float[Array, " *batch"], None]:
+            t, hit = rays_intersect_triangles(
+                ray_origins,
+                ray_directions,
+                triangle_vertices,
+                smoothing_factor=smoothing_factor,
+                **kwargs,
+            )
+            intersect = jnp.maximum(
+                intersect, smoothing_function(hit_threshold - t) & hit
+            )
+            return intersect, None
+
+    else:
+
+        def scan_fun(
+            intersect: Bool[Array, " *batch"],
+            triangle_vertices: Float[Array, "*#batch 3 3"],
+        ) -> tuple[Bool[Array, " *batch"], None]:
+            t, hit = rays_intersect_triangles(
+                ray_origins,
+                ray_directions,
+                triangle_vertices,
+                **kwargs,
+            )
+            intersect = intersect | ((t < hit_threshold) & hit)
+            return intersect, None
 
     return jax.lax.scan(
         scan_fun,

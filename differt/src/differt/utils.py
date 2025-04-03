@@ -328,3 +328,25 @@ def safe_divide(
     num = jnp.asarray(num)
     den = jnp.asarray(den)
     return jnp.where(den == 0, 0, num / den)
+
+
+@partial(jax.jit, inline=True)
+def smoothing_function(
+    x: Float[ArrayLike, " *#batch"],
+    /,
+    smoothing_factor: Float[ArrayLike, " *#batch"] = 1.0,
+) -> Float[ArrayLike, " #batch"]:
+    r"""
+    Return a smoothed approximation of :func:`jax.numpy.sign`.
+
+    This function is used internally for smoothing-out discontinuities
+    in Ray Tracing, see :ref:`smoothing`.
+
+    Args:
+        x: The input array.
+        smoothing_factor: The slope---or scaling---parameter, also noted :math:`\alpha`.
+
+    Returns:
+        The output of the smoothing function.
+    """
+    return jax.nn.sigmoid(x * smoothing_factor)
