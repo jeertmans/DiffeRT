@@ -35,7 +35,7 @@ from differt.rt import (
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
-from differt.utils import dot
+from differt.utils import dot, smoothing_function
 
 if TYPE_CHECKING:
     import sys
@@ -49,7 +49,7 @@ else:
 
 
 @eqx.filter_jit
-def _compute_paths(
+def _compute_paths(  # noqa: C901, PLR0915
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -59,6 +59,8 @@ def _compute_paths(
     epsilon: Float[ArrayLike, " "] | None,
     hit_tol: Float[ArrayLike, " "] | None,
     min_len: Float[ArrayLike, " "] | None,
+    smoothing_factor: Float[ArrayLike, " "] | None,
+    confidence_threshold: Float[ArrayLike, " "] = 0.5,
 ) -> Paths:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
@@ -105,7 +107,7 @@ def _compute_paths(
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    def fun(
+    def fun(  # noqa: PLR0912
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
@@ -143,16 +145,37 @@ def _compute_paths(
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
         if mesh.assume_quads:
-            inside_triangles = (
-                rays_intersect_triangles(
-                    ray_origins[..., :-1, None, :],
-                    ray_directions[..., :-1, None, :],
-                    quad_vertices,  # type: ignore[reportArgumentType]
-                    epsilon=epsilon,
-                )[1]
-                .any(axis=-1)
-                .all(axis=-1)
-            )  # Reduce on 'order' axis and on the two triangles (per quad)
+            if smoothing_factor is not None:
+                inside_triangles = (
+                    rays_intersect_triangles(
+                        ray_origins[..., :-1, None, :],
+                        ray_directions[..., :-1, None, :],
+                        quad_vertices,  # type: ignore[reportArgumentType]
+                        epsilon=epsilon,
+                        smoothing_factor=smoothing_factor,
+                    )[1]
+                    .max(axis=-1, initial=0.0)
+                    .min(axis=-1, initial=1.0)
+                )  # Reduce on 'order' axis and on the two triangles (per quad)
+            else:
+                inside_triangles = (
+                    rays_intersect_triangles(
+                        ray_origins[..., :-1, None, :],
+                        ray_directions[..., :-1, None, :],
+                        quad_vertices,  # type: ignore[reportArgumentType]
+                        epsilon=epsilon,
+                    )[1]
+                    .any(axis=-1)
+                    .all(axis=-1)
+                )  # Reduce on 'order' axis and on the two triangles (per quad)
+        elif smoothing_factor is not None:
+            inside_triangles = rays_intersect_triangles(
+                ray_origins[..., :-1, :],
+                ray_directions[..., :-1, :],
+                triangle_vertices,
+                epsilon=epsilon,
+                smoothing_factor=smoothing_factor,
+            )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
         else:
             inside_triangles = rays_intersect_triangles(
                 ray_origins[..., :-1, :],
@@ -164,35 +187,65 @@ def _compute_paths(
         # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
-        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
-            full_paths,
-            mirror_vertices,
-            mirror_normals,
-        ).all(axis=-1)  # Reduce on 'order'
+        if smoothing_factor is not None:
+            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+                full_paths,
+                mirror_vertices,
+                mirror_normals,
+                smoothing_factor=smoothing_factor,
+            ).min(axis=-1, initial=1.0)  # Reduce on 'order'
+        else:
+            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+                full_paths,
+                mirror_vertices,
+                mirror_normals,
+            ).all(axis=-1)  # Reduce on 'order'
 
         # 3.3 - Identify paths that are blocked by other objects
 
         # [num_tx_vertices num_rx_vertices num_path_candidates]
-        blocked = rays_intersect_any_triangle(
-            ray_origins,
-            ray_directions,
-            mesh.triangle_vertices,
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-        ).any(axis=-1)  # Reduce on 'order'
+        if smoothing_factor is not None:
+            blocked = rays_intersect_any_triangle(
+                ray_origins,
+                ray_directions,
+                mesh.triangle_vertices,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+                smoothing_factor=smoothing_factor,
+            ).max(axis=-1, initial=0.0)  # Reduce on 'order'
+        else:
+            blocked = rays_intersect_any_triangle(
+                ray_origins,
+                ray_directions,
+                mesh.triangle_vertices,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+            ).any(axis=-1)  # Reduce on 'order'
 
         # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
         ray_lengths = dot(ray_directions)  # Squared norm
 
-        too_small = (ray_lengths < min_len).any(
-            axis=-1
-        )  # Any path segment being too small
+        if smoothing_factor is not None:
+            too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
+                axis=-1, initial=0.0
+            )  # Any path segment being too small
+        else:
+            too_small = (ray_lengths < min_len).any(
+                axis=-1
+            )  # Any path segment being too small
 
         # TODO: check if we should invalidate non-finite paths
         # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
-        mask = inside_triangles & valid_reflections & ~blocked & ~too_small
+        if smoothing_factor is not None:
+            confidence = jnp.stack(
+                (inside_triangles, valid_reflections, 1.0 - blocked, 1.0 - too_small),
+                axis=-1,
+            ).min(axis=-1, initial=1.0)
+            mask = confidence > confidence_threshold
+        else:
+            mask = inside_triangles & valid_reflections & ~blocked & ~too_small
 
         return full_paths, mask
 
@@ -688,6 +741,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths: ...
 
     @overload
@@ -704,6 +759,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -720,6 +777,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths: ...
 
     @overload
@@ -736,6 +795,8 @@ class TriangleScene(eqx.Module):
         hit_tol: None = None,
         min_len: None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
     def compute_paths(  # noqa: C901
@@ -751,6 +812,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> Paths | SizedIterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -837,6 +900,18 @@ class TriangleScene(eqx.Module):
                 to be considered in the vicinity of the ray path.
 
                 Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
+            smoothing_factor: If set, intermediate hard conditions are replaced with smoothed ones,
+                as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+                of the smoothing function. The, valid paths are identified using
+                ``confidence > confidence_threshold`` where ``confidence`` is a real value
+                between 0 and 1 that indicates the confidence that a path is valid.
+
+                For more details, refer to :ref:`smoothing`.
+
+                  .. warning::
+
+                    Currently, only the ``'exhaustive'`` method is supported.
+            confidence_threshold: A threshold value for deciding which paths are valid.
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -865,6 +940,10 @@ class TriangleScene(eqx.Module):
             msg = "Argument 'chunk_size' is ignored when 'path_candidates' is provided."
             warnings.warn(msg, UserWarning, stacklevel=2)
             chunk_size = None
+        if (method != "exhaustive") and (smoothing_factor is not None):
+            msg = "Argument 'smoothing' is currently ignored when 'method' is not set to 'exhaustive'."
+            warnings.warn(msg, UserWarning, stacklevel=2)
+            smoothing_factor = None
 
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
@@ -921,6 +1000,8 @@ class TriangleScene(eqx.Module):
                     epsilon=epsilon,
                     hit_tol=hit_tol,
                     min_len=min_len,
+                    smoothing_factor=smoothing_factor,
+                    confidence_threshold=confidence_threshold,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -949,6 +1030,8 @@ class TriangleScene(eqx.Module):
             epsilon=epsilon,
             hit_tol=hit_tol,
             min_len=min_len,
+            smoothing_factor=smoothing_factor,
+            confidence_threshold=confidence_threshold,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

@@ -546,22 +546,24 @@ class TriangleMesh(eqx.Module):
         .. note::
 
             The following rules are applied when merging two meshes:
-            - The vertices are concatenated;
-            - The triangles are concatenated, and the indices of the second mesh are updated;
-            - The face colors are concatenated. If one mesh has colors while the other does not,
+
+            * The vertices are concatenated;
+            * The triangles are concatenated, and the indices of the second mesh are updated;
+            * The face colors are concatenated. If one mesh has colors while the other does not,
               then mesh with no colors will have its face colors set to black (0, 0, 0);
-            - The face materials are concatenated. If ``other`` has face materials not included
+            * The face materials are concatenated. If ``other`` has face materials not included
               in ``self``, then the face materials from ``other`` are renumbered.
               If one mesh has colors while the other does not,
               then mesh with no colors will have its face materials set to ``-1``;
-            - The material names are merged, keeping only unique names;
-            - The object bounds are concatenated only if both meshes have them set,
+            * The material names are merged, keeping only unique names;
+            * The object bounds are concatenated only if both meshes have them set,
               otherwise, the object bounds are set to :data:`None`;
-            - The :attr:`assume_quads` flag is set to :data:`True` if both meshes have it set to :data:`True`.
+            * The :attr:`assume_quads` flag is set to :data:`True` if both meshes have it set to :data:`True`.
 
             Two important exceptions are:
-            - If one mesh is empty, a copy of the other mesh is returned as is;
-            - If both meshes are empty, then a copy of ``self`` is returned.
+
+            * If one mesh is empty, a copy of the other mesh is returned as is;
+            * If both meshes are empty, then a copy of ``self`` is returned.
 
         Args:
             other: The mesh to append.
