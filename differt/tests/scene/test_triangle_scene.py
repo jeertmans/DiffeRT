@@ -291,24 +291,24 @@ class TestTriangleScene:
     ) -> None:
         key_tx, key_rx = jax.random.split(key, 2)
 
-        transmitters = jax.random.uniform(key_tx, (1, 3))
-        receivers = jax.random.uniform(key_rx, (1, 3))
+        transmitters = jax.random.uniform(key_tx, (3,))
+        receivers = jax.random.uniform(key_rx, (3,))
 
         scene = TriangleScene(
             transmitters=transmitters, receivers=receivers
         ).set_assume_quads(assume_quads)
+
+        expected = scene.compute_paths(
+            order=order,
+            chunk_size=chunk_size,
+            method="exhaustive",
+        )
 
         got = scene.compute_paths(
             order=order,
             chunk_size=chunk_size,
             method="exhaustive",
             smoothing_factor=1000.0,
-        )
-
-        expected = scene.compute_paths(
-            order=order,
-            chunk_size=chunk_size,
-            method="exhaustive",
         )
 
         assert type(got) is type(expected)

@@ -165,7 +165,7 @@ def rays_intersect_triangles(
     *,
     epsilon: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "],
-) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"]]: ...
+) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]: ...
 
 
 @overload
@@ -176,7 +176,7 @@ def rays_intersect_triangles(
     *,
     epsilon: Float[ArrayLike, " "] | None = None,
     smoothing_factor: None = None,
-) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]: ...
+) -> tuple[Float[Array, " *batch"], Float[Array, " *batch"]]: ...
 
 
 @eqx.filter_jit
@@ -187,7 +187,7 @@ def rays_intersect_triangles(
     *,
     epsilon: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "] | None = None,
-) -> tuple[Float[Array, "*batch"], Bool[Array, "*batch"] | Float[Array, "*batch"]]:
+) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"] | Float[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
 
@@ -353,7 +353,7 @@ def rays_intersect_any_triangle(
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: None = None,
     **kwargs: Any,
-) -> Bool[Array, "*batch"]: ...
+) -> Bool[Array, " *batch"]: ...
 
 
 @overload
@@ -365,7 +365,7 @@ def rays_intersect_any_triangle(
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "],
     **kwargs: Any,
-) -> Float[Array, "*batch"]: ...
+) -> Float[Array, " *batch"]: ...
 
 
 @eqx.filter_jit
@@ -377,7 +377,7 @@ def rays_intersect_any_triangle(
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "] | None = None,
     **kwargs: Any,
-) -> Bool[Array, " *batch"] | Float[Array, "*batch"]:
+) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
 
