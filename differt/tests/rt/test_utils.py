@@ -214,6 +214,20 @@ def test_rays_intersect_triangles_random_inputs(
             True,  # noqa: FBT003
         ).all(), "t > 0 must be true everywhere hit is true"
 
+        expected_t, expected_hit = got_t, got_hit
+
+        # Check that large smoothing factor matches no smoothing
+
+        got_t, got_hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            smoothing_factor=1e8,
+        )
+
+        chex.assert_trees_all_equal(got_t, expected_t)
+        chex.assert_trees_all_equal(got_hit > 0.5, expected_hit)
+
 
 @pytest.mark.parametrize(
     ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
@@ -268,6 +282,20 @@ def test_rays_intersect_any_triangle(
         expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
 
         chex.assert_trees_all_equal(got, expected)
+
+        # Check that large smoothing factor matches no smoothing
+        # TODO: fixme
+
+        got = rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+            smoothing_factor=1e8,
+        )
+
+        chex.assert_trees_all_equal(got > 0.5, expected)
 
 
 @pytest.mark.parametrize(

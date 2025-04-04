@@ -289,6 +289,7 @@ class TestTriangleScene:
         assume_quads: bool,
         simple_street_canyon_scene: TriangleScene,
     ) -> None:
+        # TODO: fixme
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
 
         expected = scene.compute_paths(
