@@ -165,8 +165,8 @@ def test_safe_divide(key: PRNGKeyArray) -> None:
 def test_smoothing_function(key: PRNGKeyArray) -> None:
     key_x, key_smoothing_factor = jax.random.split(key, 2)
     x = jax.random.normal(key_x, (40, 1, 10)) * 1000.0
-    x[0, 0, 0] = 0.0  # Make first entry be a zero
-    smoothing_factor = jax.random.randint(
+    x = x.at[0, 0, 0].set(0.0)  # Make first entry be a zero
+    smoothing_factor = jax.random.uniform(
         key_smoothing_factor, (20, 1), minval=0, maxval=100
     )
 
@@ -178,10 +178,10 @@ def test_smoothing_function(key: PRNGKeyArray) -> None:
     x_limits = jnp.array([-1e8, 0.0, +1e8])
 
     got = smoothing_function(x_limits, smoothing_factor)
-    expected = jnp.array([0.0, 0.5, 1.0])
+    expected = jnp.broadcast_to(jnp.array([0.0, 0.5, 1.0]), got.shape)
 
     chex.assert_trees_all_close(got, expected)
 
-    got = smoothing_function(x, jnp.inf)
-    expected = jnp.where(x == 0.0, 0.5, jnp.sign(x))
+    got = smoothing_function(x, 1e8)
+    expected = 0.5 * (jnp.sign(x) + 1)
     chex.assert_trees_all_equal(got, expected)

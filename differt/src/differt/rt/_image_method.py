@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float
 
-from differt.utils import dot
+from differt.utils import dot, smoothing_function
 
 
 @partial(jax.jit, inline=True)
@@ -404,6 +404,8 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     dot_prev = dot(d_prev, mirror_normals)
     dot_next = dot(d_next, mirror_normals)
 
-    if smoothing_factor:
-        return dot_prev  # TODO: fixme
+    if smoothing_factor is not None:
+        return smoothing_function(
+            jnp.sign(dot_prev) * jnp.sign(dot_next), smoothing_factor
+        )  # TODO: fixme
     return jnp.sign(dot_prev) == jnp.sign(dot_next)

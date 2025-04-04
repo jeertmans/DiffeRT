@@ -49,7 +49,7 @@ else:
 
 
 @eqx.filter_jit
-def _compute_paths(  # noqa: PLR0915
+def _compute_paths(  # noqa: C901, PLR0915
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -107,7 +107,7 @@ def _compute_paths(  # noqa: PLR0915
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    def fun(
+    def fun(  # noqa: PLR0912
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
@@ -154,8 +154,8 @@ def _compute_paths(  # noqa: PLR0915
                         epsilon=epsilon,
                         smoothing_factor=smoothing_factor,
                     )[1]
-                    .max(axis=-1)
-                    .min(axis=-1)
+                    .max(axis=-1, initial=0.0)
+                    .min(axis=-1, initial=1.0)
                 )  # Reduce on 'order' axis and on the two triangles (per quad)
             else:
                 inside_triangles = (
@@ -175,7 +175,7 @@ def _compute_paths(  # noqa: PLR0915
                 triangle_vertices,
                 epsilon=epsilon,
                 smoothing_factor=smoothing_factor,
-            )[1].min(axis=-1)  # Reduce on 'order' axis
+            )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
         else:
             inside_triangles = rays_intersect_triangles(
                 ray_origins[..., :-1, :],
@@ -193,7 +193,7 @@ def _compute_paths(  # noqa: PLR0915
                 mirror_vertices,
                 mirror_normals,
                 smoothing_factor=smoothing_factor,
-            ).min(axis=-1)  # Reduce on 'order'
+            ).min(axis=-1, initial=1.0)  # Reduce on 'order'
         else:
             valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
                 full_paths,
@@ -212,7 +212,7 @@ def _compute_paths(  # noqa: PLR0915
                 epsilon=epsilon,
                 hit_tol=hit_tol,
                 smoothing_factor=smoothing_factor,
-            ).max(axis=-1)  # Reduce on 'order'
+            ).max(axis=-1, initial=0.0)  # Reduce on 'order'
         else:
             blocked = rays_intersect_any_triangle(
                 ray_origins,
@@ -228,7 +228,7 @@ def _compute_paths(  # noqa: PLR0915
 
         if smoothing_factor is not None:
             too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
-                axis=-1
+                axis=-1, initial=0.0
             )  # Any path segment being too small
         else:
             too_small = (ray_lengths < min_len).any(
@@ -238,11 +238,11 @@ def _compute_paths(  # noqa: PLR0915
         # TODO: check if we should invalidate non-finite paths
         # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
-        if smoothing_factor:  # TODO: implement me
+        if smoothing_factor:
             confidence = jnp.stack(
                 (inside_triangles, valid_reflections, 1.0 - blocked, 1.0 - too_small),
                 axis=-1,
-            ).min(axis=-1)
+            ).min(axis=-1, initial=1.0)
             mask = confidence > confidence_threshold
         else:
             mask = inside_triangles & valid_reflections & ~blocked & ~too_small
@@ -940,7 +940,7 @@ class TriangleScene(eqx.Module):
             msg = "Argument 'chunk_size' is ignored when 'path_candidates' is provided."
             warnings.warn(msg, UserWarning, stacklevel=2)
             chunk_size = None
-        if (method == "exhaustive") and (smoothing_factor is not None):
+        if (method != "exhaustive") and (smoothing_factor is not None):
             msg = "Argument 'smoothing' is currently ignored when 'method' is not set to 'exhaustive'."
             warnings.warn(msg, UserWarning, stacklevel=2)
             smoothing_factor = None

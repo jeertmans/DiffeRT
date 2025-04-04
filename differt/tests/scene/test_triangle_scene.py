@@ -279,6 +279,46 @@ class TestTriangleScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize("chunk_size", [None, 1000])
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_smoothing(
+        self,
+        order: int | None,
+        chunk_size: int | None,
+        assume_quads: bool,
+        key: PRNGKeyArray,
+    ) -> None:
+        key_tx, key_rx = jax.random.split(key, 2)
+
+        transmitters = jax.random.uniform(key_tx, (1, 3))
+        receivers = jax.random.uniform(key_rx, (1, 3))
+
+        scene = TriangleScene(
+            transmitters=transmitters, receivers=receivers
+        ).set_assume_quads(assume_quads)
+
+        got = scene.compute_paths(
+            order=order,
+            chunk_size=chunk_size,
+            method="exhaustive",
+            smoothing_factor=1000.0,
+        )
+
+        expected = scene.compute_paths(
+            order=order,
+            chunk_size=chunk_size,
+            method="exhaustive",
+        )
+
+        assert type(got) is type(expected)
+
+        if isinstance(got, Iterator):
+            for got_paths, expected_paths in zip(got, expected, strict=True):
+                chex.assert_trees_all_close(got_paths, expected_paths)
+        else:
+            chex.assert_trees_all_close(got, expected)
+
     @pytest.mark.parametrize(
         ("order", "chunk_size", "path_candidates", "method", "expectation"),
         [

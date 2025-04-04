@@ -335,9 +335,9 @@ def smoothing_function(
     x: Float[ArrayLike, " *#batch"],
     /,
     smoothing_factor: Float[ArrayLike, " *#batch"] = 1.0,
-) -> Float[ArrayLike, " #batch"]:
+) -> Float[ArrayLike, " *batch"]:
     r"""
-    Return a smoothed approximation of :func:`jax.numpy.sign`.
+    Return a smoothed approximation of the Heaviside step function.
 
     This function is used internally for smoothing-out discontinuities
     in Ray Tracing, see :ref:`smoothing`.

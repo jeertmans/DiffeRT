@@ -279,8 +279,6 @@ def rays_intersect_triangles(
     ray_directions = jnp.asarray(ray_directions)
     triangle_vertices = jnp.asarray(triangle_vertices)
 
-    # TODO: implement smoothing
-
     if epsilon is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         epsilon = 10 * jnp.finfo(dtype).eps
@@ -300,22 +298,48 @@ def rays_intersect_triangles(
     # [*batch]
     a = dot(h, edge_1)
 
-    hit = jnp.abs(a) > epsilon
+    if smoothing_factor is not None:
+        hit = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
+    else:
+        hit = jnp.abs(a) > epsilon
 
     f = jnp.where(a == 0.0, 0, 1.0 / a)
     s = ray_origins - vertex_0
     u = f * dot(s, h)
 
-    hit &= (u >= 0.0) & (u <= 1.0)
+    if smoothing_factor is not None:
+        hit = jnp.stack(
+            (
+                hit,
+                smoothing_function(u - 0.0, smoothing_factor),
+                smoothing_function(1.0 - u, smoothing_factor),
+            ),
+            axis=-1,
+        ).min(axis=-1, initial=1.0)
+    else:
+        hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
     v = f * dot(q, ray_directions)
 
-    hit &= (v >= 0.0) & (u + v <= 1.0)
+    if smoothing_factor is not None:
+        hit = jnp.stack(
+            (
+                hit,
+                smoothing_function(v - 0.0, smoothing_factor),
+                smoothing_function(1.0 - (u + v), smoothing_factor),
+            ),
+            axis=-1,
+        ).min(axis=-1, initial=1.0)
+    else:
+        hit &= (v >= 0.0) & (u + v <= 1.0)
 
     t = f * dot(q, edge_2)
 
-    hit &= t > epsilon
+    if smoothing_factor is not None:
+        hit = jnp.minimum(hit, smoothing_function(t - epsilon, smoothing_factor))
+    else:
+        hit &= t > epsilon
 
     return t, hit
 
@@ -327,7 +351,8 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: Float[ArrayLike, " "],
+    smoothing_factor: None = None,
+    **kwargs: Any,
 ) -> Bool[Array, "*batch"]: ...
 
 
@@ -338,7 +363,8 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: None = None,
+    smoothing_factor: Float[ArrayLike, " "],
+    **kwargs: Any,
 ) -> Float[Array, "*batch"]: ...
 
 
@@ -409,7 +435,7 @@ def rays_intersect_any_triangle(
     if smoothing_factor is not None:
 
         def scan_fun(
-            intersect: Bool[Array, " *batch"],
+            intersect: Float[Array, " *batch"],
             triangle_vertices: Float[Array, "*#batch 3 3"],
         ) -> tuple[Float[Array, " *batch"], None]:
             t, hit = rays_intersect_triangles(
@@ -419,9 +445,9 @@ def rays_intersect_any_triangle(
                 smoothing_factor=smoothing_factor,
                 **kwargs,
             )
-            intersect = jnp.maximum(
-                intersect, smoothing_function(hit_threshold - t) & hit
-            )
+            intersect = jnp.stack(
+                (intersect, smoothing_function(hit_threshold - t), hit), axis=-1
+            ).min(axis=-1, initial=1.0)
             return intersect, None
 
     else:
@@ -439,9 +465,15 @@ def rays_intersect_any_triangle(
             intersect = intersect | ((t < hit_threshold) & hit)
             return intersect, None
 
+    init = (
+        jnp.zeros(batch)
+        if smoothing_factor is not None
+        else jnp.zeros(batch, dtype=jnp.bool)
+    )
+
     return jax.lax.scan(
         scan_fun,
-        init=jnp.zeros(batch, dtype=bool),
+        init=init,
         xs=triangle_vertices,
     )[0]
 
