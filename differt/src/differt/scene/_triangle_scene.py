@@ -238,7 +238,7 @@ def _compute_paths(  # noqa: C901, PLR0915
         # TODO: check if we should invalidate non-finite paths
         # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
-        if smoothing_factor:
+        if smoothing_factor is not None:
             confidence = jnp.stack(
                 (inside_triangles, valid_reflections, 1.0 - blocked, 1.0 - too_small),
                 axis=-1,
