@@ -287,16 +287,9 @@ class TestTriangleScene:
         order: int | None,
         chunk_size: int | None,
         assume_quads: bool,
-        key: PRNGKeyArray,
+        simple_street_canyon_scene: TriangleScene,
     ) -> None:
-        key_tx, key_rx = jax.random.split(key, 2)
-
-        transmitters = jax.random.uniform(key_tx, (3,))
-        receivers = jax.random.uniform(key_rx, (3,))
-
-        scene = TriangleScene(
-            transmitters=transmitters, receivers=receivers
-        ).set_assume_quads(assume_quads)
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
 
         expected = scene.compute_paths(
             order=order,
@@ -377,6 +370,7 @@ class TestTriangleScene:
         assume_quads: bool,
         key: PRNGKeyArray,
     ) -> None:
+        # TODO: tests and fix issue in higher-order
         key_tx, key_rx = jax.random.split(key, 2)
 
         if parallel:
