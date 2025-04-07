@@ -43,6 +43,7 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx.ext.todo",
     # Additional
     "matplotlib.sphinxext.plot_directive",
     "myst_nb",
@@ -210,6 +211,7 @@ def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:  # noqa: 
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "/")
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 

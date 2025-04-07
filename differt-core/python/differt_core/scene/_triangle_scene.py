@@ -1,5 +1,5 @@
 __all__ = ("TriangleScene",)
 
-from differt_core import _lowlevel
+from differt_core import _differt_core
 
-TriangleScene = _lowlevel.scene.triangle_scene.TriangleScene
+TriangleScene = _differt_core.scene.triangle_scene.TriangleScene

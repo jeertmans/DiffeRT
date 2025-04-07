@@ -14,7 +14,7 @@ bench: bench-python bench-rust
 [group('python')]
 [group('test')]
 bench-python *ARGS:
-    uv run --extra tests pytest -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" {{ ARGS }}
+    uv run --group tests pytest -n0 --benchmark-enable --benchmark-only --jaxtyping-packages="" {{ ARGS }}
 
 # Benchmark Rust code
 [group('rust')]
@@ -43,6 +43,7 @@ check:
 clean:
     cargo clean
     rm -rf dist
+    rm -rf differt-core/python/differt_core/*.so
 
 # Force reloading CUDA after suspend, see: https://github.com/ami-iit/jaxsim/issues/50#issuecomment-2022483137
 [group('dev')]
@@ -93,7 +94,7 @@ test: test-python test-rust
 [group('python')]
 [group('test')]
 test-python *ARGS:
-    uv run --extra tests pytest {{ ARGS }}
+    uv run --group tests pytest {{ ARGS }}
 
 # Test Rust code
 [group('rust')]

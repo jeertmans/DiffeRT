@@ -15,4 +15,4 @@ its code. We welcome any contribution on that topic!
 
 __all__ = ("__version__",)
 
-from differt_core._lowlevel import __version__
+from differt_core._differt_core import __version__

@@ -89,16 +89,16 @@ and install the packages in a virtual environment.
 
 :::{note}
 By default, `uv sync` will also install all the packages
-listed in the `dev-dependencies` list of the `[tool.uv]` section from the main
+listed in the `dev` list of the `[dependency-groups]` section from the main
 `pyproject.toml` file.
 
 You can opt out by specifying the `--no-dev` option.
 :::
 
-Alternatively, you can install specific extras[^3] with `uv sync --extra <EXTRA>`.
+Alternatively, you can install specific groups[^3] with `uv sync --group <GROUP>`.
 
-[^3]: The extras available for development are not the same as the extras of the {mod}`differt`
+[^3]: The groups available for development are not the same as the extras of the {mod}`differt`
   packages (defined in `differt/pyproject.toml`). E.g., the `cuda` extra installs a GPU-capable
   JAX dependency (granted that you have a compatible CUDA installation). To specify {mod}`differt`'s
-  extras, the easiest is to add a new extra in the `[project.optional-dependencies]` section of the root
+  extras, the easiest is to add a new group in the `[project.dependency-groups]` section of the root
   `pyproject.toml` file and specify extras there.

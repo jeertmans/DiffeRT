@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import equinox as eqx
 import jax
@@ -265,7 +265,7 @@ class Paths(eqx.Module):
     @property
     def masked_vertices(
         self,
-    ) -> Float[Array, "{self.num_valid_paths} {self.path_length} 3"]:
+    ) -> Float[Array, "num_valid_paths path_length 3"]:
         """The array of masked vertices, with batched dimensions flattened into one.
 
         If :attr:`mask` is :data:`None`, then the returned array is simply
@@ -280,7 +280,7 @@ class Paths(eqx.Module):
     @property
     def masked_objects(
         self,
-    ) -> Int[Array, "{self.num_valid_paths} {self.path_length}"]:
+    ) -> Int[Array, "num_valid_paths path_length"]:
         """The array of masked objects, with batched dimensions flattened into one.
 
         Similar to :attr:`masked_vertices`, but for :data:`objects`.
@@ -398,20 +398,36 @@ class Paths(eqx.Module):
         ):
             yield cls(vertices=vertices, objects=objects, mask=None)
 
-    @eqx.filter_jit
+    @overload
     def reduce(
-        self, fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]]
-    ) -> Num[Array, " "]:
-        """Apply a function on all path vertices and accumulate the result into a scalar value.
+        self,
+        fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
+        axis: None = None,
+    ) -> Num[Array, " "]: ...
+
+    @overload
+    def reduce(
+        self,
+        fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
+        axis: int | Sequence[int],
+    ) -> Num[Array, " *reduced_batch"]: ...
+
+    def reduce(
+        self,
+        fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
+        axis: int | Sequence[int] | None = None,
+    ) -> Num[Array, " "] | Num[Array, " *reduced_batch"]:
+        """Apply a function on all path vertices and accumulate the result into a scalar value (or an array if ``axis`` is provided).
 
         Args:
             fun: The function to be called on all path vertices.
+            axis: See :func:`jax.numpy.sum` for allowed values.
 
         Returns:
             The sum of the results, with contributions from
             invalid paths that are set to zero.
         """
-        return jnp.sum(fun(self.vertices), where=self.mask)
+        return jnp.sum(fun(self.vertices), axis=axis, where=self.mask)
 
     def plot(self, **kwargs: Any) -> PlotOutput:
         """

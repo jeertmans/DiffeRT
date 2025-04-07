@@ -82,7 +82,7 @@ If you use this software, please cite it as
 [pypi-python-version-badge]: https://img.shields.io/pypi/pyversions/DiffeRT?color=orange
 [documentation-badge]: https://readthedocs.org/projects/differt/badge/?version=latest
 [documentation-url]: https://differt.readthedocs.io/latest/?badge=latest
-[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.13895021.svg
-[doi-url]: https://doi.org/10.5281/zenodo.13895021
+[doi-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.11386432.svg
+[doi-url]: https://doi.org/10.5281/zenodo.11386432
 [codecov-badge]: https://codecov.io/gh/jeertmans/DiffeRT/branch/main/graph/badge.svg?token=v63alnTWzu
 [codecov-url]: https://codecov.io/gh/jeertmans/DiffeRT

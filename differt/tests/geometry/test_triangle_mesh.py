@@ -2,6 +2,7 @@ import logging
 import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
+from typing import Any, Literal
 
 import chex
 import equinox as eqx
@@ -83,6 +84,17 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
 
 
 class TestTriangleMesh:
+    def test_init_with_non_unique_material_names(self) -> None:
+        with pytest.raises(
+            ValueError,
+            match=r"Material names must be unique, got \('concrete', 'glass', 'concrete'\)\.",
+        ):
+            _ = TriangleMesh(
+                vertices=jnp.zeros((3, 3)),
+                triangles=jnp.zeros((1, 3), dtype=int),
+                material_names=["concrete", "glass", "concrete"],
+            )
+
     def test_num_triangles(self, two_buildings_mesh: TriangleMesh) -> None:
         assert two_buildings_mesh.num_triangles == 24
 
@@ -269,6 +281,48 @@ class TestTriangleMesh:
 
         assert mesh.bounding_box.tolist() == [[-dx, -dy, -dz], [+dx, +dy, +dz]]
 
+    @pytest.mark.parametrize(
+        "index",
+        [
+            slice(None),
+            jnp.arange(24),
+            jnp.array([0, 1, 2]),
+            jnp.ones(24, dtype=bool),
+            jnp.array([0, 3, 3, 4, 4, 5]),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "func_or_values"),
+        [("apply", lambda x: 1 / x), ("add", [1.0, 3.0, 6.0]), ("mul", 2.0)],
+    )
+    def test_at_update(
+        self,
+        index: slice | Array,
+        method: Literal["set", "apply", "add", "mul", "get"],
+        func_or_values: Any,
+        two_buildings_mesh: TriangleMesh,
+    ) -> None:
+        got = getattr(two_buildings_mesh.at[index], method)(func_or_values)
+
+        if index != slice(None):
+            if isinstance(index, Array) and index.dtype != jnp.bool:
+                index = jnp.unique(index)
+            index = two_buildings_mesh.triangles[index, :].reshape(-1)
+            index = jnp.unique(index)
+
+        vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
+            func_or_values
+        )
+        if method == "get":
+            expected = vertices
+        else:
+            expected = eqx.tree_at(
+                lambda m: m.vertices,
+                two_buildings_mesh,
+                vertices,
+            )
+        chex.assert_trees_all_equal(got, expected)
+
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
 
@@ -310,6 +364,78 @@ class TestTriangleMesh:
 
     def test_not_empty(self, two_buildings_mesh: TriangleMesh) -> None:
         assert not two_buildings_mesh.is_empty
+
+    @pytest.mark.parametrize(
+        "self_empty",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_empty",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "self_assume_quads",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_assume_quads",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "self_colors",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_colors",
+        [False, True],
+    )
+    def test_append(
+        self,
+        self_empty: bool,
+        other_empty: bool,
+        self_assume_quads: bool,
+        other_assume_quads: bool,
+        self_colors: bool,
+        other_colors: bool,
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+    ) -> None:
+        # TODO: Test merging material names.
+        s = (
+            TriangleMesh.empty() if self_empty else two_buildings_mesh
+        ).set_assume_quads(self_assume_quads)
+        o = (
+            TriangleMesh.empty() if other_empty else two_buildings_mesh
+        ).set_assume_quads(other_assume_quads)
+
+        key_s, key_o = jax.random.split(key)
+
+        if self_colors and not self_empty:
+            s = s.set_face_colors(key=key_s)  # type: ignore[reportCallIssue]
+        if other_colors and not other_empty:
+            o = o.set_face_colors(key=key_o)  # type: ignore[reportCallIssue]
+
+        mesh = s + o
+
+        assert mesh.num_triangles == (s.num_triangles + o.num_triangles)
+
+        if (  # noqa: PLR0916
+            (self_assume_quads and not self_empty)
+            and (other_empty or other_assume_quads)
+        ) or (
+            (other_assume_quads and not other_empty)
+            and (self_empty or self_assume_quads)
+        ):
+            assert mesh.num_objects == mesh.num_quads
+        else:
+            assert mesh.num_objects == mesh.num_triangles
+
+        if (self_colors and not self_empty) or (other_colors and not other_empty):
+            assert mesh.face_colors is not None
+        else:
+            assert mesh.face_colors is None
+
+        chex.assert_trees_all_equal(mesh, s.append(o))
 
     @pytest.mark.parametrize(
         ("shape", "expectation"),
@@ -356,6 +482,37 @@ class TestTriangleMesh:
             ValueError, match="You must specify one of 'colors' or `key`, not both"
         ):
             _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[reportCallIssue]
+
+    def test_set_face_materials(
+        self,
+    ) -> None:
+        mesh = TriangleMesh.box(with_top=True)
+        assert mesh.face_materials is None
+        assert len(mesh.material_names) == 0
+
+        mesh = mesh.set_materials("concrete")
+        assert mesh.face_materials is not None
+        assert len(mesh.material_names) == 1
+        chex.assert_trees_all_equal(mesh.face_materials, jnp.zeros(12, dtype=int))
+        mesh = mesh.set_materials(*["glass"] * 12)
+        chex.assert_trees_all_equal(mesh.face_materials, jnp.ones(12, dtype=int))
+        assert len(mesh.material_names) == 2
+        mesh = mesh.set_assume_quads()
+        mesh = mesh.set_materials(
+            "metal", "glass", "concrete", "brick", "wood", "plastic"
+        )
+        assert mesh.material_names == (
+            "concrete",
+            "glass",
+            "metal",
+            "brick",
+            "wood",
+            "plastic",
+        )
+        mesh = mesh.set_materials(
+            "metal", "glass", "concrete", "brick", "wood", "plastic"
+        )
+        mesh = mesh.set_materials("concrete")
 
     def test_load_obj(self, two_buildings_obj_file: str) -> None:
         mesh = TriangleMesh.load_obj(two_buildings_obj_file)

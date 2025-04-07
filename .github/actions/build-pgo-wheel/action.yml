@@ -1,0 +1,72 @@
+# Inspired from: https://github.com/pydantic/pydantic-core/blob/9975030e1f0b8b684c2e113e38c07547b24d353e/.github/actions/build-pgo-wheel/action.yml
+name: Build PGO wheel
+description: Builds a PGO-optimized wheel
+inputs:
+  interpreter:
+    description: Interpreter to build the wheel for
+    required: true
+  rust-toolchain:
+    description: Rust toolchain to use
+    required: true
+outputs:
+  wheel:
+    description: Path to the built wheel
+    value: ${{ steps.pgo_wheel.outputs.path }}
+runs:
+  using: composite
+  steps:
+  - name: Create profiling directory
+    shell: bash
+      # making this ahead of the compile ensures that the local user can write to this
+      # directory; the maturin action (on linux) runs in docker so would create as root
+    run: mkdir -p ${{ github.workspace }}/profdata
+
+  - name: Build initial wheels
+    uses: PyO3/maturin-action@v1
+    with:
+      args: >
+        --release
+        --out pgo-wheel
+        --interpreter ${{ inputs.interpreter }}
+      docker-options: -e CI
+      manylinux: auto
+      rust-toolchain: ${{ inputs.rust-toolchain }}
+      working-directory: differt-core
+    env:
+      RUSTFLAGS: -Cprofile-generate=${{ github.workspace }}/profdata
+
+  - name: Detect Rust host
+    shell: bash
+    run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
+
+  - name: Generate profile data
+    shell: bash
+    run: |
+      uv sync --no-dev --group tests
+      uv pip install differt-core --no-index --no-deps --find-links differt-core/pgo-wheel --force-reinstall
+      uv run pytest --jaxtyping-packages="" differt/tests/benchmarks
+      RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2)
+      rustup run ${{ inputs.rust-toolchain }} bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/$RUST_HOST/bin/llvm-profdata >> "$GITHUB_ENV"'
+
+  - name: Merge PGO data
+    shell: pwsh
+    run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata
+
+  - name: Build PGO wheel
+    uses: PyO3/maturin-action@v1
+    with:
+      args: >
+        --release
+        --out dist
+        --interpreter ${{ inputs.interpreter }}
+      docker-options: -e CI
+      manylinux: auto
+      rust-toolchain: ${{ inputs.rust-toolchain }}
+      working-directory: differt-core
+    env:
+      RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/merged.profdata
+
+  - name: Find and return path to PGO wheel
+    id: pgo_wheel
+    shell: bash
+    run: echo "path=$(ls differt-core/dist/*.whl)" | tee -a "$GITHUB_OUTPUT"
