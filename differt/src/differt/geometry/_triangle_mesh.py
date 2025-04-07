@@ -1032,6 +1032,7 @@ class TriangleMesh(eqx.Module):
         height: Float[ArrayLike, " "] = 1.0,
         *,
         with_top: bool = False,
+        with_floor: bool = True,
     ) -> Self:
         """
         Create a box mesh, with an optional opening on the top.
@@ -1104,11 +1105,16 @@ class TriangleMesh(eqx.Module):
                 [5, 6, 7],
                 [7, 6, 1],
                 [7, 1, 0],
-                [1, 4, 2],  # Bottom
-                [1, 6, 4],
+                #[1, 4, 2],  # Bottom
+                #[1, 6, 4],
             ],
             dtype=int,
         )
+        if with_floor:
+            triangles = jnp.concatenate(
+                (triangles, jnp.asarray([[1, 4, 2], [1, 6, 4]])),
+                axis=0,
+            )
         if with_top:
             triangles = jnp.concatenate(
                 (triangles, jnp.asarray([[0, 3, 5], [0, 5, 7]])),

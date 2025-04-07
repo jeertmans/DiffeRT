@@ -13,6 +13,8 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import dot
 from differt_core.rt import CompleteGraph
 
+from differt.logic import my_approx, logical_and, logical_or, less, DEFAULT_ALPHA
+
 if TYPE_CHECKING:
     import sys
 
@@ -264,6 +266,9 @@ def rays_intersect_triangles(
     edge_2 = vertex_2 - vertex_0
 
     # [*batch 3]
+    nan_mask = jnp.isnan(ray_directions).any(axis=-1)
+
+    #h = jnp.where(nan_mask[:, None], 0.0, jnp.cross(ray_directions, edge_2))
     h = jnp.cross(ray_directions, edge_2)
 
     # [*batch]
@@ -275,6 +280,9 @@ def rays_intersect_triangles(
     s = ray_origins - vertex_0
     u = f * dot(s, h)
 
+    u_mask = jnp.isnan(u) | jnp.isinf(u)
+    u = u * ~u_mask
+
     hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
@@ -285,6 +293,118 @@ def rays_intersect_triangles(
     t = f * dot(q, edge_2)
 
     hit &= t > epsilon
+
+    return t, hit
+
+
+@eqx.filter_jit
+def rays_intersect_triangles_smooth(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
+    *,
+    epsilon: Float[ArrayLike, " "] | None = None,
+    alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
+) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]:
+    """
+    Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
+
+    The current implementation closely follows the C++ code from Wikipedia.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray directions. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        epsilon: A small tolerance threshold that allows rays
+            to hit the triangles slightly outside the actual area.
+            A positive value virtually increases the size of the triangles,
+            a negative value will have the opposite effect.
+
+            Such a tolerance is especially useful when rays are hitting
+            triangle edges, a very common case if geometries are planes
+            split into multiple triangles. shape
+
+            If not specified, the default is ten times the epsilon value
+            of the currently used floating point dtype.
+
+    Returns:
+        For each ray, return the scale factor of ``ray_directions`` for the
+        vector to reach the corresponding triangle, and whether the intersection
+        actually lies inside the triangle.
+    """
+
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
+    if epsilon is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        epsilon = 10 * jnp.finfo(dtype).eps
+
+    # [*batch 3]
+    vertex_0 = triangle_vertices[..., 0, :]
+    vertex_1 = triangle_vertices[..., 1, :]
+    vertex_2 = triangle_vertices[..., 2, :]
+
+    # [*batch 3]
+    edge_1 = vertex_1 - vertex_0
+    edge_2 = vertex_2 - vertex_0
+
+    # [*batch 3]
+    nan_mask = jnp.isnan(ray_directions).any(axis=-1)
+
+    #h = jnp.where(nan_mask[:, None], 0.0, jnp.cross(ray_directions, edge_2))
+    h = jnp.cross(ray_directions, edge_2)
+
+    # [*batch]
+    a = dot(h, edge_1)
+
+    hit = jnp.where(jnp.abs(a) > epsilon, 1.0, 0.0)
+
+    f = jnp.where(a == 0.0, 0, 1.0 / a)
+    s = ray_origins - vertex_0
+    u = f * dot(s, h)
+
+    u_mask = jnp.isnan(u) | jnp.isinf(u)
+    u = u * ~u_mask
+
+    hit = logical_and(
+        hit, 
+        logical_and(
+            my_approx(1.0 - u, alpha), 
+            my_approx(u, alpha),
+            approx=True
+        ), 
+        approx=True
+    )
+
+    q = jnp.cross(s, edge_1)
+    v = f * dot(q, ray_directions)
+
+    hit = logical_and(
+        hit, 
+        logical_and(
+            my_approx(v, alpha), 
+            my_approx(1.0 - u - v, alpha),
+            approx=True
+        ), 
+        approx=True
+    )
+
+    t = f * dot(q, edge_2)
+
+    hit = logical_and(
+        hit, 
+        my_approx(t - epsilon, alpha),
+        approx=True
+    )
+
+    nan_mask = jnp.isnan(t) | jnp.isinf(t)
+    t = t * ~nan_mask
+
+    nan_mask = jnp.isnan(hit) | jnp.isinf(hit)
+    hit = hit * ~nan_mask
 
     return t, hit
 
@@ -364,6 +484,137 @@ def rays_intersect_any_triangle(
         init=jnp.zeros(batch, dtype=bool),
         xs=triangle_vertices,
     )[0]
+
+
+@eqx.filter_jit
+def rays_intersect_any_triangle_smooth(
+    ray_origins: Float[ArrayLike, "*#batch 3"],
+    ray_directions: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    *,
+    hit_tol: Float[ArrayLike, " "] | None = None,
+    approx: bool = True,
+    alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
+    quad: bool = False,
+    **kwargs: Any,
+) -> Float[Array, " *batch"]:
+    """
+    Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
+
+    This function should be used when allocating an array of size
+    ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
+    checking if at least one of the triangles is intersect.
+
+    A triangle is considered to be intersected if
+    ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
+
+    Args:
+        ray_origins: An array of origin vertices.
+        ray_directions: An array of ray direction. The ray ends
+            should be equal to ``ray_origins + ray_directions``.
+        triangle_vertices: An array of triangle vertices.
+        hit_tol: The tolerance applied to check if a ray hits another object or not,
+            before it reaches the expected position, i.e., the 'interaction' object.
+
+            Using a non-zero tolerance is required as it would otherwise trigger
+            false positives.
+
+            If not specified, the default is ten times the epsilon value
+            of the currently used floating point dtype.
+        kwargs: Keyword arguments passed to
+            :func:`rays_intersect_triangles`.
+
+    Returns:
+        For each ray, whether it intersects with any of the triangles.
+    """
+    ray_origins = jnp.asarray(ray_origins)
+    ray_directions = jnp.asarray(ray_directions)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
+    if hit_tol is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        hit_tol = 10.0 * jnp.finfo(dtype).eps
+
+    hit_threshold = 1.0 - jnp.asarray(hit_tol)
+
+    if quad:
+        triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0) # [num_triangles *#batch 3 3]
+        # Group triangles by consecutive 2 for quadrilaterals
+        num_triangles = triangle_vertices.shape[0]
+        triangle_vertices = triangle_vertices.reshape(num_triangles//2, 2, *triangle_vertices.shape[1:])
+
+        batch = jnp.broadcast_shapes(
+            ray_origins.shape[:-1],
+            ray_directions.shape[:-1],
+            triangle_vertices.shape[2:-2],
+        ) # [*batch]
+
+        def scan_fun_quad(
+            intersect: Float[Array, " *batch"],
+            quad_vertices: Float[Array, "*#batch 2 3 3"],
+        ) -> tuple[Float[Array, " *batch"], None]:
+            t, hit = rays_intersect_triangles_smooth(
+                ray_origins[..., None, :],
+                ray_directions[..., None, :],
+                quad_vertices,
+                alpha=alpha,
+                **kwargs,
+            )
+            intersect = logical_or(
+                intersect,
+                logical_and(
+                    jnp.mean(my_approx(hit_threshold - t, alpha), axis=-1),
+                    jnp.sum(hit, axis=-1),
+                    approx=approx,
+                ),
+                approx=approx,
+            )
+            # intersect | ((t < hit_threshold) & hit)
+            return intersect, None
+        
+        return jax.lax.scan(
+            scan_fun_quad,
+            init=jnp.zeros(batch, dtype=float),
+            xs=triangle_vertices,
+        )[0]
+
+    else:
+        # Put 'num_triangles' axis as leading axis
+        triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)        
+
+        batch = jnp.broadcast_shapes(
+            ray_origins.shape[:-1],
+            ray_directions.shape[:-1],
+            triangle_vertices.shape[1:-2],
+        )
+
+        def scan_fun(
+            intersect: Float[Array, " *batch"],
+            triangle_vertices: Float[Array, "*#batch 3 3"],
+        ) -> tuple[Float[Array, " *batch"], None]:
+            t, hit = rays_intersect_triangles_smooth(
+                ray_origins,
+                ray_directions,
+                triangle_vertices,
+                alpha=alpha,
+                **kwargs,
+            )
+            intersect = logical_or(
+                intersect,
+                logical_and(
+                    my_approx(hit_threshold - t, alpha),
+                    hit,
+                    approx=approx,
+                ),
+                approx=approx,
+            ) # intersect | ((t < hit_threshold) & hit)
+            return intersect, None
+
+        return jax.lax.scan(
+            scan_fun,
+            init=jnp.zeros(batch, dtype=float),
+            xs=triangle_vertices,
+        )[0]
 
 
 @eqx.filter_jit

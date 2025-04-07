@@ -104,6 +104,12 @@ class Paths(eqx.Module):
     batch ``*batch`` dimensions, which would not be possible if we were to directly
     store valid paths.
     """
+
+    smooth_mask: Float[Array, " *batch"] | None = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """An optional mask to multiply the paths and weight."""
+
     interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )

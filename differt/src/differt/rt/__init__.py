@@ -12,7 +12,9 @@ __all__ = (
     "image_of_vertices_with_respect_to_mirrors",
     "intersection_of_rays_with_planes",
     "rays_intersect_any_triangle",
+    "rays_intersect_any_triangle_smooth",
     "rays_intersect_triangles",
+    "rays_intersect_triangles_smooth",
     "triangles_visible_from_vertices",
 )
 
@@ -30,6 +32,8 @@ from ._utils import (
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
     rays_intersect_any_triangle,
+    rays_intersect_any_triangle_smooth,
     rays_intersect_triangles,
+    rays_intersect_triangles_smooth,
     triangles_visible_from_vertices,
 )

@@ -32,10 +32,14 @@ from differt.rt import (
     generate_all_path_candidates_chunks_iter,
     image_method,
     rays_intersect_any_triangle,
+    rays_intersect_any_triangle_smooth,
     rays_intersect_triangles,
+    rays_intersect_triangles_smooth,
     triangles_visible_from_vertices,
 )
 from differt.utils import dot
+
+from differt.logic import DEFAULT_ALPHA, logical_all, logical_and, logical_not, logical_any
 
 if TYPE_CHECKING:
     import sys
@@ -255,6 +259,263 @@ def _compute_paths(
         vertices,
         objects,
         mask,
+    )
+
+
+@eqx.filter_jit
+def _compute_paths_smooth(
+    mesh: TriangleMesh,
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    rx_vertices: Float[Array, "num_rx_vertices 3"],
+    path_candidates: Int[Array, "num_path_candidates order"],
+    *,
+    parallel: bool,
+    epsilon: Float[ArrayLike, " "] | None,
+    hit_tol: Float[ArrayLike, " "] | None,
+    min_len: Float[ArrayLike, " "] | None,
+    approx: bool = True,
+    alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
+) -> Paths:
+    
+    if min_len is None:
+        dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
+        min_len = 10 * jnp.finfo(dtype).eps
+
+    # 1 - Broadcast arrays
+
+    num_tx_vertices = tx_vertices.shape[0]
+    num_rx_vertices = rx_vertices.shape[0]
+    num_path_candidates, order = path_candidates.shape
+
+    # [num_path_candidates order 3]
+    triangles = jnp.take(mesh.triangles, path_candidates, axis=0).reshape(
+        num_path_candidates, order, 3
+    )  # reshape required if mesh is empty
+
+    # [num_path_candidates order 3 3]
+    triangle_vertices = jnp.take(mesh.vertices, triangles, axis=0).reshape(
+        num_path_candidates, order, 3, 3
+    )  # reshape required if mesh is empty
+
+    if mesh.assume_quads:
+        # [num_path_candidates order 2 3]
+        quads = jnp.take(
+            mesh.triangles,
+            jnp.stack((path_candidates, path_candidates + 1), axis=-1),
+            axis=0,
+        ).reshape(num_path_candidates, order, 2, 3)  # reshape required if mesh is empty
+
+        # [num_path_candidates order 2 3 3]
+        quad_vertices = jnp.take(mesh.vertices, quads, axis=0).reshape(
+            num_path_candidates, order, 2, 3, 3
+        )  # reshape required if mesh is empty
+    else:
+        quad_vertices = None
+
+    # [num_path_candidates order 3]
+    mirror_vertices = triangle_vertices[
+        ...,
+        0,
+        :,
+    ]  # Only one vertex per triangle is needed
+
+    # [num_path_candidates order 3]
+    mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
+
+    def fun(
+        tx_vertices: Float[Array, "num_tx_vertices 3"],
+        rx_vertices: Float[Array, "num_rx_vertices 3"],
+    ) -> tuple[
+        Float[
+            Array,
+            "num_tx_vertices num_rx_vertices num_path_candidates path_length 3",
+        ],
+        Float[Array, "num_tx_vertices num_rx_vertices num_path_candidates"],
+    ]:
+        # 2 - Trace paths
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
+        paths = image_method(
+            tx_vertices[:, None, None, :],
+            rx_vertices[None, :, None, :],
+            mirror_vertices,
+            mirror_normals,
+        )
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
+        full_paths = assemble_paths(
+            tx_vertices[:, None, None, None, :],
+            paths,
+            rx_vertices[None, :, None, None, :],
+        )
+
+        # 3 - Identify invalid paths
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
+        ray_origins = full_paths[..., :-1, :]
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
+        ray_directions = jnp.diff(full_paths, axis=-2)
+
+        # 3.1 - Check if paths vertices are inside respective triangles
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
+        if mesh.assume_quads:
+            if order == 0:
+                inside_triangles = 1.0
+            else:
+                inside_triangles = (
+                    logical_all(
+                        jnp.sum(
+                            rays_intersect_triangles_smooth(
+                                ray_origins[..., :-1, None, :],
+                                ray_directions[..., :-1, None, :],
+                                quad_vertices,  # type: ignore[reportArgumentType]
+                                epsilon=epsilon,
+                                alpha=alpha,
+                            )[1], 
+                            axis=-1,
+                        ),
+                        axis=-1,
+                        approx=approx,
+                    )
+                )  # Reduce on 'order' axis and on the two triangles (per quad)
+        else:
+            inside_triangles = logical_all(
+                rays_intersect_triangles_smooth(
+                    ray_origins[..., :-1, :],
+                    ray_directions[..., :-1, :],
+                    triangle_vertices,
+                    epsilon=epsilon,
+                    alpha=alpha,
+                )[1],   # Reduce on 'order' axis
+                axis=-1,
+                approx=approx,
+            )
+
+        # 3.2 - Check if consecutive path vertices are on the same side of mirrors
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+            full_paths,
+            mirror_vertices,
+            mirror_normals,
+        ).all(axis=-1)  # Reduce on 'order'
+
+        # 3.3 - Identify paths that are blocked by other objects
+
+        # [num_tx_vertices num_rx_vertices num_path_candidates]
+        if mesh.assume_quads:
+            blocked = logical_any(
+                rays_intersect_any_triangle_smooth(
+                    ray_origins,
+                    ray_directions,
+                    mesh.triangle_vertices,
+                    epsilon=epsilon,
+                    hit_tol=hit_tol,
+                    approx=approx,
+                    alpha=alpha,
+                    quad=True,
+                ), 
+                axis=-1, 
+                approx=approx,
+            ) # Reduce on 'order'
+        else:
+            blocked = logical_any(
+                rays_intersect_any_triangle_smooth(
+                    ray_origins,
+                    ray_directions,
+                    mesh.triangle_vertices,
+                    epsilon=epsilon,
+                    hit_tol=hit_tol,
+                    approx=approx,
+                    alpha=alpha,
+                ),  # Reduce on 'order'
+                axis=-1, 
+                approx=approx,
+            )
+
+        # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
+
+        ray_lengths = dot(ray_directions)  # Squared norm
+
+        too_small = (ray_lengths < min_len).any(
+            axis=-1
+        )  # Any path segment being too small
+
+        # TODO: check if we should invalidate non-finite paths
+        # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+
+        mask = logical_and(inside_triangles, 
+                            logical_and(
+                                logical_not(blocked, approx=approx), 
+                                valid_reflections & ~too_small, 
+                                approx=approx), 
+                            approx=approx
+                        )
+
+        return full_paths, mask
+
+    if parallel:
+        num_devices = jax.device_count()
+
+        if (num_tx_vertices * num_rx_vertices) % num_devices == 0:
+            tx_mesh = math.gcd(num_tx_vertices, num_devices)
+            rx_mesh = num_devices // tx_mesh
+            in_specs = (P("i", None), P("j", None))
+            out_specs = (P("i", "j", None, None, None), P("i", "j", None))
+        else:
+            msg = (
+                f"Found {num_devices} devices available, "
+                "but could not find any input with a size that is a multiple of that value. "
+                "Please user a number of transmitter and receiver points that is a "
+                f"multiple of {num_devices}."
+            )
+            raise ValueError(msg)
+
+        fun = shard_map(  # type: ignore[reportAssigmentType]
+            fun,
+            Mesh(
+                mesh_utils.create_device_mesh((tx_mesh, rx_mesh)), axis_names=("i", "j")
+            ),
+            in_specs=in_specs,
+            out_specs=out_specs,
+        )
+
+    vertices, mask = fun(tx_vertices, rx_vertices)
+
+    # 4 - Generate output paths and reshape
+
+    object_dtype = path_candidates.dtype
+
+    tx_objects = jnp.arange(num_tx_vertices, dtype=object_dtype)
+    rx_objects = jnp.arange(num_rx_vertices, dtype=object_dtype)
+
+    tx_objects = jnp.broadcast_to(
+        tx_objects[:, None, None, None],
+        (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
+    )
+    rx_objects = jnp.broadcast_to(
+        rx_objects[None, :, None, None],
+        (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
+    )
+    path_candidates = jnp.broadcast_to(
+        path_candidates,
+        (
+            num_tx_vertices,
+            num_rx_vertices,
+            num_path_candidates,
+            order,
+        ),
+    )
+
+    objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
+    smooth_mask = mask.copy()
+
+    return Paths(
+        vertices,
+        objects,
+        mask,
+        smooth_mask=smooth_mask
     )
 
 
@@ -688,6 +949,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        approx: bool = False,
+        alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
     ) -> Paths: ...
 
     @overload
@@ -704,6 +967,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        approx: bool = False,
+        alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -720,6 +985,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        approx: bool = False,
+        alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
     ) -> Paths: ...
 
     @overload
@@ -736,6 +1003,8 @@ class TriangleScene(eqx.Module):
         hit_tol: None = None,
         min_len: None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        approx: bool = False,
+        alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
     ) -> SBRPaths: ...
 
     def compute_paths(  # noqa: C901
@@ -751,6 +1020,8 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
+        approx: bool = False, 
+        alpha: Float[ArrayLike, " "] = DEFAULT_ALPHA,
     ) -> Paths | SizedIterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -911,8 +1182,9 @@ class TriangleScene(eqx.Module):
                 chunk_size=chunk_size,
             )
             size = path_candidates_iter.__len__
-            it = (
-                _compute_paths(
+            if approx:
+                it = (
+                _compute_paths_smooth(
                     self.mesh,
                     tx_vertices,
                     rx_vertices,
@@ -921,9 +1193,25 @@ class TriangleScene(eqx.Module):
                     epsilon=epsilon,
                     hit_tol=hit_tol,
                     min_len=min_len,
+                    approx=approx,
+                    alpha=alpha,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
+            else:
+                it = (
+                    _compute_paths(
+                        self.mesh,
+                        tx_vertices,
+                        rx_vertices,
+                        2 * path_candidates if self.mesh.assume_quads else path_candidates,
+                        parallel=parallel,
+                        epsilon=epsilon,
+                        hit_tol=hit_tol,
+                        min_len=min_len,
+                    ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+                    for path_candidates in path_candidates_iter
+                )
 
             return SizedIterator(it, size=size)
 
@@ -940,7 +1228,8 @@ class TriangleScene(eqx.Module):
             if self.mesh.assume_quads:
                 path_candidates -= path_candidates % 2
 
-        return _compute_paths(
+        if approx:
+            return _compute_paths_smooth(
             self.mesh,
             tx_vertices,
             rx_vertices,
@@ -949,7 +1238,21 @@ class TriangleScene(eqx.Module):
             epsilon=epsilon,
             hit_tol=hit_tol,
             min_len=min_len,
+            approx=approx,
+            alpha=alpha,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+
+        else:
+            return _compute_paths(
+                self.mesh,
+                tx_vertices,
+                rx_vertices,
+                path_candidates,
+                parallel=parallel,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+                min_len=min_len,
+            ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(
         self,
