@@ -100,6 +100,27 @@ class TestDipole:
             3.0 * 2.0,
         )
 
+    def test_look_at(self) -> None:
+        dipole = Dipole(1e9)
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([0.0, 0.0, +1.0])
+        chex.assert_trees_all_equal(got, expected)
+
+        dipole = Dipole(1e9, look_at=jnp.array([0.0, 0.0, -1.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([1.0, 0.0, 0.0])
+        chex.assert_trees_all_close(got, expected, atol=1e-7)
+
+        dipole = Dipole(1e9, look_at=jnp.array([1.0, 1.0, 0.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([0.0, 0.0, -1.0])
+        chex.assert_trees_all_close(got, expected, atol=1e-7)
+
+        dipole = Dipole(1e9, look_at=jnp.array([1.0, 0.0, -1.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([-1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
+        chex.assert_trees_all_close(got, expected, atol=1e-7)
+
     @pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
     def test_reference_power(self, frequency: float, key: PRNGKeyArray) -> None:
         key_pa, key_moment = jax.random.split(key, 2)

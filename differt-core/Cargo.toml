@@ -37,4 +37,4 @@ unexpected_cfgs = {level = "warn", check-cfg = ['cfg(tarpaulin_include)']}
 edition = "2021"
 name = "differt-core"
 rust-version = "1.78.0"
-version = "0.0.34"
+version = "0.0.35"

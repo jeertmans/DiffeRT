@@ -7,7 +7,11 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Inexact
 
-from differt.geometry import normalize
+from differt.geometry import (
+    cartesian_to_spherical,
+    normalize,
+    spherical_to_cartesian,
+)
 from differt.plotting import PlotOutput, draw_surface
 from differt.utils import dot, safe_divide
 
@@ -253,7 +257,7 @@ class Antenna(BaseAntenna):
 
         gain = p / p.max()
 
-        r *= gain
+        r = self.center + (r - self.center) * gain
         gain = jnp.squeeze(gain, axis=-1)
 
         return draw_surface(
@@ -284,6 +288,9 @@ class Dipole(Antenna):
 
             If this is provided, this takes precedence over ``current``.
         center: The center position of the antenna, from which the fields are radiated.
+        look_at: When provided, re-orient the antenna to look at the given point.
+
+            This overrides the direction of the dipole moment.
 
     Examples:
         The following example shows how to plot the radiation
@@ -327,6 +334,17 @@ class Dipole(Antenna):
             ...     bbox_to_anchor=(0.5 + jnp.cos(angle) / 2, 0.5 + jnp.sin(angle) / 2),
             ... )
             >>> plt.show()  # doctest: +SKIP
+
+        The third example shows how to orient the antenna to look at a given point.
+
+        .. plotly::
+            :fig-vars: fig
+
+            >>> from differt.em import Dipole
+            >>>
+            >>> ant = Dipole(frequency=1e9, look_at=jnp.array([0.0, -1.0, -1.0]))
+            >>> fig = ant.plot_radiation_pattern(backend="plotly")
+            >>> fig  # doctest: +SKIP
     """
 
     length: Float[Array, " "] = eqx.field(converter=jnp.asarray)
@@ -344,6 +362,7 @@ class Dipole(Antenna):
         current: Float[ArrayLike, " "] | None = 1.0,
         charge: Float[ArrayLike, " "] | None = None,
         center: Float[ArrayLike, "3"] = jnp.array([0.0, 0.0, 0.0]),
+        look_at: Float[ArrayLike, "3"] | None = None,
     ) -> None:
         super().__init__(jnp.asarray(frequency), center=center)
 
@@ -361,6 +380,17 @@ class Dipole(Antenna):
                 jnp.asarray(current)
                 * self.length
                 / (jnp.linalg.norm(moment) * self.angular_frequency)
+            )
+
+        if look_at is not None:
+            moment = spherical_to_cartesian(
+                cartesian_to_spherical(moment)
+                + (
+                    cartesian_to_spherical(
+                        normalize(jnp.asarray(look_at) - self.center)[0]
+                    )
+                    - cartesian_to_spherical(jnp.array([1.0, 0.0, 0.0]))
+                )
             )
 
         self.moment = moment  # type: ignore[reportAttributeAccessIssue]

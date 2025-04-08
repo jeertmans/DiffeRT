@@ -522,7 +522,7 @@ class TriangleMesh(eqx.Module):
         return eqx.tree_at(
             lambda m: m.vertices,
             self,
-            self.vertices + translation,
+            self.vertices + jnp.asarray(translation),
         )
 
     @classmethod
