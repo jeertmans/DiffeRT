@@ -9,3 +9,4 @@ Guides
    notebooks/type_checking
    notebooks/performance_tips
    notebooks/path_candidates
+   notebooks/coherence
