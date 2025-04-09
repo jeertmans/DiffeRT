@@ -111,6 +111,23 @@ class Paths(eqx.Module):
 
     If not specified, :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>` is assumed.
     """
+    confidence: Float[Array, " *batch"] | None = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """An optional array to indicate the confidence of each path.
+    The confidence value is between 0 and 1.
+    """
+    confidence_threshold: Float[Array, " "] = eqx.field(
+        converter=jnp.asarray, default_factory=lambda: jnp.array(0.5)
+    )
+
+    def __post_init__(self) -> None:
+        if self.mask is not None and self.confidence is not None:
+            msg = (
+                "Setting both 'mask' and 'confidence' arguments "
+                "will result in 'confidence' being ignored."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
 
     def reshape(self, *batch: int) -> Self:
         """
@@ -130,11 +147,20 @@ class Paths(eqx.Module):
             if self.interaction_types is not None
             else None
         )
+        confidence = (
+            self.confidence.reshape(*batch) if self.confidence is not None else None
+        )
 
         return eqx.tree_at(
-            lambda p: (p.vertices, p.objects, p.mask, p.interaction_types),
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.mask,
+                p.interaction_types,
+                p.confidence,
+            ),
             self,
-            (vertices, objects, mask, interaction_types),
+            (vertices, objects, mask, interaction_types, confidence),
             is_leaf=lambda x: x is None,
         )
 
@@ -173,11 +199,20 @@ class Paths(eqx.Module):
             if self.interaction_types is not None
             else None
         )
+        confidence = (
+            self.confidence.squeeze(axis) if self.confidence is not None else None
+        )
 
         return eqx.tree_at(
-            lambda p: (p.vertices, p.objects, p.mask, p.interaction_types),
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.mask,
+                p.interaction_types,
+                p.confidence,
+            ),
             self,
-            (vertices, objects, mask, interaction_types),
+            (vertices, objects, mask, interaction_types, confidence),
             is_leaf=lambda x: x is None,
         )
 
@@ -231,6 +266,8 @@ class Paths(eqx.Module):
         for _ in range(max(ndim - 1, 0)):
             f = jax.vmap(f)
 
+        # TODO: mask the 'confidence' attribute too
+
         mask = f(objects)
         mask = jnp.moveaxis(mask, -1, axis)
         mask = mask & self.mask if self.mask is not None else mask
@@ -260,6 +297,8 @@ class Paths(eqx.Module):
         """
         if self.mask is not None:
             return self.mask.sum()
+        if self.confidence is not None:
+            return (self.confidence >= self.confidence_threshold).sum()
         return self.objects[..., 0].size
 
     @property
@@ -275,6 +314,9 @@ class Paths(eqx.Module):
         if self.mask is not None:
             mask = self.mask.reshape(-1)
             return vertices[mask, ...]
+        if self.confidence is not None:
+            mask = self.confidence.reshape(-1) >= self.confidence_threshold
+            return vertices[mask, ...]
         return vertices
 
     @property
@@ -288,6 +330,9 @@ class Paths(eqx.Module):
         objects = self.objects.reshape((-1, self.path_length))
         if self.mask is not None:
             mask = self.mask.reshape(-1)
+            return objects[mask, ...]
+        if self.confidence is not None:
+            mask = self.confidence.reshape(-1) >= self.confidence_threshold
             return objects[mask, ...]
         return objects
 
@@ -334,11 +379,14 @@ class Paths(eqx.Module):
         Raises:
             ValueError: If :attr:`mask` is None.
         """
-        if self.mask is None:
-            msg = "Cannot create multiplath cells from non-existing mask!"
+        if self.mask is None and self.confidence is None:
+            msg = "Cannot create multiplath cells from non-existing mask (or confidence matrix)!"
             raise ValueError(msg)
 
-        mask = jnp.moveaxis(self.mask, axis, -1)
+        if self.mask is not None:
+            mask = jnp.moveaxis(self.mask, axis, -1)
+        else:
+            mask = jnp.moveaxis(self.confidence >= self.confidence_threshold, axis, -1)
         *partial_batch, last_axis = mask.shape
 
         return _cell_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
@@ -427,6 +475,9 @@ class Paths(eqx.Module):
             The sum of the results, with contributions from
             invalid paths that are set to zero.
         """
+        if self.mask is None and self.confidence is not None:
+            return jnp.sum(fun(self.vertices) * self.confidence, axis=axis)
+
         return jnp.sum(fun(self.vertices), axis=axis, where=self.mask)
 
     def plot(self, **kwargs: Any) -> PlotOutput:

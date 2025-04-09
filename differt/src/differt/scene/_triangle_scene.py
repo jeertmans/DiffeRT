@@ -107,7 +107,7 @@ def _compute_paths(  # noqa: C901, PLR0915
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    def fun(  # noqa: PLR0912
+    def fun(
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
@@ -115,7 +115,8 @@ def _compute_paths(  # noqa: C901, PLR0915
             Array,
             "num_tx_vertices num_rx_vertices num_path_candidates path_length 3",
         ],
-        Bool[Array, "num_tx_vertices num_rx_vertices num_path_candidates"],
+        Bool[Array, "num_tx_vertices num_rx_vertices num_path_candidates"]
+        | Float[Array, "num_tx_vertices num_rx_vertices num_path_candidates"],
     ]:
         # 2 - Trace paths
 
@@ -235,18 +236,23 @@ def _compute_paths(  # noqa: C901, PLR0915
                 axis=-1
             )  # Any path segment being too small
 
-        # TODO: check if we should invalidate non-finite paths
-        # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+        # 3.5 - Identify paths that are not finite
+
+        is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
 
         if smoothing_factor is not None:
             confidence = jnp.stack(
-                (inside_triangles, valid_reflections, 1.0 - blocked, 1.0 - too_small),
+                (
+                    inside_triangles,
+                    valid_reflections,
+                    1.0 - blocked,
+                    1.0 - too_small,
+                    is_finite.astype(inside_triangles.dtype),
+                ),
                 axis=-1,
             ).min(axis=-1, initial=1.0)
-            mask = confidence > confidence_threshold
-        else:
-            mask = inside_triangles & valid_reflections & ~blocked & ~too_small
-
+            return full_paths, confidence
+        mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
         return full_paths, mask
 
     if parallel:
@@ -275,7 +281,12 @@ def _compute_paths(  # noqa: C901, PLR0915
             out_specs=out_specs,
         )
 
-    vertices, mask = fun(tx_vertices, rx_vertices)
+    if smoothing_factor is not None:
+        vertices, confidence = fun(tx_vertices, rx_vertices)
+        mask = None
+    else:
+        vertices, mask = fun(tx_vertices, rx_vertices)
+        confidence = None
 
     # 4 - Generate output paths and reshape
 
@@ -307,7 +318,9 @@ def _compute_paths(  # noqa: C901, PLR0915
     return Paths(
         vertices,
         objects,
-        mask,
+        mask=mask,
+        confidence=confidence,
+        confidence_threshold=confidence_threshold,
     )
 
 
@@ -902,7 +915,7 @@ class TriangleScene(eqx.Module):
                 Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
             smoothing_factor: If set, intermediate hard conditions are replaced with smoothed ones,
                 as described in :cite:`fully-eucap2024`, and this argument parameters the slope
-                of the smoothing function. The, valid paths are identified using
+                of the smoothing function. The, valid paths are lazily identified using
                 ``confidence > confidence_threshold`` where ``confidence`` is a real value
                 between 0 and 1 that indicates the confidence that a path is valid.
 
