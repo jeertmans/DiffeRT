@@ -446,7 +446,10 @@ def rays_intersect_any_triangle(
                 **kwargs,
             )
             intersect = jnp.maximum(
-                intersect, jnp.minimum(smoothing_function(hit_threshold - t), hit)
+                intersect,
+                jnp.minimum(
+                    smoothing_function(hit_threshold - t, smoothing_factor), hit
+                ),
             )
             return intersect, None
 
@@ -462,7 +465,7 @@ def rays_intersect_any_triangle(
                 triangle_vertices,
                 **kwargs,
             )
-            intersect = intersect | ((t < hit_threshold) & hit)
+            intersect |= (t < hit_threshold) & hit
             return intersect, None
 
     init = (

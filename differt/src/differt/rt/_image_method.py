@@ -407,5 +407,5 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     if smoothing_factor is not None:
         return smoothing_function(
             jnp.sign(dot_prev) * jnp.sign(dot_next), smoothing_factor
-        )  # TODO: fixme
+        )
     return jnp.sign(dot_prev) == jnp.sign(dot_next)
