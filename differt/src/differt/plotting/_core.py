@@ -721,7 +721,7 @@ def _(
     return fig.add_surface(
         x=x,
         y=y,
-        z=np.full_like(data, z0),
+        z=np.where(np.isfinite(data), np.full_like(data, z0), np.nan),
         surfacecolor=data,
         **kwargs,
     )
