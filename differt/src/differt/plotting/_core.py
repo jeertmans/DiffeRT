@@ -621,6 +621,9 @@ def draw_image(
             >>> y = np.linspace(-4.0, +4.0, 200)
             >>> X, Y = np.meshgrid(x, y)
             >>> Z = np.sin(X) * np.cos(Y)
+            >>> # Let's mask some values to draw a ring
+            >>> R = np.sqrt(16*X*X + Y*Y)
+            >>> Z = np.where((R > 0.5) & (R < 1.5), np.nan, Z)
             >>> fig1 = draw_image(Z, backend="plotly")
             >>> fig1  # doctest: +SKIP
             >>>
