@@ -445,11 +445,12 @@ def rays_intersect_any_triangle(
                 smoothing_factor=smoothing_factor,
                 **kwargs,
             )
-            intersect = jnp.maximum(
-                intersect,
+            intersect = jnp.clip(
+                intersect +
                 jnp.minimum(
                     smoothing_function(hit_threshold - t, smoothing_factor), hit
                 ),
+                max=1.0,
             )
             return intersect, None
 
