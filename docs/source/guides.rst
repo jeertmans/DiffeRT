@@ -10,3 +10,4 @@ Guides
    notebooks/performance_tips
    notebooks/path_candidates
    notebooks/coherence
+   notebooks/smoothing
