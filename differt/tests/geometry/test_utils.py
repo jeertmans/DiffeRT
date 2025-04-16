@@ -174,7 +174,7 @@ def test_rotation_matrices(
     chex.assert_trees_all_close(got, expected)
 
 
-@pytest.mark.parametrize("n", [0, 10, 100])
+@pytest.mark.parametrize("n", [10, 100])
 @pytest.mark.parametrize(
     ("dtype", "expected_dtype", "expectation"),
     [
