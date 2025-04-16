@@ -220,6 +220,19 @@ def test_fibonacci_lattice(
         chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)
 
 
+@pytest.mark.parametrize(
+    "n",
+    [-1, 0],
+)
+def test_fibonacci_lattice_neg_n(
+    n: int,
+) -> None:
+    with pytest.raises(
+        ValueError, match=f"Invalid size {n!r}, must be strictly positive"
+    ):
+        _ = fibonacci_lattice(n)
+
+
 def test_assemble_paths() -> None:
     tx = jnp.ones((5, 3))
     paths = jnp.arange(24.0).reshape(4, 2, 3)
