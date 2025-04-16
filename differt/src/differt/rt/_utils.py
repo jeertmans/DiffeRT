@@ -297,13 +297,14 @@ def rays_intersect_triangles(
 
     # [*batch]
     a = dot(h, edge_1)
+    a = jnp.where(a == 0.0, jnp.inf, a)  # Avoid division by zero
 
     if smoothing_factor is not None:
         hit = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
     else:
         hit = jnp.abs(a) > epsilon
 
-    f = jnp.where(a == 0.0, 0, 1.0 / a)
+    f = 1.0 / a
     s = ray_origins - vertex_0
     u = f * dot(s, h)
 

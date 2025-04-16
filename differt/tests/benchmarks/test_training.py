@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001
 import itertools
 from collections.abc import Iterator
 
