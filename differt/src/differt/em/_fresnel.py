@@ -128,7 +128,7 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1.5  # Air to glass
+            >>> n = 1.5 + 0j  # Air to glass
             >>> theta = jnp.linspace(0, jnp.pi / 2)
             >>> cos_theta = jnp.cos(theta)
             >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)
@@ -155,7 +155,7 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1/ 1.5  #  Glass to air
+            >>> n = 1 / 1.5 + 0j  #  Glass to air
             >>> theta = jnp.linspace(0, jnp.pi / 2, 300)
             >>> cos_theta = jnp.cos(theta)
             >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)

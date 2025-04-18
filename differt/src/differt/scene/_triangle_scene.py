@@ -359,14 +359,17 @@ def _compute_paths_sbr(
         # [num_tx_vertices num_rays 3]
         mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
 
+        # Mark rays leaving the scene as invalid
+        inside_scene = jnp.isfinite(t_hit)
+        valid_rays &= inside_scene
+        # And avoid creating NaNs
+        t_hit = jnp.where(inside_scene, t_hit, jnp.zeros_like(t_hit))
+
         ray_origins += t_hit[..., None] * ray_directions
         ray_directions = (
             ray_directions
             - 2.0 * dot(ray_directions, mirror_normals, keepdims=True) * mirror_normals
         )
-
-        # Mark rays leaving the scene as invalid
-        valid_rays &= jnp.isfinite(t_hit)
 
         return (ray_origins, ray_directions, valid_rays), (
             triangles,
