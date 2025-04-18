@@ -120,11 +120,17 @@ def intersection_of_rays_with_planes(
     vn = dot(v, plane_normals, keepdims=True)
 
     parallel = un == 0.0
-    un = jnp.where(parallel, 1.0, un)
+    un = jnp.where(parallel, jnp.ones_like(un), un)
 
-    t = jnp.where(vn == 0.0, vn, jnp.where(parallel, jnp.inf, vn / un))
-    return ray_origins + ray_directions * jnp.where(
-        (u == 0.0).all(axis=-1, keepdims=True), 1.0, t
+    t = vn / un
+
+    shape = jnp.broadcast_shapes(ray_origins.shape, ray_directions.shape, t.shape)
+    dtype = jnp.result_type(ray_origins, ray_directions, t)
+
+    return jnp.where(
+        parallel & (vn != 0.0),
+        jnp.full(shape, jnp.inf, dtype=dtype),
+        ray_origins + ray_directions * t,
     )
 
 

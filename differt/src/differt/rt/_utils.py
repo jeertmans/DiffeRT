@@ -532,7 +532,7 @@ def first_triangles_hit_by_rays(
             triangle_vertices,
             **kwargs,
         )
-        t = jnp.where(hit, t, jnp.inf)
+        t = jnp.where(hit, t, jnp.full_like(t, jnp.inf))
         indices = jnp.where(t < t_hit, index, indices)
         t_hit = jnp.minimum(t, t_hit)
         return (indices, t_hit, index + 1), None

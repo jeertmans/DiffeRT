@@ -112,7 +112,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     )
     ray_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), ray_origins.shape)
     ray_directions = ray_ends - ray_origins
-    plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
+    plane_vertices = jnp.array([[0.0, 0.0, -1.0]])
     plane_normals = jnp.array([[0.0, 0.0, 1.0]])
     got = intersection_of_rays_with_planes(
         ray_origins,
@@ -124,7 +124,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     chex.assert_trees_all_close(got, expected)
 
     # Check that we have non-NaNs gradient
-    grads = jax.grad(intersection_of_rays_with_planes)(
+    grads = jax.grad(lambda *args: intersection_of_rays_with_planes(*args).sum())(
         ray_origins,
         ray_directions,
         plane_vertices,
@@ -132,6 +132,18 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     )
 
     assert not jnp.isnan(grads).any()
+
+    # Ray origins are on the plane
+
+    plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
+    got = intersection_of_rays_with_planes(
+        ray_origins,
+        ray_directions,
+        plane_vertices,
+        plane_normals,
+    )
+    expected = ray_origins
+    chex.assert_trees_all_close(got, expected)
 
 
 @pytest.mark.parametrize(
