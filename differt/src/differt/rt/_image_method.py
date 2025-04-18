@@ -119,8 +119,13 @@ def intersection_of_rays_with_planes(
     # [*batch 1]
     vn = dot(v, plane_normals, keepdims=True)
 
-    t = vn / jnp.where(vn == 0.0, 1.0, un)
-    return ray_origins + ray_directions * jnp.where(u == 0.0, 1.0, t)
+    parallel = un == 0.0
+    un = jnp.where(parallel, 1.0, un)
+
+    t = jnp.where(vn == 0.0, vn, jnp.where(parallel, jnp.inf, vn / un))
+    return ray_origins + ray_directions * jnp.where(
+        (u == 0.0).all(axis=-1, keepdims=True), 1.0, t
+    )
 
 
 @jax.jit

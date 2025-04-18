@@ -162,6 +162,7 @@ addopts = [
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
+  "JAX_DEBUG_NANS=True",
   "JAX_PLATFORM_NAME=cpu",
 ]
 filterwarnings = [
