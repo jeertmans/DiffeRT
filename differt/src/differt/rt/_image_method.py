@@ -318,7 +318,7 @@ def image_method(
         """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
-        # We avoids NaNs (caused by subtraction of two infinities) by replacing
+        # We avoid NaNs (caused by subtraction of two infinities) by replacing
         # previous_intersections with zeros when they are infinite.
         no_previous_intersections = jnp.isinf(previous_intersections)
         previous_intersections = jnp.where(
