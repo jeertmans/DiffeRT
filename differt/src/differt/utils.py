@@ -327,7 +327,11 @@ def safe_divide(
     # TODO: add :python: rst role for x / y in docs
     num = jnp.asarray(num)
     den = jnp.asarray(den)
-    return jnp.where(den == 0, 0, num / den)
+    shape = jnp.broadcast_shapes(num.shape, den.shape)
+    dtype = jnp.result_type(num, den)
+    zero_div = den == 0.0
+    den = jnp.where(zero_div, jnp.ones_like(den), den)
+    return jnp.where(zero_div, jnp.zeros(shape, dtype=dtype), num / den)
 
 
 @partial(jax.jit, inline=True)

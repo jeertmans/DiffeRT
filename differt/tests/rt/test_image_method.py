@@ -2,11 +2,12 @@ from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
 import chex
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, PRNGKeyArray
 
-from differt.geometry._utils import normalize
+from differt.geometry import normalize
 from differt.rt._image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,
@@ -102,6 +103,46 @@ def test_intersection_of_rays_with_planes() -> None:
         plane_vertices,
         plane_normals,
     )
+    chex.assert_trees_all_close(got, expected)
+
+
+def test_intersection_of_rays_with_planes_parallel() -> None:
+    ray_origins = jnp.array(
+        [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
+    )
+    ray_ends = jnp.broadcast_to(jnp.array([[2.0, -1.0, 0.0]]), ray_origins.shape)
+    ray_directions = ray_ends - ray_origins
+    plane_vertices = jnp.array([[0.0, 0.0, -1.0]])
+    plane_normals = jnp.array([[0.0, 0.0, 1.0]])
+    got = intersection_of_rays_with_planes(
+        ray_origins,
+        ray_directions,
+        plane_vertices,
+        plane_normals,
+    )
+    expected = jnp.full_like(got, jnp.inf)
+    chex.assert_trees_all_close(got, expected)
+
+    # Check that we have non-NaNs gradient
+    grads = jax.grad(lambda *args: intersection_of_rays_with_planes(*args).sum())(
+        ray_origins,
+        ray_directions,
+        plane_vertices,
+        plane_normals,
+    )
+
+    assert not jnp.isnan(grads).any()
+
+    # Ray origins are on the plane
+
+    plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
+    got = intersection_of_rays_with_planes(
+        ray_origins,
+        ray_directions,
+        plane_vertices,
+        plane_normals,
+    )
+    expected = ray_origins
     chex.assert_trees_all_close(got, expected)
 
 

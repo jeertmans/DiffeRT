@@ -36,7 +36,7 @@ def test_fresnel_coefficients(key: PRNGKeyArray) -> None:
     n_1 = jax.random.uniform(key_n_1, (100,), minval=0.01, maxval=2.0)
     n_2 = jax.random.uniform(key_n_2, (100,), minval=0.01, maxval=2.0)
 
-    n_r = n_2 / n_1
+    n_r = (n_2 / n_1).astype(jnp.complex64)
     theta_i = jnp.linspace(0, jnp.pi / 2)
     cos_theta_i = jnp.cos(theta_i)
     n_r = n_r[..., None]

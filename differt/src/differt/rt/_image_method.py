@@ -120,8 +120,19 @@ def intersection_of_rays_with_planes(
     # [*batch 1]
     vn = dot(v, plane_normals, keepdims=True)
 
-    t = vn / jnp.where(vn == 0.0, 1.0, un)
-    return ray_origins + ray_directions * jnp.where(u == 0.0, 1.0, t)
+    parallel = un == 0.0
+    un = jnp.where(parallel, jnp.ones_like(un), un)
+
+    t = vn / un
+
+    shape = jnp.broadcast_shapes(ray_origins.shape, ray_directions.shape, t.shape)
+    dtype = jnp.result_type(ray_origins, ray_directions, t)
+
+    return jnp.where(
+        parallel & (vn != 0.0),
+        jnp.full(shape, jnp.inf, dtype=dtype),
+        ray_origins + ray_directions * t,
+    )
 
 
 @jax.jit
@@ -308,11 +319,24 @@ def image_method(
         """Perform backward pass on images by computing the intersection with mirrors."""
         mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
 
+        # We avoid NaNs (caused by subtraction of two infinities) by replacing
+        # previous_intersections with zeros when they are infinite.
+        no_previous_intersections = jnp.isinf(previous_intersections)
+        previous_intersections = jnp.where(
+            no_previous_intersections,
+            jnp.zeros_like(previous_intersections),
+            previous_intersections,
+        )
         intersections = intersection_of_rays_with_planes(
             previous_intersections,
             images - previous_intersections,
             mirror_vertices,
             mirror_normals,
+        )
+        intersections: Array = jnp.where(
+            no_previous_intersections,
+            jnp.full_like(intersections, jnp.inf),
+            intersections,
         )
         return intersections, intersections
 
