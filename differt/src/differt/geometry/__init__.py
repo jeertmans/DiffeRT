@@ -16,7 +16,6 @@ __all__ = (
     "perpendicular_vectors",
     "rotation_matrix_along_axis",
     "rotation_matrix_along_x_axis",
-    "rotation_matrix_along_x_axis",
     "rotation_matrix_along_y_axis",
     "rotation_matrix_along_z_axis",
     "spherical_to_cartesian",
