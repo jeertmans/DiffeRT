@@ -159,7 +159,7 @@ def fresnel_coefficients(
             >>> theta = jnp.linspace(0, jnp.pi / 2, 300)
             >>> cos_theta = jnp.cos(theta)
             >>> (r_s, r_p), (t_s, t_p) = jax.tree.map(
-            ...     lambda x: jnp.where(jnp.imag(x) == 0, jnp.real(x), jnp.nan),
+            ...     lambda x: jnp.where(jnp.imag(x) == 0, jnp.real(x), jnp.inf),
             ...     fresnel_coefficients(n, cos_theta)
             ... )  # Here Fresnel coefficients are purely real numbers before
             ...    # the critical angle. After the critical angle, they become complex.
