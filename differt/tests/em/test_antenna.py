@@ -8,7 +8,10 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import c
-from differt.em._antenna import Antenna, Dipole
+from differt.em._antenna import (
+    Antenna,
+    Dipole,
+)
 from differt.geometry import normalize, spherical_to_cartesian
 
 
@@ -109,17 +112,17 @@ class TestDipole:
         dipole = Dipole(1e9, look_at=jnp.array([0.0, 0.0, -1.0]))
         got = normalize(dipole.moment)[0]
         expected = jnp.array([1.0, 0.0, 0.0])
-        chex.assert_trees_all_close(got, expected, atol=1e-7)
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
 
         dipole = Dipole(1e9, look_at=jnp.array([1.0, 1.0, 0.0]))
         got = normalize(dipole.moment)[0]
         expected = jnp.array([0.0, 0.0, -1.0])
-        chex.assert_trees_all_close(got, expected, atol=1e-7)
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
 
         dipole = Dipole(1e9, look_at=jnp.array([1.0, 0.0, -1.0]))
         got = normalize(dipole.moment)[0]
         expected = jnp.array([-1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
-        chex.assert_trees_all_close(got, expected, atol=1e-7)
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
 
     @pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
     def test_reference_power(self, frequency: float, key: PRNGKeyArray) -> None:

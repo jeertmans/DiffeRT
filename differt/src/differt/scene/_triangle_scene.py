@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 import math
 import warnings
 from collections.abc import Mapping
@@ -190,7 +188,9 @@ def _compute_paths(
         )  # Any path segment being too small
 
         is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
-        full_paths = jnp.where(is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths))
+        full_paths = jnp.where(
+            is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths)
+        )
 
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
 
