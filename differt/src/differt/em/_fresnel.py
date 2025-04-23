@@ -128,7 +128,7 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1.5 + 0j  # Air to glass
+            >>> n = 1.5  # Air to glass
             >>> theta = jnp.linspace(0, jnp.pi / 2)
             >>> cos_theta = jnp.cos(theta)
             >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)
@@ -155,7 +155,7 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1 / 1.5 + 0j  #  Glass to air
+            >>> n = 1 / 1.5  #  Glass to air
             >>> theta = jnp.linspace(0, jnp.pi / 2, 300)
             >>> cos_theta = jnp.cos(theta)
             >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)
@@ -244,7 +244,7 @@ def reflection_coefficients(
            ...     Dipole,
            ...     c,
            ...     fspl,
-           ...     pointing_vector,
+           ...     poynting_vector,
            ...     reflection_coefficients,
            ...     sp_directions,
            ... )
@@ -296,7 +296,7 @@ def reflection_coefficients(
            >>> # [num_positions 3]
            >>> E_los, B_los = ant.fields(rx_positions - tx_position)
            >>> # [num_positions]
-           >>> P_los = A_e * jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
+           >>> P_los = A_e * jnp.linalg.norm(poynting_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_los / ant.reference_power),
@@ -385,7 +385,7 @@ def reflection_coefficients(
            >>> phase_shift = jnp.exp(1j * s_r * ant.wavenumber)
            >>> E_r *= spreading_factor * phase_shift
            >>> B_r *= spreading_factor * phase_shift
-           >>> P_r = A_e * jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
+           >>> P_r = A_e * jnp.linalg.norm(poynting_vector(E_r, B_r), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_r / ant.reference_power),
@@ -397,7 +397,7 @@ def reflection_coefficients(
 
            >>> E_tot = E_los + E_r
            >>> B_tot = B_los + B_r
-           >>> P_tot = A_e * jnp.linalg.norm(pointing_vector(E_tot, B_tot), axis=-1)
+           >>> P_tot = A_e * jnp.linalg.norm(poynting_vector(E_tot, B_tot), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_tot / ant.reference_power),
