@@ -180,7 +180,8 @@ def fresnel_coefficients(
             >>> plt.legend()  # doctest: +SKIP
             >>> plt.tight_layout()  # doctest: +SKIP
     """
-    cos_theta_i = jnp.asarray(cos_theta_i)
+    # Fresnel coefficients are only defined for theta in [-pi/2, pi/2]
+    cos_theta_i = jnp.abs(jnp.asarray(cos_theta_i))
     n_r_squared = jax.lax.integer_pow(n_r, 2)
     cos_theta_i_squared = jax.lax.integer_pow(cos_theta_i, 2)
     n_r_squared_cos_theta_i = n_r_squared * cos_theta_i
