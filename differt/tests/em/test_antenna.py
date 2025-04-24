@@ -8,7 +8,10 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import c
-from differt.em._antenna import Antenna, Dipole
+from differt.em._antenna import (
+    Antenna,
+    Dipole,
+)
 from differt.geometry import normalize, spherical_to_cartesian
 
 
@@ -100,6 +103,27 @@ class TestDipole:
             3.0 * 2.0,
         )
 
+    def test_look_at(self) -> None:
+        dipole = Dipole(1e9)
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([0.0, 0.0, +1.0])
+        chex.assert_trees_all_equal(got, expected)
+
+        dipole = Dipole(1e9, look_at=jnp.array([0.0, 0.0, -1.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([1.0, 0.0, 0.0])
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
+
+        dipole = Dipole(1e9, look_at=jnp.array([1.0, 1.0, 0.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([0.0, 0.0, -1.0])
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
+
+        dipole = Dipole(1e9, look_at=jnp.array([1.0, 0.0, -1.0]))
+        got = normalize(dipole.moment)[0]
+        expected = jnp.array([-1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
+
     @pytest.mark.parametrize("frequency", [0.1e9, 1e9, 10e9])
     def test_reference_power(self, frequency: float, key: PRNGKeyArray) -> None:
         key_pa, key_moment = jax.random.split(key, 2)
@@ -111,7 +135,7 @@ class TestDipole:
             moment=normalize(jax.random.normal(key_moment, (3,)))[0],
         )
         expected = (
-            jnp.linalg.norm(dipole.pointing_vector(xyz), axis=-1).max() * 4 * jnp.pi
+            jnp.linalg.norm(dipole.poynting_vector(xyz), axis=-1).max() * 4 * jnp.pi
         )
         chex.assert_trees_all_close(dipole.reference_power, expected, rtol=1e-2)
 

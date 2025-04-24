@@ -90,10 +90,10 @@ def normalize(
         (Array([0., 0., 0.], dtype=float32), Array(0., dtype=float32))
     """
     vectors = jnp.asarray(vectors)
-    length = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
+    lengths = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
 
-    return vectors / jnp.where(length == 0.0, jnp.ones_like(length), length), (
-        length if keepdims else jnp.squeeze(length, axis=-1)
+    return vectors / jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths), (
+        lengths if keepdims else jnp.squeeze(lengths, axis=-1)
     )
 
 
@@ -130,7 +130,7 @@ def perpendicular_vectors(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*bat
         jnp.stack((z, -u[..., 2], u[..., 1]), axis=-1),
     )
     w = jnp.cross(u, v)
-    return w / jnp.linalg.norm(w, axis=-1, keepdims=True)
+    return normalize(w)[0]
 
 
 @partial(jax.jit, inline=True)
@@ -166,7 +166,7 @@ def orthogonal_basis(
     u = jnp.asarray(u)
     w = perpendicular_vectors(u)
     v = jnp.cross(w, u)
-    v = v / jnp.linalg.norm(v, axis=-1, keepdims=True)
+    v = normalize(v)[0]
 
     return v, w
 
@@ -426,7 +426,7 @@ def fibonacci_lattice(
         The array of vertices.
 
     Raises:
-        ValueError: If the provided dtype is not a floating dtype.
+        ValueError: If the provided dtype is not a floating dtype, or if ``n`` is not strictly positive.
 
     Examples:
         The following example shows how to generate and plot
@@ -443,6 +443,9 @@ def fibonacci_lattice(
             >>> fig = draw_markers(xyz, marker={"color": xyz[:, 0]}, backend="plotly")
             >>> fig  # doctest: +SKIP
     """
+    if n <= 0:
+        msg = f"Invalid size {n!r}, must be strictly positive."
+        raise ValueError(msg)
     if frustum is not None:
         frustum = jnp.asarray(frustum)
         dtype = frustum.dtype
@@ -797,6 +800,7 @@ def cartesian_to_spherical(
     """
     xyz = jnp.asarray(xyz)
     r = jnp.linalg.norm(xyz, axis=-1)
+    r: Array = jnp.where(r == 0.0, jnp.ones_like(r), r)
     p = jnp.arccos(xyz[..., -1] / r)
     a = jnp.arctan2(xyz[..., 1], xyz[..., 0])
 

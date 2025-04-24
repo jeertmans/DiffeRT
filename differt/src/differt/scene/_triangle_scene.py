@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 import math
 import warnings
 from collections.abc import Mapping
@@ -189,10 +187,12 @@ def _compute_paths(
             axis=-1
         )  # Any path segment being too small
 
-        # TODO: check if we should invalidate non-finite paths
-        # is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+        is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+        full_paths = jnp.where(
+            is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths)
+        )
 
-        mask = inside_triangles & valid_reflections & ~blocked & ~too_small
+        mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
 
         return full_paths, mask
 
@@ -359,14 +359,17 @@ def _compute_paths_sbr(
         # [num_tx_vertices num_rays 3]
         mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
 
+        # Mark rays leaving the scene as invalid
+        inside_scene = jnp.isfinite(t_hit)
+        valid_rays &= inside_scene
+        # And avoid creating NaNs
+        t_hit = jnp.where(inside_scene, t_hit, jnp.zeros_like(t_hit))
+
         ray_origins += t_hit[..., None] * ray_directions
         ray_directions = (
             ray_directions
             - 2.0 * dot(ray_directions, mirror_normals, keepdims=True) * mirror_normals
         )
-
-        # Mark rays leaving the scene as invalid
-        valid_rays &= jnp.isfinite(t_hit)
 
         return (ray_origins, ray_directions, valid_rays), (
             triangles,

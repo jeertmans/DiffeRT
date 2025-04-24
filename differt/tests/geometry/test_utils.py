@@ -174,7 +174,7 @@ def test_rotation_matrices(
     chex.assert_trees_all_close(got, expected)
 
 
-@pytest.mark.parametrize("n", [0, 10, 100])
+@pytest.mark.parametrize("n", [10, 100])
 @pytest.mark.parametrize(
     ("dtype", "expected_dtype", "expectation"),
     [
@@ -218,6 +218,19 @@ def test_fibonacci_lattice(
         chex.assert_type(got, expected_dtype)
         chex.assert_trees_all_close(got, normalized, atol=atol)
         chex.assert_trees_all_close(lengths, jnp.ones_like(lengths), atol=atol)
+
+
+@pytest.mark.parametrize(
+    "n",
+    [-1, 0],
+)
+def test_fibonacci_lattice_neg_n(
+    n: int,
+) -> None:
+    with pytest.raises(
+        ValueError, match=f"Invalid size {n!r}, must be strictly positive"
+    ):
+        _ = fibonacci_lattice(n)
 
 
 def test_assemble_paths() -> None:

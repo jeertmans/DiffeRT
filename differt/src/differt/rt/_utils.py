@@ -268,10 +268,11 @@ def rays_intersect_triangles(
 
     # [*batch]
     a = dot(h, edge_1)
+    a = jnp.where(a == 0.0, jnp.inf, a)  # Avoid division by zero
 
     hit = jnp.abs(a) > epsilon
 
-    f = jnp.where(a == 0.0, 0, 1.0 / a)
+    f = 1.0 / a
     s = ray_origins - vertex_0
     u = f * dot(s, h)
 
@@ -531,7 +532,7 @@ def first_triangles_hit_by_rays(
             triangle_vertices,
             **kwargs,
         )
-        t = jnp.where(hit, t, jnp.inf)
+        t = jnp.where(hit, t, jnp.full_like(t, jnp.inf))
         indices = jnp.where(t < t_hit, index, indices)
         t_hit = jnp.minimum(t, t_hit)
         return (indices, t_hit, index + 1), None

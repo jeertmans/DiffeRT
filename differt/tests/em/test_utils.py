@@ -167,7 +167,7 @@ def test_fspl_vs_los(frequency: float, key: PRNGKeyArray) -> None:
 
     got = 10 * jnp.log10(
         ant.aperture
-        * jnp.linalg.norm(ant.pointing_vector(xyz), axis=-1)
+        * jnp.linalg.norm(ant.poynting_vector(xyz), axis=-1)
         / ant.reference_power
     )
     expected = -fspl(d, frequency, dB=True)
