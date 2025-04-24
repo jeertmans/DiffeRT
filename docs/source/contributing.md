@@ -36,6 +36,21 @@ so that changes are taken into accounts:
 uv sync --reinstall-package differt-core
 ```
 
+Alternatively, you can install an import hook that will recompile the
+{mod}`differt_core` package each time it is imported:
+
+```bash
+just hook-install
+```
+
+While recompiling a package that hasn't changed is relatively fast,
+it may be better to disable the import hook when it is not needed.
+You can do so by uninstalling it:
+
+```bash
+just hook-uninstall
+```
+
 ### Documentation
 
 To generate the documentation, please run the following (from the root folder):
