@@ -24,7 +24,6 @@ Utilities to transform 3D coordinates.
 
    rotation_matrix_along_axis
    rotation_matrix_along_x_axis
-   rotation_matrix_along_x_axis
    rotation_matrix_along_y_axis
    rotation_matrix_along_z_axis
    cartesian_to_spherical

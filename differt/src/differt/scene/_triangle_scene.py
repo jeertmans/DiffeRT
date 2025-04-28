@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 import math
 import warnings
 from collections.abc import Mapping
@@ -239,6 +237,9 @@ def _compute_paths(  # noqa: C901, PLR0915
         # 3.5 - Identify paths that are not finite
 
         is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+        full_paths = jnp.where(
+            is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths)
+        )
 
         if smoothing_factor is not None:
             confidence = jnp.stack(

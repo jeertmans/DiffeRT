@@ -19,12 +19,12 @@ from ._constants import c, epsilon_0, mu_0
 
 
 @jax.jit
-def pointing_vector(
+def poynting_vector(
     e: Inexact[ArrayLike, "*#batch 3"],
     b: Inexact[ArrayLike, "*#batch 3"],
 ) -> Inexact[Array, "*batch 3"]:
     r"""
-    Compute the pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
+    Compute the Pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
     Args:
         e: The electrical field.
@@ -35,9 +35,7 @@ def pointing_vector(
 
         It can be either real of complex-valued.
     """
-    h = jnp.asarray(b) / mu_0
-
-    return jnp.cross(jnp.asarray(e), h)
+    return jnp.cross(jnp.asarray(e), jnp.asarray(b)) / mu_0
 
 
 class BaseAntenna(eqx.Module):
@@ -117,13 +115,13 @@ class Antenna(BaseAntenna):
         """
 
     @eqx.filter_jit
-    def pointing_vector(
+    def poynting_vector(
         self,
         r: Float[ArrayLike, "*#batch 3"],
         t: Float[ArrayLike, "*#batch"] | None = None,
     ) -> Inexact[Array, "*batch 3"]:
         r"""
-        Compute the pointing vector in vacuum at given position and (optional) time.
+        Compute the Poynting vector in vacuum at given position and (optional) time.
 
         Args:
             r: The array of positions.
@@ -138,7 +136,7 @@ class Antenna(BaseAntenna):
             It can be either real of complex-valued.
         """
         e, b = self.fields(r, t)
-        return pointing_vector(e, b)
+        return poynting_vector(e, b)
 
     def directivity(
         self,
@@ -176,7 +174,7 @@ class Antenna(BaseAntenna):
 
         r = self.center + jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)
+        s = self.poynting_vector(r)
 
         p = jnp.linalg.norm(s, axis=-1)
 
@@ -251,7 +249,7 @@ class Antenna(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)
+        s = self.poynting_vector(r)
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 
@@ -323,7 +321,7 @@ class Dipole(Antenna):
             ... )
             >>> for ratio in [0.5, 1.0, 1.25, 1.5, 2.0]:
             ...     ant = Dipole(1e9, ratio)
-            ...     power = jnp.linalg.norm(ant.pointing_vector(r), axis=-1)
+            ...     power = jnp.linalg.norm(ant.poynting_vector(r), axis=-1)
             ...     _ = ax.plot(theta, power, label=rf"$\ell/\lambda = {ratio:1.2f}$")
             >>>
             >>> ax.tick_params(grid_color="palegoldenrod")
@@ -647,7 +645,7 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.pointing_vector(r)  # type: ignore[reportAttributeAccessIssue]
+        s = self.poynting_vector(r)  # type: ignore[reportAttributeAccessIssue]
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 

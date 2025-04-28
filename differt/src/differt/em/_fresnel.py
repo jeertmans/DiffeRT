@@ -1,7 +1,7 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, Float, Inexact
+from jaxtyping import Array, ArrayLike, Complex, Float, Inexact
 
 from differt.utils import safe_divide
 
@@ -48,8 +48,8 @@ def fresnel_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[ArrayLike, " *#batch"],
 ) -> tuple[
-    tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]],
-    tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]],
+    tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]],
+    tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]],
 ]:
     r"""
     Compute the Fresnel reflection and refraction coefficients at an interface.
@@ -108,9 +108,6 @@ def fresnel_coefficients(
     Returns:
         The reflection and refraction coefficients for s and p polarizations.
 
-        The output dtype will only be complex if any of the provided arguments
-        has a complex dtype.
-
     .. seealso::
 
         :func:`reflection_coefficients`
@@ -128,10 +125,13 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1.5 + 0j  # Air to glass
+            >>> n = 1.5  # Air to glass
             >>> theta = jnp.linspace(0, jnp.pi / 2)
             >>> cos_theta = jnp.cos(theta)
-            >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)
+            >>> (r_s, r_p), (t_s, t_p) = jax.tree.map(
+            ...     jnp.real,
+            ...     fresnel_coefficients(n, cos_theta)
+            ... )  # Here Fresnel coefficients are purely real numbers
             >>> theta_d = jnp.rad2deg(theta)
             >>> theta_b = jnp.rad2deg(jnp.arctan(n))
             >>> plt.plot(theta_d, r_s, "b:", label=r"$r_s$")  # doctest: +SKIP
@@ -155,10 +155,14 @@ def fresnel_coefficients(
 
             >>> from differt.em import fresnel_coefficients
             >>>
-            >>> n = 1 / 1.5 + 0j  #  Glass to air
+            >>> n = 1 / 1.5  #  Glass to air
             >>> theta = jnp.linspace(0, jnp.pi / 2, 300)
             >>> cos_theta = jnp.cos(theta)
-            >>> (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n, cos_theta)
+            >>> (r_s, r_p), (t_s, t_p) = jax.tree.map(
+            ...     lambda x: jnp.where(jnp.imag(x) == 0, jnp.real(x), jnp.inf),
+            ...     fresnel_coefficients(n, cos_theta)
+            ... )  # Here Fresnel coefficients are purely real numbers before
+            ...    # the critical angle. After the critical angle, they become complex.
             >>> theta_d = jnp.rad2deg(theta)
             >>> theta_b = jnp.rad2deg(jnp.arctan(n))
             >>> theta_c = jnp.rad2deg(jnp.arcsin(n))
@@ -176,11 +180,17 @@ def fresnel_coefficients(
             >>> plt.legend()  # doctest: +SKIP
             >>> plt.tight_layout()  # doctest: +SKIP
     """
-    cos_theta_i = jnp.asarray(cos_theta_i)
+    # Fresnel coefficients are only defined for theta in [-pi/2, pi/2]
+    cos_theta_i = jnp.abs(jnp.asarray(cos_theta_i))
     n_r_squared = jax.lax.integer_pow(n_r, 2)
     cos_theta_i_squared = jax.lax.integer_pow(cos_theta_i, 2)
     n_r_squared_cos_theta_i = n_r_squared * cos_theta_i
-    n_r_cos_theta_t = jnp.sqrt(n_r_squared + cos_theta_i_squared - 1)
+    dtype = jnp.result_type(n_r, cos_theta_i)
+    n_r_cos_theta_t = jnp.sqrt(
+        (n_r_squared + cos_theta_i_squared - 1).astype(
+            jnp.complex128 if dtype == jnp.float64 else jnp.complex64
+        )
+    )
     two_cos_theta_i = 2 * cos_theta_i
 
     r_s = safe_divide(
@@ -207,7 +217,7 @@ def fresnel_coefficients(
 def reflection_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[ArrayLike, " *#batch"],
-) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
+) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
     r"""
     Compute the Fresnel reflection coefficients at an interface.
 
@@ -220,9 +230,6 @@ def reflection_coefficients(
 
     Returns:
         The reflection coefficients for s and p polarizations.
-
-        The output dtype will only be complex if any of the provided arguments
-        has a complex dtype.
 
     .. seealso::
 
@@ -244,7 +251,7 @@ def reflection_coefficients(
            ...     Dipole,
            ...     c,
            ...     fspl,
-           ...     pointing_vector,
+           ...     poynting_vector,
            ...     reflection_coefficients,
            ...     sp_directions,
            ... )
@@ -296,7 +303,7 @@ def reflection_coefficients(
            >>> # [num_positions 3]
            >>> E_los, B_los = ant.fields(rx_positions - tx_position)
            >>> # [num_positions]
-           >>> P_los = A_e * jnp.linalg.norm(pointing_vector(E_los, B_los), axis=-1)
+           >>> P_los = A_e * jnp.linalg.norm(poynting_vector(E_los, B_los), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_los / ant.reference_power),
@@ -385,7 +392,7 @@ def reflection_coefficients(
            >>> phase_shift = jnp.exp(1j * s_r * ant.wavenumber)
            >>> E_r *= spreading_factor * phase_shift
            >>> B_r *= spreading_factor * phase_shift
-           >>> P_r = A_e * jnp.linalg.norm(pointing_vector(E_r, B_r), axis=-1)
+           >>> P_r = A_e * jnp.linalg.norm(poynting_vector(E_r, B_r), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_r / ant.reference_power),
@@ -397,7 +404,7 @@ def reflection_coefficients(
 
            >>> E_tot = E_los + E_r
            >>> B_tot = B_los + B_r
-           >>> P_tot = A_e * jnp.linalg.norm(pointing_vector(E_tot, B_tot), axis=-1)
+           >>> P_tot = A_e * jnp.linalg.norm(poynting_vector(E_tot, B_tot), axis=-1)
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_tot / ant.reference_power),
@@ -429,7 +436,7 @@ def reflection_coefficients(
 def refraction_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[ArrayLike, " *#batch"],
-) -> tuple[Inexact[Array, " *batch"], Inexact[Array, " *batch"]]:
+) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
     """
     Compute the Fresnel refraction coefficients at an interface.
 
@@ -442,9 +449,6 @@ def refraction_coefficients(
 
     Returns:
         The refraction coefficients for s and p polarizations.
-
-        The output dtype will only be complex if any of the provided arguments
-        has a complex dtype.
 
     .. seealso::
 
