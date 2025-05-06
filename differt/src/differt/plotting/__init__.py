@@ -94,6 +94,7 @@ __all__ = (
     "draw_rays",
     "draw_surface",
     "get_backend",
+    "process_kwargs",
     "process_matplotlib_kwargs",
     "process_plotly_kwargs",
     "process_vispy_kwargs",
@@ -116,6 +117,7 @@ from ._core import (
 from ._utils import (
     dispatch,
     get_backend,
+    process_kwargs,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,

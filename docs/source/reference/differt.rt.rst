@@ -30,6 +30,7 @@ As a result, this module offers minimization methods for finding ray paths.
 .. autosummary::
    :toctree: _autosummary
 
+   fermat_path_on_linear_objects
    fermat_path_on_planar_mirrors
 
 .. rubric:: Path candidates iterators

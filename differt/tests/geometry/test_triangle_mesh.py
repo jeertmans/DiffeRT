@@ -105,9 +105,7 @@ class TestTriangleMesh:
         ):
             _ = two_buildings_mesh.num_quads
 
-        quad_mesh = eqx.tree_at(
-            lambda m: m.assume_quads, two_buildings_mesh, replace=True
-        )
+        quad_mesh = two_buildings_mesh.set_assume_quads()
 
         assert quad_mesh.num_quads == 12
 
@@ -436,6 +434,23 @@ class TestTriangleMesh:
             assert mesh.face_colors is None
 
         chex.assert_trees_all_equal(mesh, s.append(o))
+
+    def test_drop_duplicates(self) -> None:
+        mesh = TriangleMesh.box()
+        got_mesh = sum(
+            mesh.iter_objects(), start=TriangleMesh.empty()
+        ).drop_duplicates()
+        expected_mesh = mesh.sort()
+
+        chex.assert_trees_all_equal(got_mesh, expected_mesh)
+
+        # .sort() is a no-op after .drop_duplicates()
+        chex.assert_trees_all_equal(got_mesh.sort(), got_mesh)
+
+    def test_sort(self, key: PRNGKeyArray) -> None:
+        mesh = TriangleMesh.box().drop_duplicates()
+        got_mesh = mesh.sample(size=mesh.num_triangles, preserve=True, key=key).sort()
+        chex.assert_trees_all_equal(got_mesh, mesh)
 
     @pytest.mark.parametrize(
         ("shape", "expectation"),
