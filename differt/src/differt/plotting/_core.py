@@ -187,7 +187,6 @@ def draw_paths(
             >>> fig = draw_paths(
             ...     paths,
             ...     backend="plotly",
-            ...     marker=dict(size=0, color="red"),
             ...     line=dict(color="black", width=3),
             ... )
             >>> fig  # doctest: +SKIP
@@ -239,6 +238,8 @@ def _(
     **kwargs: Any,
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
+
+    kwargs.setdefault("mode", "lines")
 
     paths = np.asarray(paths)
     paths = paths.reshape(-1, *paths.shape[-2:])
