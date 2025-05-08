@@ -258,7 +258,12 @@ def image_method(
             ...         ),
             ...         axis=0,
             ...     )
-            ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
+            ...     draw_paths(
+            ...         full_path,
+            ...         mode="lines+markers",
+            ...         marker={"color": "green"},
+            ...         name="Final path",
+            ...     )
             ...     markers = jnp.vstack((from_vertex, to_vertex))
             ...     draw_markers(
             ...         markers,
