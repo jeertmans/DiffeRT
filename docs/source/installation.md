@@ -71,7 +71,7 @@ To run build this package locally, you need:
 - and [uv>= 0.4.25](https://docs.astral.sh/uv/) to manage this project.
 
 This project contains `justfile`s with recipes[^2] for most common
-use cases, so feel free to use them instead of the commands listed below/
+use cases, so feel free to use them instead of the commands listed below.
 
 [^2]: `just` is as alternative tool to Make, that provides more modern
   user experience. Enter `just` to list all available recipes.

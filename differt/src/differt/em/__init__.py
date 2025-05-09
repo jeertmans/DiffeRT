@@ -21,7 +21,7 @@ __all__ = (
     "materials",
     "mu_0",
     "path_delays",
-    "pointing_vector",
+    "poynting_vector",
     "reflection_coefficients",
     "refraction_coefficients",
     "refractive_indices",
@@ -39,7 +39,7 @@ from ._antenna import (
     RadiationPattern,
     ShortDipole,
     ShortDipolePattern,
-    pointing_vector,
+    poynting_vector,
 )
 from ._constants import c, epsilon_0, mu_0, z_0
 from ._fresnel import (

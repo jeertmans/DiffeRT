@@ -113,7 +113,7 @@ Utility functions, mostly used internally for computing EM fields.
    fspl
    lengths_to_delays
    path_delays
-   pointing_vector
+   poynting_vector
    sp_directions
    sp_rotation_matrix
    F
