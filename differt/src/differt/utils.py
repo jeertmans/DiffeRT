@@ -243,8 +243,20 @@ def minimize(
     x0 = jnp.asarray(x0)
     if x0.ndim > 1 and args:
         chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
+
+        def shape_str(arr_or_shape: Array | tuple[int, ...]) -> str:
+            if isinstance(arr_or_shape, tuple):
+                shape = arr_or_shape
+            else:
+                shape = arr_or_shape.shape
+            return str(shape).replace(" ", "")
+
+        msg = f"{shape_str(x0.shape[:-1])} is expected to be the shape prefix of all arguments, got {', '.join(shape_str(arr) for arr in args)}."
         chex.assert_tree_shape_prefix(
-            (x0, *args), x0.shape[:-1], exception_type=TypeError
+            args,
+            x0.shape[:-1],
+            exception_type=TypeError,
+            custom_message=msg,
         )
 
     optimizer = optimizer or optax.adam(learning_rate=0.1)

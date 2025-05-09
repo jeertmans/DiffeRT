@@ -3,6 +3,7 @@
 __all__ = (
     "SizedIterator",
     "consecutive_vertices_are_on_same_side_of_mirrors",
+    "fermat_path_on_linear_objects",
     "fermat_path_on_planar_mirrors",
     "first_triangles_hit_by_rays",
     "generate_all_path_candidates",
@@ -16,7 +17,7 @@ __all__ = (
     "triangles_visible_from_vertices",
 )
 
-from ._fermat import fermat_path_on_planar_mirrors
+from ._fermat import fermat_path_on_linear_objects, fermat_path_on_planar_mirrors
 from ._image_method import (
     consecutive_vertices_are_on_same_side_of_mirrors,
     image_method,

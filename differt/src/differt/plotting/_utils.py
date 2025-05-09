@@ -573,15 +573,64 @@ def process_plotly_kwargs(
     return kwargs.pop("figure", None) or go.Figure()
 
 
+def process_kwargs(
+    kwargs: MutableMapping[str, Any],
+    backend: str | None = None,
+) -> tuple[BackendName, Canvas | MplFigure | Figure, dict[str, Any]]:
+    """
+    Process keyword arguments passed to some plotting utility.
+
+    Args:
+        kwargs: A mutable mapping of keyword arguments passed to corresponding plotting backend.
+
+            .. warning::
+
+                Depending on the backend, some keys will be removed from the mapping.
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
+
+    Returns:
+        The name of the backend, the corresponding canvas or figure, and backend-specific keyword arguments.
+
+    .. seealso::
+
+        :func:`process_vispy_kwargs`
+
+        :func:`process_matplotlib_kwargs`
+
+        :func:`process_plotly_kwargs`
+
+    """
+    backend = get_backend(backend)
+
+    if backend == "vispy":
+        canvas, view = process_vispy_kwargs(kwargs)
+        backend_kwargs = {"canvas": canvas, "view": view}
+        canvas_or_fig = canvas
+    elif backend == "matplotlib":
+        figure, ax = process_matplotlib_kwargs(kwargs)
+        backend_kwargs = {"figure": figure, "ax": ax}
+        canvas_or_fig = figure
+    else:
+        figure = process_plotly_kwargs(kwargs)
+        backend_kwargs = {"figure": figure}
+        canvas_or_fig = figure
+
+    return backend, canvas_or_fig, backend_kwargs
+
+
 @contextmanager
 def reuse(
-    backend: str | None = None, **kwargs: Any
+    backend: str | None = None, pass_all_kwargs: bool = False, **kwargs: Any
 ) -> Iterator[Canvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 
     Args:
         backend: The name of the backend to be passed to
             :func:`get_backend`.
+        pass_all_kwargs: Whether to pass all keyword arguments
+            to :func:`set_defaults` or just the backend-specific ones,
+            i.e., the ones that are returned by :func:`process_kwargs`.
         kwargs: Keywords arguments passed to
             :func:`set_defaults`.
 
@@ -606,20 +655,9 @@ def reuse(
             ...         draw_image(Z, x=x, y=y, z0=z0)  # TODO: fix colorbar
             >>> fig  # doctest: +SKIP
     """
-    backend = get_backend(backend)
+    backend, canvas_or_fig, backend_kwargs = process_kwargs(kwargs, backend=backend)
 
-    if backend == "vispy":
-        canvas, view = process_vispy_kwargs(kwargs)
-        kwargs = {"canvas": canvas, "view": view, **kwargs}
-        canvas_or_fig = canvas
-    elif backend == "matplotlib":
-        figure, ax = process_matplotlib_kwargs(kwargs)
-        kwargs = {"figure": figure, "ax": ax, **kwargs}
-        canvas_or_fig = figure
-    else:
-        figure = process_plotly_kwargs(kwargs)
-        kwargs = {"figure": figure, **kwargs}
-        canvas_or_fig = figure
+    kwargs = {**backend_kwargs, **kwargs} if pass_all_kwargs else backend_kwargs
 
     with config.with_defaults(backend=backend, kwargs=kwargs):
         try:

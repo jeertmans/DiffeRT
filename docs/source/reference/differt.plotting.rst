@@ -45,6 +45,7 @@ the following utilities might become handy.
 
    dispatch
    get_backend
+   process_kwargs
    process_matplotlib_kwargs
    process_plotly_kwargs
    process_vispy_kwargs
