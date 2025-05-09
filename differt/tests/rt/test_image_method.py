@@ -237,8 +237,8 @@ def test_image_method_return_vertices_on_mirrors(
     got = jnp.sum(vectors * mirror_normals, axis=-1)
     got = jnp.nan_to_num(got, posinf=0.0, neginf=0.0)  # Remove 'inf' values
 
-    excepted = jnp.zeros_like(got)
-    chex.assert_trees_all_close(got, excepted, atol=1e-4)
+    expected = jnp.zeros_like(got)
+    chex.assert_trees_all_close(got, expected, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -282,3 +282,16 @@ def test_consecutive_vertices_are_on_same_side_of_mirrors(
         )
         chex.assert_axis_dimension(got, -1, mirror_vertices.shape[0])
         chex.assert_trees_all_equal_shapes(got[..., 0], vertices[..., 0, 0])
+
+        expected = got
+
+        # Check that large smoothing factor matches no smoothing
+
+        got = consecutive_vertices_are_on_same_side_of_mirrors(
+            vertices,
+            mirror_vertices,
+            mirror_normals,
+            smoothing_factor=1e8,
+        )
+
+        chex.assert_trees_all_equal(got > 0.5, expected)
