@@ -116,6 +116,38 @@ filename = "CITATION.cff"
 replace = "version: v{new_version}"
 search = "version: v{current_version}"
 
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+replace = "v{new_version}"
+search = "Unreleased"
+
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+replace = "v{new_version}"
+search = "unreleased"
+
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+replace = "v{current_version}...v{new_version}"
+search = "v{current_version}...HEAD"
+
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+replace = ""
+search = '''
+<!-- start changelog -->
+
+'''
+
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
+replace = '''## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_version}...HEAD)
+
+<!-- start changelog -->
+
+## [{new_version}]'''
+search = '''## [v{new_version}]'''
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
