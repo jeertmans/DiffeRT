@@ -465,7 +465,7 @@ class TriangleMesh(eqx.Module):
 
         Each method takes additional keyword parameters that are passed to the methods
         of :attr:`jax.numpy.ndarray.at`. Because the vertices of a triangle mesh may be shared
-        between multiple triangles, this method prevents update the same vertice multiple times
+        between multiple triangles, this method prevents updating the same vertice multiple times
         by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
         will not result in duplicate updates.
 
