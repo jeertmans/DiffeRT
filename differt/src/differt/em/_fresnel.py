@@ -250,6 +250,7 @@ def reflection_coefficients(
            >>> from differt.em import (
            ...     Dipole,
            ...     c,
+           ...     z_0,
            ...     fspl,
            ...     poynting_vector,
            ...     reflection_coefficients,
@@ -428,6 +429,61 @@ def reflection_coefficients(
         >>> distance = x[jnp.argmin(cos_distance)]
         >>> print(f"Corresponding distance: {distance:.1f} m")
         Corresponding distance: 6.0 m
+
+        Two common approximations are used when estimating the path loss, see :ref:`coherence`.
+        The first one is to assume that the wavefronts are planar, and the
+        second one is to assume that small-scale fading is negligible, or
+        incorrectly modeled, and that the received power can be computed
+        by non-coherent summation of each path.
+
+        .. plot::
+           :context: close-figs
+
+           >>> plt.semilogx(
+           ...     x,
+           ...     10 * jnp.log10(P_tot / ant.reference_power),
+           ...     "-.",
+           ...     color="green",
+           ...     label="Exact",
+           ... )  # doctest: +SKIP
+           >>> P_tot_pw = A_e * dot(E_tot, E_tot) / z_0
+           >>> plt.semilogx(
+           ...     x,
+           ...     10 * jnp.log10(P_tot_pw / ant.reference_power),
+           ...     ":",
+           ...     color="red",
+           ...     label="Plane-wave",
+           ... )  # doctest: +SKIP
+           >>> P_tot_nc = A_e * (
+           ...     jnp.linalg.norm(  # Power from LOS path
+           ...         poynting_vector(E_los, B_los),
+           ...         axis=-1,
+           ...     )
+           ...     + jnp.linalg.norm(  # Power from reflection path
+           ...         poynting_vector(E_r, B_r),
+           ...         axis=-1,
+           ...     )
+           ... )
+           >>> plt.semilogx(
+           ...     x,
+           ...     10 * jnp.log10(P_tot_nc / ant.reference_power),
+           ...     ":",
+           ...     color="purple",
+           ...     label="Non-coherent",
+           ... )  # doctest: +SKIP
+           >>> plt.xlabel("Distance to transmitter on x-axis (m)")  # doctest: +SKIP
+           >>> plt.ylabel("Gain (dB)")  # doctest: +SKIP
+           >>> plt.legend()  # doctest: +SKIP
+           >>> plt.tight_layout()  # doctest: +SKIP
+
+        The plane-wave approximation is relatively good for large distances, but
+        it can be off by several dBs for short distances, as shown below.
+
+        .. plot::
+           :context:
+
+           >>> plt.xlim([1, 10])  # doctest: +SKIP
+           >>> plt.ylim([-65, -35])  # doctest: +SKIP
     """
     return fresnel_coefficients(n_r, cos_theta_i)[0]
 
