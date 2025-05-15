@@ -152,8 +152,8 @@ name = "astunparse"
 version = "1.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
-    { name = "wheel" },
+    { name = "six", marker = "python_full_version < '3.13'" },
+    { name = "wheel", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/af/4182184d3c338792894f34a62672919db7ca008c89abee9b564dd34d8029/astunparse-1.6.3.tar.gz", hash = "sha256:5ad93a8456f0d084c3456d059fd9a92cce667963232cbf763eac3bc5b7940872", size = 18290 }
 wheels = [
@@ -192,11 +192,11 @@ wheels = [
 
 [[package]]
 name = "beartype"
-version = "0.20.2"
+version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8a/99/eaf0847301a6ca2042927c83f8cc72a29c153132ce49d9a720fe121440ba/beartype-0.20.2.tar.gz", hash = "sha256:38c60c065ad99364a8c767e8a0e71ba8263d467b91414ed5dcffb7758a2e8079", size = 1410390 }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/48/fe1177f4272a1bc344f3371414aa5b76e19c30d7280d711ce90c5335a6f5/beartype-0.20.0.tar.gz", hash = "sha256:599ecc86b88549bcb6d1af626f44d85ffbb9151ace5d7f9f3b493dce2ffee529", size = 1390635 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/05/536d025b3e17cf938f836665dde32e86f65ee76acd0ae14e22bda6aee274/beartype-0.20.2-py3-none-any.whl", hash = "sha256:5171a91ecf01438a59884f0cde37d2d5da2c992198b53d6ba31db3940f47ff04", size = 1161292 },
+    { url = "https://files.pythonhosted.org/packages/61/ce/9cf60b72e3fbd36a6dd16e31ecbe9ae137a8ead77cb24a5f75302adfc9a9/beartype-0.20.0-py3-none-any.whl", hash = "sha256:090d10e3540b3fca209a0ab5f1c15f9652a075da0a7249c2e6713011e9e5f6ef", size = 1139097 },
 ]
 
 [[package]]
@@ -409,12 +409,10 @@ version = "0.1.89"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "jaxlib", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jaxlib", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "setuptools", marker = "python_full_version >= '3.12'" },
     { name = "toolz" },
     { name = "typing-extensions" },
@@ -471,8 +469,8 @@ name = "contourpy"
 version = "1.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/54/eb9bfc647b19f2009dd5c7f5ec51c4e6ca831725f1aea7a993034f483147/contourpy-1.3.2.tar.gz", hash = "sha256:b6945942715a034c671b7fc54f9588126b0b8bf23db2696e3ca8328f3ff0ab54", size = 13466130 }
 wheels = [
@@ -613,15 +611,15 @@ name = "dash"
 version = "3.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "flask" },
-    { name = "importlib-metadata" },
-    { name = "nest-asyncio" },
-    { name = "plotly" },
-    { name = "requests" },
-    { name = "retrying" },
-    { name = "setuptools" },
-    { name = "typing-extensions" },
-    { name = "werkzeug" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "importlib-metadata", marker = "python_full_version < '3.13'" },
+    { name = "nest-asyncio", marker = "python_full_version < '3.13'" },
+    { name = "plotly", marker = "python_full_version < '3.13'" },
+    { name = "requests", marker = "python_full_version < '3.13'" },
+    { name = "retrying", marker = "python_full_version < '3.13'" },
+    { name = "setuptools", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/88/6d/90f113317d41266e20190185cf1b5121efbab79ff79b2ecdf8316a91be40/dash-3.0.4.tar.gz", hash = "sha256:4f9e62e9d8c5cd1b42dc6d6dcf211fe9498195f73ef0edb62a26e2a1b952a368", size = 7592060 }
 wheels = [
@@ -679,11 +677,10 @@ dependencies = [
     { name = "differt-core" },
     { name = "equinox" },
     { name = "filelock" },
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "jax" },
     { name = "jaxtyping" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "optax" },
     { name = "requests" },
     { name = "tqdm" },
@@ -729,7 +726,7 @@ requires-dist = [
     { name = "ipympl", marker = "extra == 'all'", specifier = ">=0.9.4" },
     { name = "ipympl", marker = "extra == 'jupyter'", specifier = ">=0.9.4" },
     { name = "jax", specifier = ">=0.4.32" },
-    { name = "jaxtyping", specifier = ">=0.2.24" },
+    { name = "jaxtyping", specifier = ">=0.2.24,<0.3" },
     { name = "jupyter-rfb", marker = "extra == 'all'", specifier = ">=0.4.2" },
     { name = "jupyter-rfb", marker = "extra == 'jupyter'", specifier = ">=0.4.2" },
     { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.8.1" },
@@ -756,8 +753,8 @@ provides-extras = ["all", "jupyter", "matplotlib", "plotly", "vispy", "vispy-bac
 name = "differt-core"
 source = { editable = "differt-core" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 
 [package.metadata]
@@ -773,7 +770,7 @@ codspeed = [
     { name = "pytest-codspeed" },
 ]
 cuda = [
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, extra = ["cuda"] },
+    { name = "jax", extra = ["cuda"], marker = "extra == 'group-11-differt-dev-cuda'" },
 ]
 dev = [
     { name = "beartype" },
@@ -849,7 +846,7 @@ tests = [
 tests-extended = [
     { name = "beartype" },
     { name = "chex" },
-    { name = "differt", extra = ["all"] },
+    { name = "differt", extra = ["all"], marker = "extra == 'group-11-differt-dev-tests-extended'" },
     { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
@@ -869,6 +866,7 @@ codspeed = [{ name = "pytest-codspeed", specifier = ">=2.2.0" }]
 cuda = [{ name = "jax", extras = ["cuda"], specifier = ">=0.5.0" }]
 dev = [
     { name = "beartype", specifier = ">=0.20" },
+    { name = "beartype", specifier = ">=0.20,<0.20.1" },
     { name = "bump-my-version", specifier = ">=0.20.3" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
@@ -878,7 +876,7 @@ dev = [
     { name = "pillow", specifier = ">=10.1.0" },
     { name = "plotly", specifier = "<6" },
     { name = "pre-commit", specifier = ">=3.5.0" },
-    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-codspeed", specifier = ">=2.2.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -921,10 +919,10 @@ icmlcn2025 = [
 ]
 prof = [{ name = "line-profiler", extras = ["ipython"], specifier = ">=4.1.3" }]
 tests = [
-    { name = "beartype", specifier = ">=0.20" },
+    { name = "beartype", specifier = ">=0.20,<0.20.1" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
-    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-env", specifier = ">=1.1.3" },
@@ -934,12 +932,12 @@ tests = [
     { name = "scipy", specifier = ">=1.12.0" },
 ]
 tests-extended = [
-    { name = "beartype", specifier = ">=0.20" },
+    { name = "beartype", specifier = ">=0.20,<0.20.1" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'", specifier = ">=0.19.0" },
-    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "pytest-env", specifier = ">=1.1.3" },
@@ -1006,12 +1004,11 @@ dependencies = [
     { name = "absl-py" },
     { name = "etils", extra = ["epath"] },
     { name = "flax" },
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or extra == 'group-11-differt-dev-cuda' or extra != 'group-11-differt-dev-tests-extended'" },
+    { name = "jax" },
     { name = "jaxtyping" },
     { name = "more-itertools" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "sympy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ff/97/ee128e98124de0bc9d7a577b720cf1ba01915b60707352c5afd5f600b7de/e3x-1.0.2.tar.gz", hash = "sha256:3538cd7ad3a98de023e5cda738fff172e7e8c10b381b9e0dbc9c16b88b0385cb", size = 95303732 }
@@ -1024,8 +1021,7 @@ name = "equinox"
 version = "0.12.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "jax" },
     { name = "jaxtyping" },
     { name = "typing-extensions" },
     { name = "wadler-lindig" },
@@ -1060,7 +1056,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749 }
 wheels = [
@@ -1108,11 +1104,11 @@ name = "flask"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "blinker" },
-    { name = "click" },
-    { name = "itsdangerous" },
-    { name = "jinja2" },
-    { name = "werkzeug" },
+    { name = "blinker", marker = "python_full_version < '3.13'" },
+    { name = "click", marker = "python_full_version < '3.13'" },
+    { name = "itsdangerous", marker = "python_full_version < '3.13'" },
+    { name = "jinja2", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/e1/d104c83026f8d35dfd2c261df7d64738341067526406b40190bc063e829a/flask-3.0.3.tar.gz", hash = "sha256:ceb27b0af3823ea2737928a4d99d125a06175b8512c445cbd9a9ce200ef76842", size = 676315 }
 wheels = [
@@ -1133,11 +1129,10 @@ name = "flax"
 version = "0.10.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or extra == 'group-11-differt-dev-cuda' or extra != 'group-11-differt-dev-tests-extended'" },
+    { name = "jax" },
     { name = "msgpack" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version < '3.11' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version < '3.11' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "optax" },
     { name = "orbax-checkpoint" },
     { name = "pyyaml" },
@@ -1238,7 +1233,7 @@ name = "google-pasta"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
+    { name = "six", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/35/4a/0bd53b36ff0323d10d5f24ebd67af2de10a1117f5cf4d7add90df92756f1/google-pasta-0.2.0.tar.gz", hash = "sha256:c9f2c8dfc8f96d0d5808299920721be30c9eec37f2389f28904f454565c8a16e", size = 40430 }
 wheels = [
@@ -1359,7 +1354,7 @@ name = "h5py"
 version = "3.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/03/2e/a22d6a8bfa6f8be33e7febd985680fba531562795f0a9077ed1eb047bfb0/h5py-3.13.0.tar.gz", hash = "sha256:1870e46518720023da85d0895a1960ff2ce398c5671eac3b1a41ec696b7105c3", size = 414876 }
 wheels = [
@@ -1493,9 +1488,9 @@ name = "ipydatawidgets"
 version = "4.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ipywidgets" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "traittypes" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "traittypes", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bc/88/332ba20bb0e0b8078f97bc1469f332be796b804c565b41163b93241e0657/ipydatawidgets-4.3.5.tar.gz", hash = "sha256:394f2489576587cfd755377a09a067f46cad22081965092021fd1abcbe7852a8", size = 799182 }
 wheels = [
@@ -1510,8 +1505,8 @@ dependencies = [
     { name = "appnope", marker = "sys_platform == 'darwin'" },
     { name = "comm" },
     { name = "debugpy" },
-    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "jupyter-client" },
     { name = "jupyter-core" },
     { name = "matplotlib-inline" },
@@ -1532,12 +1527,12 @@ name = "ipympl"
 version = "0.9.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "ipywidgets" },
     { name = "matplotlib" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "pillow" },
     { name = "traitlets" },
 ]
@@ -1616,8 +1611,8 @@ version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "comm" },
-    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "ipython", version = "8.36.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "ipython", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "jupyterlab-widgets" },
     { name = "traitlets" },
     { name = "widgetsnbextension" },
@@ -1650,40 +1645,15 @@ wheels = [
 
 [[package]]
 name = "jax"
-version = "0.5.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13'",
-]
-dependencies = [
-    { name = "jaxlib", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "ml-dtypes", version = "0.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "opt-einsum", marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "scipy", marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/13/e5/dabb73ab10330e9535aba14fc668b04a46fcd8e78f06567c4f4f1adce340/jax-0.5.3.tar.gz", hash = "sha256:f17fcb0fd61dc289394af6ce4de2dada2312f2689bb0d73642c6f026a95fbb2c", size = 2072748 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/bb/fdc6513a9aada13fd21e9860e2adee5f6eea2b4f0a145b219288875acb26/jax-0.5.3-py3-none-any.whl", hash = "sha256:1483dc237b4f47e41755d69429e8c3c138736716147cd43bb2b99b259d4e3c41", size = 2406371 },
-]
-
-[[package]]
-name = "jax"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-    "python_full_version >= '3.13'",
-]
 dependencies = [
-    { name = "jaxlib", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "ml-dtypes", version = "0.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
-    { name = "opt-einsum", marker = "python_full_version < '3.13'" },
-    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "jaxlib" },
+    { name = "ml-dtypes" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "opt-einsum" },
+    { name = "scipy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8e/ab/1229e0e027df6ab9e1d343f2900ab2fcca41bfde688df3b26600feb87e59/jax-0.6.0.tar.gz", hash = "sha256:abc690c530349ce470eeef92e09a7bd8a0460424b4980bc72feea45332a636bf", size = 2016538 }
 wheels = [
@@ -1692,8 +1662,8 @@ wheels = [
 
 [package.optional-dependencies]
 cuda = [
-    { name = "jax-cuda12-plugin", extra = ["with-cuda"] },
-    { name = "jaxlib", version = "0.6.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "jax-cuda12-plugin", extra = ["with-cuda"], marker = "extra == 'group-11-differt-dev-cuda'" },
+    { name = "jaxlib" },
 ]
 
 [[package]]
@@ -1741,51 +1711,13 @@ with-cuda = [
 
 [[package]]
 name = "jaxlib"
-version = "0.5.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13'",
-]
-dependencies = [
-    { name = "ml-dtypes", version = "0.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "scipy", marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/12/b1da8468ad843b30976b0e87c6b344ee621fb75ef8bbd39156a303f59059/jaxlib-0.5.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:48ff5c89fb8a0fe04d475e9ddc074b4879a91d7ab68a51cec5cd1e87f81e6c47", size = 63694868 },
-    { url = "https://files.pythonhosted.org/packages/0e/a5/378d71e8bcffbb229a0952d713a2ed766c959a04777abc0ee01b5aac29b7/jaxlib-0.5.3-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:972400db4af6e85270d81db5e6e620d31395f0472e510c50dfcd4cb3f72b7220", size = 95766664 },
-    { url = "https://files.pythonhosted.org/packages/f1/86/1edf85f425532cbba0180d969f396590dd266909e4dfb0e95f8ee9a8e5fe/jaxlib-0.5.3-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:52be6c9775aff738a61170d8c047505c75bb799a45518e66a7a0908127b11785", size = 105118562 },
-    { url = "https://files.pythonhosted.org/packages/61/84/427cd89dd7904a4c923a3fc5494daec8d42d824c1a40d7a5d1c985e2f5ac/jaxlib-0.5.3-cp310-cp310-win_amd64.whl", hash = "sha256:b41a6fcaeb374fabc4ee7e74cfed60843bdab607cd54f60a68b7f7655cde2b66", size = 65766784 },
-    { url = "https://files.pythonhosted.org/packages/c2/f2/d9397f264141f2289e229b2faf3b3ddb6397b014a09abe234367814f9697/jaxlib-0.5.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:b62bd8b29e5a4f9bfaa57c8daf6e04820b2c994f448f3dec602d64255545e9f2", size = 63696815 },
-    { url = "https://files.pythonhosted.org/packages/e8/91/04bf391a21ccfb299b9952f91d5c082e5f9877221e5d98592875af4a50e4/jaxlib-0.5.3-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:a4666f81d72c060ed3e581ded116a9caa9b0a70a148a54cb12a1d3afca3624b5", size = 95770114 },
-    { url = "https://files.pythonhosted.org/packages/67/de/50debb40944baa5ba459604578f8c721be9f38c78ef9e8902895566e6a66/jaxlib-0.5.3-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:29e1530fc81833216f1e28b578d0c59697654f72ee31c7a44ed7753baf5ac466", size = 105119259 },
-    { url = "https://files.pythonhosted.org/packages/20/91/d73c842d1e5cc6b914bb521006d668fbfda4c53cd4424ce9c3a097f6c071/jaxlib-0.5.3-cp311-cp311-win_amd64.whl", hash = "sha256:8eb54e38d789557579f900ea3d70f104a440f8555a9681ed45f4a122dcbfd92e", size = 65765739 },
-    { url = "https://files.pythonhosted.org/packages/d5/a5/646af791ccf75641b4df84fb6cb6e3914b0df87ec5fa5f82397fd5dc30ee/jaxlib-0.5.3-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:d394dbde4a1c6bd67501cfb29d3819a10b900cb534cc0fc603319f7092f24cfa", size = 63711839 },
-    { url = "https://files.pythonhosted.org/packages/53/8c/cbd861e40f0efe7923962ade21919fddcea43fae2794634833e800009b14/jaxlib-0.5.3-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:bddf6360377aa1c792e47fd87f307c342e331e5ff3582f940b1bca00f6b4bc73", size = 95764647 },
-    { url = "https://files.pythonhosted.org/packages/3e/03/bace4acec295febca9329b3d2dd927b8ac74841e620e0d675f76109b805b/jaxlib-0.5.3-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:5a5e88ab1cd6fdf78d69abe3544e8f09cce200dd339bb85fbe3c2ea67f2a5e68", size = 105132789 },
-    { url = "https://files.pythonhosted.org/packages/79/f8/34568ec75f53d55b68649b6e1d6befd976fb9646e607954477264f5379ce/jaxlib-0.5.3-cp312-cp312-win_amd64.whl", hash = "sha256:520665929649f29f7d948d4070dbaf3e032a4c1f7c11f2863eac73320fcee784", size = 65789714 },
-    { url = "https://files.pythonhosted.org/packages/b4/d0/ed6007cd17dc0f37f950f89e785092d9f0541f3fa6021d029657955206b5/jaxlib-0.5.3-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:31321c25282a06a6dfc940507bc14d0a0ac838d8ced6c07aa00a7fae34ce7b3f", size = 63710483 },
-    { url = "https://files.pythonhosted.org/packages/36/8f/cafdf24170084de897ffe2a030241c2ba72d12eede85b940a81a94cab156/jaxlib-0.5.3-cp313-cp313-manylinux2014_aarch64.whl", hash = "sha256:e904b92dedfbc7e545725a8d7676987030ae9c069001d94701bc109c6dab4100", size = 95765995 },
-    { url = "https://files.pythonhosted.org/packages/86/c7/fc0755ebd999c7c66ac4203d99f958d5ffc0a34eb270f57932ca0213bb54/jaxlib-0.5.3-cp313-cp313-manylinux2014_x86_64.whl", hash = "sha256:bb7593cb7fffcb13963f22fa5229ed960b8fb4ae5ec3b0820048cbd67f1e8e31", size = 105130796 },
-    { url = "https://files.pythonhosted.org/packages/83/98/e32da21a490dc408d172ba246d6c47428482fe50d771c3f813e5fc063781/jaxlib-0.5.3-cp313-cp313-win_amd64.whl", hash = "sha256:8019f73a10b1290f988dd3768c684f3a8a147239091c3b790ce7e47e3bbc00bd", size = 65792205 },
-    { url = "https://files.pythonhosted.org/packages/88/c6/0d69ed0d408c811959a471563afa99baecacdc56ed1799002e309520b565/jaxlib-0.5.3-cp313-cp313t-manylinux2014_x86_64.whl", hash = "sha256:4c9a9d4cda091a3ef068ace8379fff9e98eea2fc51dbdd7c3386144a1bdf715d", size = 105318736 },
-]
-
-[[package]]
-name = "jaxlib"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-    "python_full_version >= '3.13'",
-]
 dependencies = [
-    { name = "ml-dtypes", version = "0.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
-    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "ml-dtypes" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "scipy" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/8a/9ebd3f8b8d49a730c7142a1a294711c3251bd40d92251c0615bd3b862ed8/jaxlib-0.6.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:64a82f8eb40fdb7ba1d46ef907300d42e4f98cbda9602a2ed8e70db1a9ac4a60", size = 53464347 },
@@ -1810,14 +1742,14 @@ wheels = [
 
 [[package]]
 name = "jaxtyping"
-version = "0.3.2"
+version = "0.2.38"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "wadler-lindig" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/88/a8/416bd7ea110ec6b68e8868b0f99c985c735adcf7badc491d3c343937260a/jaxtyping-0.3.2.tar.gz", hash = "sha256:f30483fac4b42e915db8ad2414a85c3b63284aa7d3c100b96b59f755cf4a86ad", size = 44989 }
+sdist = { url = "https://files.pythonhosted.org/packages/34/a5/83fbf2ed24f8bd9af80536b3139e9c9cb8fb096d6ceeb28965b847fae9ae/jaxtyping-0.2.38.tar.gz", hash = "sha256:84d509341437189e82d7dbb59a2970435724851ca79fd8550e886cd37c048333", size = 45785 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/b9/281e10e2d967ea5e481683eaec99f55ac5a61085ee60551c36942ef32bef/jaxtyping-0.3.2-py3-none-any.whl", hash = "sha256:6a020fd276226ddb5ac4f5725323843dd65e3c7e85c64fd62431e5f738c74e04", size = 55409 },
+    { url = "https://files.pythonhosted.org/packages/db/7e/da7b57a1f3af7303a0f3c8594d820fc0d3a9bbe3810a357eb21eb166e76b/jaxtyping-0.2.38-py3-none-any.whl", hash = "sha256:bc209ab8ec29917b6f0c7dec4a8ea1fc276f7d94f25b71c01d1243ec2b21ae12", size = 56375 },
 ]
 
 [[package]]
@@ -1997,8 +1929,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipywidgets" },
     { name = "jupyterlab-widgets" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/c0/1f32b336cc45403c1f0dd097d4cc60fd0241d2889d79c2d1f85ab6750a4f/jupyter_rfb-0.5.3.tar.gz", hash = "sha256:45549b1b36614195f76d33a1c299b21628d5aa4b3b4ed9a4b49b4888c98b2191", size = 756503 }
 wheels = [
@@ -2114,15 +2046,14 @@ name = "keras"
 version = "3.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "h5py" },
-    { name = "ml-dtypes", version = "0.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "ml-dtypes", version = "0.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "namex" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "optree" },
-    { name = "packaging" },
-    { name = "rich" },
+    { name = "absl-py", marker = "python_full_version < '3.13'" },
+    { name = "h5py", marker = "python_full_version < '3.13'" },
+    { name = "ml-dtypes", marker = "python_full_version < '3.13'" },
+    { name = "namex", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "optree", marker = "python_full_version < '3.13'" },
+    { name = "packaging", marker = "python_full_version < '3.13'" },
+    { name = "rich", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/28/4e/82a1176f1ea70982ade0f7e360c6f259b68203f64a108cc1967500d4b7ff/keras-3.9.2.tar.gz", hash = "sha256:322aab6418ee3de1e2bd0871b60a07f0e444e744a7e8cba79af8b42408879ecf", size = 1002482 }
 wheels = [
@@ -2375,8 +2306,8 @@ dependencies = [
     { name = "cycler" },
     { name = "fonttools" },
     { name = "kiwisolver" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "packaging" },
     { name = "pillow" },
     { name = "pyparsing" },
@@ -2482,7 +2413,7 @@ name = "mitsuba"
 version = "3.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "drjit" },
+    { name = "drjit", marker = "python_full_version < '3.13'" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 wheels = [
@@ -2510,43 +2441,11 @@ wheels = [
 
 [[package]]
 name = "ml-dtypes"
-version = "0.4.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13'",
-]
-dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/15/76f86faa0902836cc133939732f7611ace68cf54148487a99c539c272dc8/ml_dtypes-0.4.1.tar.gz", hash = "sha256:fad5f2de464fd09127e49b7fd1252b9006fb43d2edc1ff112d390c324af5ca7a", size = 692594 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/9e/76b84f77c7afee3b116dc8407903a2d5004ba3059a8f3dcdcfa6ebf33fff/ml_dtypes-0.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:1fe8b5b5e70cd67211db94b05cfd58dace592f24489b038dc6f9fe347d2e07d5", size = 397975 },
-    { url = "https://files.pythonhosted.org/packages/03/7b/32650e1b2a2713a5923a0af2a8503d0d4a8fc99d1e1e0a1c40e996634460/ml_dtypes-0.4.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8c09a6d11d8475c2a9fd2bc0695628aec105f97cab3b3a3fb7c9660348ff7d24", size = 2182570 },
-    { url = "https://files.pythonhosted.org/packages/16/86/a9f7569e7e4f5395f927de38a13b92efa73f809285d04f2923b291783dd2/ml_dtypes-0.4.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9f5e8f75fa371020dd30f9196e7d73babae2abd51cf59bdd56cb4f8de7e13354", size = 2160365 },
-    { url = "https://files.pythonhosted.org/packages/04/1b/9a3afb437702503514f3934ec8d7904270edf013d28074f3e700e5dfbb0f/ml_dtypes-0.4.1-cp310-cp310-win_amd64.whl", hash = "sha256:15fdd922fea57e493844e5abb930b9c0bd0af217d9edd3724479fc3d7ce70e3f", size = 126633 },
-    { url = "https://files.pythonhosted.org/packages/d1/76/9835c8609c29f2214359e88f29255fc4aad4ea0f613fb48aa8815ceda1b6/ml_dtypes-0.4.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:2d55b588116a7085d6e074cf0cdb1d6fa3875c059dddc4d2c94a4cc81c23e975", size = 397973 },
-    { url = "https://files.pythonhosted.org/packages/7e/99/e68c56fac5de973007a10254b6e17a0362393724f40f66d5e4033f4962c2/ml_dtypes-0.4.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e138a9b7a48079c900ea969341a5754019a1ad17ae27ee330f7ebf43f23877f9", size = 2185134 },
-    { url = "https://files.pythonhosted.org/packages/28/bc/6a2344338ea7b61cd7b46fb24ec459360a5a0903b57c55b156c1e46c644a/ml_dtypes-0.4.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:74c6cfb5cf78535b103fde9ea3ded8e9f16f75bc07789054edc7776abfb3d752", size = 2163661 },
-    { url = "https://files.pythonhosted.org/packages/e8/d3/ddfd9878b223b3aa9a930c6100a99afca5cfab7ea703662e00323acb7568/ml_dtypes-0.4.1-cp311-cp311-win_amd64.whl", hash = "sha256:274cc7193dd73b35fb26bef6c5d40ae3eb258359ee71cd82f6e96a8c948bdaa6", size = 126727 },
-    { url = "https://files.pythonhosted.org/packages/ba/1a/99e924f12e4b62139fbac87419698c65f956d58de0dbfa7c028fa5b096aa/ml_dtypes-0.4.1-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:827d3ca2097085cf0355f8fdf092b888890bb1b1455f52801a2d7756f056f54b", size = 405077 },
-    { url = "https://files.pythonhosted.org/packages/8f/8c/7b610bd500617854c8cc6ed7c8cfb9d48d6a5c21a1437a36a4b9bc8a3598/ml_dtypes-0.4.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:772426b08a6172a891274d581ce58ea2789cc8abc1c002a27223f314aaf894e7", size = 2181554 },
-    { url = "https://files.pythonhosted.org/packages/c7/c6/f89620cecc0581dc1839e218c4315171312e46c62a62da6ace204bda91c0/ml_dtypes-0.4.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:126e7d679b8676d1a958f2651949fbfa182832c3cd08020d8facd94e4114f3e9", size = 2160488 },
-    { url = "https://files.pythonhosted.org/packages/ae/11/a742d3c31b2cc8557a48efdde53427fd5f9caa2fa3c9c27d826e78a66f51/ml_dtypes-0.4.1-cp312-cp312-win_amd64.whl", hash = "sha256:df0fb650d5c582a9e72bb5bd96cfebb2cdb889d89daff621c8fbc60295eba66c", size = 127462 },
-]
-
-[[package]]
-name = "ml-dtypes"
 version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-    "python_full_version >= '3.13'",
-]
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/32/49/6e67c334872d2c114df3020e579f3718c333198f8312290e09ec0216703a/ml_dtypes-0.5.1.tar.gz", hash = "sha256:ac5b58559bb84a95848ed6984eb8013249f90b6bab62aa5acbad876e256002c9", size = 698772 }
 wheels = [
@@ -2797,7 +2696,6 @@ name = "numpy"
 version = "1.26.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13'",
     "python_full_version == '3.12.*'",
     "python_full_version == '3.11.*'",
     "python_full_version < '3.11'",
@@ -3014,21 +2912,21 @@ name = "open3d-cpu"
 version = "0.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "addict" },
-    { name = "configargparse" },
-    { name = "dash" },
-    { name = "flask" },
-    { name = "ipywidgets" },
-    { name = "matplotlib" },
-    { name = "nbformat" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "pandas" },
-    { name = "pillow" },
-    { name = "pyquaternion" },
-    { name = "pyyaml" },
-    { name = "scikit-learn" },
-    { name = "tqdm" },
-    { name = "werkzeug" },
+    { name = "addict", marker = "python_full_version < '3.13'" },
+    { name = "configargparse", marker = "python_full_version < '3.13'" },
+    { name = "dash", marker = "python_full_version < '3.13'" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib", marker = "python_full_version < '3.13'" },
+    { name = "nbformat", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "pandas", marker = "python_full_version < '3.13'" },
+    { name = "pillow", marker = "python_full_version < '3.13'" },
+    { name = "pyquaternion", marker = "python_full_version < '3.13'" },
+    { name = "pyyaml", marker = "python_full_version < '3.13'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.13'" },
+    { name = "tqdm", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/59/06d4066245eb9831611a5a1c645ebbfa137fb33271d4f1ff5fec6731595d/open3d_cpu-0.19.0-cp310-cp310-manylinux_2_31_x86_64.whl", hash = "sha256:96c0ac939bc4accd7a5b86456e6c2408025f36f03b324a27e73b8778d47f8035", size = 99645491 },
@@ -3053,12 +2951,10 @@ dependencies = [
     { name = "absl-py" },
     { name = "chex" },
     { name = "etils", extra = ["epy"] },
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "jaxlib", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jaxlib", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/af/b5/f88a0d851547b2e6b2c7e7e6509ad66236b3e7019f1f095bb03dbaa61fa1/optax-0.2.4.tar.gz", hash = "sha256:4e05d3d5307e6dde4c319187ae36e6cd3a0c035d4ed25e9e992449a304f47336", size = 229717 }
 wheels = [
@@ -3070,7 +2966,7 @@ name = "optree"
 version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4c/10/37411ac8cf8cb07b9db9ddc3e36f84869fd1cabcee3d6af8d347c28744f2/optree-0.15.0.tar.gz", hash = "sha256:d00a45e3b192093ef2cd32bf0d541ecbfc93c1bd73a5f3fe36293499f28a50cf", size = 171403 }
 wheels = [
@@ -3142,12 +3038,11 @@ dependencies = [
     { name = "absl-py" },
     { name = "etils", extra = ["epath", "epy"] },
     { name = "humanize" },
-    { name = "jax", version = "0.5.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "jax", version = "0.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or extra == 'group-11-differt-dev-cuda' or extra != 'group-11-differt-dev-tests-extended'" },
+    { name = "jax" },
     { name = "msgpack" },
     { name = "nest-asyncio" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "protobuf" },
     { name = "pyyaml" },
     { name = "simplejson" },
@@ -3182,8 +3077,8 @@ name = "pandas"
 version = "2.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "python-dateutil" },
     { name = "pytz" },
     { name = "tzdata" },
@@ -3730,7 +3625,7 @@ name = "pyquaternion"
 version = "0.9.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7d/0d/3d092aa20efaedacb89c3221a92c6491be5b28f618a2c36b52b53e7446c2/pyquaternion-0.9.9.tar.gz", hash = "sha256:b1f61af219cb2fe966b5fb79a192124f2e63a3f7a777ac3cadf2957b1a81bea8", size = 15530 }
 wheels = [
@@ -3739,7 +3634,7 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "8.3.5"
+version = "8.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -3749,9 +3644,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/3c/c9d525a414d506893f0cd8a8d0de7706446213181570cdbd766691164e40/pytest-8.3.5.tar.gz", hash = "sha256:f4efe70cc14e511565ac476b57c279e12a855b11f48f212af1080ef2263d3845", size = 1450891 }
+sdist = { url = "https://files.pythonhosted.org/packages/05/35/30e0d83068951d90a01852cb1cef56e5d8a09d20c7f511634cc2f7e0372a/pytest-8.3.4.tar.gz", hash = "sha256:965370d062bce11e73868e0335abac31b4d3de0e82f4007408d242b4f8610761", size = 1445919 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/3d/64ad57c803f1fa1e963a7946b6e0fea4a70df53c1a7fed304586539c2bac/pytest-8.3.5-py3-none-any.whl", hash = "sha256:c69214aa47deac29fad6c2a4f590b9c4a9fdb16a403176fe154b79c0b4d4d820", size = 343634 },
+    { url = "https://files.pythonhosted.org/packages/11/92/76a1c94d3afee238333bc0a42b82935dd8f9cf8ce9e336ff87ee14d9e1cf/pytest-8.3.4-py3-none-any.whl", hash = "sha256:50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6", size = 343083 },
 ]
 
 [[package]]
@@ -3888,10 +3783,10 @@ name = "pythreejs"
 version = "2.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ipydatawidgets" },
-    { name = "ipywidgets" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "traitlets" },
+    { name = "ipydatawidgets", marker = "python_full_version < '3.13'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "traitlets", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0a/2e/0ec94286b8eb3fe1200700080e8adb2c8d871bb8db589858a49600d97a7d/pythreejs-2.4.2.tar.gz", hash = "sha256:a568bfdc4c3797c4c2339158928edc7dcf6fa4a267b08e3cec5121e2078b5bd6", size = 4731310 }
 wheels = [
@@ -4102,7 +3997,7 @@ name = "retrying"
 version = "1.3.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
+    { name = "six", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ce/70/15ce8551d65b324e18c5aa6ef6998880f21ead51ebe5ed743c0950d7d9dd/retrying-1.3.4.tar.gz", hash = "sha256:345da8c5765bd982b1d1915deb9102fd3d1f7ad16bd84a9700b85f64d24e8f3e", size = 10929 }
 wheels = [
@@ -4268,10 +4163,10 @@ name = "scikit-learn"
 version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "joblib" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "scipy" },
-    { name = "threadpoolctl" },
+    { name = "joblib", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "threadpoolctl", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/a5/4ae3b3a0755f7b35a280ac90b28817d1f380318973cff14075ab41ef50d9/scikit_learn-1.6.1.tar.gz", hash = "sha256:b4fc2525eca2c69a59260f583c56a7557c6ccdf8deafdba6e060f94c1c59738e", size = 7068312 }
 wheels = [
@@ -4306,8 +4201,8 @@ name = "scipy"
 version = "1.15.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0f/37/6964b830433e654ec7485e45a00fc9a27cf868d622838f6b6d9c5ec0d532/scipy-1.15.3.tar.gz", hash = "sha256:eae3cf522bc7df64b42cad3925c876e1b0b6c35c1337c93e12c0f366f55b0eaf", size = 59419214 }
 wheels = [
@@ -4442,12 +4337,12 @@ name = "sionna"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "importlib-resources" },
-    { name = "matplotlib" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "scipy" },
-    { name = "sionna-rt" },
-    { name = "tensorflow" },
+    { name = "importlib-resources", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "sionna-rt", marker = "python_full_version < '3.13'" },
+    { name = "tensorflow", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/5a/4fa1799fe3a1c8f7c374a9c992975dcc3f2b55b9795a01d111c417f002de/sionna-1.0.1-py3-none-any.whl", hash = "sha256:e0cad74e830ca58627f62d712d59985b861a5d4462a1528454311bc54a825970", size = 520267 },
@@ -4458,15 +4353,15 @@ name = "sionna-rt"
 version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "drjit" },
-    { name = "importlib-resources" },
-    { name = "ipywidgets" },
-    { name = "matplotlib" },
-    { name = "mitsuba" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "pythreejs" },
-    { name = "scipy" },
-    { name = "typing-extensions" },
+    { name = "drjit", marker = "python_full_version < '3.13'" },
+    { name = "importlib-resources", marker = "python_full_version < '3.13'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib", marker = "python_full_version < '3.13'" },
+    { name = "mitsuba", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "pythreejs", marker = "python_full_version < '3.13'" },
+    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/d5/23ba9810c90934ca6a744fdaef36b44ac959cbd44cf25521780248ff5a81/sionna_rt-1.0.1-py3-none-any.whl", hash = "sha256:7a174e7530cc20ab6b29bb1d4ef21138b4109760dc06222a4344942f578a0b28", size = 3399207 },
@@ -4862,16 +4757,16 @@ name = "tensorboard"
 version = "2.18.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "grpcio" },
-    { name = "markdown" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "setuptools" },
-    { name = "six" },
-    { name = "tensorboard-data-server" },
-    { name = "werkzeug" },
+    { name = "absl-py", marker = "python_full_version < '3.13'" },
+    { name = "grpcio", marker = "python_full_version < '3.13'" },
+    { name = "markdown", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "packaging", marker = "python_full_version < '3.13'" },
+    { name = "protobuf", marker = "python_full_version < '3.13'" },
+    { name = "setuptools", marker = "python_full_version < '3.13'" },
+    { name = "six", marker = "python_full_version < '3.13'" },
+    { name = "tensorboard-data-server", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b1/de/021c1d407befb505791764ad2cbd56ceaaa53a746baed01d2e2143f05f18/tensorboard-2.18.0-py3-none-any.whl", hash = "sha256:107ca4821745f73e2aefa02c50ff70a9b694f39f790b11e6f682f7d326745eab", size = 5503036 },
@@ -4892,29 +4787,28 @@ name = "tensorflow"
 version = "2.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "astunparse" },
-    { name = "flatbuffers" },
-    { name = "gast" },
-    { name = "google-pasta" },
-    { name = "grpcio" },
-    { name = "h5py" },
-    { name = "keras" },
-    { name = "libclang" },
-    { name = "ml-dtypes", version = "0.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "ml-dtypes", version = "0.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "opt-einsum" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "requests" },
-    { name = "setuptools" },
-    { name = "six" },
-    { name = "tensorboard" },
+    { name = "absl-py", marker = "python_full_version < '3.13'" },
+    { name = "astunparse", marker = "python_full_version < '3.13'" },
+    { name = "flatbuffers", marker = "python_full_version < '3.13'" },
+    { name = "gast", marker = "python_full_version < '3.13'" },
+    { name = "google-pasta", marker = "python_full_version < '3.13'" },
+    { name = "grpcio", marker = "python_full_version < '3.13'" },
+    { name = "h5py", marker = "python_full_version < '3.13'" },
+    { name = "keras", marker = "python_full_version < '3.13'" },
+    { name = "libclang", marker = "python_full_version < '3.13'" },
+    { name = "ml-dtypes", marker = "python_full_version < '3.13'" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
+    { name = "opt-einsum", marker = "python_full_version < '3.13'" },
+    { name = "packaging", marker = "python_full_version < '3.13'" },
+    { name = "protobuf", marker = "python_full_version < '3.13'" },
+    { name = "requests", marker = "python_full_version < '3.13'" },
+    { name = "setuptools", marker = "python_full_version < '3.13'" },
+    { name = "six", marker = "python_full_version < '3.13'" },
+    { name = "tensorboard", marker = "python_full_version < '3.13'" },
     { name = "tensorflow-io-gcs-filesystem", marker = "python_full_version < '3.12'" },
-    { name = "termcolor" },
-    { name = "typing-extensions" },
-    { name = "wrapt" },
+    { name = "termcolor", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "wrapt", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dc/5e/955a719c2359430a6fa6ec596bafc903b31285844ef44ae53e83bb91ac62/tensorflow-2.18.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:8baba2b0f9f286f8115a0005d17c020d2febf95e434302eaf758f2020c1c4de5", size = 239430540 },
@@ -4955,10 +4849,9 @@ name = "tensorstore"
 version = "0.1.74"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ml-dtypes", version = "0.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended') or (extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "ml-dtypes", version = "0.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13' or extra == 'group-11-differt-dev-cuda' or extra != 'group-11-differt-dev-tests-extended'" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "ml-dtypes" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3c/b9/ea25aba62c688a87d7d7d9cc5926d602e2f9e84fa72586825486fb180b7e/tensorstore-0.1.74.tar.gz", hash = "sha256:a062875f27283d30ce4959c408c253ecb336fce8e3f9837c064e3d30cda79203", size = 6795605 }
 wheels = [
@@ -5129,7 +5022,7 @@ name = "traittypes"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "traitlets" },
+    { name = "traitlets", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/71/0578e44d2110f93c2136eb705f5b11e706e1e8ea3acaaaeac043bd40d8fd/traittypes-0.2.1.tar.gz", hash = "sha256:be6fa26294733e7489822ded4ae25da5b4824a8a7a0e0c2dccfde596e3489bd6", size = 13544 }
 wheels = [
@@ -5141,8 +5034,8 @@ name = "treescope"
 version = "0.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-tests-extended')" },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/26/27/80ad254da167e0055d5679aefd224ab08844a4cd55aeee7ef72c999d5fc6/treescope-0.1.9.tar.gz", hash = "sha256:ba6cdbdc9c5b52691d5f3bb4c5d5c7daa5627119acac8640b46d37e6aabe63a6", size = 544385 }
 wheels = [
@@ -5228,8 +5121,8 @@ dependencies = [
     { name = "freetype-py" },
     { name = "hsluv" },
     { name = "kiwisolver" },
-    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda') or (python_full_version >= '3.13' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-cuda' and extra != 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "1.26.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-tests-extended') or (python_full_version >= '3.13' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
+    { name = "numpy", version = "2.2.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13' or (python_full_version == '3.12.*' and extra == 'group-11-differt-dev-cuda') or (python_full_version == '3.12.*' and extra != 'group-11-differt-dev-tests-extended') or (python_full_version < '3.12' and extra == 'group-11-differt-dev-cuda' and extra == 'group-11-differt-dev-tests-extended')" },
     { name = "packaging" },
 ]
 wheels = [
@@ -5317,7 +5210,7 @@ name = "werkzeug"
 version = "3.0.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markupsafe" },
+    { name = "markupsafe", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d4/f9/0ba83eaa0df9b9e9d1efeb2ea351d0677c37d41ee5d0f91e98423c7281c9/werkzeug-3.0.6.tar.gz", hash = "sha256:a8dd59d4de28ca70471a34cba79bed5f7ef2e036a76b3ab0835474246eb41f8d", size = 805170 }
 wheels = [
