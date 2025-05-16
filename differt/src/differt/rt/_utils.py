@@ -231,8 +231,8 @@ def rays_intersect_triangles(
             ...     t, axis=1, keepdims=True, initial=1.0, where=hit
             ... )  # Scale rays length before plotting
             >>> fig = draw_rays(  # We only plot rays hitting at least one triangle
-            ...     jnp.asarray(ray_origins[rays_hit, :]),
-            ...     jnp.asarray(ray_directions[rays_hit, :]),
+            ...     ray_origins[rays_hit, :],
+            ...     ray_directions[rays_hit, :],
             ...     backend="plotly",
             ...     color="red",
             ...     showlegend=False,

@@ -259,7 +259,7 @@ def minimize(
             custom_message=msg,
         )
 
-    optimizer = optimizer or optax.adam(learning_rate=0.1)
+    optimizer = optax.adam(learning_rate=0.1) if optimizer is None else optimizer
 
     f_and_df = jax.value_and_grad(fun)
 
