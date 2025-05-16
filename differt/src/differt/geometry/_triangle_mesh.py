@@ -378,11 +378,15 @@ class TriangleMesh(eqx.Module):
         return cls(
             vertices=jnp.asarray(core_mesh.vertices),
             triangles=jnp.asarray(core_mesh.triangles.astype(int)),
-            face_colors=jnp.asarray(core_mesh.face_colors) if core_mesh.face_colors is not None else None,
-            face_materials=jnp.asarray(core_mesh.face_materials) if core_mesh.face_materials is not None else None,
+            face_colors=jnp.asarray(core_mesh.face_colors)
+            if core_mesh.face_colors is not None
+            else None,
+            face_materials=jnp.asarray(core_mesh.face_materials)
+            if core_mesh.face_materials is not None
+            else None,
             material_names=tuple(core_mesh.material_names),
             object_bounds=jnp.asarray(core_mesh.object_bounds.astype(int))
-            if jnp.asarray(core_mesh.object_bounds) is not None
+            if core_mesh.object_bounds is not None
             else None,
         )
 
