@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from functools import partial
-from typing import Any, Concatenate, ParamSpec
+from typing import Any, Concatenate, ParamSpec, NamedTuple, Generic, TypeVar
 
 import chex
 import equinox as eqx
@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray, Shaped
+
 
 
 @eqx.filter_jit
@@ -118,6 +119,19 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
 OptState = Any
 # TODO: fixme when Python >= 3.11
 P = ParamSpec("P")
+Batch = TypeVar("Batch", bound=str)
+N = TypeVar("N", bound=str)
+
+
+class OptimizeResult(NamedTuple):
+    """
+    A class to hold the result of an optimization, akin to
+    :class:`scipy.optimize.OptimizeResult`.
+    """
+    x: Num[Array, "*batch n"]
+    """The solution of the optimization."""
+    fun: Num[Array, " *batch"]
+    """Value of objective function at :attr:`x`."""
 
 
 @eqx.filter_jit
@@ -127,7 +141,7 @@ def minimize(
     args: tuple[Any, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
-) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
+) -> OptimizeResult["*batch", "n"]:
     """
     Minimize a scalar function of one or more variables.
 
@@ -165,7 +179,7 @@ def minimize(
             uses :func:`optax.adam` with a learning rate of ``0.1``.
 
     Returns:
-        The solution array and the corresponding loss.
+        The optimization result.
 
     Examples:
         The following example shows how to minimize a basic function.
@@ -262,24 +276,24 @@ def minimize(
     optimizer = optax.adam(learning_rate=0.1) if optimizer is None else optimizer
 
     f_and_df = jax.value_and_grad(fun)
-
     for _ in x0.shape[:-1]:
         f_and_df = jax.vmap(f_and_df)
 
     opt_state = optimizer.init(x0)
+    params = (x0, *args)
 
-    def f(
-        carry: tuple[Num[Array, "*batch n"], OptState],
+    def update(
+        optimizer: optax.GradientTransformation,
+        state: tuple[Any, OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
-        x, opt_state = carry
-        loss, grads = f_and_df(x, *args)
-        updates, opt_state = optimizer.update(grads, opt_state)
-        x = x + updates
-        carry = (x, opt_state)
-        return carry, loss
+    ) -> tuple[tuple[Any, OptState], Num[Array, " *batch"]]:
+        params, opt_state = state
+        loss, grads = f_and_df(*params)
+        updates, opt_state = optimizer.update(grads, opt_state, params)
+        params = optax.apply_updates(params, updates)
+        return (params, opt_state), loss
 
-    (x, _), losses = jax.lax.scan(f, init=(x0, opt_state), xs=None, length=steps)
+    ((x, *_), _), losses = jax.lax.scan(partial(update, optimizer), init=(params, opt_state), length=steps)
 
     return x, losses[-1]
 
