@@ -248,9 +248,11 @@ def test_rays_intersect_any_triangle(
 ) -> None:
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol = jnp.finfo(dtype).eps
+        hit_tol_arr = jnp.finfo(dtype).eps
+    else:
+        hit_tol_arr = jnp.asarray(hit_tol)
 
-    hit_threshold = 1.0 - hit_tol  # type: ignore[reportOperatorIssue]
+    hit_threshold = 1.0 - hit_tol_arr
     with expectation:
         got = rays_intersect_any_triangle(
             ray_origins,

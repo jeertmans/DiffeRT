@@ -1,6 +1,7 @@
 import chex
 import jax
 import jax.numpy as jnp
+import optax
 import pytest
 from jaxtyping import PRNGKeyArray
 
@@ -43,6 +44,7 @@ def test_fermat_path_on_linear_objects(
         object_origins,
         object_vectors,
         steps=10000,
+        optimizer=optax.sgd(0.1),
     )
     expected = jnp.array([[-1.0, 0.0, 0.5], [1.0, 0.0, 0.5 / 3]])
     chex.assert_trees_all_close(got, expected, atol=1e-5)

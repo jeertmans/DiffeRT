@@ -486,6 +486,7 @@ def assemble_paths(
     Returns:
         The assembled paths.
     """
+    # TODO: simplify this function to only take start / mid / end points
     arrays = [jnp.asarray(path_segment) for path_segment in path_segments]
     batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in arrays))
 

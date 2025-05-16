@@ -92,7 +92,7 @@ class TestTriangleMesh:
             _ = TriangleMesh(
                 vertices=jnp.zeros((3, 3)),
                 triangles=jnp.zeros((1, 3), dtype=int),
-                material_names=["concrete", "glass", "concrete"],
+                material_names=("concrete", "glass", "concrete"),
             )
 
     def test_num_triangles(self, two_buildings_mesh: TriangleMesh) -> None:
