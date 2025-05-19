@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
+from differt._utils import asarray
 from differt.plotting import PlotOutput, draw_paths, reuse
 
 if TYPE_CHECKING:
@@ -86,9 +87,13 @@ class Paths(eqx.Module):
     length, i.e., the same number of vertices per path.
     """
 
-    vertices: Float[Array, "*batch path_length 3"] = eqx.field(converter=jnp.asarray)
+    vertices: Float[Array, "*batch path_length 3"] = eqx.field(
+        converter=asarray[Float[Array, "*batch path_length 3"]]
+    )
     """The array of path vertices."""
-    objects: Int[Array, "*batch path_length"] = eqx.field(converter=jnp.asarray)
+    objects: Int[Array, "*batch path_length"] = eqx.field(
+        converter=asarray[Int[Array, "*batch path_length"]]
+    )
     """The array of object indices.
 
     To every path vertex corresponds one object (e.g., a triangle).
@@ -96,7 +101,10 @@ class Paths(eqx.Module):
     like for transmitter and receiver positions.
     """
     mask: Bool[Array, " *batch"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        converter=lambda x: asarray[Bool[Array, " *batch"]](x)
+        if x is not None
+        else None,
+        default=None,
     )
     """An optional mask to indicate which paths are valid and should be used.
 
@@ -105,7 +113,10 @@ class Paths(eqx.Module):
     store valid paths.
     """
     interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        converter=lambda x: asarray[Bool[Array, "*batch path_length-2"]](x)
+        if x is not None
+        else None,
+        default=None,
     )
     """An optional array to indicate the type of each interaction.
 
@@ -459,7 +470,9 @@ class SBRPaths(Paths):
     """
 
     _: KW_ONLY
-    masks: Bool[Array, " *batch path_length-1"] = eqx.field(converter=jnp.asarray)
+    masks: Bool[Array, " *batch path_length-1"] = eqx.field(
+        converter=asarray[Bool[Array, " *batch path_length-1"]]
+    )
     """An array of masks.
 
     Extends :attr:`mask`, with one mask for each path order.

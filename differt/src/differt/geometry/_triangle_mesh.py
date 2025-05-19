@@ -10,6 +10,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
+from differt._utils import asarray
 from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
@@ -185,12 +186,19 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 class TriangleMesh(eqx.Module):
     """A simple geometry made of triangles."""
 
-    vertices: Float[Array, "num_vertices 3"] = eqx.field(converter=jnp.asarray)
+    vertices: Float[Array, "num_vertices 3"] = eqx.field(
+        converter=asarray[Float[Array, "num_vertices 3"]]
+    )
     """The array of triangle vertices."""
-    triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
+    triangles: Int[Array, "num_triangles 3"] = eqx.field(
+        converter=asarray[Int[Array, "num_triangles 3"]]
+    )
     """The array of triangle indices."""
     face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        converter=lambda x: asarray[Float[Array, "num_triangles 3"]](x)
+        if x is not None
+        else None,
+        default=None,
     )
     """The array of face colors.
 
@@ -199,7 +207,10 @@ class TriangleMesh(eqx.Module):
     This attribute is :data:`None` if all face colors are unset.
     """
     face_materials: Int[Array, " num_triangles"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        converter=lambda x: asarray[Int[Array, " num_triangles"]](x)
+        if x is not None
+        else None,
+        default=None,
     )
     """The array of face materials.
 
@@ -213,7 +224,10 @@ class TriangleMesh(eqx.Module):
     )
     """The list of material names (must be unique)."""
     object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        converter=lambda x: asarray[Int[Array, "num_objects 2"]](x)
+        if x is not None
+        else None,
+        default=None,
     )
     """The array of object indices.
 

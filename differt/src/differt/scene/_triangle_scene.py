@@ -13,6 +13,7 @@ from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 import differt_core.scene
+from differt._utils import asarray
 from differt.geometry import (
     Paths,
     SBRPaths,
@@ -474,12 +475,12 @@ class TriangleScene(eqx.Module):
     """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
-        converter=jnp.asarray,
+        converter=asarray[Float[Array, "*transmitters_batch 3"]],
         default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of transmitter vertices."""
     receivers: Float[Array, "*receivers_batch 3"] = eqx.field(
-        converter=jnp.asarray,
+        converter=asarray[Float[Array, "*receivers_batch 3"]],
         default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of receiver vertices."""

@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Inexact
 
+from differt._utils import asarray
 from differt.geometry import (
     cartesian_to_spherical,
     normalize,
@@ -41,11 +42,12 @@ def poynting_vector(
 class BaseAntenna(eqx.Module):
     """An antenna class, base class for :class:`Antenna` and :class:`RadiationPattern`."""
 
-    frequency: Float[Array, " "] = eqx.field(converter=jnp.asarray)
+    frequency: Float[Array, " "] = eqx.field(converter=asarray[Float[Array, " "]])
     """The frequency :math:`f` at which the antenna is operating."""
     _: KW_ONLY
     center: Float[Array, "3"] = eqx.field(
-        converter=jnp.asarray, default_factory=lambda: jnp.array([0.0, 0.0, 0.0])
+        converter=asarray[Float[Array, "3"]],
+        default_factory=lambda: jnp.array([0.0, 0.0, 0.0]),
     )
     """The center position of the antenna, from which the fields are radiated.
 
@@ -345,9 +347,9 @@ class Dipole(Antenna):
             >>> fig  # doctest: +SKIP
     """
 
-    length: Float[Array, " "] = eqx.field(converter=jnp.asarray)
+    length: Float[Array, " "]
     """Dipole length (in meter)."""
-    moment: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
+    moment: Float[Array, "3"]
     """Dipole moment (in Coulomb-meter)."""
 
     def __init__(
@@ -662,7 +664,7 @@ class RadiationPattern(BaseAntenna):
 class HWDipolePattern(RadiationPattern):
     """An half-wave dipole radiation pattern."""
 
-    direction: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
+    direction: Float[Array, "3"] = eqx.field(converter=asarray[Float[Array, "3"]])
     """The dipole direction."""
 
     def polarization_vectors(
