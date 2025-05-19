@@ -23,6 +23,7 @@ from jaxtyping import Array, ArrayLike, Float, Inexact, Num, PRNGKeyArray, Shape
 def dot(
     u: Num[ArrayLike, "*#batch n"],
     v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,
     keepdims: Literal[False] = False,
 ) -> Num[Array, "*batch "]: ...
 
@@ -31,7 +32,7 @@ def dot(
 def dot(
     u: Num[ArrayLike, "*#batch n"],
     v: Num[ArrayLike, "*#batch n"] | None = None,
-    *,  # TODO: fixme
+    *,
     keepdims: Literal[True],
 ) -> Num[Array, "*batch 1"]: ...
 
@@ -40,6 +41,7 @@ def dot(
 def dot(
     u: Num[ArrayLike, "*#batch n"],
     v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,
     keepdims: bool = False,
 ) -> Num[Array, "*batch "] | Num[Array, "*batch 1"]:
     """
@@ -300,19 +302,16 @@ def minimize(
         f_and_df = jax.vmap(f_and_df)
 
     def update(
-        optimizer: optax.GradientTransformation,
-        state: tuple[Any, OptState],
+        state: tuple[Inexact[Array, " *batch n"], OptState],
         _: None,
-    ) -> tuple[tuple[Any, OptState], Inexact[Array, " *batch"]]:
+    ) -> tuple[tuple[Inexact[Array, " *batch n"], OptState], Inexact[Array, " *batch"]]:
         x, opt_state = state
         loss, grads = f_and_df(x, *args)
         updates, opt_state = optimizer.update(grads, opt_state, x)
         x = optax.apply_updates(x, updates)
-        return (x, opt_state), loss
+        return (x, opt_state), loss  # type: ignore[reportReturnType]
 
-    (x, _), losses = jax.lax.scan(
-        partial(update, optimizer), init=(x0, optimizer.init(x0)), length=steps
-    )
+    (x, _), losses = jax.lax.scan(update, init=(x0, optimizer.init(x0)), length=steps)
 
     return OptimizeResult(x, losses[-1])
 

@@ -190,6 +190,9 @@ class TestTriangleMesh:
 
         assert count == 1
 
+    @pytest.mark.xfail(
+        reason="No longer raises an error, as no more type checking is done on jnp.asarray.",
+    )
     def test_invalid_args(self) -> None:
         vertices = jnp.ones((10, 2), dtype=float)
         triangles = jnp.ones((20, 3), dtype=int)
