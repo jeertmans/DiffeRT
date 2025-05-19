@@ -222,7 +222,7 @@ def image_method(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize
+            >>> from differt.geometry import TriangleMesh, normalize, assemble_paths
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import image_method
             >>>
@@ -251,15 +251,17 @@ def image_method(
             ...         mirror_vertices[1], normal=mirror_normals[1]
             ...     ).plot(color="red")
             ...
-            ...     full_path = jnp.concatenate(
-            ...         (
-            ...             from_vertex[None, :],
-            ...             path,
-            ...             to_vertex[None, :],
-            ...         ),
-            ...         axis=0,
+            ...     full_path = assemble_paths(
+            ...         from_vertex[None, :],
+            ...         path,
+            ...         to_vertex[None, :],
             ...     )
-            ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
+            ...     draw_paths(
+            ...         full_path,
+            ...         mode="lines+markers",
+            ...         marker={"color": "green"},
+            ...         name="Final path",
+            ...     )
             ...     markers = jnp.vstack((from_vertex, to_vertex))
             ...     draw_markers(
             ...         markers,

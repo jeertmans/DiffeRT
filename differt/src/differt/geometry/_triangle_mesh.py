@@ -1,6 +1,6 @@
 # ruff: noqa: ERA001
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
@@ -10,7 +10,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
-from differt.plotting import PlotOutput, draw_mesh
+from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
@@ -289,7 +289,28 @@ class TriangleMesh(eqx.Module):
             yield self
         else:
             for start, stop in self.object_bounds:
-                yield self[start:stop]
+                yield eqx.tree_at(
+                    lambda m: (
+                        m.vertices,
+                        m.triangles,
+                        m.face_colors,
+                        m.face_materials,
+                        m.object_bounds,
+                    ),
+                    self,
+                    (
+                        self.vertices,
+                        self.triangles[start:stop, :],
+                        self.face_colors[start:stop, :]
+                        if self.face_colors is not None
+                        else None,
+                        self.face_materials[start:stop]
+                        if self.face_materials is not None
+                        else None,
+                        jnp.array([[0, stop - start]]),
+                    ),
+                    is_leaf=lambda x: x is None,
+                )
 
     @property
     def num_triangles(self) -> int:
@@ -374,9 +395,44 @@ class TriangleMesh(eqx.Module):
         return normalize(normals)[0]
 
     @property
-    def diffraction_edges(self) -> Int[Array, "num_edges 3"]:
-        """The diffraction edges."""
-        raise NotImplementedError
+    def triangle_edges(self) -> Float[Array, "num_triangles 3 2 3"]:
+        """The triangle edges."""
+        triangle_vertices = self.triangle_vertices
+        return jnp.stack(
+            (triangle_vertices, jnp.roll(triangle_vertices, 1, axis=-2)), axis=-2
+        )
+
+    @property
+    def diffraction_edges_mask(self) -> Bool[Array, "num_triangles 3"]:
+        """
+        The mask to select valid diffraction edges from :attr:`triangle_edges`.
+
+        .. warning::
+
+            The current return value is a placeholder and should be implemented properly.
+
+            If you are interested in contributing to this function, please reach out
+            on GitHub.
+        """
+        # TODO: implement this properly
+        return jnp.ones((self.num_triangles, 3), dtype=bool)
+
+    @property
+    def diffraction_edges(self) -> Float[Array, "num_edges 2 3"]:
+        """
+        The diffraction edges.
+
+        If you need just-in-time compilation, use :attr:`diffraction_edges_mask` directly.
+
+        .. warning::
+
+            The current return value is a placeholder and should be implemented properly.
+
+            If you are interested in contributing to this function, please reach out
+            on GitHub.
+        """
+        mask = self.diffraction_edges_mask.reshape(-1)
+        return self.triangle_edges.reshape(-1, 2, 3)[mask]
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
@@ -390,7 +446,8 @@ class TriangleMesh(eqx.Module):
 
     @property
     def at(self):  # noqa: ANN202
-        """Helper property for updating a subset of triangle vertices.
+        """
+        Helper property for updating a subset of triangle vertices.
 
         This ``at`` property is used to update vertices of a triangle mesh,
         based on triangles indices,
@@ -423,6 +480,7 @@ class TriangleMesh(eqx.Module):
             The following example shows how to translate the first two (triangle) faces.
 
             .. plotly::
+                :context: reset
 
                 >>> from differt.geometry import TriangleMesh
                 >>>
@@ -442,9 +500,8 @@ class TriangleMesh(eqx.Module):
             the translation would be applied to all the faces that share the vertices of the first two faces.
 
             .. plotly::
+                :context:
 
-                >>> from differt.geometry import TriangleMesh
-                >>>
                 >>> mesh = TriangleMesh.box().at[0:2].add([1.0, 1.0, 0.0])
                 >>> fig = mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
@@ -667,7 +724,7 @@ class TriangleMesh(eqx.Module):
 
         object_bounds = (
             jnp.concatenate(
-                (self.object_bounds, other.object_bounds + other.num_triangles), axis=0
+                (self.object_bounds, other.object_bounds + self.num_triangles), axis=0
             )
             if (self.object_bounds is not None and other.object_bounds is not None)
             else None
@@ -688,6 +745,81 @@ class TriangleMesh(eqx.Module):
         )
 
     __add__ = append
+
+    def drop_duplicates(self) -> Self:
+        """
+        Return a new mesh with duplicate vertices removed.
+
+        Vertices are also sorted in ascending order, so that calling :meth:`sort()` after this method
+        will not change the order of the vertices.
+
+        Returns:
+            A new mesh with duplicate vertices removed.
+        """
+        vertices, unique_inverse = jnp.unique(
+            self.vertices, axis=0, return_inverse=True
+        )
+        triangles = jnp.take(unique_inverse, self.triangles, axis=0)
+        return eqx.tree_at(
+            lambda m: (m.vertices, m.triangles),
+            self,
+            (vertices, triangles),
+        )
+
+    def sort(self) -> Self:
+        """
+        Return a new mesh with vertices sorted in ascending order.
+
+        Returns:
+            A new mesh with vertices sorted in ascending order.
+
+        Examples:
+            The following example shows how sorting a mesh
+            affects the order of the vertices, and thus the triangles numbering,
+            but not the actual geometry.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.plane(
+                ...     jnp.array([0.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
+                ... )
+                >>> mesh.vertices
+                Array([[ 0. ,  0.5,  0.5],
+                       [ 0. , -0.5,  0.5],
+                       [ 0. , -0.5, -0.5],
+                       [ 0. ,  0.5, -0.5]], dtype=float32)
+                >>> mesh.triangles
+                Array([[0, 1, 2],
+                       [0, 2, 3]], dtype=int32)
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            .. plotly::
+                :context:
+
+                >>> sorted_mesh = mesh.sort()
+                >>> sorted_mesh.vertices
+                Array([[ 0. , -0.5, -0.5],
+                       [ 0. , -0.5,  0.5],
+                       [ 0. ,  0.5, -0.5],
+                       [ 0. ,  0.5,  0.5]], dtype=float32)
+                >>> sorted_mesh.triangles
+                Array([[3, 1, 0],
+                       [3, 0, 2]], dtype=int32)
+                >>> fig = sorted_mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        indices = jnp.lexsort(self.vertices.T[::-1])
+        vertices = self.vertices[indices]
+        triangles = jnp.argsort(indices)[self.triangles]
+        return eqx.tree_at(
+            lambda m: (m.vertices, m.triangles),
+            self,
+            (vertices, triangles),
+        )
 
     @overload
     def set_face_colors(
@@ -742,7 +874,7 @@ class TriangleMesh(eqx.Module):
             already colored, and extract the mesh from it.
 
             .. plotly::
-                :context:
+                :context: reset
 
                 >>> from differt.scene import (
                 ...     TriangleScene,
@@ -1060,8 +1192,10 @@ class TriangleMesh(eqx.Module):
             The following example shows how to create a cube.
 
             .. plotly::
+                :context: reset
 
                 >>> from differt.geometry import TriangleMesh
+                >>>
                 >>> mesh = (
                 ...     TriangleMesh.box(with_top=True)
                 ...     .set_assume_quads()
@@ -1074,8 +1208,8 @@ class TriangleMesh(eqx.Module):
             mesh, without the ceiling face.
 
             .. plotly::
+                :context:
 
-                >>> from differt.geometry import TriangleMesh
                 >>> mesh = (
                 ...     TriangleMesh.box(length=10.0, width=3.0, height=2.0)
                 ...     .set_assume_quads()
@@ -1166,25 +1300,121 @@ class TriangleMesh(eqx.Module):
         core_mesh = differt_core.geometry.TriangleMesh.load_ply(file)
         return cls.from_core(core_mesh)
 
-    def plot(self, **kwargs: Any) -> PlotOutput:
+    def plot(
+        self,
+        *,
+        show_normals: bool = False,
+        show_triangle_edges: bool = False,
+        show_diffraction_edges: bool = False,
+        normals_kwargs: Mapping[str, Any] | None = None,
+        triangle_edges_kwargs: Mapping[str, Any] | None = None,
+        diffraction_edges_kwargs: Mapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> PlotOutput:
         """
         Plot this mesh on a 3D scene.
 
         Args:
+            show_normals: Whether to show the normals of the triangles.
+            show_triangle_edges: Whether to show the edges of the triangles.
+            show_diffraction_edges: Whether to show the diffraction edges.
+            normals_kwargs: A mapping of keyword arguments passed to
+                :func:`draw_rays<differt.plotting.draw_rays>`.
+            triangle_edges_kwargs: A mapping of keyword arguments passed to
+                :func:`draw_paths<differt.plotting.draw_paths>`.
+            diffraction_edges_kwargs: A mapping of keyword arguments passed to
+                :func:`draw_paths<differt.plotting.draw_paths>`.
             kwargs: Keyword arguments passed to
                 :func:`draw_mesh<differt.plotting.draw_mesh>`.
 
         Returns:
             The resulting plot output.
+
+        Examples:
+            The following examples show how to customize the plotting of a cube.
+
+            First, we plot the mesh with a default color.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>> mesh = TriangleMesh.box(with_top=True)
+                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Next, we plot the mesh, but with normals and triangle edges.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.plot(
+                ...     show_normals=True,
+                ...     show_triangle_edges=True,
+                ...     normals_kwargs={"name": "normals", "color": "red"},
+                ...     triangle_edges_kwargs={
+                ...         "name": "triangle edges",
+                ...         "line_color": "yellow",
+                ...     },
+                ...     opacity=0.5,
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            Finally, we plot the mesh with diffraction edges. Diffraction edges are relatively expensive to compute,
+            as they are computed by first computing the triangle edges, then removing duplicates, and removing co-planar edges.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.plot(
+                ...     show_diffraction_edges=True,
+                ...     diffraction_edges_kwargs={
+                ...         "name": "diffraction edges",
+                ...         "line_color": "yellow",
+                ...     },
+                ...     opacity=0.5,
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
         """
         if "face_colors" not in kwargs and self.face_colors is not None:
             kwargs["face_colors"] = self.face_colors
 
-        return draw_mesh(
-            vertices=self.vertices,
-            triangles=self.triangles,
-            **kwargs,
+        normals_kwargs = {} if normals_kwargs is None else normals_kwargs
+        triangle_edges_kwargs = (
+            {} if triangle_edges_kwargs is None else triangle_edges_kwargs
         )
+        diffraction_edges_kwargs = (
+            {} if diffraction_edges_kwargs is None else diffraction_edges_kwargs
+        )
+
+        with reuse(pass_all_kwargs=False, **kwargs) as result:
+            draw_mesh(
+                vertices=self.vertices,
+                triangles=self.triangles,
+                **kwargs,
+            )
+
+            if show_normals:
+                draw_rays(
+                    self.triangle_vertices.mean(axis=-2),
+                    self.normals,
+                    **normals_kwargs,
+                )
+
+            if show_triangle_edges:
+                draw_paths(
+                    self.triangle_edges,
+                    **triangle_edges_kwargs,
+                )
+            if show_diffraction_edges:
+                draw_paths(
+                    self.diffraction_edges,
+                    **diffraction_edges_kwargs,
+                )
+
+        return result
 
     def sample(
         self,

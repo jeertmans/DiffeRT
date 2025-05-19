@@ -119,7 +119,7 @@ search = "version: v{current_version}"
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
-ignore-words-list = "crate,serialisation,ue"
+ignore-words-list = "crate,serialisation,ue,UEs"
 skip = "docs/source/conf.py,docs/source/references.bib,pyproject.toml,uv.lock"
 
 [tool.coverage.report]
