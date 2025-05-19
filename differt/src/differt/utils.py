@@ -2,23 +2,46 @@
 
 from collections.abc import Callable
 from functools import partial
-from typing import Any, Concatenate, ParamSpec, NamedTuple, Generic, TypeVar
+from typing import (
+    Any,
+    Concatenate,
+    Literal,
+    NamedTuple,
+    ParamSpec,
+    overload,
+)
 
 import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray, Shaped
+from jaxtyping import Array, ArrayLike, Float, Inexact, Num, PRNGKeyArray, Shaped
 
+
+@overload
+def dot(
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
+    keepdims: Literal[False] = False,
+) -> Num[Array, "*batch "]: ...
+
+
+@overload
+def dot(
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,  # TODO: fixme
+    keepdims: Literal[True],
+) -> Num[Array, "*batch 1"]: ...
 
 
 @eqx.filter_jit
 def dot(
-    u: Shaped[ArrayLike, "*#batch n"],
-    v: Shaped[ArrayLike, "*#batch n"] | None = None,
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
     keepdims: bool = False,
-) -> Shaped[Array, "*batch "] | Shaped[Array, "*batch 1"]:
+) -> Num[Array, "*batch "] | Num[Array, "*batch 1"]:
     """
     Compute the dot product between two multidimensional arrays, over the last axis.
 
@@ -119,29 +142,25 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
 OptState = Any
 # TODO: fixme when Python >= 3.11
 P = ParamSpec("P")
-Batch = TypeVar("Batch", bound=str)
-N = TypeVar("N", bound=str)
 
 
 class OptimizeResult(NamedTuple):
-    """
-    A class to hold the result of an optimization, akin to
-    :class:`scipy.optimize.OptimizeResult`.
-    """
-    x: Num[Array, "*batch n"]
+    """A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`."""
+
+    x: Inexact[Array, "*batch n"]
     """The solution of the optimization."""
-    fun: Num[Array, " *batch"]
+    fun: Inexact[Array, " *batch"]
     """Value of objective function at :attr:`x`."""
 
 
 @eqx.filter_jit
 def minimize(
-    fun: Callable[Concatenate[Num[Array, " n"], P], Num[Array, " "]],
-    x0: Num[ArrayLike, "*batch n"],
+    fun: Callable[Concatenate[Inexact[Array, " n"], P], Inexact[Array, " "]],
+    x0: Inexact[ArrayLike, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
-) -> OptimizeResult["*batch", "n"]:
+) -> OptimizeResult:
     """
     Minimize a scalar function of one or more variables.
 
@@ -254,6 +273,7 @@ def minimize(
         >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
+    # TODO: avoid requiring arrays to be already broadcasted (use in_axes?) and improve signature
     x0 = jnp.asarray(x0)
     if x0.ndim > 1 and args:
         chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
@@ -279,23 +299,22 @@ def minimize(
     for _ in x0.shape[:-1]:
         f_and_df = jax.vmap(f_and_df)
 
-    opt_state = optimizer.init(x0)
-    params = (x0, *args)
-
     def update(
         optimizer: optax.GradientTransformation,
         state: tuple[Any, OptState],
         _: None,
-    ) -> tuple[tuple[Any, OptState], Num[Array, " *batch"]]:
-        params, opt_state = state
-        loss, grads = f_and_df(*params)
-        updates, opt_state = optimizer.update(grads, opt_state, params)
-        params = optax.apply_updates(params, updates)
-        return (params, opt_state), loss
+    ) -> tuple[tuple[Any, OptState], Inexact[Array, " *batch"]]:
+        x, opt_state = state
+        loss, grads = f_and_df(x, *args)
+        updates, opt_state = optimizer.update(grads, opt_state, x)
+        x = optax.apply_updates(x, updates)
+        return (x, opt_state), loss
 
-    ((x, *_), _), losses = jax.lax.scan(partial(update, optimizer), init=(params, opt_state), length=steps)
+    (x, _), losses = jax.lax.scan(
+        partial(update, optimizer), init=(x0, optimizer.init(x0)), length=steps
+    )
 
-    return x, losses[-1]
+    return OptimizeResult(x, losses[-1])
 
 
 @partial(jax.jit, static_argnames=("shape",))
