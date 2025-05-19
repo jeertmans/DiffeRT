@@ -5,6 +5,15 @@
 
 .. automodule:: differt.utils
 
+.. rubric:: Classes
+
+.. autosummary::
+   :toctree: _autosummary
+
+   OptimizeResult
+
+.. rubric:: Functions
+
 .. autosummary::
    :toctree: _autosummary
 

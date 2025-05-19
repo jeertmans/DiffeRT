@@ -376,12 +376,16 @@ class TriangleMesh(eqx.Module):
             The corresponding mesh.
         """
         return cls(
-            vertices=core_mesh.vertices,
-            triangles=core_mesh.triangles.astype(int),
-            face_colors=core_mesh.face_colors,
-            face_materials=core_mesh.face_materials,
+            vertices=jnp.asarray(core_mesh.vertices),
+            triangles=jnp.asarray(core_mesh.triangles.astype(int)),
+            face_colors=jnp.asarray(core_mesh.face_colors)
+            if core_mesh.face_colors is not None
+            else None,
+            face_materials=jnp.asarray(core_mesh.face_materials)
+            if core_mesh.face_materials is not None
+            else None,
             material_names=tuple(core_mesh.material_names),
-            object_bounds=core_mesh.object_bounds.astype(int)
+            object_bounds=jnp.asarray(core_mesh.object_bounds.astype(int))
             if core_mesh.object_bounds is not None
             else None,
         )

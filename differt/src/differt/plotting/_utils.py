@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, no_type_check
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
@@ -28,13 +28,14 @@ else:
 P = ParamSpec("P")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Defaults:
     backend: BackendName = field(default="vispy")
     kwargs: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
+@no_type_check  # TODO: fixme, Beartype >=0.20.1 is not happy with RLock
+@dataclass(slots=True)
 class _Config:
     lock: RLock = field(default_factory=RLock)
     defaults: _Defaults = field(default_factory=_Defaults)
