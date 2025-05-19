@@ -168,7 +168,7 @@ def minimize(
 
     The minimization is achieved by computing the
     gradient of the objective function, and performing
-    a fixed (i.e., ``step``) number of iterations.
+    a fixed number of iterations  (i.e., ``steps``).
 
     Args:
         fun: The objective function to be minimized.
