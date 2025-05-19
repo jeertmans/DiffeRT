@@ -38,7 +38,7 @@ prof = [
 ]
 tests = [
   "differt",
-  "beartype>=0.20,<0.20.1",
+  "beartype>=0.20",
   "chex>=0.1.84",
   "pytest>=7.4.3,<8.3.5",
   "pytest-benchmark>=4.0.0",
