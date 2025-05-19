@@ -16,7 +16,7 @@ repos:
     args: [--autofix, --trailing-commas]
     exclude: Cargo.lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.9
+  rev: v0.11.10
   hooks:
   - id: ruff
     args: [--fix]
@@ -81,6 +81,6 @@ repos:
     - tomli
     exclude_types: [jupyter]  # GitHub action will run on Notebooks
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.7.3
+  rev: 0.7.5
   hooks:
   - id: uv-lock
