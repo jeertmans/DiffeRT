@@ -376,3 +376,25 @@ def safe_divide(
     zero_div = den == 0.0
     den = jnp.where(zero_div, jnp.ones_like(den), den)
     return jnp.where(zero_div, jnp.zeros(shape, dtype=dtype), num / den)
+
+
+@partial(jax.jit, inline=True)
+def smoothing_function(
+    x: Float[ArrayLike, " *#batch"],
+    /,
+    smoothing_factor: Float[ArrayLike, " *#batch"] = 1.0,
+) -> Float[ArrayLike, " *batch"]:
+    r"""
+    Return a smoothed approximation of the Heaviside step function.
+
+    This function is used internally for smoothing-out discontinuities
+    in Ray Tracing, see :ref:`smoothing`.
+
+    Args:
+        x: The input array.
+        smoothing_factor: The slope---or scaling---parameter, also noted :math:`\alpha`.
+
+    Returns:
+        The output of the smoothing function.
+    """
+    return jax.nn.sigmoid(x * smoothing_factor)

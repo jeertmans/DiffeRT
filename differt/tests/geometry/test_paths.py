@@ -47,6 +47,26 @@ def random_paths(
 
 
 class TestPaths:
+    def test_init(self, key: PRNGKeyArray) -> None:
+        path_length = 6
+        batch = (13, 7)
+
+        paths = random_paths(
+            path_length, *batch, num_objects=6, with_mask=True, key=key
+        )
+
+        assert paths.mask is not None
+
+        with pytest.warns(
+            UserWarning, match="Setting both 'mask' and 'confidence' arguments"
+        ):
+            paths = Paths(
+                paths.vertices,
+                paths.objects,
+                mask=paths.mask,
+                confidence=paths.mask.astype(float),
+            )
+
     @pytest.mark.parametrize("with_mask", [False, True])
     @pytest.mark.parametrize(
         ("batch", "axis", "expectation"),
@@ -233,7 +253,8 @@ class TestPaths:
 
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
         with pytest.raises(
-            ValueError, match="Cannot create multiplath cells from non-existing mask!"
+            ValueError,
+            match=r"Cannot create multiplath cells from non-existing mask \(or confidence matrix\)!",
         ):
             _ = random_paths(
                 6, 3, 2, num_objects=20, with_mask=False, key=key
