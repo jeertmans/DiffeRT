@@ -115,11 +115,15 @@ class Paths(eqx.Module):
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """An optional array to indicate the confidence of each path.
+
     The confidence value is between 0 and 1.
     """
-    confidence_threshold: Float[Array, " "] = eqx.field(
-        converter=jnp.asarray, default_factory=lambda: jnp.array(0.5)
-    )
+    confidence_threshold: Float[ArrayLike, " "] = 0.5
+    """A threshold used to decide, e.g., when plotting, whether a given path is valid or not.
+
+    A path is considered valid if its confidence is greater than or equal to this threshold.
+    Unused if :attr:`confidence` is :data:`None`.
+    """
 
     def __post_init__(self) -> None:
         if self.mask is not None and self.confidence is not None:
