@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.0.37...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)
 
 This version is the first important release of DiffeRT with the aim to provide
 a stable and documented tool to be used by the scientific community.
@@ -29,7 +33,5 @@ of the [v0.1.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/1).
 ### Chore
 
 - Created this changelog to document notable changes (by <gh-user:jeertmans>, in <gh-pr:252>).
-
-<!-- start changelog -->
 
 <!-- end changelog -->
