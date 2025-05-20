@@ -1077,7 +1077,7 @@ class TriangleScene(eqx.Module):
         rx_kwargs = {"labels": "rx", **(rx_kwargs or {})}
         mesh_kwargs = {} if mesh_kwargs is None else mesh_kwargs
 
-        with reuse(**kwargs) as result:
+        with reuse(pass_all_kwargs=True, **kwargs) as result:
             if self.transmitters.size > 0:
                 draw_markers(self.transmitters, **tx_kwargs)
 

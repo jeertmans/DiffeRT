@@ -535,11 +535,12 @@ def _(
     **kwargs: Any,
 ) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
+    del text_kwargs
 
     if labels is not None:
         msg = "Matplotlib does not currently support adding labels to markers, this option is ignored."
         warnings.warn(msg, UserWarning, stacklevel=2)
-        del labels, text_kwargs
+        del labels
 
     xs, ys, zs = np.asarray(markers).reshape(-1, 3).T
 
@@ -552,10 +553,11 @@ def _(
 def _(
     markers: Real[ArrayLike, "*batch 3"],
     labels: Sequence[str] | None = None,
-    text_kwargs: Mapping[str, Any] | None = None,  # noqa: ARG001
+    text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
+    del text_kwargs
 
     if labels:
         kwargs = {"mode": "markers+text", **kwargs}

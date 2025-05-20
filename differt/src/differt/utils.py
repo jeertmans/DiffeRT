@@ -2,22 +2,48 @@
 
 from collections.abc import Callable
 from functools import partial
-from typing import Any, Concatenate, ParamSpec
+from typing import (
+    Any,
+    Concatenate,
+    Literal,
+    NamedTuple,
+    ParamSpec,
+    overload,
+)
 
 import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
-from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray, Shaped
+from jaxtyping import Array, ArrayLike, Float, Inexact, Num, PRNGKeyArray, Shaped
+
+
+@overload
+def dot(
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,
+    keepdims: Literal[False] = False,
+) -> Num[Array, "*batch "]: ...
+
+
+@overload
+def dot(
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,
+    keepdims: Literal[True],
+) -> Num[Array, "*batch 1"]: ...
 
 
 @eqx.filter_jit
 def dot(
-    u: Shaped[ArrayLike, "*#batch n"],
-    v: Shaped[ArrayLike, "*#batch n"] | None = None,
+    u: Num[ArrayLike, "*#batch n"],
+    v: Num[ArrayLike, "*#batch n"] | None = None,
+    *,
     keepdims: bool = False,
-) -> Shaped[Array, "*batch "] | Shaped[Array, "*batch 1"]:
+) -> Num[Array, "*batch "] | Num[Array, "*batch 1"]:
     """
     Compute the dot product between two multidimensional arrays, over the last axis.
 
@@ -120,20 +146,29 @@ OptState = Any
 P = ParamSpec("P")
 
 
+class OptimizeResult(NamedTuple):
+    """A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`."""
+
+    x: Inexact[Array, "*batch n"]
+    """The solution of the optimization."""
+    fun: Inexact[Array, " *batch"]
+    """Value of objective function at :attr:`x`."""
+
+
 @eqx.filter_jit
 def minimize(
-    fun: Callable[Concatenate[Num[Array, " n"], P], Num[Array, " "]],
-    x0: Num[ArrayLike, "*batch n"],
+    fun: Callable[Concatenate[Inexact[Array, " n"], P], Inexact[Array, " "]],
+    x0: Inexact[ArrayLike, "*batch n"],
     args: tuple[Any, ...] = (),
     steps: int = 1000,
     optimizer: optax.GradientTransformation | None = None,
-) -> tuple[Num[Array, "*batch n"], Num[Array, " *batch"]]:
+) -> OptimizeResult:
     """
     Minimize a scalar function of one or more variables.
 
     The minimization is achieved by computing the
     gradient of the objective function, and performing
-    a fixed (i.e., ``step``) number of iterations.
+    a fixed number of iterations  (i.e., ``steps``).
 
     Args:
         fun: The objective function to be minimized.
@@ -165,7 +200,7 @@ def minimize(
             uses :func:`optax.adam` with a learning rate of ``0.1``.
 
     Returns:
-        The solution array and the corresponding loss.
+        The optimization result.
 
     Examples:
         The following example shows how to minimize a basic function.
@@ -240,6 +275,7 @@ def minimize(
         >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
         >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
+    # TODO: avoid requiring arrays to be already broadcasted (use in_axes?) and improve signature
     x0 = jnp.asarray(x0)
     if x0.ndim > 1 and args:
         chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
@@ -259,29 +295,25 @@ def minimize(
             custom_message=msg,
         )
 
-    optimizer = optimizer or optax.adam(learning_rate=0.1)
+    optimizer = optax.adam(learning_rate=0.1) if optimizer is None else optimizer
 
     f_and_df = jax.value_and_grad(fun)
-
     for _ in x0.shape[:-1]:
         f_and_df = jax.vmap(f_and_df)
 
-    opt_state = optimizer.init(x0)
-
-    def f(
-        carry: tuple[Num[Array, "*batch n"], OptState],
+    def update(
+        state: tuple[Inexact[Array, " *batch n"], OptState],
         _: None,
-    ) -> tuple[tuple[Num[Array, "*batch n"], OptState], Num[Array, " *batch"]]:
-        x, opt_state = carry
+    ) -> tuple[tuple[Inexact[Array, " *batch n"], OptState], Inexact[Array, " *batch"]]:
+        x, opt_state = state
         loss, grads = f_and_df(x, *args)
-        updates, opt_state = optimizer.update(grads, opt_state)
-        x = x + updates
-        carry = (x, opt_state)
-        return carry, loss
+        updates, opt_state = optimizer.update(grads, opt_state, x)
+        x = optax.apply_updates(x, updates)
+        return (x, opt_state), loss  # type: ignore[reportReturnType]
 
-    (x, _), losses = jax.lax.scan(f, init=(x0, opt_state), xs=None, length=steps)
+    (x, _), losses = jax.lax.scan(update, init=(x0, optimizer.init(x0)), length=steps)
 
-    return x, losses[-1]
+    return OptimizeResult(x, losses[-1])
 
 
 @partial(jax.jit, static_argnames=("shape",))

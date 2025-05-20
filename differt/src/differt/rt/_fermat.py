@@ -178,6 +178,7 @@ def fermat_path_on_linear_objects(
     )
 
     # Broadcasting is required by :func:`minimize<differt.utils.minimize>`.
+    # TODO: improve minimize so we don't need to broadcast
     from_vertices = jnp.broadcast_to(from_vertices, (*batch, 3))
     to_vertices = jnp.broadcast_to(to_vertices, (*batch, 3))
     object_origins = jnp.broadcast_to(object_origins, (*batch, num_objects, 3))
