@@ -274,9 +274,16 @@ class TestTriangleMesh:
     @pytest.mark.parametrize("with_top", [False, True])
     @pytest.mark.parametrize("with_bottom", [False, True])
     def test_box(
-        self, length: float, width: float, height: float, with_top: bool, with_bottom: bool
+        self,
+        length: float,
+        width: float,
+        height: float,
+        with_top: bool,
+        with_bottom: bool,
     ) -> None:
-        mesh = TriangleMesh.box(length, width, height, with_top=with_top)
+        mesh = TriangleMesh.box(
+            length, width, height, with_top=with_top, with_bottom=with_bottom
+        )
 
         if with_top and with_bottom:
             assert mesh.num_triangles == 12

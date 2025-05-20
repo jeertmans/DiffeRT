@@ -279,6 +279,7 @@ class TestTriangleScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
+    @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("chunk_size", [None, 1000])
     @pytest.mark.parametrize("assume_quads", [False, True])

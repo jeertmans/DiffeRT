@@ -58,7 +58,7 @@ class TestPaths:
         assert paths.mask is not None
 
         with pytest.warns(
-            UserWarning, match="Setting both 'mask' and 'confidence arguments"
+            UserWarning, match="Setting both 'mask' and 'confidence' arguments"
         ):
             paths = Paths(
                 paths.vertices,
@@ -253,7 +253,8 @@ class TestPaths:
 
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
         with pytest.raises(
-            ValueError, match="Cannot create multiplath cells from non-existing mask!"
+            ValueError,
+            match=r"Cannot create multiplath cells from non-existing mask \(or confidence matrix\)!",
         ):
             _ = random_paths(
                 6, 3, 2, num_objects=20, with_mask=False, key=key
