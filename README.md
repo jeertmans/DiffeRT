@@ -6,6 +6,8 @@
 
 # DiffeRT
 
+Differentiable Ray Tracing toolbox for Radio Propagation powered by the [JAX ecosystem](https://github.com/jax-ml/jax).
+
 [![Latest Release][pypi-version-badge]][pypi-version-url]
 [![Python version][pypi-python-version-badge]][pypi-version-url]
 [![Documentation][documentation-badge]][documentation-url]
@@ -17,11 +19,10 @@
 ## Usage
 
 > [!WARNING]
-> Until this package reaches version `v0.1.0`, breaking changes
-> should be expected.
-> Checkout the [v0.1.0](https://github.com/jeertmans/DiffeRT/milestone/1)
-> and [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestones for future
-> features.
+> This package is still under important development, see
+> the [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestone for future
+> features, and the [CHANGELOG](https://github.com/jeertmans/DiffeRT/blob/main/README.md)
+> for versioning policy.
 >
 > If you have any suggestion regarding the development of this package,
 > please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
