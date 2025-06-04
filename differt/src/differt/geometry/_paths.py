@@ -133,6 +133,16 @@ class Paths(eqx.Module):
             )
             warnings.warn(msg, UserWarning, stacklevel=2)
 
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """
+        Return the batch shape of the paths.
+
+        Returns:
+            The shape of paths' batch dimensions.
+        """
+        return self.vertices.shape[:-2]
+
     def reshape(self, *batch: int) -> Self:
         """
         Return a copy with reshaped paths' batch dimensions to match a given shape.
@@ -291,7 +301,7 @@ class Paths(eqx.Module):
     @property
     def order(self) -> int:
         """The length (i.e., number of vertices) of each individual path, excluding start and end vertices."""
-        return self.objects.shape[-1] - 2
+        return self.path_length - 2
 
     @property
     def num_valid_paths(self) -> int | Int[Array, " "]:
@@ -390,7 +400,8 @@ class Paths(eqx.Module):
         if self.mask is not None:
             mask = jnp.moveaxis(self.mask, axis, -1)
         else:
-            mask = jnp.moveaxis(self.confidence >= self.confidence_threshold, axis, -1)
+            # Looks like Pyright is not able to infer this
+            mask = jnp.moveaxis(self.confidence >= self.confidence_threshold, axis, -1)  # type: ignore[reportOperatorIssue]
         *partial_batch, last_axis = mask.shape
 
         return _cell_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
@@ -568,11 +579,8 @@ class SBRPaths(Paths):
         )
 
     def plot(self, **kwargs: Any) -> PlotOutput:
-        backend = kwargs.pop(
-            "backend", None
-        )  # TODO: check if kwargs may not cause issues
-        with reuse(backend=backend) as output:
+        with reuse(**kwargs, pass_all_kwargs=True) as output:
             for order in range(self.order + 1):
-                self.get_paths(order).plot(**kwargs)
+                self.get_paths(order).plot()
 
         return output
