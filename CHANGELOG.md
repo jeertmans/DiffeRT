@@ -20,6 +20,13 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...HEAD)
 
+### Added
+
+- Added the `Paths.shape` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
+  The following equality should always hold: `paths.reshape(*batch).shape = batch`.
+- Added the `differt.plugins` package and `differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added export utility to the DeepMIMO format (by <gh-user:jeertmans>, in <gh-pr:267>).
+
 <!-- start changelog -->
 
 ## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)
