@@ -13,6 +13,7 @@ import numpy as np
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.em import (
+    InteractionType,
     Material,
     c,
     materials,
@@ -62,6 +63,18 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     """Angle of departure (azimuth) for each path in degrees."""
     aod_el: Float[ArrayType, "num_tx num_rx num_paths"]
     """Angle of departure (elevation) for each path in degrees."""
+    primitives: (
+        Int[ArrayType, "num_tx num_rx num_paths max_num_interactions"] | None
+    ) = None
+    """Indices of primitives hit along each path.
+
+    .. note::
+
+        This field is optional and is provided if ``include_primitives`` is set to ``True`` in the
+        :func:`extract` function.
+
+    A value of -1 indicates no primitive hit, i.e., a path that is terminated early.
+    """
     inter: Int[ArrayType, "num_tx num_rx num_paths max_num_interactions"]
     """Type of interactions along each path.
 
@@ -100,6 +113,37 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
             A dictionary where keys are attribute names and values are arrays.
         """
         return asdict(self)
+
+    def _sort(
+        self, primitives: Int[ArrayType, "num_tx num_rx num_paths num_max_interactions"]
+    ) -> "DeepMIMO[ArrayType]":
+        """Utility function to sort the DeepMIMO based on another object, e.g., :class:`sionna.rt.Paths`."""  # noqa: DOC201, DOC501
+        if (
+            self.primitives is None or primitives.shape != self.primitives.shape
+        ):  # pragma: no cover
+            msg = "Cannot sort based on primitives: shape mismatch."
+            raise ValueError(msg)
+
+        indices = (
+            (
+                self.primitives.reshape(-1, 1, self.inter.shape[-1])
+                == primitives.reshape(1, -1, self.inter.shape[-1])
+            )
+            .all(axis=-1)
+            .argmax(axis=-1)
+        )
+
+        shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+
+        def sort_fn(x: ArrayType) -> ArrayType:
+            if x.shape[:3] != shape_prefix:
+                return x
+
+            y = x.reshape(-1, *x.shape[3:])
+            y = y[indices, ...]
+            return y.reshape(x.shape)
+
+        return jax.tree.map(sort_fn, self)
 
     def jax(self) -> "DeepMIMO[Array]":
         """
@@ -198,6 +242,7 @@ def export(  # noqa: PLR0915
     scene: TriangleScene,
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, " "],
+    include_primitives: bool = False,
 ) -> DeepMIMO[Array]:
     """
     Export a Ray Tracing simulation to the DeepMIMO format.
@@ -217,6 +262,7 @@ def export(  # noqa: PLR0915
 
             If not provided, :data:`materials<differt.em._material.materials>` will be used.
         frequency: The operating frequency (in Hz).
+        include_primitives: If ``True``, include the primitive indices in the output.
 
     Returns:
         The exported DeepMIMO data as JAX arrays.
@@ -254,6 +300,11 @@ def export(  # noqa: PLR0915
     end_segments = jnp.zeros_like(start_segments)
     # Path lengths
     lengths = jnp.zeros((num_tx, num_rx, 0), dtype=float)
+    if include_primitives:
+        # Primitive indices
+        primitives = jnp.zeros((num_tx, num_rx, 0, 0), dtype=int)
+    else:
+        primitives = None
     # Interaction types
     inter = jnp.zeros((num_tx, num_rx, 0, 0), dtype=int)
     # Interaction point positions
@@ -278,6 +329,41 @@ def export(  # noqa: PLR0915
 
         max_num_interactions = max(paths.order, inter.shape[-1])
         # [num_tx num_rx num_paths max_num_interactions]
+        if primitives is not None:
+            primitives = jnp.concatenate(
+                (
+                    jnp.concatenate(
+                        (
+                            primitives,
+                            jnp.full(
+                                (
+                                    *primitives.shape[:-1],
+                                    max_num_interactions - primitives.shape[-1],
+                                ),
+                                no_interaction,
+                                dtype=primitives.dtype,
+                            ),
+                        ),
+                        axis=-1,
+                    ),
+                    jnp.concatenate(
+                        (
+                            paths.objects[..., 1:-1],
+                            jnp.full(
+                                (
+                                    *paths.objects.shape[:-1],
+                                    max_num_interactions - paths.order,
+                                ),
+                                no_interaction,
+                                dtype=primitives.dtype,
+                            ),
+                        ),
+                        axis=-1,
+                    ),
+                ),
+                axis=-2,
+            )
+        # [num_tx num_rx num_paths max_num_interactions]
         inter = jnp.concatenate(
             (
                 jnp.concatenate(
@@ -293,7 +379,13 @@ def export(  # noqa: PLR0915
                 ),
                 jnp.concatenate(
                     (
-                        paths.objects[..., 1:-1],
+                        paths.interaction_types
+                        if paths.interaction_types is not None
+                        else jnp.full_like(
+                            paths.objects[..., 1:-1],
+                            InteractionType.REFLECTION,
+                            dtype=inter.dtype,
+                        ),
                         jnp.full(
                             (
                                 *paths.objects.shape[:-1],
@@ -419,6 +511,7 @@ def export(  # noqa: PLR0915
     power *= wavelength**2 / (4 * jnp.pi)
 
     power = 10 * jnp.log10(power)  # Convert to dBW
+    # TODO: we need to project the fields to the antenna's direction (otherwise we don't have scalar values)
     phase = jnp.angle(fields, deg=True)
     delay = lengths / c
     _, aoa_el, aoa_az = jnp.split(
@@ -449,4 +542,5 @@ def export(  # noqa: PLR0915
         rx_pos=rx_pos,
         tx_pos=tx_pos,
         mask=mask,
+        primitives=primitives,
     )
