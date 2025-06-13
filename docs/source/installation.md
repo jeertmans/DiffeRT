@@ -4,7 +4,7 @@ DiffeRT consists of two Python modules, {mod}`differt` and {mod}`differt_core`,
 where the latter is direct dependency of the former, and both share the *exact same version*.
 
 The main package, {mod}`differt`, uses Python-only code. The core package, {mod}`differt_core`,
-even though only containing a very limited set of utitilies, is written in Rust to offer good performances,
+even though only containing a very limited set of utilities, is written in Rust to offer good performances,
 especially when reading large files or generating path candidates (see {ref}`path_candidates`).
 
 Pre-built binaries are available for most platforms, and we recommend users to install DiffeRT with pip.
@@ -65,20 +65,24 @@ but performant program. It also heavily uses the capabilities brought by
 
 To run build this package locally, you need:
 
-- [Rust](https://www.rust-lang.org/) stable toolchain;
-- any modern C compiler;
+- [Rust](https://www.rust-lang.org/)\* stable toolchain;
+- any modern C compiler\*;
 - [just>=1.38.0](https://github.com/casey/just) to easily run commands listed in `justfile`s;
 - and [uv>= 0.4.25](https://docs.astral.sh/uv/) to manage this project.
 
 This project contains `justfile`s with recipes[^2] for most common
 use cases, so feel free to use them instead of the commands listed below.
 
+:::{note}
+Requirements with an asterisk (\*) are only needed if you want to build {mod}`differt_core` from source. If you don't plan on making changes to the Rust code, see [building without Rust](#building-without-rust).
+:::
+
 [^2]: `just` is as alternative tool to Make, that provides more modern
   user experience. Enter `just` to list all available recipes.
 
 ### Building
 
-Building the packages is pretty simple thanks to uv:
+Building (and installing) the packages is pretty simple thanks to uv:
 
 ```bash
 uv sync
@@ -102,3 +106,30 @@ Alternatively, you can install specific groups[^3] with `uv sync --group <GROUP>
   JAX dependency (granted that you have a compatible CUDA installation). To specify {mod}`differt`'s
   extras, the easiest is to add a new group in the `[project.dependency-groups]` section of the root
   `pyproject.toml` file and specify extras there.
+
+### Building without Rust
+
+Rust (and the C compiler) are only needed if you want to build the {mod}`differt_core` package.
+However, as most features are written in the {mod}`differt` package, you might be interested to skip building the core package and, instead, download pre-built binaries from PyPI.
+
+To do so, you need to edit two files: `pyproject.toml` and `differt/pyproject.toml`.
+
+```{code-block} toml
+:caption: **Adding** one line to `pyproject.toml`
+:emphasize-lines: 3
+
+[tool.uv.workspace]
+members = ["differt", "differt-core"]
+exclude = ["differt-core"]  # Add this line
+```
+
+```{code-block} toml
+:caption: **Removing** one line from `differt/pyproject.toml`
+:class: text-gradient
+:emphasize-lines: 2
+
+[tool.uv.sources]
+differt_core = {workspace = false}  # Remove (or comment) this line
+```
+
+After that, `uv` will know that it must download {mod}`differt_core` from PyPI and not look at the `differt-core` folder.
