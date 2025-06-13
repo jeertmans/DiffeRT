@@ -743,6 +743,89 @@ class TriangleScene(eqx.Module):
         core_scene = differt_core.scene.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
 
+    @classmethod
+    def from_mitsuba(cls, mi_scene: "mitsuba.Scene") -> Self:  # type: ignore[reportUndefinedVariable]  # noqa: F821
+        """
+        Load a triangle scene from a Mitsuba scene object.
+
+        This method does not extract any transmitters or receivers from the Mitsuba scene,
+        as Mitsuba does not provide any explicit information about them, and they are usually
+        part of the Sionna scene object, see :meth:`from_sionna`.
+
+        Args:
+            mi_scene: The Mitsuba scene object.
+
+                You can obtain the Mitsuba scene object from a Sionna scene
+                its ``.mi_scene`` attribute.
+
+        Returns:
+            The corresponding scene containing only triangle meshes.
+
+        .. seealso::
+
+            :meth:`from_sionna`
+        """
+        mesh = TriangleMesh.empty()
+
+        for shape in mi_scene.shapes():
+            rm = shape.bsdf().radio_material
+            mesh += (
+                TriangleMesh(
+                    vertices=shape.vertex_positions_buffer().jax().reshape(-1, 3),
+                    triangles=shape.faces_buffer().jax().reshape(-1, 3),
+                )
+                .set_face_colors(jnp.asarray(rm.color))
+                .set_materials(f"itu_{rm.itu_type}")
+                .set_face_materials(0)
+            )
+
+        return cls(
+            mesh=mesh,
+        )
+
+    @classmethod
+    def from_sionna(cls, sionna_scene: "sionna.rt.Scene") -> Self:  # type: ignore[reportUndefinedVariable]  # noqa: F821
+        """
+        Load a triangle scene from a Sionna scene object.
+
+        This method uses :meth:`from_mitsuba` internally to load the scene objects.
+
+        .. warning::
+            Using this method is only recommended if you already have a Sionna scene object,
+            or that you need that internal mesh has the same triangles numbering as in the Sionna scene.
+            Otherwise, you can use :meth:`load_xml` to load a scene from a XML file, compatible with Sionna,
+            at a faster speed.
+
+        .. warning::
+            This method does not *currently* use any information about possible antenna arrays.
+
+        Args:
+            sionna_scene: The Sionna scene object.
+
+        Returns:
+            The corresponding scene containing only triangle meshes.
+        """
+        scene = cls.from_mitsuba(sionna_scene.mi_scene)
+
+        return eqx.tree_at(
+            lambda s: (s.transmitters, s.receivers),
+            scene,
+            (
+                jnp.concatenate([
+                    tx.position.jax().reshape(1, 3)
+                    for tx in sionna_scene.transmitters.values()
+                ])
+                if sionna_scene.transmitters
+                else jnp.empty((0, 3)),
+                jnp.concatenate([
+                    rx.position.jax().reshape(1, 3)
+                    for rx in sionna_scene.receivers.values()
+                ])
+                if sionna_scene.receivers
+                else jnp.empty((0, 3)),
+            ),
+        )
+
     @overload
     def compute_paths(
         self,

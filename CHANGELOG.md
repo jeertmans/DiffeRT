@@ -20,6 +20,14 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...HEAD)
 
+### Added
+
+- Added the `Paths.shape` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
+  The following equality should always hold: `paths.reshape(*batch).shape = batch`.
+- Added the `differt.plugins` package and `differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added export utility to the DeepMIMO format (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added `from_mitsuba` and `from_sionna`methods to the `TriangleScene` class (by <gh-user:jeertmans>, in <gh-pr:267>).
+
 ### Chore
 
 - Documented how to build from sources without Rust, i.e., without building `differt_core` (by <gh-user:jeertmans>, in <gh-pr:269>).
