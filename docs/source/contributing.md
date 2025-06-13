@@ -23,6 +23,11 @@ later submit a [pull request](#proposing-changes), then you need to
 
 Depending on what you aim to do, the following sections may help you.
 
+:::{attention}
+If you don't plan on changing the Rust code ({mod}`differt_core` package),
+we recommend you to check out the [building without Rust](./installation.md#building-without-rust) section.
+:::
+
 ### Updating the `differt-core` package
 
 While the {mod}`differt` package is updated automatically (because built in `-e` edit mode)
