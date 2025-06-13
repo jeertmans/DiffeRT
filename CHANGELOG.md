@@ -27,6 +27,10 @@ with one *slight* but **important** difference:
 - Added the `differt.plugins` package and `differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
 - Added export utility to the DeepMIMO format (by <gh-user:jeertmans>, in <gh-pr:267>).
 
+### Chore
+
+- Documented how to build from sources without Rust, i.e., without building `differt_core` (by <gh-user:jeertmans>, in <gh-pr:269>).
+
 <!-- start changelog -->
 
 ## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)

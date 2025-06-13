@@ -75,8 +75,17 @@ for a detailed step-by-step procedure.
 
 ## Citing
 
-If you use this software, please cite it as
-[detailed here](https://differt.readthedocs.io/latest/citing.html).
+If you use this software, please cite it as:
+
+```bibtex
+@software{Eertmans_Differentiable_Ray_Tracing,
+  title   = {{DiffeRT: A Differentiable Ray Tracing Toolbox for Radio Propagation Simulations}},
+  author  = {Eertmans, Jérome},
+  url     = {https://github.com/jeertmans/DiffeRT},
+  license = {MIT},
+  version = {v0.1.0}
+}
+```
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT/

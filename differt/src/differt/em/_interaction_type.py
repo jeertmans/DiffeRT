@@ -6,7 +6,7 @@ class InteractionType(IntEnum):
     """Enumeration of interaction types."""
 
     REFLECTION = 0
-    """Specular reflection on an surface."""
+    """Specular reflection on a surface."""
     DIFFRACTION = 1
     """Diffraction on an edge."""
     SCATTERING = 2
