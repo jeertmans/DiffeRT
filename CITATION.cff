@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 title: >-
+  DiffeRT: A
   Differentiable Ray Tracing Toolbox for Radio Propagation
   Simulations
 message: 'If you use this software, please cite us.'

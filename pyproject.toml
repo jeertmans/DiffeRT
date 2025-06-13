@@ -148,6 +148,11 @@ replace = '''## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_
 ## [{new_version}]'''
 search = '''## [v{new_version}]'''
 
+[[tool.bumpversion.files]]
+filename = "README.md"
+replace = 'version = {{v{new_version}}}'
+search = 'version = {{v{current_version}}}'
+
 [tool.codespell]
 builtin = "clear,rare,informal,usage,names,en-GB_to_en-US"
 check-hidden = true
