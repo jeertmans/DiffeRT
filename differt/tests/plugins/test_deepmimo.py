@@ -152,8 +152,8 @@ def test_match_sionna_on_simple_street_canyon() -> None:
                 sionna_paths.interactions != sionna.rt.InteractionType.NONE
             ).jax().sum(axis=0) == order
             path_candidates = sionna_path_primitives[select, :order]
-            p = differt_scene.compute_paths(path_candidates=path_candidates)
-            yield p
+            p = differt_scene.compute_paths(order=order)
+            yield p.masked
 
     dm = deepmimo.export(
         paths=paths_iter(max_depth=max_order),
@@ -171,11 +171,35 @@ def test_match_sionna_on_simple_street_canyon() -> None:
         sionna_path_primitives,
     )
 
-    # TODO: check why we get more than one antenna per transmitter/receiver
+    chex.assert_trees_all_equal(
+        dm.inter + 1,  # +1 to match Sionna's numbering
+        jnp.moveaxis(sionna_paths.interactions.jax(), 0, -1),
+    )
 
     chex.assert_trees_all_equal(
-        jnp.deg2rad(dm.phase),
-        jnp.arctan2(sionna_paths.a[1].jax(), sionna_paths.a[0].jax()).squeeze(
-            axis=(0, 2)
-        ),
+        dm.mask,
+        True,  # All paths are valid in this case
     )
+
+    assert False, (
+        f"{(dm.inter_pos, jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),) = }"
+    )
+
+    chex.assert_trees_all_close(
+        dm.inter_pos,
+        jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+    )
+
+    chex.assert_trees_all_close(
+        dm.delay,
+        sionna_paths.tau.jax(),
+    )
+
+    # TODO: check why we get more than one antenna per transmitter/receiver
+
+    # chex.assert_trees_all_equal(
+    #     jnp.deg2rad(dm.phase),
+    #     jnp.arctan2(sionna_paths.a[1].jax(), sionna_paths.a[0].jax()).squeeze(
+    #         axis=(0, 2)
+    #     ),
+    # )

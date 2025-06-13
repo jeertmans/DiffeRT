@@ -350,6 +350,40 @@ class Paths(eqx.Module):
             return objects[mask, ...]
         return objects
 
+    def masked(self) -> Self:
+        """Return a flattened copy of this object that only keeps valid paths.
+
+        TODO: document.
+        """
+        batch_len = len(self.vertices.shape) - 2
+        self = jax.tree.map(lambda arr: arr.reshape(-1, *arr.shape[batch_len:]), self)
+
+        if self.mask is not None:
+            mask = self.mask.reshape(-1)
+        elif self.confidence is not None:
+            mask = self.confidence.reshape(-1) >= self.confidence_threshold
+        else:
+            mask = slice(None, None, None)
+
+        return eqx.tree_at(
+            lambda p: (
+                p.vertices[mask, ...],
+                p.objects[mask, ...],
+                None,
+                p.interaction_types[mask, ...],
+                None,
+            ),
+            self,
+            (
+                self.vertices,
+                self.objects,
+                self.mask,
+                self.interaction_types,
+                self.confidence,
+            ),
+            is_leaf=lambda x: x is None,
+        )
+
     @eqx.filter_jit
     def multipath_cells(
         self,
