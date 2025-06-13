@@ -32,7 +32,7 @@ skip_if_not_8_devices = pytest.mark.skipif(
 
 class TestTriangleScene:
     def test_load_xml(self, sionna_folder: Path, subtests: SubTests) -> None:
-        # Sionne scenes are all triangle scenes.
+        # Sionne scenes are all triangle scenes
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
@@ -41,6 +41,17 @@ class TestTriangleScene:
 
                 assert scene.mesh.object_bounds is not None
                 assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
+
+    def test_from_sionna(self, sionna_folder: Path, subtests: SubTests) -> None:
+        sionna = pytest.importorskip("sionna")
+        for scene_name in list_sionna_scenes(folder=sionna_folder):
+            with subtests.test(scene_name=scene_name):
+                file = get_sionna_scene(scene_name, folder=sionna_folder)
+                sionna_scene = sionna.rt.load_scene(file)
+                differt_scene = TriangleScene.from_sionna(sionna_scene)
+                assert differt_scene.mesh.num_triangles > 0
+                assert differt_scene.mesh.face_colors is not None
+                assert differt_scene.mesh.face_materials is not None
 
     def test_rotate(
         self, advanced_path_tracing_example_scene: TriangleScene, key: PRNGKeyArray
