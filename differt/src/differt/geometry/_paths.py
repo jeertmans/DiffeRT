@@ -1,3 +1,4 @@
+import math
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
@@ -313,7 +314,7 @@ class Paths(eqx.Module):
             return self.mask.sum()
         if self.confidence is not None:
             return (self.confidence >= self.confidence_threshold).sum()
-        return self.objects[..., 0].size
+        return math.prod(self.objects.shape[:-1])
 
     @property
     def masked_vertices(

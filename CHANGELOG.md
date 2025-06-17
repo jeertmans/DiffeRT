@@ -31,6 +31,7 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Fixed potential `IndexError` in `TriangleScene.num_{transmitters,receivers}` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Fixed potential `IndexError` in `Paths.num_valid_paths` when the `objects` array has its last axis being of zero size (by <gh-user:jeertmans>, in <gh-pr:273>).
 
 <!-- start changelog -->
 
