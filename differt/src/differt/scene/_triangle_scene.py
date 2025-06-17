@@ -555,12 +555,12 @@ class TriangleScene(eqx.Module):
     @property
     def num_transmitters(self) -> int:
         """The number of transmitters."""
-        return self.transmitters.size // 3
+        return math.prod(self.transmitters.shape[:-1])
 
     @property
     def num_receivers(self) -> int:
         """The number of receivers."""
-        return self.receivers.size // 3
+        return math.prod(self.receivers.shape[:-1])
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """

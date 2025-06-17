@@ -75,6 +75,7 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
 )
 
+linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"] 
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
 # -- MathJax settings
