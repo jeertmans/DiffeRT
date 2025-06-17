@@ -27,6 +27,7 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Documented how to build from sources without Rust, i.e., without building `differt_core` (by <gh-user:jeertmans>, in <gh-pr:269>).
+- Fixed link issues (`jnp.{minimum,maximum}` and false-positive on DOI check) (by <gh-user:jeertmans>, in <gh-pr:274>).
 
 ### Fixed
 
