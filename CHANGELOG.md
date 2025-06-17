@@ -22,6 +22,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
+- Added support for `confidence` attribute in `Paths.mask_duplicate_objects` (by <gh-user:jeertmans>, in <gh-pr:272>).
 - Added the `Paths.shape` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
   The following equality should always hold: `paths.reshape(*batch).shape = batch`.
 - Added the `differt.plugins` package and `differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
@@ -31,6 +32,10 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Documented how to build from sources without Rust, i.e., without building `differt_core` (by <gh-user:jeertmans>, in <gh-pr:269>).
+
+### Fixed
+
+- Fixed potential `IndexError` in `TriangleScene.num_{transmitters,receivers}` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
 
 <!-- start changelog -->
 

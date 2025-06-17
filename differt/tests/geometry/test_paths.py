@@ -138,17 +138,29 @@ class TestPaths:
         paths = scene.compute_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
+        mask = paths.mask
         paths = eqx.tree_at(lambda p: p.mask, paths, jnp.ones_like(paths.mask))
 
         got = paths.mask_duplicate_objects()
 
-        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+        chex.assert_trees_all_equal(got.num_valid_paths, 3)
 
         paths = eqx.tree_at(lambda p: p.mask, paths, None)
 
         got = paths.mask_duplicate_objects()
 
-        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+        chex.assert_trees_all_equal(got.num_valid_paths, 3)
+
+        paths = eqx.tree_at(
+            lambda p: p.confidence,
+            paths,
+            jnp.ones_like(mask, dtype=float),
+            is_leaf=lambda x: x is None,
+        )
+
+        got = paths.mask_duplicate_objects()
+
+        chex.assert_trees_all_equal(got.num_valid_paths, 3)
 
         with pytest.raises(
             ValueError,
@@ -160,23 +172,26 @@ class TestPaths:
 
         scene = scene.with_transmitters_grid(2, 1).with_receivers_grid(4, 3)
 
+        batch_size = scene.num_transmitters * scene.num_receivers
+
         paths = scene.compute_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
+        mask = paths.mask
         chex.assert_shape(paths.mask, (1, 2, 3, 4, path_candidates.shape[0]))
         paths = eqx.tree_at(lambda p: p.mask, paths, jnp.ones_like(paths.mask))
 
         got = paths.mask_duplicate_objects()
 
         chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
-        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+        chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
         paths = eqx.tree_at(lambda p: p.mask, paths, None)
 
         got = paths.mask_duplicate_objects()
 
         chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
-        chex.assert_trees_all_equal(got.mask.sum(axis=-1), 3)
+        chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
         paths = eqx.tree_at(
             lambda p: (p.vertices, p.objects),
@@ -187,7 +202,18 @@ class TestPaths:
         got = paths.mask_duplicate_objects(axis=0)
 
         chex.assert_shape(got.mask, (path_candidates.shape[0], 2, 3, 4, 1))
-        chex.assert_trees_all_equal(got.mask.sum(axis=0), 3)
+        chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
+
+        paths = eqx.tree_at(
+            lambda p: p.confidence,
+            paths,
+            jnp.ones((path_candidates.shape[0], 2, 3, 4, 1), dtype=float),
+            is_leaf=lambda x: x is None,
+        )
+
+        got = paths.mask_duplicate_objects(axis=0)
+
+        chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
     @pytest.mark.parametrize("path_length", [3, 5])
     @pytest.mark.parametrize("batch", [(), (1,), (1, 2, 3, 4)])
