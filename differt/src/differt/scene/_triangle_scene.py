@@ -791,8 +791,7 @@ class TriangleScene(eqx.Module):
         This method uses :meth:`from_mitsuba` internally to load the scene objects.
 
         .. warning::
-            Using this method is only recommended if you already have a Sionna scene object,
-            or that you need that internal mesh has the same triangles numbering as in the Sionna scene.
+            Using this method is only recommended if you already have a Sionna scene object.
             Otherwise, you can use :meth:`load_xml` to load a scene from a XML file, compatible with Sionna,
             at a faster speed.
 

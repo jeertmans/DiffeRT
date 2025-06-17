@@ -364,7 +364,11 @@ class Paths(eqx.Module):
     def masked(self) -> Self:
         """Return a flattened copy of this object that only keeps valid paths.
 
-        TODO: document.
+        The returned object has all batch dimensions flattened into one,
+        keeping only the paths where :attr:`mask` is :data:`True` (or where :attr:`confidence` is greater than or equal to :attr:`confidence_threshold`), and :attr:`mask` and :attr:`confidence` attributes are set to :data:`None`.
+
+        Returns:
+            A new paths instance with flattened batch dimensions and only valid paths.
         """
         batch_len = len(self.vertices.shape) - 2
         self = jax.tree.map(  # noqa: PLW0642
