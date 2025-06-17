@@ -278,7 +278,7 @@ class TriangleMesh(eqx.Module):
 
     def iter_objects(self) -> Iterator[Self]:
         """
-        Iterator over sub meshes (i.e., objects) defined by :attr:`object_bounds`.
+        Return an iterator over sub meshes (i.e., objects) defined by :attr:`object_bounds`.
 
         If :attr:`object_bounds` is :data:`None`, then yield ``self``.
 

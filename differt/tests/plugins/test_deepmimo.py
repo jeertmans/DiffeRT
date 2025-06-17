@@ -171,6 +171,30 @@ def test_match_sionna_on_simple_street_canyon() -> None:
         sionna_paths.tau.jax(),
     )
 
+    print(f"{dm.inter_pos = }")
+
+    print(f"{jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2) = }")
+
+    chex.assert_trees_all_close(
+        jnp.cos(jnp.deg2rad(dm.aoa_az)),
+        jnp.cos(sionna_paths.phi_r.jax()),
+    )
+
+    chex.assert_trees_all_equal(
+        jnp.cos(jnp.deg2rad(dm.aoa_el)),
+        jnp.cos(sionna_paths.theta_r.jax()),
+    )
+
+    chex.assert_trees_all_equal(
+        jnp.cos(jnp.deg2rad(dm.aod_az)),
+        jnp.cos(sionna_paths.phi_t.jax()),
+    )
+
+    chex.assert_trees_all_equal(
+        jnp.cos(jnp.deg2rad(dm.aod_el)),
+        jnp.cos(sionna_paths.theta_t.jax()),
+    )
+
     # TODO: check why we get more than one antenna per transmitter/receiver
 
     chex.assert_trees_all_equal(

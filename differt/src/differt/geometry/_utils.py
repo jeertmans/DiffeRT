@@ -802,8 +802,8 @@ def cartesian_to_spherical(
     xyz = jnp.asarray(xyz)
     r = jnp.linalg.norm(xyz, axis=-1)
     r: Array = jnp.where(r == 0.0, jnp.ones_like(r), r)
-    p = jnp.arccos(xyz[..., -1] / r)
-    a = jnp.arctan2(xyz[..., 1], xyz[..., 0])
+    p = jnp.acos(xyz[..., -1] / r)
+    a = jnp.atan2(xyz[..., 1], xyz[..., 0])
 
     return jnp.stack((r, p, a), axis=-1)
 

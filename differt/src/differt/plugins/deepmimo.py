@@ -2,7 +2,7 @@
 
 __all__ = ("ArrayType", "DeepMIMO", "export")
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
 from typing import Any, Generic, TypeVar
 
@@ -28,6 +28,7 @@ from differt.geometry import (
     perpendicular_vectors,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
+from differt.rt import SizedIterator
 from differt.scene import TriangleScene
 from differt.utils import dot, safe_divide
 
@@ -185,6 +186,47 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         """
         return jax.tree.map(np.asarray, self)
 
+    def iter_paths(
+        self,
+    ) -> SizedIterator[Float[Array, "num_tx num_rx num_paths num_interactions 3"]]:
+        """
+        Return an iterator over the path vertices in this DeepMIMO object.
+
+        Returns:
+            An iterator of path vertices, grouped by ascending number of interactions, from
+            ``0`` to ``max_num_interactions``.
+        """
+        max_num_interactions = self.inter.shape[-1]
+
+        def it() -> Iterator[
+            Float[Array, "num_tx num_rx num_paths num_interactions 3"]
+        ]:
+            num_interactions = jnp.min(
+                jnp.broadcast_to(jnp.arange(max_num_interactions), self.inter.shape),
+                initial=max_num_interactions,
+                where=self.inter == -1,
+                axis=-1,
+            )
+
+            for num in range(max_num_interactions + 1):
+                where = (self.mask & (num_interactions == num)).reshape(-1)
+                tx_pos = jnp.broadcast_to(
+                    self.tx_pos[:, None, None, :],
+                    (self.num_tx, self.num_rx, self.num_paths, 3),
+                ).reshape(-1, 3)[where, :]
+                rx_pos = jnp.broadcast_to(
+                    self.rx_pos[None, :, None, :],
+                    (self.num_tx, self.num_rx, self.num_paths, 3),
+                ).reshape(-1, 3)[where, :]
+                inter_pos = self.inter_pos.reshape(-1, max_num_interactions, 3)[
+                    where, :num, :
+                ]
+                yield jnp.concatenate(
+                    (tx_pos[..., None, :], inter_pos, rx_pos[..., None, :]), axis=-2
+                )
+
+        return SizedIterator(it(), size=max_num_interactions + 1)
+
     def plot_paths(self, **kwargs: Any) -> PlotOutput:
         """
         Plot the valid paths in this DeepMIMO object.
@@ -227,30 +269,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 >>> fig  # doctest: +SKIP
         """
         with reuse(**kwargs, pass_all_kwargs=True) as output:
-            max_num_interactions = self.inter.shape[-1]
-            num_interactions = jnp.min(
-                jnp.broadcast_to(jnp.arange(max_num_interactions), self.inter.shape),
-                initial=max_num_interactions,
-                where=self.inter == -1,
-                axis=-1,
-            )
-
-            for num in range(max_num_interactions + 1):
-                where = (self.mask & (num_interactions == num)).reshape(-1)
-                tx_pos = jnp.broadcast_to(
-                    self.tx_pos[:, None, None, :],
-                    (self.num_tx, self.num_rx, self.num_paths, 3),
-                ).reshape(-1, 3)[where, :]
-                rx_pos = jnp.broadcast_to(
-                    self.rx_pos[None, :, None, :],
-                    (self.num_tx, self.num_rx, self.num_paths, 3),
-                ).reshape(-1, 3)[where, :]
-                inter_pos = self.inter_pos.reshape(-1, max_num_interactions, 3)[
-                    where, :num, :
-                ]
-                paths = jnp.concatenate(
-                    (tx_pos[..., None, :], inter_pos, rx_pos[..., None, :]), axis=-2
-                )
+            for paths in self.iter_paths():
                 draw_paths(
                     paths,
                 )
@@ -340,14 +359,6 @@ def export(  # noqa: PLR0915
 
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
-        # [num_tx num_rx num_paths 3]
-        start_segments = jnp.concatenate(
-            (start_segments, path_segments[..., 0, :]), axis=-2
-        )
-        # [num_tx num_rx num_paths 3]
-        end_segments = jnp.concatenate(
-            (end_segments, path_segments[..., -1, :]), axis=-2
-        )
 
         max_num_interactions = max(paths.order, inter.shape[-1])
         # [num_tx num_rx num_paths max_num_interactions]
@@ -459,6 +470,10 @@ def export(  # noqa: PLR0915
         # [num_tx num_rx num_path_candidates order+1 3],
         # [num_tx num_rx num_path_candidates order+1 1]
         k, s = normalize(path_segments, keepdims=True)
+        # [num_tx num_rx num_paths 3]
+        start_segments = jnp.concatenate((start_segments, k[..., 0, :]), axis=-2)
+        # [num_tx num_rx num_paths 3]
+        end_segments = jnp.concatenate((end_segments, k[..., -1, :]), axis=-2)
         # [num_tx num_rx num_path_candidates order 3]
         k_i = k[..., :-1, :]
         k_r = k[..., +1:, :]
@@ -536,20 +551,22 @@ def export(  # noqa: PLR0915
     # TODO: we need to project the fields to the antenna's direction (otherwise we don't have scalar values)
     phase = jnp.angle(fields, deg=True)
     delay = lengths / c
+    print(f"{start_segments = }")
+    print(f"{end_segments = }")
     _, aoa_el, aoa_az = jnp.split(
-        cartesian_to_spherical(end_segments),
+        cartesian_to_spherical(-end_segments),
         3,
         axis=-1,
     )
-    aoa_az = jnp.rad2deg(aoa_az)
-    aoa_el = jnp.rad2deg(aoa_el)
+    aoa_az = jnp.rad2deg(aoa_az).squeeze(axis=-1)
+    aoa_el = jnp.rad2deg(aoa_el).squeeze(axis=-1)
     _, aod_el, aod_az = jnp.split(
         cartesian_to_spherical(start_segments),
         3,
         axis=-1,
     )
-    aod_az = jnp.rad2deg(aod_az)
-    aod_el = jnp.rad2deg(aod_el)
+    aod_az = jnp.rad2deg(aod_az).squeeze(axis=-1)
+    aod_el = jnp.rad2deg(aod_el).squeeze(axis=-1)
 
     return DeepMIMO(
         power=power,
