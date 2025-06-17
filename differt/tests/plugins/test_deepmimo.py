@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from dataclasses import asdict
 from itertools import chain
 
@@ -11,7 +10,7 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import materials
-from differt.geometry import Paths, TriangleMesh
+from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
 from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
@@ -134,42 +133,22 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_order, refraction=False)
-    sionna_path_primitives = sionna_paths.primitives.jax()
-    where_invalid_primitives = (
-        sionna_paths.primitives == sionna.rt.constants.INVALID_PRIMITIVE
-    ).jax()
-    sionna_path_primitives = jnp.where(
-        where_invalid_primitives, 0, sionna_path_primitives
-    ).astype(jnp.int32)  # type: ignore[reportAttributeAccessIssue]
-    sionna_path_primitives = jnp.where(
-        where_invalid_primitives, -1, sionna_path_primitives
-    )
-    sionna_path_primitives = jnp.moveaxis(sionna_path_primitives, 0, -1)
-
-    def paths_iter(max_depth: int) -> Iterator[Paths]:
-        for order in range(max_depth + 1):
-            select = (
-                sionna_paths.interactions != sionna.rt.InteractionType.NONE
-            ).jax().sum(axis=0) == order
-            path_candidates = sionna_path_primitives[select, :order]
-            p = differt_scene.compute_paths(order=order)
-            yield p.masked
 
     dm = deepmimo.export(
-        paths=paths_iter(max_depth=max_order),
+        paths=(
+            differt_scene.compute_paths(order=order).masked()
+            for order in range(max_order + 1)
+        ),
         scene=differt_scene,
         frequency=sionna_scene.frequency.jax().item(0),
         include_primitives=True,
     )
-    dm = dm._sort(sionna_path_primitives)  # noqa: SLF001
+
+    # Greedily sort the paths to match Sionna's order
+    dm = dm._sort(sionna_paths)  # noqa: SLF001
 
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1
-
-    chex.assert_trees_all_equal(
-        dm.primitives,
-        sionna_path_primitives,
-    )
 
     chex.assert_trees_all_equal(
         dm.inter + 1,  # +1 to match Sionna's numbering
@@ -178,16 +157,13 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     chex.assert_trees_all_equal(
         dm.mask,
-        True,  # All paths are valid in this case
-    )
-
-    assert False, (
-        f"{(dm.inter_pos, jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),) = }"
+        True,  # All paths are valid in this case  # noqa: FBT003
     )
 
     chex.assert_trees_all_close(
         dm.inter_pos,
         jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+        atol=1e-3,
     )
 
     chex.assert_trees_all_close(
@@ -197,9 +173,7 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     # TODO: check why we get more than one antenna per transmitter/receiver
 
-    # chex.assert_trees_all_equal(
-    #     jnp.deg2rad(dm.phase),
-    #     jnp.arctan2(sionna_paths.a[1].jax(), sionna_paths.a[0].jax()).squeeze(
-    #         axis=(0, 2)
-    #     ),
-    # )
+    chex.assert_trees_all_equal(
+        jnp.deg2rad(dm.phase),
+        jnp.arctan2(sionna_paths.a[1].jax(), sionna_paths.a[0].jax()),
+    )

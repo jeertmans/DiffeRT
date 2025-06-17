@@ -115,31 +115,53 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         return asdict(self)
 
     def _sort(
-        self, primitives: Int[ArrayType, "num_tx num_rx num_paths num_max_interactions"]
+        self,
+        paths: "sionna.rt.Paths",  # type: ignore[reportUndefinedVariable]  # noqa: F821
     ) -> "DeepMIMO[ArrayType]":
-        """Utility function to sort the DeepMIMO based on another object, e.g., :class:`sionna.rt.Paths`."""  # noqa: DOC201, DOC501
-        if (
-            self.primitives is None or primitives.shape != self.primitives.shape
-        ):  # pragma: no cover
-            msg = "Cannot sort based on primitives: shape mismatch."
+        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # noqa: DOC201, DOC501
+        vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
+        interactions = (
+            jnp.moveaxis(paths.interactions.jax(), 0, -1).astype(self.inter.dtype) - 1
+        )
+
+        if vertices.shape != self.inter_pos.shape:  # pragma: no cover
+            msg = "Cannot sort based on provided paths: shape mismatch, got {vertices.shape!r} but expected {self.inter_pos.shape!r}."
             raise ValueError(msg)
 
+        max_num_interactions = self.inter.shape[-1]
         indices = (
-            (
-                self.primitives.reshape(-1, 1, self.inter.shape[-1])
-                == primitives.reshape(1, -1, self.inter.shape[-1])
+            jnp.linalg.norm(
+                self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
+                - vertices.reshape(
+                    1,
+                    -1,
+                    max_num_interactions,
+                    3,
+                ),
+                axis=3,
             )
-            .all(axis=-1)
-            .argmax(axis=-1)
+            .sum(
+                axis=2,
+                initial=jnp.where(
+                    (
+                        self.inter.reshape(-1, 1, max_num_interactions)
+                        == interactions.reshape(1, -1, max_num_interactions)
+                    ).all(axis=-1),
+                    jnp.inf,
+                    0,
+                ),
+                where=self.inter.reshape(-1, 1, max_num_interactions) != -1,
+            )
+            .argmin(axis=1)
         )
 
         shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
 
         def sort_fn(x: ArrayType) -> ArrayType:
-            if x.shape[:3] != shape_prefix:
+            if x.shape[: len(shape_prefix)] != shape_prefix:
                 return x
 
-            y = x.reshape(-1, *x.shape[3:])
+            y = x.reshape(-1, *x.shape[len(shape_prefix) :])
             y = y[indices, ...]
             return y.reshape(x.shape)
 

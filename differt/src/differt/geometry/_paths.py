@@ -367,7 +367,12 @@ class Paths(eqx.Module):
         TODO: document.
         """
         batch_len = len(self.vertices.shape) - 2
-        self = jax.tree.map(lambda arr: arr.reshape(-1, *arr.shape[batch_len:]), self)
+        self = jax.tree.map(  # noqa: PLW0642
+            lambda arr: arr.reshape(-1, *arr.shape[batch_len:])
+            if jnp.ndim(arr) >= batch_len
+            else arr,
+            self,
+        )
 
         if self.mask is not None:
             mask = self.mask.reshape(-1)
@@ -378,19 +383,21 @@ class Paths(eqx.Module):
 
         return eqx.tree_at(
             lambda p: (
-                p.vertices[mask, ...],
-                p.objects[mask, ...],
-                None,
-                p.interaction_types[mask, ...],
-                None,
+                p.vertices,
+                p.objects,
+                p.mask,
+                p.interaction_types,
+                p.confidence,
             ),
             self,
             (
-                self.vertices,
-                self.objects,
-                self.mask,
-                self.interaction_types,
-                self.confidence,
+                self.vertices[mask, ...],
+                self.objects[mask, ...],
+                None,
+                self.interaction_types[mask, ...]
+                if self.interaction_types is not None
+                else None,
+                None,
             ),
             is_leaf=lambda x: x is None,
         )
