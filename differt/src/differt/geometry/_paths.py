@@ -270,16 +270,26 @@ class Paths(eqx.Module):
         for _ in range(max(ndim - 1, 0)):
             f = jax.vmap(f)
 
-        # TODO: mask the 'confidence' attribute too
+        non_duplicates = f(objects)
+        non_duplicates = jnp.moveaxis(non_duplicates, -1, axis)
 
-        mask = f(objects)
-        mask = jnp.moveaxis(mask, -1, axis)
-        mask = mask & self.mask if self.mask is not None else mask
+        if self.mask is not None:
+            return eqx.tree_at(
+                lambda p: p.mask,
+                self,
+                self.mask & non_duplicates,
+            )
+        if self.confidence is not None:
+            return eqx.tree_at(
+                lambda p: p.confidence,
+                self,
+                self.confidence * non_duplicates,
+            )
 
         return eqx.tree_at(
             lambda p: p.mask,
             self,
-            mask,
+            non_duplicates,
             is_leaf=lambda x: x is None,
         )
 
@@ -390,7 +400,7 @@ class Paths(eqx.Module):
         if self.mask is not None:
             mask = jnp.moveaxis(self.mask, axis, -1)
         else:
-            mask = jnp.moveaxis(self.confidence >= self.confidence_threshold, axis, -1)
+            mask = jnp.moveaxis(self.confidence >= self.confidence_threshold, axis, -1)  # type: ignore[reportOperatorIssue]
         *partial_batch, last_axis = mask.shape
 
         return _cell_ids(mask.reshape(-1, last_axis)).reshape(partial_batch)
