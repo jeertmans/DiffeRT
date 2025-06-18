@@ -359,6 +359,14 @@ def export(  # noqa: PLR0915
 
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
+        # [num_tx num_rx num_paths 3]
+        start_segments = jnp.concatenate(
+            (start_segments, path_segments[..., 0, :]), axis=-2
+        )
+        # [num_tx num_rx num_paths 3]
+        end_segments = jnp.concatenate(
+            (end_segments, path_segments[..., -1, :]), axis=-2
+        )
 
         max_num_interactions = max(paths.order, inter.shape[-1])
         # [num_tx num_rx num_paths max_num_interactions]
@@ -470,10 +478,6 @@ def export(  # noqa: PLR0915
         # [num_tx num_rx num_path_candidates order+1 3],
         # [num_tx num_rx num_path_candidates order+1 1]
         k, s = normalize(path_segments, keepdims=True)
-        # [num_tx num_rx num_paths 3]
-        start_segments = jnp.concatenate((start_segments, k[..., 0, :]), axis=-2)
-        # [num_tx num_rx num_paths 3]
-        end_segments = jnp.concatenate((end_segments, k[..., -1, :]), axis=-2)
         # [num_tx num_rx num_path_candidates order 3]
         k_i = k[..., :-1, :]
         k_r = k[..., +1:, :]
@@ -551,8 +555,6 @@ def export(  # noqa: PLR0915
     # TODO: we need to project the fields to the antenna's direction (otherwise we don't have scalar values)
     phase = jnp.angle(fields, deg=True)
     delay = lengths / c
-    print(f"{start_segments = }")
-    print(f"{end_segments = }")
     _, aoa_el, aoa_az = jnp.split(
         cartesian_to_spherical(-end_segments),
         3,

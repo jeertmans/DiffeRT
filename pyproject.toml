@@ -53,7 +53,7 @@ tests-extended = [
   {include-group = "tests"},
   "differt[all]",
   "open3d-cpu>=0.19.0;python_version<'3.13' and sys_platform=='linux'",
-  "sionna==1.0.1;python_version<'3.13' and sys_platform=='linux'",
+  "sionna-rt==1.1.0;python_version<'3.13' and sys_platform=='linux'",
 ]
 
 [project]

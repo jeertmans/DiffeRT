@@ -111,11 +111,9 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     sionna_scene.add(tx)
 
-    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0], orientation=[0, 0, 0])
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0])
 
     sionna_scene.add(rx)
-
-    tx.look_at(rx)
 
     differt_scene = eqx.tree_at(
         lambda s: s.transmitters,
@@ -171,28 +169,28 @@ def test_match_sionna_on_simple_street_canyon() -> None:
         sionna_paths.tau.jax(),
     )
 
-    print(f"{dm.inter_pos = }")
-
-    print(f"{jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2) = }")
+    chex.assert_trees_all_close(
+        dm.aod_el,
+        jnp.rad2deg(sionna_paths.theta_t.jax()),
+    )
 
     chex.assert_trees_all_close(
-        jnp.cos(jnp.deg2rad(dm.aoa_az)),
-        jnp.cos(sionna_paths.phi_r.jax()),
+        dm.aod_az,
+        jnp.rad2deg(sionna_paths.phi_t.jax()),
+        atol=3e-5,
     )
 
-    chex.assert_trees_all_equal(
-        jnp.cos(jnp.deg2rad(dm.aoa_el)),
-        jnp.cos(sionna_paths.theta_r.jax()),
+    chex.assert_trees_all_close(
+        dm.aoa_el,
+        jnp.rad2deg(sionna_paths.theta_r.jax()),
+        atol=1e-4,
     )
 
-    chex.assert_trees_all_equal(
-        jnp.cos(jnp.deg2rad(dm.aod_az)),
-        jnp.cos(sionna_paths.phi_t.jax()),
-    )
-
-    chex.assert_trees_all_equal(
-        jnp.cos(jnp.deg2rad(dm.aod_el)),
-        jnp.cos(sionna_paths.theta_t.jax()),
+    # We move the discontinuity to 360°->0° as angles are close to 180°
+    chex.assert_trees_all_close(
+        (dm.aoa_az + 360) % 360,
+        (jnp.rad2deg(sionna_paths.phi_r.jax()) + 360) % 360,
+        atol=1e-4,
     )
 
     # TODO: check why we get more than one antenna per transmitter/receiver
