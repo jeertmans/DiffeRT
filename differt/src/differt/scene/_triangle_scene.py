@@ -42,6 +42,16 @@ if TYPE_CHECKING:
         from typing import Self
     else:
         from typing_extensions import Self
+
+    try:
+        import mitsuba
+    except ImportError:
+        mitsuba = None
+
+    try:
+        import sionna
+    except ImportError:
+        sionna = None
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
@@ -744,7 +754,7 @@ class TriangleScene(eqx.Module):
         return cls.from_core(core_scene)
 
     @classmethod
-    def from_mitsuba(cls, mi_scene: "mitsuba.Scene") -> Self:  # type: ignore[reportUndefinedVariable]  # noqa: F821
+    def from_mitsuba(cls, mi_scene: "mitsuba.Scene") -> Self:  # type: ignore[reportUndefinedVariable]
         """
         Load a triangle scene from a Mitsuba scene object.
 
@@ -784,7 +794,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_sionna(cls, sionna_scene: "sionna.rt.Scene") -> Self:  # type: ignore[reportUndefinedVariable]  # noqa: F821
+    def from_sionna(cls, sionna_scene: "sionna.rt.Scene") -> Self:  # type: ignore[reportUndefinedVariable]
         """
         Load a triangle scene from a Sionna scene object.
 

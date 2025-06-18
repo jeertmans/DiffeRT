@@ -75,7 +75,7 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
 )
 
-linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"] 
+linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
 # -- MathJax settings
@@ -95,12 +95,14 @@ intersphinx_mapping = {
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
     "matplotlib": ("https://matplotlib.org/stable", None),
+    "mitsuba": ("https://mitsuba.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "optax": ("https://optax.readthedocs.io/en/latest", None),
     "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
     "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "sionna": ("https://nvlabs.github.io/sionna/", None),
     "vispy": ("https://vispy.org", None),
 }
 

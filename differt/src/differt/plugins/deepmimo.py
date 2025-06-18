@@ -71,7 +71,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     .. note::
 
         This field is optional and is provided if ``include_primitives`` is set to ``True`` in the
-        :func:`extract` function.
+        :func:`export` function.
 
     A value of -1 indicates no primitive hit, i.e., a path that is terminated early.
     """
