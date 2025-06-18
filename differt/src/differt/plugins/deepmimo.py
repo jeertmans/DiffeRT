@@ -25,7 +25,6 @@ from differt.geometry import (
     Paths,
     cartesian_to_spherical,
     normalize,
-    perpendicular_vectors,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
 from differt.rt import SizedIterator
@@ -289,7 +288,10 @@ def export(  # noqa: PLR0915
     Export a Ray Tracing simulation to the DeepMIMO format.
 
     .. note::
-        The current implementation assumes far-field propagation in free space, and isotropic antennas.
+        The current implementation assumes far-field propagation in free space, and isotropic antennas with vertical polarization.
+
+        While tests show a good match with Sionna's :class:`sionna.rt.PathSolver` for most attributes,
+        :attr:`DeepMIMO.power` and :attr:`DeepMIMO.phase` are not exactly equals, and we don't know yet if our implementation is 100% correct. If you know how to improve this, please open an issue or a pull-request on GitHub!
 
     Args:
         paths: The geometrical paths.
@@ -335,10 +337,10 @@ def export(  # noqa: PLR0915
 
     # Fields array
     fields = jnp.zeros((num_tx, num_rx, 0, 3), dtype=complex)
-    # Start segments
-    start_segments = jnp.zeros((num_tx, num_rx, 0, 3), dtype=float)
-    # End segments
-    end_segments = jnp.zeros_like(start_segments)
+    polarization = jnp.array([0.0, 0.0, 1.0], dtype=float)
+    # Direction of departure (DoD) and direction of arrival (DoA) segments
+    k_d = jnp.zeros((num_tx, num_rx, 0, 3), dtype=float)
+    k_a = jnp.zeros_like(k_d)
     # Path lengths
     lengths = jnp.zeros((num_tx, num_rx, 0), dtype=float)
     if include_primitives:
@@ -359,14 +361,6 @@ def export(  # noqa: PLR0915
 
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
-        # [num_tx num_rx num_paths 3]
-        start_segments = jnp.concatenate(
-            (start_segments, path_segments[..., 0, :]), axis=-2
-        )
-        # [num_tx num_rx num_paths 3]
-        end_segments = jnp.concatenate(
-            (end_segments, path_segments[..., -1, :]), axis=-2
-        )
 
         max_num_interactions = max(paths.order, inter.shape[-1])
         # [num_tx num_rx num_paths max_num_interactions]
@@ -481,10 +475,13 @@ def export(  # noqa: PLR0915
         # [num_tx num_rx num_path_candidates order 3]
         k_i = k[..., :-1, :]
         k_r = k[..., +1:, :]
+        # [num_tx num_rx num_paths 3]
+        k_d = jnp.concatenate((k_d, k[..., 0, :]), axis=-2)
+        k_a = jnp.concatenate((k_a, -k[..., -1, :]), axis=-2)
 
         # Dummy isotropic antenna fields
         # [num_tx num_rx num_paths 3]
-        fields_i = perpendicular_vectors(path_segments[..., 0, :]).astype(fields.dtype)
+        fields_i = polarization.astype(fields.dtype)
 
         if paths.order > 0:
             # [num_tx num_rx num_path_candidates order]
@@ -521,8 +518,8 @@ def export(  # noqa: PLR0915
         # [num_tx num_rx num_path_candidates 1]
         s_tot = s.sum(axis=-2)
         spreading_factor = safe_divide(1.0, s_tot)  # Far-field approximation
-        wavenumber = 2 * jnp.pi * frequency / c
-        phase_shift = jnp.exp(1j * s_tot * wavenumber)
+        phase = -2 * jnp.pi * frequency * s_tot / c
+        phase_shift = jax.lax.complex(jnp.cos(phase), jnp.sin(phase))
         # [num_tx num_rx num_path_candidates 3]
         fields_r *= spreading_factor * phase_shift
 
@@ -545,25 +542,23 @@ def export(  # noqa: PLR0915
             axis=-1,
         )
 
-    # TODO: check if this is correct and if we can avoid complex numbers (not using abs)
-    power = jnp.abs(dot(fields, fields)) / z_0
-    # Scale by the antenna effective aperture
+    a = dot(fields, polarization)
     wavelength = c / frequency
-    power *= wavelength**2 / (4 * jnp.pi)
-
+    a *= wavelength / (4 * jnp.pi)
+    power = jnp.abs(a) ** 2 / z_0
     power = 10 * jnp.log10(power)  # Convert to dBW
-    # TODO: we need to project the fields to the antenna's direction (otherwise we don't have scalar values)
-    phase = jnp.angle(fields, deg=True)
+    phase = jnp.angle(a, deg=True)
+
     delay = lengths / c
     _, aoa_el, aoa_az = jnp.split(
-        cartesian_to_spherical(-end_segments),
+        cartesian_to_spherical(k_a),
         3,
         axis=-1,
     )
     aoa_az = jnp.rad2deg(aoa_az).squeeze(axis=-1)
     aoa_el = jnp.rad2deg(aoa_el).squeeze(axis=-1)
     _, aod_el, aod_az = jnp.split(
-        cartesian_to_spherical(start_segments),
+        cartesian_to_spherical(k_d),
         3,
         axis=-1,
     )
