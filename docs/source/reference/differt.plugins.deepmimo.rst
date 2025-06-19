@@ -10,7 +10,6 @@
 .. autosummary::
    :toctree: _autosummary
 
-   ArrayType
    DeepMIMO
 
 .. rubric:: Functions

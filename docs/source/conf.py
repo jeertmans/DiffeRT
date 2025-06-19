@@ -73,6 +73,8 @@ nitpick_ignore = (
     ("py:class", "ndarray"),  # From ArrayLike
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
+    ("py:obj", "__main__.ArrayType"),
+    ("py:class", "setup.<locals>.ArrayType"),
 )
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
@@ -344,7 +346,17 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike
 
+    from typing import TypeVar  # noqa: PLC0415
+
     from differt.scene import download_sionna_scenes  # noqa: PLC0415
+
+    class ArrayType(jaxtyping.Array):
+        def __repr__(self) -> str:
+            return "ArrayType"
+
+    import differt.plugins._deepmimo_types  # noqa: PLC0415
+
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[generalTypeIssue]  # noqa: SLF001
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 

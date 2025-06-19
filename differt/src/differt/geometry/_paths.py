@@ -1,4 +1,5 @@
 import math
+import os
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY
@@ -11,7 +12,7 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
-if TYPE_CHECKING:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
 
     if sys.version_info >= (3, 11):

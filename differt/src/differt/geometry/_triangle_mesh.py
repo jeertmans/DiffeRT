@@ -1,5 +1,6 @@
 # ruff: noqa: ERA001
 
+import os
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
@@ -14,7 +15,7 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if TYPE_CHECKING:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
 
     if sys.version_info >= (3, 11):

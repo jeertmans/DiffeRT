@@ -1,4 +1,5 @@
 import math
+import os
 import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -35,7 +36,7 @@ from differt.rt import (
 )
 from differt.utils import dot, smoothing_function
 
-if TYPE_CHECKING:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
 
     if sys.version_info >= (3, 11):

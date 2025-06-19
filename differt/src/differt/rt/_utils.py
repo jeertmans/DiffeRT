@@ -1,5 +1,6 @@
 # ruff: noqa: ERA001
 
+import os
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -13,7 +14,7 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import dot, smoothing_function
 from differt_core.rt import CompleteGraph
 
-if TYPE_CHECKING:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
 
     if sys.version_info >= (3, 11):

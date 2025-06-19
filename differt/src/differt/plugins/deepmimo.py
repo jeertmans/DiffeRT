@@ -1,10 +1,10 @@
 """Utilities to work with the DeepMIMO framework."""
 
-__all__ = ("ArrayType", "DeepMIMO", "export")
+__all__ = ("DeepMIMO", "export")
 
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic
 
 import equinox as eqx
 import jax
@@ -31,8 +31,7 @@ from differt.rt import SizedIterator
 from differt.scene import TriangleScene
 from differt.utils import dot, safe_divide
 
-ArrayType = TypeVar("ArrayType", bound=Array | np.ndarray)  # type: ignore[reportMissingTypeArgument]
-"""Type variable for arrays in the DeepMIMO class."""
+from ._deepmimo_types import ArrayType
 
 
 class DeepMIMO(eqx.Module, Generic[ArrayType]):
@@ -42,10 +41,6 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     whether the data is in JAX or NumPy format.
 
     For elevation and azimuth angles, the reference coordinate system is detailed in :ref:`conventions`.
-
-    .. todo::
-
-        Avoid :class:`ArrayType` to be documented as an union of JAX and NumPy arrays, but rather as a type variable that can be either JAX or NumPy.
     """
 
     _: KW_ONLY
@@ -70,7 +65,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
     .. note::
 
-        This field is optional and is provided if ``include_primitives`` is set to ``True`` in the
+        This field is optional and is provided if ``include_primitives`` is set to :data:`True` in the
         :func:`export` function.
 
     A value of -1 indicates no primitive hit, i.e., a path that is terminated early.
@@ -84,9 +79,9 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     inter_pos: Float[ArrayType, "num_rx num_paths max_num_interactions 3"]
     """3D coordinates in meters of each interaction point along paths."""
     rx_pos: Float[ArrayType, "num_rx 3"]
-    """Receiver positions in 3D coordinates in meters"""
+    """Receiver positions in 3D coordinates in meters."""
     tx_pos: Float[ArrayType, "num_tx 3"]
-    """Transmitter positions in 3D coordinates in meters"""
+    """Transmitter positions in 3D coordinates in meters."""
     mask: Bool[ArrayType, "num_tx num_rx num_paths"]
     """Mask indicating valid paths."""
 
@@ -258,7 +253,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 ...     lambda s: s.receivers, scene, jnp.array([33.0, 0.0, 2.0])
                 ... )
                 >>>
-                >>> with reuse(backend="plotly") as fig:
+                >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
                 ...     scene.plot()
                 ...     paths = (
                 ...         scene.compute_paths(order=order) for order in [0, 1, 2]
@@ -305,7 +300,7 @@ def export(  # noqa: PLR0915
 
             If not provided, :data:`materials<differt.em._material.materials>` will be used.
         frequency: The operating frequency (in Hz).
-        include_primitives: If ``True``, include the primitive indices in the output.
+        include_primitives: If :data:`True`, include the primitive indices in the output.
 
     Returns:
         The exported DeepMIMO data as JAX arrays.
