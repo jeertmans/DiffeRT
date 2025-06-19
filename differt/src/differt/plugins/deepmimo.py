@@ -76,7 +76,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     Matches :class:`InteractionType<differt.em.InteractionType>`, but a value of -1 indicates no interaction,
     i.e., a path that is terminated early.
     """
-    inter_pos: Float[ArrayType, "num_rx num_paths max_num_interactions 3"]
+    inter_pos: Float[ArrayType, "num_tx num_rx num_paths max_num_interactions 3"]
     """3D coordinates in meters of each interaction point along paths."""
     rx_pos: Float[ArrayType, "num_rx 3"]
     """Receiver positions in 3D coordinates in meters."""
@@ -158,7 +158,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
             y = x.reshape(-1, *x.shape[len(shape_prefix) :])
             y = y[indices, ...]
-            return y.reshape(x.shape)
+            return y.reshape(x.shape)  # type: ignore[reportReturnType]
 
         return jax.tree.map(sort_fn, self)
 
@@ -171,7 +171,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         """
         return jax.tree.map(jnp.asarray, self)
 
-    def numpy(self) -> "DeepMIMO[np.ndarray]":  # type: ignore[reportMissingTypeArgument]
+    def numpy(self) -> "DeepMIMO[np.ndarray]":
         """
         Return a copy of this class with arrays converted to NumPy arrays.
 

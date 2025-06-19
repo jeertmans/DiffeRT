@@ -45,16 +45,12 @@ if TYPE_CHECKING or "READTHEDOCS" in os.environ:
         from typing_extensions import Self
 
     try:
-        import mitsuba
+        from sionna.rt import Scene as SionnaScene
     except ImportError:
-        mitsuba = None
-
-    try:
-        import sionna
-    except ImportError:
-        sionna = None
+        SionnaScene = Any
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+    SionnaScene = Any
 
 
 @eqx.filter_jit
@@ -755,7 +751,7 @@ class TriangleScene(eqx.Module):
         return cls.from_core(core_scene)
 
     @classmethod
-    def from_mitsuba(cls, mi_scene: "mitsuba.Scene") -> Self:  # type: ignore[reportUndefinedVariable]
+    def from_mitsuba(cls, mi_scene) -> Self:  # noqa: ANN001  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
         """
         Load a triangle scene from a Mitsuba scene object.
 
@@ -764,7 +760,7 @@ class TriangleScene(eqx.Module):
         part of the Sionna scene object, see :meth:`from_sionna`.
 
         Args:
-            mi_scene: The Mitsuba scene object.
+            mi_scene (mitsuba.Scene): The Mitsuba scene object.
 
                 You can obtain the Mitsuba scene object from a Sionna scene
                 its ``.mi_scene`` attribute.
@@ -795,7 +791,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_sionna(cls, sionna_scene: "sionna.rt.Scene") -> Self:  # type: ignore[reportUndefinedVariable]
+    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:  # type: ignore[reportUndefinedVariable]
         """
         Load a triangle scene from a Sionna scene object.
 
