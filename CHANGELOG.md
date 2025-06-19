@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...HEAD)
+
+<!-- start changelog -->
+
+## [0.1.1](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...v0.1.1)
 
 ### Added
 
@@ -38,8 +42,6 @@ with one *slight* but **important** difference:
 
 - Fixed potential `IndexError` in `TriangleScene.num_{transmitters,receivers}` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
 - Fixed potential `IndexError` in `Paths.num_valid_paths` when the `objects` array has its last axis being of zero size (by <gh-user:jeertmans>, in <gh-pr:273>).
-
-<!-- start changelog -->
 
 ## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)
 

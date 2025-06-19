@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "chex>=0.1.86",
-  "differt-core==0.1.0",
+  "differt-core==0.1.1",
   "equinox>=0.12.2",
   "filelock>=3.15.4",
   "jax>=0.4.32,<0.6",  # TODO: fixme, issue with pmap

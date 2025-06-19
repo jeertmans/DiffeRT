@@ -83,7 +83,7 @@ If you use this software, please cite it as:
   author  = {Eertmans, Jérome},
   url     = {https://github.com/jeertmans/DiffeRT},
   license = {MIT},
-  version = {v0.1.0}
+  version = {v0.1.1}
 }
 ```
 
