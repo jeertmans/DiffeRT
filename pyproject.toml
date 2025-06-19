@@ -38,7 +38,7 @@ prof = [
   "line-profiler[ipython]>=4.1.3",
 ]
 sionna = [
-  "sionna-rt==1.1.0",
+  "sionna-rt==1.1.0;sys_platform=='linux'",
 ]
 tests = [
   "differt",
