@@ -23,6 +23,11 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added support for `confidence` attribute in `Paths.mask_duplicate_objects` (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Added the `Paths.shape` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
+  The following equality should always hold: `paths.reshape(*batch).shape = batch`.
+- Added the `differt.plugins` package and `differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added export utility to the DeepMIMO format (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added `from_mitsuba` and `from_sionna`methods to the `TriangleScene` class (by <gh-user:jeertmans>, in <gh-pr:267>).
 
 ### Chore
 

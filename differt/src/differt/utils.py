@@ -223,7 +223,7 @@ def minimize(
         >>>
         >>> # You can also change the optimizer and the number of steps
         >>> import optax
-        >>> optimizer = optax.noisy_sgd(learning_rate=0.003)
+        >>> optimizer = optax.noisy_sgd(learning_rate=0.003, key=jax.random.key(1234))
         >>> x, y = minimize(
         ...     f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer
         ... )

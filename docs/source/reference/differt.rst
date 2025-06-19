@@ -14,6 +14,7 @@ Submodules
    differt.em
    differt.geometry
    differt.plotting
+   differt.plugins
    differt.rt
    differt.scene
    differt.utils

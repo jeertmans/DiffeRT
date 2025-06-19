@@ -54,6 +54,7 @@ class TestPaths:
         paths = random_paths(
             path_length, *batch, num_objects=6, with_mask=True, key=key
         )
+        assert paths.shape == batch
 
         assert paths.mask is not None
 
@@ -229,6 +230,7 @@ class TestPaths:
         paths = random_paths(
             path_length, *batch, num_objects=num_objects, with_mask=with_mask, key=key
         )
+        assert paths.shape == batch
         got = paths.masked_vertices
 
         assert paths.path_length == path_length
@@ -257,6 +259,7 @@ class TestPaths:
         paths = random_paths(
             path_length, *batch, num_objects=num_objects, with_mask=False, key=key
         )
+        assert paths.shape == batch
         got = paths.group_by_objects()
 
         assert got.shape == batch
@@ -334,6 +337,7 @@ class TestPaths:
         key: PRNGKeyArray,
     ) -> None:
         paths = random_paths(4, *batch, num_objects=3, with_mask=True, key=key)
+        assert paths.shape == batch
 
         expected = path_lengths(paths.vertices).sum(axis=axis, where=paths.mask)
 
@@ -359,6 +363,7 @@ class TestSBRPaths:
         paths = random_paths(
             path_length, *batch, num_objects=30, with_mask=True, key=key_paths
         )
+        assert paths.shape == batch
 
         assert paths.mask is not None
         mask = paths.mask
@@ -394,6 +399,7 @@ class TestSBRPaths:
         paths = random_paths(
             path_length, *batch, num_objects=30, with_mask=False, key=key_paths
         )
+        assert paths.shape == batch
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
@@ -424,6 +430,7 @@ class TestSBRPaths:
         paths = random_paths(
             path_length, *batch, num_objects=30, with_mask=False, key=key_paths
         )
+        assert paths.shape == batch
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 

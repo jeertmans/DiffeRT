@@ -1,4 +1,5 @@
 import math
+import os
 import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -35,15 +36,21 @@ from differt.rt import (
 )
 from differt.utils import dot, smoothing_function
 
-if TYPE_CHECKING:
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
 
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
         from typing_extensions import Self
+
+    try:
+        from sionna.rt import Scene as SionnaScene
+    except ImportError:
+        SionnaScene = Any
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+    SionnaScene = Any
 
 
 @eqx.filter_jit
@@ -742,6 +749,88 @@ class TriangleScene(eqx.Module):
         """
         core_scene = differt_core.scene.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
+
+    @classmethod
+    def from_mitsuba(cls, mi_scene) -> Self:  # noqa: ANN001  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
+        """
+        Load a triangle scene from a Mitsuba scene object.
+
+        This method does not extract any transmitters or receivers from the Mitsuba scene,
+        as Mitsuba does not provide any explicit information about them, and they are usually
+        part of the Sionna scene object, see :meth:`from_sionna`.
+
+        Args:
+            mi_scene (mitsuba.Scene): The Mitsuba scene object.
+
+                You can obtain the Mitsuba scene object from a Sionna scene
+                its ``.mi_scene`` attribute.
+
+        Returns:
+            The corresponding scene containing only triangle meshes.
+
+        .. seealso::
+
+            :meth:`from_sionna`
+        """
+        mesh = TriangleMesh.empty()
+
+        for shape in mi_scene.shapes():
+            rm = shape.bsdf().radio_material
+            mesh += (
+                TriangleMesh(
+                    vertices=shape.vertex_positions_buffer().jax().reshape(-1, 3),
+                    triangles=shape.faces_buffer().jax().reshape(-1, 3),
+                )
+                .set_face_colors(jnp.asarray(rm.color))
+                .set_materials(f"itu_{rm.itu_type}")
+                .set_face_materials(0)
+            )
+
+        return cls(
+            mesh=mesh,
+        )
+
+    @classmethod
+    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:  # type: ignore[reportUndefinedVariable]
+        """
+        Load a triangle scene from a Sionna scene object.
+
+        This method uses :meth:`from_mitsuba` internally to load the scene objects.
+
+        .. warning::
+            Using this method is only recommended if you already have a Sionna scene object.
+            Otherwise, you can use :meth:`load_xml` to load a scene from a XML file, compatible with Sionna,
+            at a faster speed.
+
+        .. warning::
+            This method does not *currently* use any information about possible antenna arrays.
+
+        Args:
+            sionna_scene: The Sionna scene object.
+
+        Returns:
+            The corresponding scene containing only triangle meshes.
+        """
+        scene = cls.from_mitsuba(sionna_scene.mi_scene)
+
+        return eqx.tree_at(
+            lambda s: (s.transmitters, s.receivers),
+            scene,
+            (
+                jnp.concatenate([
+                    tx.position.jax().reshape(1, 3)
+                    for tx in sionna_scene.transmitters.values()
+                ])
+                if sionna_scene.transmitters
+                else jnp.empty((0, 3)),
+                jnp.concatenate([
+                    rx.position.jax().reshape(1, 3)
+                    for rx in sionna_scene.receivers.values()
+                ])
+                if sionna_scene.receivers
+                else jnp.empty((0, 3)),
+            ),
+        )
 
     @overload
     def compute_paths(

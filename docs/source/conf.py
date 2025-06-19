@@ -73,9 +73,11 @@ nitpick_ignore = (
     ("py:class", "ndarray"),  # From ArrayLike
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
+    ("py:obj", "__main__.ArrayType"),
+    ("py:class", "setup.<locals>.ArrayType"),
 )
 
-linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"] 
+linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
 
 # -- MathJax settings
@@ -95,12 +97,14 @@ intersphinx_mapping = {
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
     "matplotlib": ("https://matplotlib.org/stable", None),
+    "mitsuba": ("https://mitsuba.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "optax": ("https://optax.readthedocs.io/en/latest", None),
     "plotly": ("https://plotly.com/python-api-reference", None),
     "python": ("https://docs.python.org/3", None),
     "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "sionna": ("https://nvlabs.github.io/sionna/", None),
     "vispy": ("https://vispy.org", None),
 }
 
@@ -342,7 +346,17 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike
 
+    from typing import TypeVar  # noqa: PLC0415
+
     from differt.scene import download_sionna_scenes  # noqa: PLC0415
+
+    class ArrayType(jaxtyping.Array):
+        def __repr__(self) -> str:
+            return "ArrayType"
+
+    import differt.plugins._deepmimo_types  # noqa: PLC0415
+
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[generalTypeIssue]  # noqa: SLF001
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 
