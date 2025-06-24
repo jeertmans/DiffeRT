@@ -93,7 +93,10 @@ def test_compute_paths_in_simple_street_canyon_scene(
     _ = benchmark(bench_fun)
 
 
-def test_compile_compute_paths(
+@pytest.mark.benchmark(group="jitted_compute_paths")
+@pytest.mark.parametrize("provide_pc", [False, True])
+def test_jitted_compute_paths(
+    provide_pc: bool,
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
@@ -101,11 +104,19 @@ def test_compile_compute_paths(
 
     path_candidates = generate_all_path_candidates(scene.mesh.num_triangles, 2)
 
-    @jax.jit
-    def fun(path_candidates: Array) -> Paths:
-        return scene.compute_paths(path_candidates=path_candidates)
+    if provide_pc:
+
+        @jax.jit
+        def fun(path_candidates: Array) -> Paths:
+            return scene.compute_paths(path_candidates=path_candidates)
+
+    else:
+
+        @jax.jit
+        def fun(path_candidates: Array) -> Paths:
+            return scene.compute_paths(order=path_candidates.shape[1])
 
     def bench_fun() -> None:
-        fun.lower(path_candidates).compile()
+        fun(path_candidates).vertices.block_until_ready()
 
     _ = benchmark(bench_fun)
