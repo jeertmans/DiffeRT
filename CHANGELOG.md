@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...HEAD)
 
+### Fixed
+
+- Fixed `ValueError` raised when using `parallel` mode with `jax>=0.6` by disabling it (see <gh-issue:280>). This is a *soft* **breaking change** as it will raise a warning (by <gh-user:jeertmans>, in <gh-pr:281>). Using JAX v0.6 (and above) is now allowed again.
+
 <!-- start changelog -->
 
 ## [0.1.1](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...v0.1.1)
