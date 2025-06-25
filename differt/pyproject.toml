@@ -19,7 +19,7 @@ dependencies = [
   "differt-core==0.1.1",
   "equinox>=0.12.2",
   "filelock>=3.15.4",
-  "jax>=0.4.32,<0.6",  # TODO: fixme, issue with pmap
+  "jax>=0.4.32",  # TODO: fixme, issue with pmap
   "jaxtyping>=0.3.2",
   "numpy>=1.26.1",
   "optax>=0.1.7",

@@ -28,6 +28,7 @@ from differt_core.scene import SionnaScene
 skip_if_not_8_devices = pytest.mark.skipif(
     jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
 )
+parallel_disabled = jax.__version_info__ >= (0, 6)
 
 
 class TestTriangleScene:
@@ -401,7 +402,14 @@ class TestTriangleScene:
             receivers[None, :, None, None, :],
         )
 
-        with expectation:
+        if parallel and parallel_disabled:
+            maybe_warns = pytest.warns(
+                UserWarning, match="Parallel execution is automatically disabled"
+            )
+        else:
+            maybe_warns = does_not_raise()
+
+        with expectation, maybe_warns:
             got = scene.compute_paths(  # type: ignore[reportCallIssue]
                 order=order,
                 chunk_size=chunk_size,  # type: ignore[reportArgumentType]
@@ -457,14 +465,18 @@ class TestTriangleScene:
                 1,
                 1,
                 1,
-                pytest.raises(ValueError, match="Found 8 devices available"),
+                pytest.raises(ValueError, match="Found 8 devices available")
+                if not parallel_disabled
+                else does_not_raise(),
             ),
             (
                 1,
                 2,
                 3,
                 1,
-                pytest.raises(ValueError, match="Found 8 devices available"),
+                pytest.raises(ValueError, match="Found 8 devices available")
+                if not parallel_disabled
+                else does_not_raise(),
             ),
         ],
     )
@@ -494,7 +506,14 @@ class TestTriangleScene:
 
         num_rays = m_rx * n_rx
 
-        with expectation:
+        if parallel_disabled:
+            maybe_warns = pytest.warns(
+                UserWarning, match="Parallel execution is automatically disabled"
+            )
+        else:
+            maybe_warns = does_not_raise()
+
+        with expectation, maybe_warns:
             paths = scene.compute_paths(
                 order=1, method=method, num_rays=num_rays, parallel=True
             )

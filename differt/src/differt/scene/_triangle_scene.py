@@ -7,9 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
-from jax.sharding import Mesh
 from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
@@ -279,11 +277,9 @@ def _compute_paths(  # noqa: C901, PLR0915
             )
             raise ValueError(msg)
 
-        fun = shard_map(  # type: ignore[reportAssigmentType]
+        fun = shard_map(
             fun,
-            Mesh(
-                mesh_utils.create_device_mesh((tx_mesh, rx_mesh)), axis_names=("i", "j")
-            ),
+            jax.make_mesh((tx_mesh, rx_mesh), axis_names=("i", "j")),
             in_specs=in_specs,
             out_specs=out_specs,
         )
@@ -487,12 +483,9 @@ def _compute_paths_sbr(
             )
             raise ValueError(msg)
 
-        fun = shard_map(  # type: ignore[reportAssigmentType]
+        fun = shard_map(
             fun,
-            Mesh(
-                mesh_utils.create_device_mesh((tx_mesh, ray_mesh)),
-                axis_names=("i", "j"),
-            ),
+            jax.make_mesh((tx_mesh, ray_mesh), axis_names=("i", "j")),
             in_specs=in_specs,
             out_specs=out_specs,
         )
@@ -904,7 +897,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
-    def compute_paths(  # noqa: C901
+    def compute_paths(  # noqa: C901, PLR0912
         self,
         order: int | None = None,
         *,
@@ -988,6 +981,9 @@ class TriangleScene(eqx.Module):
 
                 When ``method == 'sbr'``, the number of transmitters times the number of rays
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
+
+                .. warning::
+                    Parallel execution is automatically disabled if ``jax>=0.6`` is used, see `#280 <https://github.com/jeertmans/DiffeRT/issues/280>`_.
             epsilon: Tolelance for checking ray / objects intersection, see
                 :func:`rays_intersect_triangles<differt.rt.rays_intersect_triangles>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
@@ -1036,8 +1032,18 @@ class TriangleScene(eqx.Module):
 
                 If ``method == 'sbr'``, ``order`` is required.
 
+                If ``parallel`` is :data:`True`, and the number of devices is not a divisor of the number of transmitters times the number of receivers, or the number of transmitters times the number of rays.
+
         .. [#f1] Passing the squared length/distance is useful to avoid computing square root values, which is expensive.
-        """
+        """  # noqa: DOC502
+        if parallel and jax.__version_info__ >= (0, 6):
+            msg = (
+                "Parallel execution is automatically disabled when using jax>=0.6, "
+                "as it is not (yet) compatible with the new JAX API. See "
+                "https://github.com/jeertmans/DiffeRT/issues/280."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
+            parallel = False
         if (order is None) == (path_candidates is None):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
             raise ValueError(msg)
