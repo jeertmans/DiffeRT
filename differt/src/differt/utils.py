@@ -1,5 +1,6 @@
 """General purpose utilities."""
 
+import warnings
 from collections.abc import Callable
 from functools import partial
 from typing import (
@@ -147,7 +148,14 @@ P = ParamSpec("P")
 
 
 class OptimizeResult(NamedTuple):
-    """A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`."""
+    """
+    A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`.
+
+    .. deprecated:: 0.1.2
+        This class is deprecated and will be removed in the v0.2.0 release.
+        See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
+        and alternatives.
+    """
 
     x: Inexact[Array, "*batch n"]
     """The solution of the optimization."""
@@ -165,6 +173,11 @@ def minimize(
 ) -> OptimizeResult:
     """
     Minimize a scalar function of one or more variables.
+
+    .. deprecated:: 0.1.2
+        This function is deprecated and will be removed in the v0.2.0 release.
+        See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
+        and alternatives.
 
     The minimization is achieved by computing the
     gradient of the objective function, and performing
@@ -201,81 +214,13 @@ def minimize(
 
     Returns:
         The optimization result.
-
-    Examples:
-        The following example shows how to minimize a basic function.
-
-        >>> from differt.utils import minimize
-        >>> import chex
-        >>>
-        >>> def f(x, offset=1.0):
-        ...     x = x - offset
-        ...     return jnp.dot(x, x)
-        >>>
-        >>> x, y = minimize(f, jnp.zeros(10))
-        >>> chex.assert_trees_all_close(x, jnp.ones(10), rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
-        >>>
-        >>> # It is also possible to pass positional arguments
-        >>> x, y = minimize(f, jnp.zeros(10), args=(2.0,))
-        >>> chex.assert_trees_all_close(x, 2.0 * jnp.ones(10), rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
-        >>>
-        >>> # You can also change the optimizer and the number of steps
-        >>> import optax
-        >>> optimizer = optax.noisy_sgd(learning_rate=0.003, key=jax.random.key(1234))
-        >>> x, y = minimize(
-        ...     f, jnp.zeros(5), args=(4.0,), steps=10000, optimizer=optimizer
-        ... )
-        >>> chex.assert_trees_all_close(x, 4.0 * jnp.ones(5), rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-3)
-
-        This example shows how you can minimize on a batch of arrays.
-
-        >>> from differt.utils import minimize
-        >>> import chex
-        >>>
-        >>> batch = (1, 2, 3)
-        >>> n = 10
-        >>> key = jax.random.key(1234)
-        >>> offset = jax.random.uniform(key, (*batch, n))
-        >>>
-        >>> def f(x, offset, scale=2.0):
-        ...     x = scale * x - offset
-        ...     return jnp.sum(x * x, axis=-1)
-        >>>
-        >>> x0 = jnp.zeros((*batch, n))
-        >>> x, y = minimize(f, x0, args=(offset,), steps=1000)
-        >>> chex.assert_trees_all_close(x, offset / 2.0, rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-4)
-        >>>
-        >>> # By default, arguments are expected to have batch
-        >>> # dimensions like 'x0'. So, if 'x0' has more than one dimension,
-        >>> # 'offset' must be an ndarray with the same shape prefix as 'x0':
-        >>> offset = 10.0
-        >>> x, y = minimize(
-        ...     f, x0, args=(offset,), steps=1000
-        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
-        Traceback (most recent call last):
-        TypeError: ... Tree leaf '0' is not an ndarray (type=<class 'float'>).
-        >>>
-        >>> # Passing 'offset' as an ndarray instead:
-        >>> x, y = minimize(
-        ...     f, x0, args=(jnp.array(offset),), steps=1000
-        ... )  # doctest: +IGNORE_EXCEPTION_DETAIL
-        Traceback (most recent call last):
-        TypeError: ... Tree leaf '1' has a shape of length 0 (shape=()) which
-        is smaller than the expected prefix of length 3 (prefix=(1, 2, 3)).
-        >>>
-        >>> # For static arguments, use functools.partial
-        >>> from functools import partial
-        >>>
-        >>> fp = partial(f, offset=offset)
-        >>> x, y = minimize(fp, x0, steps=1000)
-        >>> chex.assert_trees_all_close(x, offset * jnp.ones_like(x0) / 2.0, rtol=1e-2)
-        >>> chex.assert_trees_all_close(y, 0.0, atol=1e-2)
     """
-    # TODO: avoid requiring arrays to be already broadcasted (use in_axes?) and improve signature
+    msg = (
+        "This function is deprecated and will be removed in the v0.2.0 release. "
+        "See https://github.com/jeertmans/DiffeRT/issues/283 for motivation and alternatives."
+    )
+    warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+
     x0 = jnp.asarray(x0)
     if x0.ndim > 1 and args:
         chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)

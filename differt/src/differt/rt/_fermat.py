@@ -1,13 +1,14 @@
 from functools import partial
-from typing import Any
+from typing import Any, no_type_check
 
+import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import optax
 from jaxtyping import Array, ArrayLike, Float
 
 from differt.geometry import orthogonal_basis
-from differt.utils import minimize
 
 
 @partial(jax.jit, inline=True)
@@ -29,14 +30,19 @@ def _loss(
     o: Float[Array, "*#batch num_objects 3"],
     v: Float[Array, "*#batch num_objects num_dims 3"],
 ) -> Float[Array, " *batch"]:
-    xyz = _param_to_xyz(p, o, v)
-    paths = jnp.concatenate(
-        (from_[..., None, :], xyz, to[..., None, :]),
-        axis=-2,
+    chex.assert_axis_dimension_gt(p, -1, 0, exception_type=TypeError)
+    chex.assert_axis_dimension(
+        p, -1, v.shape[-2] * v.shape[-3], exception_type=TypeError
     )
-    vectors = jnp.diff(paths, axis=-2)
-    lengths = jnp.linalg.norm(vectors, axis=-1)
-    return jnp.sum(lengths, axis=-1)
+    xyz = _param_to_xyz(p, o, v)
+    first_segment = xyz[..., 0, :] - from_
+    last_segment = to - xyz[..., -1, :]
+    other_segments = jnp.diff(xyz, axis=-2)
+    return (
+        jnp.linalg.norm(first_segment, axis=-1)
+        + jnp.linalg.norm(last_segment, axis=-1)
+        + jnp.sum(jnp.linalg.norm(other_segments, axis=-1), axis=-1)
+    )
 
 
 @eqx.filter_jit
@@ -45,7 +51,9 @@ def fermat_path_on_linear_objects(
     to_vertices: Float[ArrayLike, "*#batch 3"],
     object_origins: Float[ArrayLike, "*#batch num_objects 3"],
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
-    **kwargs: Any,
+    *,
+    steps: int = 10,
+    optimizer: optax.GradientTransformationExtraArgs | None = None,
 ) -> Float[Array, "*batch num_objects 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect or diffract on a given list of objects in between.
@@ -77,13 +85,15 @@ def fermat_path_on_linear_objects(
 
             It is used as the initial guess of the minimization procedure.
         object_vectors: An array of base vectors describing the objects.
-        kwargs: Keyword arguments passed to
-            :func:`minimize<differt.utils.minimize>`.
+        steps: The number of optimization steps to perform.
+        optimizer: The optimizer to use. If not provided,
+            uses :func:`optax.lbfgs`.
 
-            .. tip::
+            .. important::
 
-                The loss function is guaranteed to be convex, so
-                choose the optimizer accordingly.
+                The optimizer should store the gradient in the state. In the future,
+                we hope to support optimizers that do not store the gradient in the state,
+                such as :func:`optax.adam` or :func:`optax.sgd`.
 
     Returns:
         An array of ray paths obtained based on Fermat's principle.
@@ -166,10 +176,6 @@ def fermat_path_on_linear_objects(
     object_origins = jnp.asarray(object_origins)
     object_vectors = jnp.asarray(object_vectors)
 
-    num_objects = object_origins.shape[-2]
-    num_dims = object_vectors.shape[-2]
-    num_unknowns = num_objects * num_dims
-
     batch = jnp.broadcast_shapes(
         from_vertices.shape[:-1],
         to_vertices.shape[:-1],
@@ -177,29 +183,83 @@ def fermat_path_on_linear_objects(
         object_vectors.shape[:-3],
     )
 
-    # Broadcasting is required by :func:`minimize<differt.utils.minimize>`.
-    # TODO: improve minimize so we don't need to broadcast
-    from_vertices = jnp.broadcast_to(from_vertices, (*batch, 3))
-    to_vertices = jnp.broadcast_to(to_vertices, (*batch, 3))
-    object_origins = jnp.broadcast_to(object_origins, (*batch, num_objects, 3))
-    object_vectors = jnp.broadcast_to(
-        object_vectors, (*batch, num_objects, num_dims, 3)
-    )
+    num_objects = object_origins.shape[-2]
+
+    if num_objects == 0:
+        # If there are no objects, return empty paths.
+        dtype = jnp.result_type(
+            from_vertices, to_vertices, object_origins, object_vectors
+        )
+        return jnp.empty((*batch, 0, 3), dtype=dtype)
+
+    num_dims = object_vectors.shape[-2]
+
+    if num_dims == 0:
+        # If there are no dimension, return origins.
+        dtype = jnp.result_type(
+            from_vertices, to_vertices, object_origins, object_vectors
+        )
+        return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
+
+    num_unknowns = num_objects * num_dims
+
+    objective = _loss
+
+    optimizer = optimizer if optimizer is not None else optax.lbfgs()
+
+    def minimize(
+        x_0: Float[Array, " num_unknowns"],
+        from_: Float[Array, "3"],
+        to: Float[Array, "3"],
+        o: Float[Array, "num_objects 3"],
+        v: Float[Array, "num_objects num_dims 3"],
+    ) -> Float[Array, "num_objects 3"]:
+        opt_state = optimizer.init(x_0)
+
+        value_and_grad = optax.value_and_grad_from_state(objective)
+
+        @no_type_check
+        def update(
+            state: tuple[Float[Array, "*batch num_unknowns"], Any],
+            _: None,
+        ) -> tuple[
+            tuple[Float[Array, "*batch num_unknowns"], Any], float | Float[Array, " "]
+        ]:
+            x, opt_state = state
+            loss_value, grad = value_and_grad(x, from_, to, o, v, state=opt_state)
+            updates, opt_state = optimizer.update(
+                grad,
+                opt_state,
+                x,
+                value=loss_value,
+                grad=grad,
+                value_fn=objective,
+                from_=from_,
+                to=to,
+                o=o,
+                v=v,
+            )
+            x = optax.apply_updates(x, updates)
+            return (x, opt_state), loss_value
+
+        (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
+        return _param_to_xyz(x, o, v)
 
     x_0 = jnp.zeros((*batch, num_unknowns))
-    x, _ = minimize(
-        _loss,
-        x_0,
-        args=(
-            from_vertices,
-            to_vertices,
-            object_origins,
-            object_vectors,
-        ),
-        **kwargs,
-    )
 
-    return _param_to_xyz(x, object_origins, object_vectors)
+    for i in reversed(range(len(batch))):
+        minimize = jax.vmap(
+            minimize,
+            in_axes=(
+                0,
+                0 if from_vertices.ndim > i + 1 else None,
+                0 if to_vertices.ndim > i + 1 else None,
+                0 if object_origins.ndim > i + 2 else None,
+                0 if object_vectors.ndim > i + 3 else None,
+            ),
+        )
+
+    return minimize(x_0, from_vertices, to_vertices, object_origins, object_vectors)
 
 
 @eqx.filter_jit
@@ -232,7 +292,7 @@ def fermat_path_on_planar_mirrors(
                 be unit vectors. However, we keep the same documentation so it is
                 easier for the user to move from one method to the other.
         kwargs: Keyword arguments passed to
-            :func:`minimize<differt.utils.minimize>`.
+            :func:`fermat_path_on_linear_objects`.
 
     Returns:
         An array of ray paths obtained using Fermat's principle.

@@ -1,7 +1,6 @@
 import chex
 import jax
 import jax.numpy as jnp
-import optax
 import pytest
 from jaxtyping import PRNGKeyArray
 
@@ -43,33 +42,53 @@ def test_fermat_path_on_linear_objects(
         to_vertex,
         object_origins,
         object_vectors,
-        steps=10000,
-        optimizer=optax.sgd(0.1),
     )
     expected = jnp.array([[-1.0, 0.0, 0.5], [1.0, 0.0, 0.5 / 3]])
     chex.assert_trees_all_close(got, expected, atol=1e-5)
 
 
-@pytest.mark.parametrize("num_dims", [1, 2, 3])
+def test_fermat_path_on_linear_objects_no_objects() -> None:
+    from_vertex = jnp.zeros((3,))
+    to_vertex = jnp.zeros((5, 1, 3))
+    object_origins = jnp.zeros((0, 3))
+    object_vectors = jnp.zeros((10, 0, 2, 3))
+    got = fermat_path_on_linear_objects(
+        from_vertex,
+        to_vertex,
+        object_origins,
+        object_vectors,
+    )
+    expected = jnp.zeros((5, 10, 0, 3))  # No objects, so no paths
+    chex.assert_trees_all_equal(got, expected)
+
+
+@pytest.mark.parametrize("num_dims", [0, 1, 2, 3])
 def test_fermat_path_diffraction_keller_cone(num_dims: int) -> None:
     h = jnp.linspace(-0.5, 0.5, 5)
     edge_origins = jnp.array([[-0.5, 0.5, -0.5]])
-    edge_vectors = jnp.concatenate(
-        (
-            jnp.array([[[0.0, 0.0, 1.0]]]),
-            jnp.zeros((
-                1,
-                num_dims - 1,
-                3,
-            )),  # Adding zeros for higher dimensions does not affect the test
-        ),
-        axis=-2,
-    )
+    if num_dims == 0:
+        edge_vectors = jnp.zeros((1, 0, 3))
+    else:
+        edge_vectors = jnp.concatenate(
+            (
+                jnp.array([[[0.0, 0.0, 1.0]]]),
+                jnp.zeros((
+                    1,
+                    num_dims - 1,
+                    3,
+                )),  # Adding zeros for higher dimensions does not affect the test
+            ),
+            axis=-2,
+        )
     transmitters = jnp.array([-1.0, -0.5, 0.0])
     receivers = jnp.stack((jnp.zeros_like(h), jnp.ones_like(h), h), axis=-1)
     paths = fermat_path_on_linear_objects(
         transmitters, receivers, edge_origins, edge_vectors
     )
+
+    if num_dims == 0:
+        chex.assert_trees_all_close(paths, jnp.broadcast_to(edge_origins, (5, 1, 3)))
+        return
 
     paths = assemble_paths(
         transmitters.reshape(1, 1, 3),
@@ -107,6 +126,5 @@ def test_fermat_path_on_planar_mirrors(
         setup.to_vertices,
         setup.mirror_vertices,
         setup.mirror_normals,
-        steps=10000,
     )
     chex.assert_trees_all_close(got, setup.paths, atol=1e-3)
