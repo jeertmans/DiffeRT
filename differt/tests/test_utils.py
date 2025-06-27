@@ -85,6 +85,8 @@ def test_sorted_array2(array: Array, expected: Array) -> None:
 
 
 def test_minimize() -> None:
+    deprecation_msg = "This function is deprecated and will be removed"
+
     def fun(x: Array, a: Array, b: Array, c: Array) -> Array:
         return (x[..., 0] - a) ** 2.0 + (x[..., 1] - b) ** 2.0 + c
 
@@ -95,7 +97,8 @@ def test_minimize() -> None:
     a, b, c = jnp.meshgrid(a, b, c)
     x0 = jnp.zeros((*a.shape, 2))
 
-    got_x, got_loss = minimize(fun, x0, args=(a, b, c), steps=1000)
+    with pytest.warns(DeprecationWarning, match=deprecation_msg):
+        got_x, got_loss = minimize(fun, x0, args=(a, b, c))
 
     expected_x = jnp.stack((a, b), axis=-1)
 
@@ -104,15 +107,24 @@ def test_minimize() -> None:
     chex.assert_trees_all_close(got_x, expected_x)
     chex.assert_trees_all_close(got_loss, c)
 
-    with pytest.raises(
-        TypeError, match="Assertion assert_tree_has_only_ndarrays failed"
+    with (
+        pytest.raises(
+            TypeError, match="Assertion assert_tree_has_only_ndarrays failed"
+        ),
+        pytest.warns(DeprecationWarning, match=deprecation_msg),
     ):
         _ = minimize(fun, x0, args=(0.0, b, c))
 
-    with pytest.raises(TypeError, match="Assertion assert_tree_shape_prefix failed"):
+    with (
+        pytest.raises(TypeError, match="Assertion assert_tree_shape_prefix failed"),
+        pytest.warns(DeprecationWarning, match=deprecation_msg),
+    ):
         _ = minimize(fun, x0, args=(a[0, ...], b, c))
 
-    with pytest.raises(TypeError, match="missing 1 required positional argument"):
+    with (
+        pytest.raises(TypeError, match="missing 1 required positional argument"),
+        pytest.warns(DeprecationWarning, match=deprecation_msg),
+    ):
         _ = minimize(fun, x0, args=(a, b))
 
 

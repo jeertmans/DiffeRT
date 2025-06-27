@@ -290,6 +290,14 @@ def image_method(
         mirror_normals.shape[1:],
     )
 
+    if mirror_vertices.shape[0] == 0:
+        # If there are no mirrors, return empty array.
+        *batch, _ = batch_and_3
+        dtype = jnp.result_type(
+            from_vertices, to_vertices, mirror_vertices, mirror_normals
+        )
+        return jnp.empty((*batch, 0, 3), dtype=dtype)
+
     from_vertices = jnp.broadcast_to(from_vertices, batch_and_3)
     to_vertices = jnp.broadcast_to(to_vertices, batch_and_3)
 
@@ -419,6 +427,11 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     chex.assert_axis_dimension(
         vertices, -2, mirror_vertices.shape[-2] + 2, exception_type=TypeError
     )
+
+    if mirror_vertices.shape[-2] == 0:
+        # If there are no mirrors, return empty array.
+        dtype = bool if smoothing_factor is None else float
+        return jnp.empty(mirror_vertices.shape[:-1], dtype=dtype)
 
     # dot_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
 
