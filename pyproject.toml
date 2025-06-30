@@ -103,6 +103,7 @@ version = "{current_version}"'''
 
 [[tool.bumpversion.files]]
 filename = "uv.lock"
+ignore_missing_version = true  # lock file sometimes contains version, sometime not
 replace = '''name = "differt"
 version = "{new_version}"'''
 search = '''name = "differt"
@@ -110,6 +111,7 @@ version = "{current_version}"'''
 
 [[tool.bumpversion.files]]
 filename = "uv.lock"
+ignore_missing_version = true  # see above
 replace = '''name = "differt-core"
 version = "{new_version}"'''
 search = '''name = "differt-core"
@@ -124,11 +126,6 @@ search = "version: v{current_version}"
 filename = "CHANGELOG.md"
 replace = "v{new_version}"
 search = "Unreleased"
-
-[[tool.bumpversion.files]]
-filename = "CHANGELOG.md"
-replace = "v{new_version}"
-search = "unreleased"
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
