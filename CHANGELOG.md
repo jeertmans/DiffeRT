@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...HEAD)
+
+<!-- start changelog -->
+
+## [0.1.2](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...v0.1.2)
 
 ### Changed
 
@@ -28,8 +32,6 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Fixed {class}`ValueError` raised when using `parallel` mode in {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` with `jax>=0.6` by disabling it (see <gh-issue:280>). This is a *soft* **breaking change** as it will raise a warning (by <gh-user:jeertmans>, in <gh-pr:281>). Using JAX v0.6 (and above) is now allowed again.
-
-<!-- start changelog -->
 
 ## [0.1.1](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...v0.1.1)
 
