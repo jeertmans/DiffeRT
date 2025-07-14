@@ -91,9 +91,9 @@ def test_fermat_path_diffraction_keller_cone(num_dims: int) -> None:
         return
 
     paths = assemble_paths(
-        transmitters.reshape(1, 1, 3),
+        transmitters,
         paths,
-        receivers.reshape(-1, 1, 3),
+        receivers,
     )
     rays = normalize(jnp.diff(paths, axis=-2))[0]
     i = rays[..., 0, :]

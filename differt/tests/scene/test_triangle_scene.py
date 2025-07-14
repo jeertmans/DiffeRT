@@ -170,9 +170,9 @@ class TestTriangleScene:
     ) -> None:
         scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
-            scene.transmitters[None, :],
+            scene.transmitters,
             expected_path_vertices,
-            scene.receivers[None, :],
+            scene.receivers,
         )
 
         if assume_quads:
@@ -272,9 +272,9 @@ class TestTriangleScene:
     ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
-            scene.transmitters[None, :],
+            scene.transmitters,
             expected_path_vertices,
-            scene.receivers[None, :],
+            scene.receivers,
         )
 
         if assume_quads:
@@ -418,8 +418,8 @@ class TestTriangleScene:
             transmitters=transmitters, receivers=receivers
         ).set_assume_quads(assume_quads)
         expected_path_vertices = assemble_paths(
-            transmitters[:, None, None, None, :],
-            receivers[None, :, None, None, :],
+            transmitters[:, None, None, :],
+            receivers[None, :, None, :],
         )
 
         if parallel and parallel_disabled:

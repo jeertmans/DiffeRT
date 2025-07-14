@@ -140,9 +140,9 @@ def _compute_paths(  # noqa: C901, PLR0915
 
         # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
         full_paths = assemble_paths(
-            tx_vertices[:, None, None, None, :],
+            tx_vertices[:, None, None, :],
             paths,
-            rx_vertices[None, :, None, None, :],
+            rx_vertices[None, :, None, :],
         )
 
         # 3 - Identify invalid paths
@@ -514,9 +514,9 @@ def _compute_paths_sbr(
     # 4 - Generate output paths and reshape
 
     vertices = assemble_paths(
-        tx_vertices[:, None, None, None, :],
+        tx_vertices[:, None, None, :],
         vertices[:, None, ...],  # We already excluded last vertex
-        rx_vertices[None, :, None, None, :],  # And replace it with receiver vertices
+        rx_vertices[None, :, None, :],  # And replace it with receiver vertices
     )
 
     object_dtype = path_candidates.dtype

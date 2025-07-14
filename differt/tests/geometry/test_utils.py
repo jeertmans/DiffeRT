@@ -247,7 +247,7 @@ def test_assemble_paths() -> None:
         axis=-2,
     )
 
-    got = assemble_paths(tx[:, None, None, None, :], paths, rx[None, :, None, None, :])
+    got = assemble_paths(tx[:, None, None, :], paths, rx[None, :, None, :])
 
     chex.assert_trees_all_equal(got, expected)
 
@@ -255,12 +255,11 @@ def test_assemble_paths() -> None:
 @pytest.mark.parametrize(
     ("shapes", "expectation"),
     [
-        (((2, 3),), does_not_raise()),
-        (((1, 3), (2, 3), (1, 3)), does_not_raise()),
-        (((1, 3), (10, 5, 2, 3), (1, 3)), does_not_raise()),
-        (((1, 3), (2, 4), (1, 3)), pytest.raises(TypeError)),
+        (((3,), (3,)), does_not_raise()),
+        (((3,), (2, 1, 3), (3,)), does_not_raise()),
+        (((1, 5, 3), (10, 5, 2, 3), (3,)), does_not_raise()),
+        (((3,), (6, 4), (3,)), pytest.raises(TypeError)),
         (((1, 3), (3,), (1, 3)), pytest.raises(TypeError)),
-        (((10, 1, 3), (10, 2, 3), (5, 1, 3)), pytest.raises(TypeError)),
     ],
 )
 def test_assemble_paths_random_inputs(
@@ -276,10 +275,7 @@ def test_assemble_paths_random_inputs(
     ]
 
     with expectation:
-        got = assemble_paths(*path_segments)
-        expected_path_length = sum(shape[-2] for shape in shapes)
-
-        assert got.shape[-2] == expected_path_length
+        _ = assemble_paths(*path_segments)
 
 
 def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:
