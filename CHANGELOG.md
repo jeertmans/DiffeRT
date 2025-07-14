@@ -20,6 +20,12 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...HEAD)
 
+### Added
+
+- Added {attr}`TriangleMesh.mask<differt.geometry.TriangleMesh.mask>` attribute has been added to allow triangles to be selected using a mask instead of dropping the inactive ones. This is useful for generating multiple sub-meshes of a mesh without changing the memory allocated to each sub-mesh, thus enabling efficient stacking (by <gh-user:jeertmans>, in <gh-pr:287>).
+- Added a new `by_masking: bool = False` keyword-only parameter to {meth}`TriangleMesh.sample<differt.geometry.TriangleMesh.sample>` to allow sampling sub-meshes by setting the mask array, instead of dropping triangles (by <gh-user:jeertmans>, in <gh-pr:287>).
+- Added a new optional `active_triangles: Array | None = None` parameter to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, `triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and `first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` (by <gh-user:jeertmans>, in <gh-pr:287>).
+
 <!-- start changelog -->
 
 ## [0.1.2](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...v0.1.2)

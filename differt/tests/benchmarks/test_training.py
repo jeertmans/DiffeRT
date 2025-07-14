@@ -30,17 +30,17 @@ def random_tx_rx(
     )
 
 
+@eqx.filter_jit
 def random_scene(
     base_scene: TriangleScene, num_tx: int = 4, num_rx: int = 8, *, key: PRNGKeyArray
 ) -> TriangleScene:
     key_tx_rx, key_num_objects, key_sample_triangles = jax.random.split(key, 3)
     scene = random_tx_rx(base_scene, num_tx, num_rx, key=key_tx_rx)
-    num_objects = scene.mesh.num_objects
-    num_objects = jax.random.randint(key_num_objects, (), 0, num_objects + 1)
+    fill_factor = jax.random.uniform(key_num_objects, ())
     return eqx.tree_at(
         lambda s: s.mesh,
         scene,
-        scene.mesh.sample(int(num_objects), key=key_sample_triangles),
+        scene.mesh.sample(fill_factor, by_masking=True, key=key_sample_triangles),
     )
 
 

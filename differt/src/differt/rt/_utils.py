@@ -351,6 +351,7 @@ def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: None = None,
@@ -363,6 +364,7 @@ def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "],
@@ -375,6 +377,7 @@ def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
     hit_tol: Float[ArrayLike, " "] | None = None,
     smoothing_factor: Float[ArrayLike, " "] | None = None,
@@ -395,6 +398,10 @@ def rays_intersect_any_triangle(
         ray_directions: An array of ray direction. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
+        active_triangles: An optional array of boolean values indicating
+            which triangles are active, i.e., should be considered for intersection.
+
+            If not specified, all triangles are considered active.
         hit_tol: The tolerance applied to check if a ray hits another object or not,
             before it reaches the expected position, i.e., the 'interaction' object.
 
@@ -427,6 +434,11 @@ def rays_intersect_any_triangle(
 
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+    active_triangles = (
+        jnp.moveaxis(active_triangles, -1, 0)
+        if active_triangles is not None
+        else jnp.ones(triangle_vertices.shape[:-2], dtype=bool)
+    )
 
     batch = jnp.broadcast_shapes(
         ray_origins.shape[:-1],
@@ -438,8 +450,11 @@ def rays_intersect_any_triangle(
 
         def scan_fun(
             intersect: Float[Array, " *batch"],
-            triangle_vertices: Float[Array, "*#batch 3 3"],
+            triangle_vertices_and_active: tuple[
+                Float[Array, "*#batch 3 3"], Bool[Array, "*#batch"] | None
+            ],
         ) -> tuple[Float[Array, " *batch"], None]:
+            triangle_vertices, active_triangles = triangle_vertices_and_active
             t, hit = rays_intersect_triangles(
                 ray_origins,
                 ray_directions,
@@ -447,6 +462,7 @@ def rays_intersect_any_triangle(
                 smoothing_factor=smoothing_factor,
                 **kwargs,
             )
+            hit *= active_triangles
             intersect = (
                 intersect
                 + jnp.minimum(
@@ -461,15 +477,18 @@ def rays_intersect_any_triangle(
 
         def scan_fun(
             intersect: Bool[Array, " *batch"],
-            triangle_vertices: Float[Array, "*#batch 3 3"],
+            triangle_vertices_and_active: tuple[
+                Float[Array, "*#batch 3 3"], Bool[Array, "*#batch"] | None
+            ],
         ) -> tuple[Bool[Array, " *batch"], None]:
+            triangle_vertices, active_triangles = triangle_vertices_and_active
             t, hit = rays_intersect_triangles(
                 ray_origins,
                 ray_directions,
                 triangle_vertices,
                 **kwargs,
             )
-            intersect |= (t < hit_threshold) & hit
+            intersect |= (t < hit_threshold) & hit & active_triangles
             return intersect, None
 
     init = (
@@ -481,7 +500,7 @@ def rays_intersect_any_triangle(
     return jax.lax.scan(
         scan_fun,
         init=init,
-        xs=triangle_vertices,
+        xs=(triangle_vertices, active_triangles),
     )[0]
 
 
@@ -489,6 +508,7 @@ def rays_intersect_any_triangle(
 def triangles_visible_from_vertices(
     vertices: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     num_rays: int = int(1e6),
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
@@ -509,6 +529,10 @@ def triangles_visible_from_vertices(
 
             Usually, this would be an array of transmitter positions.
         triangle_vertices: An array of triangle vertices.
+        active_triangles: An optional array of boolean values indicating
+            which triangles are active, i.e., should be considered for intersection.
+
+            If not specified, all triangles are considered active.
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
@@ -561,6 +585,8 @@ def triangles_visible_from_vertices(
 
     # [2 3]
     # note: currently we don't handle batches and generate one frustum for everything
+    # TODO: compute frustum for each batch
+    # TODO: handle 'active_triangles'
     frustum = viewing_frustum(
         ray_origins,
         triangle_vertices.reshape(*triangle_vertices.shape[:-3], -1, 3),
@@ -584,7 +610,14 @@ def triangles_visible_from_vertices(
         )
         # A triangle is visible if it is the first triangle to be intersected by a ray.
         visible = visible | (
-            t == jnp.min(t, axis=-1, keepdims=True, initial=jnp.inf, where=hit)
+            t
+            == jnp.min(
+                t,
+                axis=-1,
+                keepdims=True,
+                initial=jnp.inf,
+                where=(hit & active_triangles if active_triangles is not None else hit),
+            )
         )
 
         return visible, None
@@ -601,6 +634,7 @@ def first_triangles_hit_by_rays(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     **kwargs: Any,
 ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
     """
@@ -615,6 +649,10 @@ def first_triangles_hit_by_rays(
         ray_directions: An array of ray direction. The ray ends
             should be equal to ``ray_origins + ray_directions``.
         triangle_vertices: An array of triangle vertices.
+        active_triangles: An optional array of boolean values indicating
+            which triangles are active, i.e., should be considered for intersection.
+
+            If not specified, all triangles are considered active.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -630,6 +668,11 @@ def first_triangles_hit_by_rays(
 
     # Put 'num_triangles' axis as leading axis
     triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
+    active_triangles = (
+        jnp.moveaxis(active_triangles, -1, 0)
+        if active_triangles is not None
+        else jnp.ones(triangle_vertices.shape[:-2], dtype=bool)
+    )
 
     batch = jnp.broadcast_shapes(
         ray_origins.shape[:-1],
@@ -639,18 +682,21 @@ def first_triangles_hit_by_rays(
 
     def scan_fun(
         carry: tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]],
-        triangle_vertices: Float[Array, "*#batch 3 3"],
+        triangle_vertices_and_active: tuple[
+            Float[Array, "*#batch 3 3"], Bool[Array, "*#batch"] | None
+        ],
     ) -> tuple[
         tuple[Int[Array, " *batch"], Float[Array, "*batch"], Int[Array, " "]], None
     ]:
         indices, t_hit, index = carry
+        triangle_vertices, active_triangles = triangle_vertices_and_active
         t, hit = rays_intersect_triangles(
             ray_origins,
             ray_directions,
             triangle_vertices,
             **kwargs,
         )
-        t = jnp.where(hit, t, jnp.full_like(t, jnp.inf))
+        t = jnp.where((hit & active_triangles), t, jnp.full_like(t, jnp.inf))
         indices = jnp.where(t < t_hit, index, indices)
         t_hit = jnp.minimum(t, t_hit)
         return (indices, t_hit, index + 1), None
@@ -658,5 +704,5 @@ def first_triangles_hit_by_rays(
     return jax.lax.scan(
         scan_fun,
         init=(-jnp.ones(batch, dtype=int), jnp.full(batch, jnp.inf), jnp.array(0)),
-        xs=triangle_vertices,
+        xs=(triangle_vertices, active_triangles),
     )[0][:2]

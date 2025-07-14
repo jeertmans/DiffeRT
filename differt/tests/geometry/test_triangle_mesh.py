@@ -406,6 +406,14 @@ class TestTriangleMesh:
         "other_colors",
         [False, True],
     )
+    @pytest.mark.parametrize(
+        "self_mask",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_mask",
+        [False, True],
+    )
     def test_append(
         self,
         self_empty: bool,
@@ -414,6 +422,8 @@ class TestTriangleMesh:
         other_assume_quads: bool,
         self_colors: bool,
         other_colors: bool,
+        self_mask: bool,
+        other_mask: bool,
         two_buildings_mesh: TriangleMesh,
         key: PRNGKeyArray,
     ) -> None:
@@ -431,6 +441,22 @@ class TestTriangleMesh:
             s = s.set_face_colors(key=key_s)  # type: ignore[reportCallIssue]
         if other_colors and not other_empty:
             o = o.set_face_colors(key=key_o)  # type: ignore[reportCallIssue]
+
+        if self_mask and not self_empty:
+            s = eqx.tree_at(
+                lambda m: m.mask,
+                s,
+                jnp.ones(s.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
+
+        if other_mask and not other_empty:
+            o = eqx.tree_at(
+                lambda m: m.mask,
+                o,
+                jnp.ones(o.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
 
         mesh = s + o
 
@@ -451,6 +477,11 @@ class TestTriangleMesh:
             assert mesh.face_colors is not None
         else:
             assert mesh.face_colors is None
+
+        if (self_mask and not self_empty) or (other_mask and not other_empty):
+            assert mesh.mask is not None
+        else:
+            assert mesh.mask is None
 
         chex.assert_trees_all_equal(mesh, s.append(o))
 
@@ -630,7 +661,7 @@ class TestTriangleMesh:
         assert two_buildings_mesh.sample(10, key=key).num_triangles == 10
 
         with pytest.raises(ValueError, match="Cannot take a larger sample"):
-            assert two_buildings_mesh.sample(30, key=key)
+            two_buildings_mesh.sample(30, key=key)
 
         assert two_buildings_mesh.sample(30, replace=True, key=key).num_triangles == 30
 
@@ -646,3 +677,52 @@ class TestTriangleMesh:
         assert two_buildings_mesh.sample(
             13, key=key, preserve=True
         ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+
+        with pytest.raises(
+            TypeError, match="'size' must be an integer when 'by_masking' is False"
+        ):
+            two_buildings_mesh.sample(0.5, key=key)
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot sample with replacement when 'by_masking' is True",
+        ):
+            two_buildings_mesh.sample(10, replace=True, by_masking=True, key=key)
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot preserve 'object_bounds' when 'by_masking' is True",
+        ):
+            two_buildings_mesh.sample(0.5, preserve=True, by_masking=True, key=key)
+
+        assert two_buildings_mesh.mask is None
+        # Sampling creates a mask when by_masking=True
+        assert two_buildings_mesh.sample(0.5, by_masking=True, key=key).mask is not None
+        # Sampling works with quads when by_masking=True
+        assert (
+            two_buildings_mesh.set_assume_quads()
+            .sample(0.5, by_masking=True, key=key)
+            .mask
+            is not None
+        )
+        # Sampling preserves mask when by_masking=False
+        assert (
+            two_buildings_mesh.sample(10, by_masking=True, key=key)
+            .sample(10, key=key)
+            .mask
+            is not None
+        )
+
+        assert (
+            two_buildings_mesh.sample(5, by_masking=True, key=key)
+            .masked()
+            .num_triangles
+            == 5
+        )
+        assert (
+            two_buildings_mesh.set_assume_quads()
+            .sample(5, by_masking=True, key=key)
+            .masked()
+            .num_triangles
+            == 10
+        )
