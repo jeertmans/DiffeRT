@@ -127,12 +127,12 @@ myst_url_schemes = {
     "wiki": "https://en.wikipedia.org/wiki/{{path}}#{{fragment}}",
     "doi": "https://doi.org/{{path}}",
     "gh-pr": {
-        "url": "https://github.com/executablebooks/MyST-Parser/pull/{{path}}#{{fragment}}",
+        "url": "https://github.com/jeertmans/DiffeRT/pull/{{path}}#{{fragment}}",
         "title": "PR #{{path}}",
         "classes": ["github"],
     },
     "gh-issue": {
-        "url": "https://github.com/executablebooks/MyST-Parser/issue/{{path}}#{{fragment}}",
+        "url": "https://github.com/jeertmans/DiffeRT/issues/{{path}}#{{fragment}}",
         "title": "Issue #{{path}}",
         "classes": ["github"],
     },
