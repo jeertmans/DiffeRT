@@ -61,7 +61,7 @@ devices:
 [group('dev')]
 [working-directory('differt-core')]
 hook-install:
-    uv run python -m maturin_import_hook site install --detect-uv
+    uv run python -m maturin_import_hook site install
 
 # Uninstall marutin import hook
 [group('dev')]
