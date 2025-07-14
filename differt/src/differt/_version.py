@@ -1,6 +1,6 @@
-from differt_core import __version__  # Re-export version from code module
+from differt_core import (  # Re-export version from core module
+    __version__,
+    __version_info__,
+)
 
-__all__ = ("VERSION",)
-
-VERSION: str = __version__
-"""The current version of this module."""
+__all__ = ("__version__", "__version_info__")
