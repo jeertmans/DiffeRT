@@ -1,6 +1,8 @@
 """Differentiable Ray Tracing Toolbox for Radio Propagation."""
 
-from ._version import VERSION
+from ._version import __version__, __version_info__
 
-__version__ = VERSION
-__all__ = ("VERSION",)
+__all__ = (
+    "__version__",
+    "__version_info__",
+)
