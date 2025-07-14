@@ -235,6 +235,20 @@ class TriangleMesh(eqx.Module):
     :attr:`num_triangles` is even, but each two consecutive
     triangles are assumed to represent a quadrilateral surface.
     """
+    mask: Bool[Array, " num_triangles"] | None = eqx.field(
+        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+    )
+    """An optional mask to indicate which triangles are active.
+
+    Using a mask allows to represent multiple sub-meshes of a single mesh, without changing
+    the memory allocated to each sub-mesh. Masks can be conveniently created using the
+    :meth:`sample` method by passing ``by_masking=True``.
+
+    .. important::
+
+        Unless specified, the transformation or selection operations, like :meth:`rotate`,
+        will not take the mask into account, and will apply to all triangles.
+    """
 
     def __check_init__(self) -> None:  # noqa: PLW3201
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
@@ -265,6 +279,7 @@ class TriangleMesh(eqx.Module):
                 m.face_colors,
                 m.face_materials,
                 m.object_bounds,
+                m.mask,
             ),
             self,
             (
@@ -273,6 +288,7 @@ class TriangleMesh(eqx.Module):
                 self.face_colors[key, :] if self.face_colors is not None else None,
                 self.face_materials[key] if self.face_materials is not None else None,
                 None,
+                self.mask[key] if self.mask is not None else None,
             ),
             is_leaf=lambda x: x is None,
         )
@@ -297,6 +313,7 @@ class TriangleMesh(eqx.Module):
                         m.face_colors,
                         m.face_materials,
                         m.object_bounds,
+                        m.mask,
                     ),
                     self,
                     (
@@ -309,6 +326,7 @@ class TriangleMesh(eqx.Module):
                         if self.face_materials is not None
                         else None,
                         jnp.array([[0, stop - start]]),
+                        self.mask[start:stop] if self.mask is not None else None,
                     ),
                     is_leaf=lambda x: x is None,
                 )
@@ -441,12 +459,22 @@ class TriangleMesh(eqx.Module):
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
-        """The bounding box (min. and max. coordinates)."""
+        """The bounding box (min. and max. coordinates).
+
+        .. important::
+
+            Setting :attr:`mask` will have an effect on the bounding box,
+            as the bounding box is computed only for the active triangles.
+        """
         # Using self.triangle_vertices is important because, e.g., as a result of using
         # __getitem__, some vertices in 'self.vertices' may no longer be used by this mesh.
         vertices = self.triangle_vertices.reshape(-1, 3)
+        where = jnp.repeat(self.mask, 3)[:, None] if self.mask is not None else None
         return jnp.vstack(
-            (jnp.min(vertices, axis=0), jnp.max(vertices, axis=0)),
+            (
+                jnp.min(vertices, axis=0, initial=+jnp.inf, where=where),
+                jnp.max(vertices, axis=0, initial=-jnp.inf, where=where),
+            ),
         )
 
     @property
@@ -539,6 +567,43 @@ class TriangleMesh(eqx.Module):
         """
         return _TriangleMeshVerticesUpdateHelper(self)
 
+    def masked(self) -> Self:
+        """Return a pruned copy of this object that only keeps masked (i.e., active) triangles.
+
+        .. important::
+            This method does not preserve the :attr:`object_bounds` attribute.
+
+        Returns:
+            A new paths instance with flattened batch dimensions and only valid paths.
+        """
+        if self.mask is None:
+            return jax.tree.map(lambda m: m, self)
+
+        return eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.object_bounds,
+                m.mask,
+            ),
+            self,
+            (
+                self.vertices,
+                self.triangles[self.mask, :],
+                self.face_colors[self.mask, :]
+                if self.face_colors is not None
+                else None,
+                self.face_materials[self.mask]
+                if self.face_materials is not None
+                else None,
+                None,
+                None,
+            ),
+            is_leaf=lambda x: x is None,
+        )
+
     def rotate(self, rotation_matrix: Float[ArrayLike, "3 3"]) -> Self:
         """
         Return a new mesh by applying a rotation matrix to all triangle coordinates.
@@ -597,7 +662,7 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    def append(self, other: "TriangleMesh") -> Self:
+    def append(self, other: "TriangleMesh") -> Self:  # noqa: C901, PLR0912
         """
         Return a new mesh by appending another mesh to this one.
 
@@ -620,6 +685,8 @@ class TriangleMesh(eqx.Module):
             * The material names are merged, keeping only unique names;
             * The object bounds are concatenated only if both meshes have them set,
               otherwise, the object bounds are set to :data:`None`;
+            * The masks are concatenated if present in both meshes. If one mesh has a mask while the other does not,
+              then the mesh with no mask will have its mask set to all triangles being active (i.e., :data:`True`).
             * The :attr:`assume_quads` flag is set to :data:`True` if both meshes have it set to :data:`True`.
 
             Two important exceptions are:
@@ -734,6 +801,25 @@ class TriangleMesh(eqx.Module):
             if (self.object_bounds is not None and other.object_bounds is not None)
             else None
         )
+
+        if self.mask is not None and other.mask is not None:
+            mask = jnp.concatenate((self.mask, other.mask), axis=0)
+        elif self.mask is not None:
+            mask = jnp.concatenate(
+                (self.mask, jnp.ones_like(self.mask, shape=(other.num_triangles,))),
+                axis=0,
+            )
+        elif other.mask is not None:
+            mask = jnp.concatenate(
+                (
+                    jnp.ones_like(other.mask, shape=(self.num_triangles,)),
+                    other.mask,
+                ),
+                axis=0,
+            )
+        else:
+            mask = None
+
         assume_quads = self.assume_quads and other.assume_quads
         mesh = replace(self, material_names=material_names, assume_quads=assume_quads)
         return eqx.tree_at(
@@ -743,9 +829,10 @@ class TriangleMesh(eqx.Module):
                 m.face_colors,
                 m.face_materials,
                 m.object_bounds,
+                m.mask,
             ),
             mesh,
-            (vertices, triangles, face_colors, face_materials, object_bounds),
+            (vertices, triangles, face_colors, face_materials, object_bounds, mask),
             is_leaf=lambda x: x is None,
         )
 
@@ -761,6 +848,7 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new mesh with duplicate vertices removed.
         """
+        # TODO: handle mask
         vertices, unique_inverse = jnp.unique(
             self.vertices, axis=0, return_inverse=True
         )
@@ -817,6 +905,7 @@ class TriangleMesh(eqx.Module):
                 >>> fig = sorted_mesh.plot(opacity=0.5, backend="plotly")
                 >>> fig  # doctest: +SKIP
         """
+        # TODO: handle mask
         indices = jnp.lexsort(self.vertices.T[::-1])
         vertices = self.vertices[indices]
         triangles = jnp.argsort(indices)[self.triangles]
@@ -1383,8 +1472,9 @@ class TriangleMesh(eqx.Module):
                 ... )
                 >>> fig  # doctest: +SKIP
         """
-        if "face_colors" not in kwargs and self.face_colors is not None:
-            kwargs["face_colors"] = self.face_colors
+        mesh = self.masked()
+        if "face_colors" not in kwargs and mesh.face_colors is not None:
+            kwargs["face_colors"] = mesh.face_colors
 
         normals_kwargs = {} if normals_kwargs is None else normals_kwargs
         triangle_edges_kwargs = (
@@ -1396,26 +1486,26 @@ class TriangleMesh(eqx.Module):
 
         with reuse(pass_all_kwargs=False, **kwargs) as result:
             draw_mesh(
-                vertices=self.vertices,
-                triangles=self.triangles,
+                vertices=mesh.vertices,
+                triangles=mesh.triangles,
                 **kwargs,
             )
 
             if show_normals:
                 draw_rays(
-                    self.triangle_vertices.mean(axis=-2),
-                    self.normals,
+                    mesh.triangle_vertices.mean(axis=-2),
+                    mesh.normals,
                     **normals_kwargs,
                 )
 
             if show_triangle_edges:
                 draw_paths(
-                    self.triangle_edges,
+                    mesh.triangle_edges,
                     **triangle_edges_kwargs,
                 )
             if show_diffraction_edges:
                 draw_paths(
-                    self.diffraction_edges,
+                    mesh.diffraction_edges,
                     **diffraction_edges_kwargs,
                 )
 
@@ -1423,10 +1513,11 @@ class TriangleMesh(eqx.Module):
 
     def sample(
         self,
-        size: int,
+        size: int | Float[ArrayLike, " "],
         replace: bool = False,
         preserve: bool = False,
         *,
+        by_masking: bool = False,
         key: PRNGKeyArray,
     ) -> Self:
         """
@@ -1438,7 +1529,13 @@ class TriangleMesh(eqx.Module):
 
         Args:
             size: The size of the sample, i.e., the number of triangles.
+
+                If a floating point number is provided, it is interpreted as a fill factor,
+                i.e., the fraction of triangles to sample from the mesh. This is only supported
+                if ``by_masking`` is set to :data:`True`.
             replace: Whether to sample with or without replacement.
+
+                Cannot be used with ``by_masking`` set to :data:`True`.
             preserve: Whether to preserve :attr:`object_bounds`, otherwise
                 it is discarded.
 
@@ -1447,17 +1544,53 @@ class TriangleMesh(eqx.Module):
 
                 Setting this to :data:`True` has no effect if :attr:`object_bounds`
                 is :data:`None`.
+
+                Cannot be used with ``by_masking`` set to :data:`True`.
+            by_masking: Whether to sample by masking the triangles.
+                If :data:`True`, then the :attr:`mask` attribute set (ignoring any existing mask).
             key: The :func:`jax.random.key` to be used.
 
         Returns:
             A new random mesh.
+
+        Raises:
+            TypeError: If ``by_masking`` is :data:`False` and ``size`` is not an integer.
+            ValueError: If ``by_masking`` is :data:`True` and ``replace`` or ``preserve`` are set to :data:`True`.
         """
-        indices = jax.random.choice(
-            key,
-            self.num_objects,
-            shape=(size,),
-            replace=replace,
-        )
+        if by_masking:
+            if replace:
+                msg = "Cannot sample with replacement when 'by_masking' is True."
+                raise ValueError(msg)
+            if preserve:
+                msg = "Cannot preserve 'object_bounds' when 'by_masking' is True."
+                raise ValueError(msg)
+            if isinstance(size, int):
+                mask = jnp.zeros(self.num_objects, dtype=bool)
+                mask = mask.at[:size].set(True)
+                mask = jax.random.permutation(key, mask)
+            else:
+                mask = jax.random.uniform(key, (self.num_objects,)) <= size
+
+            if self.assume_quads:
+                mask = jnp.repeat(mask, 2)
+
+            return eqx.tree_at(
+                lambda m: (m.object_bounds, m.mask),
+                self,
+                (None, mask),
+                is_leaf=lambda x: x is None,
+            )
+
+        if isinstance(size, int):
+            indices = jax.random.choice(
+                key,
+                self.num_objects,
+                shape=(size,),
+                replace=replace,
+            )
+        else:
+            msg = "'size' must be an integer when 'by_masking' is False."
+            raise TypeError(msg)
 
         if self.assume_quads:
             indices *= 2
@@ -1484,6 +1617,7 @@ class TriangleMesh(eqx.Module):
                 m.face_colors,
                 m.face_materials,
                 m.object_bounds,
+                m.mask,
             ),
             self,
             (
@@ -1494,6 +1628,7 @@ class TriangleMesh(eqx.Module):
                 if self.face_materials is not None
                 else None,
                 object_bounds,
+                self.mask[indices] if self.mask is not None else None,
             ),
             is_leaf=lambda x: x is None,
         )

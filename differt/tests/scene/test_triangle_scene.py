@@ -147,6 +147,7 @@ class TestTriangleScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
+    @pytest.mark.parametrize("mesh_mask", [False, True])
     @pytest.mark.parametrize(
         "method",
         [
@@ -163,6 +164,7 @@ class TestTriangleScene:
         expected_path_vertices: Array,
         expected_objects: Array,
         assume_quads: bool,
+        mesh_mask: bool,
         method: Literal["exhaustive", "sbr", "hybrid"],
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
@@ -175,6 +177,14 @@ class TestTriangleScene:
 
         if assume_quads:
             expected_objects -= expected_objects % 2
+
+        if mesh_mask:
+            scene = eqx.tree_at(
+                lambda s: s.mesh.mask,
+                scene,
+                jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
 
         got = scene.compute_paths(order, method=method, max_dist=1e-1)
 
@@ -295,15 +305,25 @@ class TestTriangleScene:
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("chunk_size", [None, 1000])
     @pytest.mark.parametrize("assume_quads", [False, True])
+    @pytest.mark.parametrize("mesh_mask", [False, True])
     def test_compute_paths_with_smoothing(
         self,
         order: int | None,
         chunk_size: int | None,
         assume_quads: bool,
+        mesh_mask: bool,
         simple_street_canyon_scene: TriangleScene,
     ) -> None:
         # TODO: fixme
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
+
+        if mesh_mask:
+            scene = eqx.tree_at(
+                lambda s: s.mesh.mask,
+                scene,
+                jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
 
         expected = scene.compute_paths(
             order=order,

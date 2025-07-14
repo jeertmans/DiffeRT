@@ -85,6 +85,13 @@ def _compute_paths(  # noqa: C901, PLR0915
         num_path_candidates, order, 3, 3
     )  # reshape required if mesh is empty
 
+    if mesh.mask is not None:
+        # For a ray to be active, it must hit triangles that are not masked out (i.e, inactive).
+        # [num_path_candidates]  # noqa: ERA001
+        active_rays = jnp.take(mesh.mask, path_candidates, axis=0).all(axis=-1)
+    else:
+        active_rays = None
+
     if mesh.assume_quads:
         # [num_path_candidates order 2 3]
         quads = jnp.take(
@@ -110,7 +117,7 @@ def _compute_paths(  # noqa: C901, PLR0915
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    def fun(
+    def fun(  # noqa: PLR0912
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
@@ -213,6 +220,7 @@ def _compute_paths(  # noqa: C901, PLR0915
                 ray_origins,
                 ray_directions,
                 mesh.triangle_vertices,
+                active_triangles=mesh.mask,
                 epsilon=epsilon,
                 hit_tol=hit_tol,
                 smoothing_factor=smoothing_factor,
@@ -222,6 +230,7 @@ def _compute_paths(  # noqa: C901, PLR0915
                 ray_origins,
                 ray_directions,
                 mesh.triangle_vertices,
+                active_triangles=mesh.mask,
                 epsilon=epsilon,
                 hit_tol=hit_tol,
             ).any(axis=-1)  # Reduce on 'order'
@@ -256,8 +265,12 @@ def _compute_paths(  # noqa: C901, PLR0915
                 ),
                 axis=-1,
             ).min(axis=-1, initial=1.0)
+            if active_rays is not None:
+                confidence *= active_rays
             return full_paths, confidence
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
+        if active_rays is not None:
+            mask &= active_rays
         return full_paths, mask
 
     if parallel:
@@ -352,6 +365,7 @@ def _compute_paths_sbr(
     )
 
     # [num_tx_vertices 2 3]
+    # TODO: handle mesh.mask
     frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
 
     # [num_tx_vertices num_rays 2 3]
@@ -397,6 +411,7 @@ def _compute_paths_sbr(
             ray_origins,
             ray_directions,
             triangle_vertices,
+            active_triangles=mesh.mask,
             epsilon=epsilon,
         )
 
