@@ -544,7 +544,7 @@ def _(
 
     xs, ys, zs = np.asarray(markers).reshape(-1, 3).T
 
-    ax.scatter(xs, ys, zs=zs, **kwargs)  # type: ignore[reportArgumentType]
+    ax.scatter(xs, ys, zs=zs, **kwargs)
 
     return fig
 

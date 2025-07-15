@@ -1,23 +1,15 @@
 """General purpose utilities."""
 
-import warnings
-from collections.abc import Callable
 from functools import partial
 from typing import (
-    Any,
-    Concatenate,
     Literal,
-    NamedTuple,
-    ParamSpec,
     overload,
 )
 
-import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import optax
-from jaxtyping import Array, ArrayLike, Float, Inexact, Num, PRNGKeyArray, Shaped
+from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray, Shaped
 
 
 @overload
@@ -136,129 +128,6 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
         return array
 
     return array[jnp.lexsort(array.T[::-1])]
-
-
-# Redefined here, because chex uses deprecated type hints
-# TODO: fixme when google/chex#361 is resolved.
-# TODO: changme because beartype>=0.20 complains that it cannot import ArrayTree,
-# and I don't see how to fix it.
-OptState = Any
-# TODO: fixme when Python >= 3.11
-P = ParamSpec("P")
-
-
-class OptimizeResult(NamedTuple):
-    """
-    A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`.
-
-    .. deprecated:: 0.1.2
-        This class is deprecated and will be removed in the v0.3.0 release.
-        See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
-        and alternatives.
-    """
-
-    x: Inexact[Array, "*batch n"]
-    """The solution of the optimization."""
-    fun: Inexact[Array, " *batch"]
-    """Value of objective function at :attr:`x`."""
-
-
-@eqx.filter_jit
-def minimize(
-    fun: Callable[Concatenate[Inexact[Array, " n"], P], Inexact[Array, " "]],
-    x0: Inexact[ArrayLike, "*batch n"],
-    args: tuple[Any, ...] = (),
-    steps: int = 1000,
-    optimizer: optax.GradientTransformation | None = None,
-) -> OptimizeResult:
-    """
-    Minimize a scalar function of one or more variables.
-
-    .. deprecated:: 0.1.2
-        This function is deprecated and will be removed in the v0.3.0 release.
-        See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
-        and alternatives.
-
-    The minimization is achieved by computing the
-    gradient of the objective function, and performing
-    a fixed number of iterations  (i.e., ``steps``).
-
-    Args:
-        fun: The objective function to be minimized.
-        x0: The initial guess.
-        args: Positional arguments passed to ``fun``.
-
-            Those arguments are also expected have
-            batch dimensions similar to ``x0``.
-
-            .. note::
-
-                If your function has static arguments,
-                please wrap the function with :func:`functools.partial`:
-
-                .. code-block:: python
-
-                    fun_p = partial(fun, static_arg=static_value)
-
-                If your function has keyword-only
-                arguments, create a wrapper function that
-                maps positional arguments to keyword only arguments:
-
-                .. code-block:: python
-
-                    fun_p = lambda x, kw_only_value: fun(x, kw_only_arg=kw_only_value)
-
-        steps: The number of steps to perform.
-        optimizer: The optimizer to use. If not provided,
-            uses :func:`optax.adam` with a learning rate of ``0.1``.
-
-    Returns:
-        The optimization result.
-    """
-    msg = (
-        "This function is deprecated and will be removed in the v0.3.0 release. "
-        "See https://github.com/jeertmans/DiffeRT/issues/283 for motivation and alternatives."
-    )
-    warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
-
-    x0 = jnp.asarray(x0)
-    if x0.ndim > 1 and args:
-        chex.assert_tree_has_only_ndarrays(args, exception_type=TypeError)
-
-        def shape_str(arr_or_shape: Array | tuple[int, ...]) -> str:
-            if isinstance(arr_or_shape, tuple):
-                shape = arr_or_shape
-            else:
-                shape = arr_or_shape.shape
-            return str(shape).replace(" ", "")
-
-        msg = f"{shape_str(x0.shape[:-1])} is expected to be the shape prefix of all arguments, got {', '.join(shape_str(arr) for arr in args)}."
-        chex.assert_tree_shape_prefix(
-            args,
-            x0.shape[:-1],
-            exception_type=TypeError,
-            custom_message=msg,
-        )
-
-    optimizer = optax.adam(learning_rate=0.1) if optimizer is None else optimizer
-
-    f_and_df = jax.value_and_grad(fun)
-    for _ in x0.shape[:-1]:
-        f_and_df = jax.vmap(f_and_df)
-
-    def update(
-        state: tuple[Inexact[Array, " *batch n"], OptState],
-        _: None,
-    ) -> tuple[tuple[Inexact[Array, " *batch n"], OptState], Inexact[Array, " *batch"]]:
-        x, opt_state = state
-        loss, grads = f_and_df(x, *args)
-        updates, opt_state = optimizer.update(grads, opt_state, x)
-        x = optax.apply_updates(x, updates)
-        return (x, opt_state), loss  # type: ignore[reportReturnType]
-
-    (x, _), losses = jax.lax.scan(update, init=(x0, optimizer.init(x0)), length=steps)
-
-    return OptimizeResult(x, losses[-1])
 
 
 @partial(jax.jit, static_argnames=("shape",))

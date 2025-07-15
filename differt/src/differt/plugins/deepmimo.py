@@ -171,7 +171,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         """
         return jax.tree.map(jnp.asarray, self)
 
-    def numpy(self) -> "DeepMIMO[np.ndarray]":
+    def numpy(self) -> "DeepMIMO[np.ndarray]":  # type: ignore[reportMissingTypeArgument]
         """
         Return a copy of this class with arrays converted to NumPy arrays.
 
