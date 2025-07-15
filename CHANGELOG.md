@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...HEAD)
 
+### Removed
+
+- Removed `differt.utils.minimize`, see <gh-pr:283>, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:291>).
+
 <!-- start changelog -->
 
 ## [0.2.0](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...v0.2.0)
@@ -43,7 +47,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Deprecated {func}`minimize<differt.utils.minimize>` in favor of specialized implementations, see <gh-pr:283> for motivation and migration information (by <gh-user:jeertmans>, in <gh-pr:283>).
+- Deprecated `differt.utils.minimize` in favor of specialized implementations, see <gh-pr:283> for motivation and migration information (by <gh-user:jeertmans>, in <gh-pr:283>).
 - Changed the default `optimizer` used by {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to be {func}`optax.lbfgs` (by <gh-user:jeertmans>, in <gh-pr:272>).
 
 ### Fixed

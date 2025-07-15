@@ -6,7 +6,6 @@ from jaxtyping import Array, PRNGKeyArray
 
 from differt.utils import (
     dot,
-    minimize,
     safe_divide,
     sample_points_in_bounding_box,
     smoothing_function,
@@ -82,50 +81,6 @@ def test_sorted_array2(array: Array, expected: Array) -> None:
     got = sorted_array2(array)
 
     chex.assert_trees_all_close(got, expected)
-
-
-def test_minimize() -> None:
-    deprecation_msg = "This function is deprecated and will be removed"
-
-    def fun(x: Array, a: Array, b: Array, c: Array) -> Array:
-        return (x[..., 0] - a) ** 2.0 + (x[..., 1] - b) ** 2.0 + c
-
-    a = jnp.array([0.0, 1.0, 2.0])
-    b = jnp.array([3.0, 4.0, 5.0, 6.0])
-    c = jnp.array([7.0, 8.0])
-
-    a, b, c = jnp.meshgrid(a, b, c)
-    x0 = jnp.zeros((*a.shape, 2))
-
-    with pytest.warns(DeprecationWarning, match=deprecation_msg):
-        got_x, got_loss = minimize(fun, x0, args=(a, b, c))
-
-    expected_x = jnp.stack((a, b), axis=-1)
-
-    chex.assert_trees_all_close(fun(expected_x, a, b, c), c)
-
-    chex.assert_trees_all_close(got_x, expected_x)
-    chex.assert_trees_all_close(got_loss, c)
-
-    with (
-        pytest.raises(
-            TypeError, match="Assertion assert_tree_has_only_ndarrays failed"
-        ),
-        pytest.warns(DeprecationWarning, match=deprecation_msg),
-    ):
-        _ = minimize(fun, x0, args=(0.0, b, c))
-
-    with (
-        pytest.raises(TypeError, match="Assertion assert_tree_shape_prefix failed"),
-        pytest.warns(DeprecationWarning, match=deprecation_msg),
-    ):
-        _ = minimize(fun, x0, args=(a[0, ...], b, c))
-
-    with (
-        pytest.raises(TypeError, match="missing 1 required positional argument"),
-        pytest.warns(DeprecationWarning, match=deprecation_msg),
-    ):
-        _ = minimize(fun, x0, args=(a, b))
 
 
 def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:

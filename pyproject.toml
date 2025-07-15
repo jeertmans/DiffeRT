@@ -35,8 +35,8 @@ icmlcn2025 = [
   "e3x>=1.0.2",
 ]
 profiling = [
-    "tensorboard-plugin-profile>=2.20.1",
-    "tensorflow>=2.19.0",
+  "tensorboard-plugin-profile>=2.20.1",
+  "tensorflow>=2.19.0",
 ]
 sionna = [
   "sionna-rt==1.1.0;sys_platform=='linux'",
