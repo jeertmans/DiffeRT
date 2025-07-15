@@ -152,7 +152,7 @@ class OptimizeResult(NamedTuple):
     A class to hold the result of an optimization, akin to :class:`scipy.optimize.OptimizeResult`.
 
     .. deprecated:: 0.1.2
-        This class is deprecated and will be removed in the v0.2.0 release.
+        This class is deprecated and will be removed in the v0.3.0 release.
         See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
         and alternatives.
     """
@@ -175,7 +175,7 @@ def minimize(
     Minimize a scalar function of one or more variables.
 
     .. deprecated:: 0.1.2
-        This function is deprecated and will be removed in the v0.2.0 release.
+        This function is deprecated and will be removed in the v0.3.0 release.
         See `#283 <https://github.com/jeertmans/DiffeRT/issues/283>`_ for motivation
         and alternatives.
 
@@ -216,7 +216,7 @@ def minimize(
         The optimization result.
     """
     msg = (
-        "This function is deprecated and will be removed in the v0.2.0 release. "
+        "This function is deprecated and will be removed in the v0.3.0 release. "
         "See https://github.com/jeertmans/DiffeRT/issues/283 for motivation and alternatives."
     )
     warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
