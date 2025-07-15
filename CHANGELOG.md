@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.2.0](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...v0.2.0)
 
 ### Added
 
@@ -34,8 +38,6 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Fixed `__all__` in {mod}`differt` to re-export `__version__` and not `VERSION` (by <gh-user:jeertmans>, in <gh-pr:288>).
-
-<!-- start changelog -->
 
 ## [0.1.2](https://github.com/jeertmans/DiffeRT/compare/v0.1.1...v0.1.2)
 
