@@ -770,7 +770,7 @@ def draw_contour(  # noqa: PLR0917
 
     Warning:
         VisPy does not support filling the contour.
-        Plotly does not support 3D contours, and will draw the coontour on
+        Plotly does not support 3D contours, and will draw the contour on
         a 2D figure instead.
 
     Examples:
