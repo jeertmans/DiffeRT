@@ -195,9 +195,9 @@ def image_method(
             )
 
             full_paths = assemble_paths(
-                from_vertices[..., None, :],
+                from_vertices,
                 paths,
-                to_vertices[..., None, :],
+                to_vertices,
             )
 
     Examples:
@@ -252,9 +252,9 @@ def image_method(
             ...     ).plot(color="red")
             ...
             ...     full_path = assemble_paths(
-            ...         from_vertex[None, :],
+            ...         from_vertex,
             ...         path,
-            ...         to_vertex[None, :],
+            ...         to_vertex,
             ...     )
             ...     draw_paths(
             ...         full_path,

@@ -110,9 +110,9 @@ def fermat_path_on_linear_objects(
             paths = fermat_path_on_linear_objects(...)
 
             full_paths = assemble_paths(
-                from_vertices[..., None, :],
+                from_vertices,
                 paths,
-                to_vertices[..., None, :],
+                to_vertices,
             )
 
     Examples:
@@ -156,9 +156,9 @@ def fermat_path_on_linear_objects(
             ...     )
             ...
             ...     full_path = assemble_paths(
-            ...         from_vertex[None, :],
+            ...         from_vertex,
             ...         path,
-            ...         to_vertex[None, :],
+            ...         to_vertex,
             ...     )
             ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
             ...     markers = jnp.vstack((from_vertex, to_vertex))
@@ -309,9 +309,9 @@ def fermat_path_on_planar_mirrors(
             paths = fermat_path_on_planar_mirrors(...)
 
             full_paths = assemble_paths(
-                from_vertices[..., None, :],
+                from_vertices,
                 paths,
-                to_vertices[..., None, :],
+                to_vertices,
             )
 
     Examples:
@@ -350,9 +350,9 @@ def fermat_path_on_planar_mirrors(
             ...     ).plot(color="red")
             ...
             ...     full_path = assemble_paths(
-            ...         from_vertex[None, :],
+            ...         from_vertex,
             ...         path,
-            ...         to_vertex[None, :],
+            ...         to_vertex,
             ...     )
             ...     draw_paths(full_path, marker={"color": "green"}, name="Final path")
             ...     markers = jnp.vstack((from_vertex, to_vertex))

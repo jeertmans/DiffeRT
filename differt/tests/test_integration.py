@@ -177,9 +177,9 @@ def test_simple_street_canyon() -> None:
         vertices = sionna_path_vertices[:order, select, :]
         vertices = jnp.moveaxis(vertices, 0, -2)
         vertices = assemble_paths(
-            differt_scene.transmitters.reshape(1, 3),
+            differt_scene.transmitters,
             vertices,
-            differt_scene.receivers.reshape(1, 3),
+            differt_scene.receivers,
         )
         got_path_lengths = path_lengths(paths.masked_vertices)
         expected_path_lengths = path_lengths(vertices)

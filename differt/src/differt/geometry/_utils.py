@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Literal, overload
+from typing import Literal, no_type_check, overload
 
 import jax
 import jax.numpy as jnp
@@ -468,30 +468,77 @@ def fibonacci_lattice(
     return spherical_to_cartesian(pa).astype(dtype)
 
 
+@overload
 def assemble_paths(
-    *path_segments: Float[ArrayLike, "*#batch _num_vertices 3"],
-) -> Float[Array, "*#batch path_length 3"]:
+    from_vertices: Float[ArrayLike, "*#batch 3"],
+    intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"],
+    to_vertices: Float[ArrayLike, "*#batch 3"],
+) -> Float[Array, "*batch num_inter_vertices+2 3"]: ...
+
+
+@overload
+def assemble_paths(
+    from_vertices: Float[ArrayLike, "*#batch 3"],
+    intermediate_vertices: Float[ArrayLike, "*#batch 3"],
+    to_vertices: None = None,
+) -> Float[Array, "*batch 2 3"]: ...
+
+
+# NOTE: Jaxtyping does not match the correct shape for `intermediate_vertices` and will match
+#       `Float[ArrayLike, "*#batch 3"]` instead of `Float[ArrayLike, "*#batch num_inter_vertices 3"]`.
+#       This is why we use `no_type_check` here.
+# TODO: fix this.
+@no_type_check
+def assemble_paths(
+    from_vertices: Float[ArrayLike, "*#batch 3"],
+    intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"]
+    | Float[ArrayLike, "*#batch 3"],
+    to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
+) -> Float[Array, "*batch num_inter_vertices+2 3"] | Float[Array, "*batch 2 3"]:
     """
-    Assemble paths by concatenating path vertices along the second to last axis.
+    Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
 
     Arrays broadcasting is automatically performed, and the total
-    path length is simply is sum of all the number of vertices.
+    number of vertices per path is simply ``num_inter_vertices+2``.
 
     Args:
-        path_segments: The path segments to assemble together.
-
-            Usually, this will be a 3-tuple of transmitter positions,
-            interaction points, and receiver positions.
+        from_vertices: The starting vertices of the paths.
+        intermediate_vertices: The intermediate vertices of the paths.
+            If ``to_vertices`` is not provided, then this argument is interpreted
+            as the end vertices of the paths.
+        to_vertices: The ending vertices of the paths.
 
     Returns:
-        The assembled paths.
+        The assembled path vertices.
     """
-    # TODO: simplify this function to only take start / mid / end points
-    arrays = [jnp.asarray(path_segment) for path_segment in path_segments]
-    batch = jnp.broadcast_shapes(*(arr.shape[:-2] for arr in arrays))
+    from_vertices = jnp.asarray(from_vertices)
+    intermediate_vertices = jnp.asarray(intermediate_vertices)
+    if to_vertices is None:
+        batch = jnp.broadcast_shapes(
+            from_vertices.shape[:-1], intermediate_vertices.shape[:-1]
+        )
+        return jnp.concatenate(
+            (
+                jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
+                jnp.broadcast_to(intermediate_vertices[..., None, :], (*batch, 1, 3)),
+            ),
+            axis=-2,
+        )
+    to_vertices = jnp.asarray(to_vertices)
+    batch = jnp.broadcast_shapes(
+        from_vertices.shape[:-1],
+        intermediate_vertices.shape[:-2],
+        to_vertices.shape[:-1],
+    )
 
     return jnp.concatenate(
-        tuple(jnp.broadcast_to(arr, (*batch, *arr.shape[-2:])) for arr in arrays),
+        (
+            jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
+            jnp.broadcast_to(
+                intermediate_vertices, (*batch, *intermediate_vertices.shape[-2:])
+            ),
+            jnp.broadcast_to(to_vertices[..., None, :], (*batch, 1, 3)),
+        ),
         axis=-2,
     )
 
