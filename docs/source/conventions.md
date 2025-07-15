@@ -45,9 +45,13 @@ as a mean to indicate a radial component equal to 1.
 By <a href="//commons.wikimedia.org/w/index.php?title=User:Andeggs&amp;action=edit&amp;redlink=1" class="new" title="User:Andeggs (page does not exist)">Andeggs</a> - <span class="int-own-work" lang="en">Own work</span>, Public Domain, <a href="https://commons.wikimedia.org/w/index.php?curid=7478049">Link</a>.
 ```
 
+## Coordinate transformations
+
+Below are descriptions of how to transform from one coordinate system to another.
+
 ### Cartesian to spherical
 
-Spherical coordinates can be derived from cartesian coordinates using the following relation:
+Spherical coordinates can be derived from Cartesian coordinates using the following relation:
 
 ```{math}
 \begin{bmatrix}r \\ \theta \\ \varphi \end{bmatrix} =
@@ -58,9 +62,9 @@ Spherical coordinates can be derived from cartesian coordinates using the follow
 
 and is implemented by {func}`cartesian_to_spherical<differt.geometry.cartesian_to_spherical>`.
 
-### Spherical to cartesian
+### Spherical to Cartesian
 
-Conversely, it is possibly to derive cartesian coordinates from spherical coordinates using:
+Conversely, it is possibly to derive Cartesian coordinates from spherical coordinates using:
 
 ```{math}
 \begin{bmatrix} x \\ y \\ z \end{bmatrix} =

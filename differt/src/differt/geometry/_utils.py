@@ -832,12 +832,12 @@ def cartesian_to_spherical(
     xyz: Float[ArrayLike, "*batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Transform cartesian coordinates to spherical coordinates.
+    Transform Cartesian coordinates to spherical coordinates.
 
     See :ref:`conventions` for details.
 
     Args:
-        xyz: The array of cartesian coordinates.
+        xyz: The array of Cartesian coordinates.
 
     Returns:
         The array of corresponding spherical coordinates.
@@ -860,7 +860,7 @@ def spherical_to_cartesian(
     rpa: Float[ArrayLike, "*batch 3"] | Float[ArrayLike, "*batch 2"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Transform spherical coordinates to cartisian coordinates.
+    Transform spherical coordinates to Cartesian coordinates.
 
     See :ref:`conventions` for details.
 
@@ -870,7 +870,7 @@ def spherical_to_cartesian(
             If the radial component is missing, a radius of 1 is assumed.
 
     Returns:
-        The array of corresponding cartesian coordinates.
+        The array of corresponding Cartesian coordinates.
 
     .. seealso::
 
