@@ -14,6 +14,7 @@ from pytest_subtests import SubTests
 
 from differt.geometry import (
     Paths,
+    TriangleMesh,
     assemble_paths,
     normalize,
     rotation_matrix_along_x_axis,
@@ -568,3 +569,55 @@ class TestTriangleScene:
             scene.mesh.plot(backend=backend)
         else:
             scene.plot(backend=backend)
+
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            pytest.param(
+                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
+            ),
+        ],
+    )
+    def test_compute_paths_with_mesh_mask_matches_sub_mesh_without_mask(
+        self,
+        order: int,
+        method: Literal["exhaustive", "sbr", "hybrid"],
+    ) -> None:
+        # This test checks that the mask is correctly applied to the mesh
+        # and that the path obtained with the mask is the same as the one obtained
+        # on the 'subset' of the mesh.
+        outer_mesh = TriangleMesh.box(10.0, 10.0, 10.0)
+        inner_mesh = TriangleMesh.box(4.0, 4.0, 4.0)
+        mesh = outer_mesh + inner_mesh
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),  # Select outer mesh
+            jnp.zeros(
+                (inner_mesh.num_triangles,), dtype=bool
+            ),  # Do not select inner mesh
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+        tx = jnp.array([[-5.0, 0.0, 0.0]])
+        rx = jnp.array([[+5.0, 0.0, 0.0]])
+        got = (
+            TriangleScene(
+                transmitters=tx,
+                receivers=rx,
+                mesh=mesh,
+            )
+            .compute_paths(order, method=method)
+            .masked()
+        )
+        expected = (
+            TriangleScene(
+                transmitters=tx,
+                receivers=rx,
+                mesh=outer_mesh,
+            )
+            .compute_paths(order, method=method)
+            .masked()
+        )
+
+        chex.assert_trees_all_equal(got, expected)
