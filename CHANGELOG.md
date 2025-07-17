@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.3.0](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...v0.3.0)
 
 ### Added
 
@@ -31,8 +35,6 @@ with one *slight* but **important** difference:
 ### Removed
 
 - Removed `differt.utils.minimize`, see <gh-pr:283>, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:291>).
-
-<!-- start changelog -->
 
 ## [0.2.0](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...v0.2.0)
 
