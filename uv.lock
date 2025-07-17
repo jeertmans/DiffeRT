@@ -1001,6 +1001,48 @@ tests-extended = [
     { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sionna-rt", marker = "sys_platform == 'linux'" },
 ]
+tests-matplotlib = [
+    { name = "beartype" },
+    { name = "chex" },
+    { name = "differt", extra = ["matplotlib"] },
+    { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
+    { name = "pytest-xdist" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+tests-plotly = [
+    { name = "beartype" },
+    { name = "chex" },
+    { name = "differt", extra = ["plotly"] },
+    { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
+    { name = "pytest-xdist" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+tests-vispy = [
+    { name = "beartype" },
+    { name = "chex" },
+    { name = "differt", extra = ["vispy", "vispy-backend"] },
+    { name = "pytest" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "pytest-missing-modules" },
+    { name = "pytest-subtests" },
+    { name = "pytest-xdist" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
 
 [package.metadata]
 
@@ -1094,6 +1136,48 @@ tests-extended = [
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "scipy", specifier = ">=1.12.0" },
     { name = "sionna-rt", marker = "sys_platform == 'linux'", specifier = "==1.1.0" },
+]
+tests-matplotlib = [
+    { name = "beartype", specifier = ">=0.20" },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", editable = "differt" },
+    { name = "differt", extras = ["matplotlib"], editable = "differt" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
+]
+tests-plotly = [
+    { name = "beartype", specifier = ">=0.20" },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", editable = "differt" },
+    { name = "differt", extras = ["plotly"], editable = "differt" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
+]
+tests-vispy = [
+    { name = "beartype", specifier = ">=0.20" },
+    { name = "chex", specifier = ">=0.1.84" },
+    { name = "differt", editable = "differt" },
+    { name = "differt", extras = ["vispy", "vispy-backend"], editable = "differt" },
+    { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-env", specifier = ">=1.1.3" },
+    { name = "pytest-missing-modules", specifier = ">=0.2.0" },
+    { name = "pytest-subtests", specifier = ">=0.14.1" },
+    { name = "pytest-xdist", specifier = ">=3.3.1" },
+    { name = "scipy", specifier = ">=1.12.0" },
 ]
 
 [[package]]

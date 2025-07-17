@@ -76,7 +76,7 @@ impl TriangleScene {
 }
 
 #[cfg(not(tarpaulin_include))]
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub(crate) fn triangle_scene(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleScene>()?;
     Ok(())

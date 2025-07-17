@@ -89,9 +89,12 @@ def test_export(key: PRNGKeyArray) -> None:
 
 @pytest.mark.slow
 def test_match_sionna_on_simple_street_canyon() -> None:
-    mi = pytest.importorskip("mitsuba")
-    mi.set_variant("llvm_ad_mono_polarized")
-    sionna = pytest.importorskip("sionna")
+    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+    try:
+        mi.set_variant("llvm_ad_mono_polarized")
+    except AttributeError:
+        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
+    sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)

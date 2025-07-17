@@ -26,6 +26,8 @@ from differt.scene import (
 from differt.scene._triangle_scene import TriangleScene
 from differt_core.scene import SionnaScene
 
+from ..plotting.params import matplotlib, plotly, vispy
+
 skip_if_not_8_devices = pytest.mark.skipif(
     jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
 )
@@ -45,7 +47,7 @@ class TestTriangleScene:
                 assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
 
     def test_from_sionna(self, sionna_folder: Path, subtests: SubTests) -> None:
-        sionna = pytest.importorskip("sionna")
+        sionna = pytest.importorskip("sionna", reason="sionna not installed")
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
@@ -549,7 +551,7 @@ class TestTriangleScene:
                 (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
             )
 
-    @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
+    @pytest.mark.parametrize("backend", [vispy, matplotlib, plotly])
     def test_plot(
         self,
         backend: str,

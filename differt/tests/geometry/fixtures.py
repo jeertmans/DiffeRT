@@ -48,9 +48,9 @@ def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
 
 @pytest.fixture(scope="session")
 def sphere_mesh() -> TriangleMesh:
-    from vispy.geometry import create_sphere  # noqa: PLC0415
+    vsp_geom = pytest.importorskip("vispy.geometry", reason="vispy not installed")
 
-    mesh = create_sphere()
+    mesh = vsp_geom.create_sphere()
 
     vertices = jnp.asarray(mesh.get_vertices())
     triangles = jnp.asarray(mesh.get_faces(), dtype=jnp.int32)

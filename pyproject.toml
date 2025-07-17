@@ -60,6 +60,18 @@ tests-extended = [
   "differt[all]",
   "open3d-cpu>=0.19.0;python_version<'3.13' and sys_platform=='linux'",
 ]
+tests-matplotlib = [
+  {include-group = "tests"},
+  "differt[matplotlib]",
+]
+tests-plotly = [
+  {include-group = "tests"},
+  "differt[plotly]",
+]
+tests-vispy = [
+  {include-group = "tests"},
+  "differt[vispy,vispy-backend]",
+]
 
 [project]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
