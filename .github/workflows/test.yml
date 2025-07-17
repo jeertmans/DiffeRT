@@ -59,6 +59,12 @@ jobs:
         include:
         - pyversion: 3.13t      # Qt bindings not available for this version
           group: tests
+        - pyversion: '3.11'
+          group: tests-matplotlib
+        - pyversion: '3.11'
+          group: tests-plotly
+        - pyversion: '3.11'
+          group: tests-vispy
         exclude:
         - os: macos-latest  # jaxlib wheels not available
           pyversion: 3.13t
@@ -66,6 +72,12 @@ jobs:
           pyversion: 3.13t
         - os: windows-latest  # bugs with NumPy
           pyversion: '3.13'
+        - pyversion: '3.11'
+          resolution: lowest-direct
+        - pyversion: '3.12'
+          resolution: lowest-direct
+        - pyversion: 3.13t
+          resolution: lowest-direct
 
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
@@ -104,7 +116,7 @@ jobs:
         path: differt/src/differt/scene/scenes
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} pytest
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5

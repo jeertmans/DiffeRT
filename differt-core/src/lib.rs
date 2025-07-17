@@ -6,7 +6,7 @@ pub mod scene;
 
 /// Core of DiffeRT module, implemented in Rust.
 #[cfg(not(tarpaulin_include))]
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn _differt_core(m: Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 

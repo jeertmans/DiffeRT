@@ -14,6 +14,8 @@ from differt.geometry import TriangleMesh, path_lengths
 from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
 from differt.scene import TriangleScene
 
+from ..plotting.params import matplotlib, plotly, vispy
+
 
 def test_merge_cell_ids() -> None:
     cell_a_ids = jnp.array(
@@ -346,7 +348,7 @@ class TestPaths:
         chex.assert_shape(got, expected_shape)
         chex.assert_trees_all_equal(got, expected)
 
-    @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
+    @pytest.mark.parametrize("backend", [plotly, matplotlib, vispy])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
         paths = random_paths(3, 4, 5, num_objects=30, with_mask=True, key=key)
 
@@ -417,7 +419,7 @@ class TestSBRPaths:
             ):
                 _ = sbr_paths.get_paths(i)
 
-    @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
+    @pytest.mark.parametrize("backend", [plotly, matplotlib, vispy])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
         key_paths, key_masks = jax.random.split(key, 2)
 

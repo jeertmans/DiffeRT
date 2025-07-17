@@ -1,14 +1,24 @@
-from collections.abc import Iterator
+from __future__ import annotations
+
 from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import chex
 import jax
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from jaxtyping import PRNGKeyArray
-from matplotlib.figure import Figure
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from jaxtyping import PRNGKeyArray
+    from matplotlib.figure import Figure
 
 
 def pytest_configure() -> None:
@@ -54,7 +64,7 @@ def cargo_toml(project_dir: Path) -> Path:
 def close_figure(
     monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> Iterator[None]:
-    if "backend" in request.fixturenames:
+    if "backend" in request.fixturenames and plt is not None:
         figure_ = plt.figure
         fig = None
 

@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import matplotlib.pyplot as plt
 import pytest
-from matplotlib.figure import Figure as MplFigure
-from plotly.graph_objs import Figure
-from vispy.scene.canvas import SceneCanvas
 
 from differt.plotting import (
     dispatch,
@@ -20,7 +16,23 @@ from differt.plotting import (
 )
 
 if TYPE_CHECKING:
+    from matplotlib.figure import Figure as MplFigure
+    from plotly.graph_objs import Figure
     from pytest_missing_modules.plugin import MissingModulesContextGenerator
+    from vispy.scene.canvas import SceneCanvas
+else:
+    MplFigure = pytest.importorskip(
+        "matplotlib.figure", reason="matplotlib not installed"
+    ).Figure
+    Figure = pytest.importorskip(
+        "plotly.graph_objs", reason="plotly not installed"
+    ).Figure
+    SceneCanvas = pytest.importorskip(
+        "vispy.scene.canvas", reason="vispy not installed"
+    ).SceneCanvas
+
+
+plt = pytest.importorskip("matplotlib.pyplot", reason="matplotlib not installed")
 
 
 @dispatch

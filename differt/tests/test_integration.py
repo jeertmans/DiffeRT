@@ -24,7 +24,7 @@ from differt.scene import TriangleScene
 
 @pytest.mark.slow
 def test_ray_casting() -> None:
-    o3d = pytest.importorskip("open3d")
+    o3d = pytest.importorskip("open3d", reason="open3d not installed")
 
     knot_mesh = o3d.data.KnotMesh()
     o3d_mesh = o3d.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
@@ -114,9 +114,12 @@ def test_ray_casting() -> None:
 
 @pytest.mark.slow
 def test_simple_street_canyon() -> None:
-    mi = pytest.importorskip("mitsuba")
-    mi.set_variant("llvm_ad_mono_polarized")
-    sionna = pytest.importorskip("sionna")
+    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+    try:
+        mi.set_variant("llvm_ad_mono_polarized")
+    except AttributeError:
+        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
+    sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
@@ -194,9 +197,12 @@ def test_simple_street_canyon() -> None:
 
 
 def test_itu_materials(subtests: SubTests) -> None:
-    mi = pytest.importorskip("mitsuba")
-    mi.set_variant("llvm_ad_mono_polarized")
-    sionna = pytest.importorskip("sionna")
+    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+    try:
+        mi.set_variant("llvm_ad_mono_polarized")
+    except AttributeError:
+        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
+    sionna = pytest.importorskip("sionna", reason="sionna not installed")
 
     for mat_name, differt_mat in materials.items():
         if not mat_name.startswith("itu_"):

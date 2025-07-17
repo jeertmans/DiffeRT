@@ -1119,7 +1119,7 @@ pub mod directed {
 }
 
 #[cfg(not(tarpaulin_include))]
-#[pymodule]
+#[pymodule(gil_used = false)]
 pub(crate) fn graph(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<complete::CompleteGraph>()?;
     m.add_class::<directed::DiGraph>()?;

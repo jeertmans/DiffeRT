@@ -15,10 +15,12 @@ from differt.plotting import (
     use,
 )
 
+from .params import matplotlib, plotly, vispy
+
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 def test_draw_mesh(
     backend: str,
@@ -31,7 +33,7 @@ def test_draw_mesh(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 def test_draw_paths(
     backend: str,
@@ -44,7 +46,7 @@ def test_draw_paths(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 def test_draw_rays(
     backend: str,
@@ -57,7 +59,7 @@ def test_draw_rays(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 @pytest.mark.parametrize("with_labels", [True, False])
 def test_draw_markers(
@@ -83,7 +85,7 @@ def test_draw_markers(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 @pytest.mark.parametrize(
     "pass_xy",
@@ -105,7 +107,7 @@ def test_draw_image(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 @pytest.mark.parametrize(
     "pass_xy",
@@ -144,7 +146,7 @@ def test_draw_contour(
 
 @pytest.mark.parametrize(
     "backend",
-    ["vispy", "matplotlib", "plotly"],
+    [vispy, matplotlib, plotly],
 )
 @pytest.mark.parametrize(
     "pass_xy",

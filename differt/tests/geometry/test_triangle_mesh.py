@@ -621,7 +621,7 @@ class TestTriangleMesh:
         two_buildings_obj_file: str,
         two_buildings_mesh: TriangleMesh,
     ) -> None:
-        o3d = pytest.importorskip("open3d")
+        o3d = pytest.importorskip("open3d", reason="open3d not installed")
         mesh = o3d.io.read_triangle_mesh(
             two_buildings_obj_file,
         ).compute_triangle_normals()

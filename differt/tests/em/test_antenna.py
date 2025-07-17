@@ -14,6 +14,12 @@ from differt.em._antenna import (
 )
 from differt.geometry import normalize, spherical_to_cartesian
 
+from ..plotting.params import (
+    skip_if_matplotlib_not_installed,
+    skip_if_plotly_not_installed,
+    skip_if_vispy_not_installed,
+)
+
 
 @pytest.fixture
 def antenna() -> Dipole:
@@ -52,21 +58,30 @@ class TestAntenna:
     @pytest.mark.parametrize(
         ("backend", "expectation"),
         [
-            (
+            pytest.param(
                 "vispy",
                 pytest.warns(
                     UserWarning,
                     match="VisPy does not currently support coloring like we would like",
                 ),
+                marks=skip_if_vispy_not_installed,
+                id="vispy",
             ),
-            (
+            pytest.param(
                 "matplotlib",
                 pytest.warns(
                     UserWarning,
                     match="Matplotlib requires 'colors' to be RGB or RGBA values",
                 ),
+                marks=skip_if_matplotlib_not_installed,
+                id="matplotlib",
             ),
-            ("plotly", does_not_raise()),
+            pytest.param(
+                "plotly",
+                does_not_raise(),
+                marks=skip_if_plotly_not_installed,
+                id="plotly",
+            ),
         ],
     )
     def test_plot_radiation_pattern(

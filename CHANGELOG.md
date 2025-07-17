@@ -20,6 +20,14 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...HEAD)
 
+### Added
+
+- Added `gil_used = false` to PyO3 module to support free-threaded Python builds (by <gh-user:jeertmans>, in <gh-pr:294>).
+
+### Chore
+
+- Improved testing on free-threaded Python and optional plotting backends (by <gh-user:jeertmans>, in <gh-pr:294>).
+
 ### Removed
 
 - Removed `differt.utils.minimize`, see <gh-pr:283>, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:291>).
