@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...HEAD)
+
+<!-- start changelog -->
+
+## [0.3.1](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...v0.3.1)
 
 ### Added
 
@@ -31,8 +35,6 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Fixed typo (missing `f`-string prefix) in error message inside {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:294>).
-
-<!-- start changelog -->
 
 ## [0.3.0](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...v0.3.0)
 
