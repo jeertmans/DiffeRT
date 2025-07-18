@@ -13,10 +13,8 @@ from jaxtyping import PRNGKeyArray
 from differt.em import materials
 from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
-from differt.rt import triangles_visible_from_vertices
 from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
-from differt_core.rt import CompleteGraph, DiGraph
 
 
 def test_export(key: PRNGKeyArray) -> None:
@@ -140,36 +138,6 @@ def test_match_sionna_on_simple_street_canyon() -> None:
         replace=rx.position.jax().reshape(3),
     )
 
-    k = 2 if differt_scene.mesh.assume_quads else 1
-
-    triangles_visible_from_tx = (
-        triangles_visible_from_vertices(
-            differt_scene.transmitters,
-            differt_scene.mesh.triangle_vertices,
-            differt_scene.mesh.mask,
-        )
-        .reshape(-1, k)
-        .any(axis=-1)
-    )
-
-    triangles_visible_from_rx = (
-        triangles_visible_from_vertices(
-            differt_scene.receivers,
-            differt_scene.mesh.triangle_vertices,
-            differt_scene.mesh.mask,
-        )
-        .reshape(-1, k)
-        .any(axis=-1)
-    )
-
-    di_graph = DiGraph.from_complete_graph(
-        CompleteGraph(differt_scene.mesh.num_objects)
-    )
-    from_, to = di_graph.insert_from_and_to_nodes(
-        from_adjacency=np.asarray(triangles_visible_from_tx),
-        to_adjacency=np.asarray(triangles_visible_from_rx),
-    )
-
     max_order = 3
 
     sionna_solver = sionna.rt.PathSolver()
@@ -177,15 +145,11 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     dm = deepmimo.export(
         paths=(
-            differt_scene.compute_paths(
-                path_candidates=jnp.asarray(k * path_candidates, dtype=int)
-            ).masked()
+            paths.masked()
             for order in range(max_order + 1)
-            for path_candidates in di_graph.all_paths_array_chunks(
-                from_=from_,
-                to=to,
-                depth=order + 2,
-                include_from_and_to=False,
+            for paths in differt_scene.compute_paths(
+                order=order,
+                method="hybrid",
                 chunk_size=100_000,
             )
         ),

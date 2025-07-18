@@ -1,3 +1,5 @@
+from typing import Literal
+
 import jax
 import pytest
 from jaxtyping import Array
@@ -65,10 +67,12 @@ def test_transmitter_visibility_in_simple_street_canyon_scene(
 @pytest.mark.parametrize("order", [0, 1, 2])
 @pytest.mark.parametrize("chunk_size", [None, 20_000])
 @pytest.mark.parametrize("assume_quads", [False, True])
+@pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
 def test_compute_paths_in_simple_street_canyon_scene(
     order: int,
     chunk_size: int | None,
     assume_quads: bool,
+    method: Literal["exhaustive", "hybrid"],
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
@@ -78,6 +82,7 @@ def test_compute_paths_in_simple_street_canyon_scene(
         def bench_fun() -> None:
             for path in scene.compute_paths(
                 order,
+                method=method,
                 chunk_size=chunk_size,
             ):
                 path.vertices.block_until_ready()
@@ -87,6 +92,7 @@ def test_compute_paths_in_simple_street_canyon_scene(
         def bench_fun() -> None:
             scene.compute_paths(
                 order,
+                method=method,
                 chunk_size=None,
             ).vertices.block_until_ready()
 
