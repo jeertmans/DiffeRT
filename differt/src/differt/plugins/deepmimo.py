@@ -120,7 +120,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         )
 
         if vertices.shape != self.inter_pos.shape:  # pragma: no cover
-            msg = "Cannot sort based on provided paths: shape mismatch, got {vertices.shape!r} but expected {self.inter_pos.shape!r}."
+            msg = f"Cannot sort based on provided paths: shape mismatch, got {vertices.shape!r} but expected {self.inter_pos.shape!r}."
             raise ValueError(msg)
 
         max_num_interactions = self.inter.shape[-1]
