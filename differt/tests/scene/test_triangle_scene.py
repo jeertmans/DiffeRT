@@ -153,13 +153,7 @@ class TestTriangleScene:
     @pytest.mark.parametrize("mesh_mask", [False, True])
     @pytest.mark.parametrize(
         "method",
-        [
-            "exhaustive",
-            "sbr",
-            pytest.param(
-                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
-            ),
-        ],
+        ["exhaustive", "sbr", "hybrid"],
     )
     def test_compute_paths_on_advanced_path_tracing_example(
         self,
@@ -382,13 +376,12 @@ class TestTriangleScene:
                 "sbr",
                 pytest.raises(ValueError, match="Argument 'order' is required"),
             ),
-            pytest.param(
-                0,
+            (
                 None,
                 None,
+                jnp.empty((1, 0), dtype=jnp.int32),
                 "hybrid",
-                does_not_raise(),
-                marks=pytest.mark.xfail(reason="Not yet implemented."),
+                pytest.raises(ValueError, match="Argument 'order' is required"),
             ),
         ],
     )

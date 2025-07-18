@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...HEAD)
 
+### Added
+
+- Implemented `method = 'hybrid'` for {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` (by <gh-user:jeertmans>, in <gh-pr:295>).
+
 ### Chore
 
 - Reduced computational time of higher-order RT tests by leveraging visibility matrices (by <gh-user:jeertmans>, in <gh-pr:294>).

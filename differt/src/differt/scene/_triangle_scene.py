@@ -1,12 +1,13 @@
 import math
 import os
 import warnings
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax.experimental.shard_map import shard_map
 from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
@@ -25,14 +26,13 @@ from differt.rt import (
     SizedIterator,
     consecutive_vertices_are_on_same_side_of_mirrors,
     first_triangles_hit_by_rays,
-    generate_all_path_candidates,
-    generate_all_path_candidates_chunks_iter,
     image_method,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
 from differt.utils import dot, smoothing_function
+from differt_core.rt import CompleteGraph, DiGraph
 
 if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     import sys
@@ -845,7 +845,7 @@ class TriangleScene(eqx.Module):
         self,
         order: int | None = None,
         *,
-        method: Literal["exhaustive", "hybrid"] = "exhaustive",
+        method: Literal["exhaustive"] = "exhaustive",
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
@@ -861,9 +861,27 @@ class TriangleScene(eqx.Module):
     @overload
     def compute_paths(
         self,
+        order: int,
+        *,
+        method: Literal["hybrid"],
+        chunk_size: None = None,
+        num_rays: int = int(1e6),
+        path_candidates: None = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    ) -> Paths: ...
+
+    @overload
+    def compute_paths(
+        self,
         order: int | None = None,
         *,
-        method: Literal["exhaustive", "hybrid"] = "exhaustive",
+        method: Literal["exhaustive"] = "exhaustive",
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: None = None,
@@ -875,6 +893,24 @@ class TriangleScene(eqx.Module):
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SizedIterator[Paths]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int,
+        *,
+        method: Literal["hybrid"],
+        chunk_size: int,
+        num_rays: int = int(1e6),
+        path_candidates: None = None,
+        parallel: bool = False,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    ) -> Iterator[Paths]: ...
 
     @overload
     def compute_paths(
@@ -912,7 +948,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
-    def compute_paths(  # noqa: C901, PLR0912
+    def compute_paths(  # noqa: C901, PLR0912, PLR0915
         self,
         order: int | None = None,
         *,
@@ -927,7 +963,7 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
-    ) -> Paths | SizedIterator[Paths] | SBRPaths:
+    ) -> Paths | SizedIterator[Paths] | Iterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
@@ -959,7 +995,7 @@ class TriangleScene(eqx.Module):
                     it is likely to changed in future releases. Use with caution.
                 * If ``'hybrid'``, a hybrid method is used, which estimates the objects
                   visible from all transmitters, to reduce the number of path candidates,
-                  by launching a fixed number of rays, and then performs an extausive
+                  by launching a fixed number of rays, and then performs an exhaustive
                   search on those path candidates. This is a faster alternative to
                   ``'exhaustive'``, but still grows exponentially with the number of
                   bounces or the size of the scene. In the future, we plan on allowing
@@ -967,8 +1003,9 @@ class TriangleScene(eqx.Module):
                   number of path candidates.
 
                   .. warning::
-
-                    The ``'hybrid'`` method is not yet implemented.
+                    This method is best used for a single transmitter and a single receiver,
+                    as the estimated visibility is merged across all transmitters and receivers,
+                    respectively.
 
             chunk_size: If specified, it will iterate through chunks of path
                 candidates, and yield the result as an iterator over paths chunks.
@@ -989,7 +1026,7 @@ class TriangleScene(eqx.Module):
                 rounded down toward the nearest even value (but object indices still refer
                 to triangle indices, not quadrilateral indices).
 
-                **Not compatible with** ``method == 'sbr'``.
+                **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
             parallel: If :data:`True`, ray tracing is performed in parallel across all available
                 devices. The number of transmitters times the number of receivers
                 **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
@@ -1045,7 +1082,7 @@ class TriangleScene(eqx.Module):
             ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
                 or if both have been provided simultaneously.
 
-                If ``method == 'sbr'``, ``order`` is required.
+                If ``method == 'sbr'`` or ``method == 'hybrid'`, and ``order`` is not provided.
 
                 If ``parallel`` is :data:`True`, and the number of devices is not a divisor of the number of transmitters times the number of receivers, or the number of transmitters times the number of rays.
 
@@ -1089,39 +1126,72 @@ class TriangleScene(eqx.Module):
                 epsilon=epsilon,
                 max_dist=max_dist,
             ).reshape(*tx_batch, *rx_batch, -1)
-        if method == "hybrid":
-            msg = "Hybrid method not implemented yet."
-            raise NotImplementedError(msg)  # TODO: implement
-            visibility = triangles_visible_from_vertices(
-                self.transmitters, self.mesh.triangle_vertices
-            )
-
-            if self.mesh.assume_quads:
-                visibility = visibility.reshape(-1, 2).any(axis=-1)
 
         # 0 - Constants arrays of chunks
-        num_objects = (
-            self.mesh.num_quads if self.mesh.assume_quads else self.mesh.num_triangles
-        )
+        assume_quads = self.mesh.assume_quads
 
         # [tx_batch_flattened 3]
         tx_vertices = self.transmitters.reshape(-1, 3)
         # [rx_batch_flattened 3]
         rx_vertices = self.receivers.reshape(-1, 3)
 
+        graph = CompleteGraph(self.mesh.num_objects)
+
+        if method == "hybrid":
+            if order is None:
+                msg = "Argument 'order' is required when 'method == \"hybrid\"'."
+                raise ValueError(msg)
+
+            triangles_visible_from_tx = triangles_visible_from_vertices(
+                tx_vertices,
+                self.mesh.triangle_vertices,
+                active_triangles=self.mesh.mask,
+                num_rays=num_rays,
+                epsilon=epsilon,
+            ).any(axis=0)  # reduce on all transmitters
+
+            triangles_visible_from_rx = triangles_visible_from_vertices(
+                rx_vertices,
+                self.mesh.triangle_vertices,
+                active_triangles=self.mesh.mask,
+                num_rays=num_rays,
+                epsilon=epsilon,
+            ).any(axis=0)  # reduce on all receivers
+
+            if assume_quads:
+                triangles_visible_from_tx = triangles_visible_from_tx.reshape(
+                    -1, 2
+                ).any(axis=-1)  # seeing any triangle of a quad is enough
+                triangles_visible_from_rx = triangles_visible_from_rx.reshape(
+                    -1, 2
+                ).any(axis=-1)  # seeing any triangle of a quad is enough
+
+            graph = DiGraph.from_complete_graph(graph)
+            from_, to = graph.insert_from_and_to_nodes(
+                from_adjacency=np.asarray(triangles_visible_from_tx),
+                to_adjacency=np.asarray(triangles_visible_from_rx),
+            )
+        else:
+            from_ = graph.num_nodes
+            to = from_ + 1
+
         if chunk_size:
-            path_candidates_iter = generate_all_path_candidates_chunks_iter(
-                num_objects,
-                order,  # type: ignore[reportArgumentType]
+            path_candidates_iter = graph.all_paths_array_chunks(
+                from_=from_,
+                to=to,
+                depth=order + 2,  # type: ignore[reportOptionalOperand]
+                include_from_and_to=False,
                 chunk_size=chunk_size,
             )
-            size = path_candidates_iter.__len__
             it = (
                 _compute_paths(
                     self.mesh,
                     tx_vertices,
                     rx_vertices,
-                    2 * path_candidates if self.mesh.assume_quads else path_candidates,
+                    jnp.asarray(
+                        2 * path_candidates if assume_quads else path_candidates,
+                        dtype=int,
+                    ),
                     parallel=parallel,
                     epsilon=epsilon,
                     hit_tol=hit_tol,
@@ -1132,12 +1202,19 @@ class TriangleScene(eqx.Module):
                 for path_candidates in path_candidates_iter
             )
 
-            return SizedIterator(it, size=size)
+            if hasattr(path_candidates_iter, "__len__"):
+                return SizedIterator(it, size=path_candidates_iter.__len__)
+            return it
 
         if path_candidates is None:
-            path_candidates = generate_all_path_candidates(
-                num_objects,
-                order,
+            path_candidates = jnp.asarray(
+                graph.all_paths_array(
+                    from_=from_,
+                    to=to,
+                    depth=order + 2,  # type: ignore[reportOptionalOperand]
+                    include_from_and_to=False,
+                ),
+                dtype=int,
             )
 
             if self.mesh.assume_quads:
