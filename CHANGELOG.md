@@ -20,17 +20,25 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...HEAD)
 
+### Chore
+
+- Reduced computational time of higher-order RT tests by leveraging visibility matrices (by <gh-user:jeertmans>, in <gh-pr:294>).
+
+### Fixed
+
+- Fixed typo (missing `f`-string prefix) in error message inside {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:294>).
+
 <!-- start changelog -->
 
 ## [0.3.0](https://github.com/jeertmans/DiffeRT/compare/v0.2.0...v0.3.0)
 
 ### Added
 
-- Added `gil_used = false` to PyO3 module to support free-threaded Python builds (by <gh-user:jeertmans>, in <gh-pr:294>).
+- Added `gil_used = false` to PyO3 module to support free-threaded Python builds (by <gh-user:jeertmans>, in <gh-pr:293>).
 
 ### Chore
 
-- Improved testing on free-threaded Python and optional plotting backends (by <gh-user:jeertmans>, in <gh-pr:294>).
+- Improved testing on free-threaded Python and optional plotting backends (by <gh-user:jeertmans>, in <gh-pr:293>).
 
 ### Removed
 
