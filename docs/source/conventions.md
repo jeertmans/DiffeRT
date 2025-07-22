@@ -12,7 +12,7 @@ where units are meters.
 Arrays expressing such coordinates are always of the type and shape
 {class}`Float[Array, "... 3"]<jaxtyping.Float>`.
 
-{numref}`fig:cartesian` shows how cartesian coordinates are defined.
+{numref}`fig:cartesian` shows how Cartesian coordinates are defined.
 
 ```{figure} _static/cartesian.svg
 :width: 50%
@@ -27,7 +27,7 @@ By <a href="//commons.wikimedia.org/wiki/User:Jorge_Stolfi" title="User:Jorge St
 ## Spherical coordinates
 
 Those coordinates are **relative** to some origin, and are by default expressed in the three-dimensional {math}`r\theta\varphi` space,
-where units are meter for {math}`r`, and radians for {math}`\theta` and {math}`\varphi`. We follow the physical convention (see {numref}`fig:spherical`), where {math}`\theta` is referred to as the polar angle, and {math}`\varphi` as the azimutal angle.
+where units are meters for {math}`r`, and radians for {math}`\theta` and {math}`\varphi`. We follow the physical convention (see {numref}`fig:spherical`), where {math}`\theta` is referred to as the polar angle, and {math}`\varphi` as the azimuth angle.
 
 Arrays expressing such coordinates are **mainly** of the type and shape
 {class}`Float[Array, "... 3"]<jaxtyping.Float>`, but sometimes the radial component {math}`r` is omitted
