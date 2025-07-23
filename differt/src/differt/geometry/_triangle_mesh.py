@@ -213,7 +213,7 @@ class TriangleMesh(eqx.Module):
         converter=tuple, default_factory=tuple, static=True
     )
     """The list of material names (must be unique)."""
-    object_bounds: Int[Array, "num_objects 2"] | None = eqx.field(
+    object_bounds: Int[Array, "num_primitives 2"] | None = eqx.field(
         converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
     )
     """The array of object indices.
@@ -350,10 +350,10 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0] // 2
 
     @property
-    def num_objects(self) -> int:
-        """The number of objects.
+    def num_primitives(self) -> int:
+        """The number of primitives.
 
-        This is a convenient alias to :attr:`num_quads` :attr:`assume_quads` is :data:`True`
+        This is a convenient alias to :attr:`num_quads` if :attr:`assume_quads` is :data:`True`
         else :attr:`num_triangles`.
         """
         return self.num_quads if self.assume_quads else self.num_triangles
@@ -662,7 +662,7 @@ class TriangleMesh(eqx.Module):
         """
         return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
 
-    def append(self, other: "TriangleMesh") -> Self:  # noqa: C901, PLR0912
+    def append(self, other: "TriangleMesh") -> Self:
         """
         Return a new mesh by appending another mesh to this one.
 
@@ -1061,7 +1061,7 @@ class TriangleMesh(eqx.Module):
                 )
             elif self.assume_quads:
                 quad_colors = jax.random.uniform(key, (self.num_quads, 3))
-                repeats = jnp.full(self.num_objects, 2)
+                repeats = jnp.full(self.num_primitives, 2)
                 colors = jnp.repeat(
                     quad_colors, repeats, axis=0, total_repeat_length=self.num_triangles
                 )
@@ -1095,11 +1095,11 @@ class TriangleMesh(eqx.Module):
             A new mesh with updated face materials.
 
         Raises:
-            ValueError: If the number of names is not 1, :attr:`num_triangles`, or :attr:`num_objects` (if :attr:`assume_quads` is set to :data:`True`).
+            ValueError: If the number of names is not 1, :attr:`num_triangles`, or :attr:`num_primitives` (if :attr:`assume_quads` is set to :data:`True`).
         """
-        if len(names) not in {1, self.num_triangles, self.num_objects}:
+        if len(names) not in {1, self.num_triangles, self.num_primitives}:
             if self.assume_quads:
-                msg = f"Expected either 1, {self.num_triangles}, or {self.num_objects} names, got {len(names)}."
+                msg = f"Expected either 1, {self.num_triangles}, or {self.num_primitives} names, got {len(names)}."
             else:
                 msg = f"Expected either 1, or {self.num_triangles} names, got {len(names)}."
             raise ValueError(msg)
@@ -1518,20 +1518,23 @@ class TriangleMesh(eqx.Module):
         preserve: bool = False,
         *,
         by_masking: bool = False,
+        sample_objects: bool = False,
         key: PRNGKeyArray,
     ) -> Self:
         """
-        Generate a new mesh by randomly sampling triangles from this geometry.
+        Generate a new mesh by randomly sampling primitives from this geometry.
 
-        Warning:
-            If :attr:`assume_quads` is :data:`True`, then quadrilaterals are
-            sampled.
+        Important:
+            If ``by_masking`` is set to :data:`True`, then this function is compatible
+            with :func:`jax.jit`. Conversely, if ``by_masking`` is set to :data:`False`,
+            then this function is **not** compatible with :func:`jax.jit`,
+            as the size of the output mesh is not known at compile time.
 
         Args:
-            size: The size of the sample, i.e., the number of triangles.
+            size: The size of the sample, i.e., the number of primitives (or objects, if ``sample_objects`` is :data:`True`).
 
                 If a floating point number is provided, it is interpreted as a fill factor,
-                i.e., the fraction of triangles to sample from the mesh. This is only supported
+                i.e., the fraction of primitives to sample from the mesh. This is only supported
                 if ``by_masking`` is set to :data:`True`.
             replace: Whether to sample with or without replacement.
 
@@ -1546,8 +1549,11 @@ class TriangleMesh(eqx.Module):
                 is :data:`None`.
 
                 Cannot be used with ``by_masking`` set to :data:`True`.
-            by_masking: Whether to sample by masking the triangles.
+            by_masking: Whether to sample by masking the primitives.
                 If :data:`True`, then the :attr:`mask` attribute set (ignoring any existing mask).
+            sample_objects: Whether to sample by objects, i.e., sampling whole objects at once.
+                The value of ``size`` is interpreted as the number of objects to sample,
+                or the fill factor of objects to sample.
             key: The :func:`jax.random.key` to be used.
 
         Returns:
@@ -1556,35 +1562,56 @@ class TriangleMesh(eqx.Module):
         Raises:
             TypeError: If ``by_masking`` is :data:`False` and ``size`` is not an integer.
             ValueError: If ``by_masking`` is :data:`True` and ``replace`` or ``preserve`` are set to :data:`True`.
+            ValueError: If ``sample_objects`` is :data:`True` and :attr:`object_bounds` is :data:`None`.
         """
+        if sample_objects:
+            if self.object_bounds is None:
+                msg = "Cannot sample by objects when 'object_bounds' is None."
+                raise ValueError(msg)
+            num = self.object_bounds.shape[0]
+        else:
+            num = self.num_primitives
         if by_masking:
             if replace:
                 msg = "Cannot sample with replacement when 'by_masking' is True."
                 raise ValueError(msg)
-            if preserve:
-                msg = "Cannot preserve 'object_bounds' when 'by_masking' is True."
+            if preserve and not sample_objects:
+                msg = "Cannot preserve 'object_bounds' when 'by_masking' is True and 'sample_objects' is False."
                 raise ValueError(msg)
             if isinstance(size, int):
-                mask = jnp.zeros(self.num_objects, dtype=bool)
+                mask = jnp.zeros(num, dtype=bool)
                 mask = mask.at[:size].set(True)
                 mask = jax.random.permutation(key, mask)
             else:
-                mask = jax.random.uniform(key, (self.num_objects,)) <= size
+                mask = jax.random.uniform(key, (num,)) <= size
 
-            if self.assume_quads:
+            if sample_objects:
+                indices = jnp.arange(self.num_triangles)
+                indices_inside_bounds = (
+                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[reportOptionalSubscript]
+                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[reportOptionalSubscript]
+                triangle_indices = indices_inside_bounds.argmax(
+                    axis=1
+                )  # Exactly one bound should be true for each triangle
+                mask = jnp.take(
+                    mask,
+                    triangle_indices,
+                    indices_are_sorted=True,  # Object bounds are sorted
+                )
+            elif self.assume_quads:
                 mask = jnp.repeat(mask, 2)
 
             return eqx.tree_at(
                 lambda m: (m.object_bounds, m.mask),
                 self,
-                (None, mask),
+                (self.object_bounds if preserve else None, mask),
                 is_leaf=lambda x: x is None,
             )
 
         if isinstance(size, int):
             indices = jax.random.choice(
                 key,
-                self.num_objects,
+                num,
                 shape=(size,),
                 replace=replace,
             )
@@ -1592,6 +1619,11 @@ class TriangleMesh(eqx.Module):
             msg = "'size' must be an integer when 'by_masking' is False."
             raise TypeError(msg)
 
+        if sample_objects:
+            indices = jnp.concatenate([
+                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[reportOptionalSubscript]
+                for i in indices
+            ])
         if self.assume_quads:
             indices *= 2
 
@@ -1603,6 +1635,11 @@ class TriangleMesh(eqx.Module):
                     jnp.searchsorted(indices, self.object_bounds[:, 1]),
                 ),
                 axis=-1,
+            )
+            # Some object may not have any triangles left after sampling,
+            # so we remove them.
+            object_bounds = object_bounds.compress(
+                object_bounds[:, 0] < object_bounds[:, 1], axis=0
             )
         else:
             object_bounds = None

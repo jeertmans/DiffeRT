@@ -132,9 +132,9 @@ class TestTriangleMesh:
         # 'tree_at' bypasses '__check_init__', so this will not raise an error
         _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
 
-    def test_num_objects(self, two_buildings_mesh: TriangleMesh) -> None:
-        assert two_buildings_mesh.num_objects == 24
-        assert two_buildings_mesh.set_assume_quads().num_objects == 12
+    def test_num_primitives(self, two_buildings_mesh: TriangleMesh) -> None:
+        assert two_buildings_mesh.num_primitives == 24
+        assert two_buildings_mesh.set_assume_quads().num_primitives == 12
 
     def test_get_item(self, two_buildings_mesh: TriangleMesh) -> None:
         got = two_buildings_mesh[:]
@@ -469,9 +469,9 @@ class TestTriangleMesh:
             (other_assume_quads and not other_empty)
             and (self_empty or self_assume_quads)
         ):
-            assert mesh.num_objects == mesh.num_quads
+            assert mesh.num_primitives == mesh.num_quads
         else:
-            assert mesh.num_objects == mesh.num_triangles
+            assert mesh.num_primitives == mesh.num_triangles
 
         if (self_colors and not self_empty) or (other_colors and not other_empty):
             assert mesh.face_colors is not None
@@ -562,7 +562,18 @@ class TestTriangleMesh:
         mesh = mesh.set_materials(*["glass"] * 12)
         chex.assert_trees_all_equal(mesh.face_materials, jnp.ones(12, dtype=int))
         assert len(mesh.material_names) == 2
+        with pytest.raises(
+            ValueError,
+            match="Expected either 1, or 12 names, got 2",
+        ):
+            _ = mesh.set_materials("glass", "brick")
         mesh = mesh.set_assume_quads()
+        mesh = mesh.set_materials("metal")
+        with pytest.raises(
+            ValueError,
+            match="Expected either 1, 12, or 6 names, got 4",
+        ):
+            _ = mesh.set_materials("glass", "brick", "wood", "plastic")
         mesh = mesh.set_materials(
             "metal", "glass", "concrete", "brick", "wood", "plastic"
         )
@@ -667,6 +678,12 @@ class TestTriangleMesh:
 
         assert two_buildings_mesh.set_assume_quads().sample(5, key=key).num_quads == 5
 
+        with pytest.raises(
+            ValueError,
+            match="Cannot sample by objects when 'object_bounds' is None",
+        ):
+            two_buildings_mesh.sample(0.5, sample_objects=True, key=key)
+
         two_buildings_mesh = eqx.tree_at(
             lambda m: m.object_bounds,
             two_buildings_mesh,
@@ -678,6 +695,18 @@ class TestTriangleMesh:
             13, key=key, preserve=True
         ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
 
+        assert two_buildings_mesh.sample(
+            2, key=key, preserve=True, sample_objects=True
+        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+
+        assert two_buildings_mesh.sample(
+            1, key=key, preserve=True, sample_objects=True
+        ).object_bounds.shape == (1, 2)  # type: ignore[reportOptionalMemberAccess]
+
+        assert two_buildings_mesh.sample(
+            1, key=key, preserve=True, by_masking=True, sample_objects=True
+        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+
         with pytest.raises(
             TypeError, match="'size' must be an integer when 'by_masking' is False"
         ):
@@ -687,17 +716,39 @@ class TestTriangleMesh:
             ValueError,
             match="Cannot sample with replacement when 'by_masking' is True",
         ):
-            two_buildings_mesh.sample(10, replace=True, by_masking=True, key=key)
+            eqx.filter_jit(two_buildings_mesh.sample)(
+                10, replace=True, by_masking=True, key=key
+            )
 
         with pytest.raises(
             ValueError,
-            match="Cannot preserve 'object_bounds' when 'by_masking' is True",
+            match="Cannot preserve 'object_bounds' when 'by_masking' is True and 'sample_objects' is False",
         ):
-            two_buildings_mesh.sample(0.5, preserve=True, by_masking=True, key=key)
+            eqx.filter_jit(two_buildings_mesh.sample)(
+                0.5, preserve=True, by_masking=True, key=key
+            )
+
+        assert (
+            eqx.filter_jit(two_buildings_mesh.sample)(
+                0.5, preserve=True, by_masking=True, sample_objects=True, key=key
+            )
+            is not None
+        )
+        assert (
+            eqx.filter_jit(two_buildings_mesh.sample)(
+                0.5, preserve=False, by_masking=True, sample_objects=True, key=key
+            )
+            is not None
+        )
 
         assert two_buildings_mesh.mask is None
         # Sampling creates a mask when by_masking=True
-        assert two_buildings_mesh.sample(0.5, by_masking=True, key=key).mask is not None
+        assert (
+            eqx.filter_jit(two_buildings_mesh.sample)(
+                0.5, by_masking=True, key=key
+            ).mask
+            is not None
+        )
         # Sampling works with quads when by_masking=True
         assert (
             two_buildings_mesh.set_assume_quads()

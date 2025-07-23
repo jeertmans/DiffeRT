@@ -20,6 +20,18 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...HEAD)
 
+### Added
+
+- Added `sample_objects` to {meth}`TriangleMesh.sample<differt.geometry.TriangleMesh.sample>` to facilitate sampling *realistic* sub-meshes. The new option is compatible with both `by_masking=False` and `by_masking=True`, offering a {func}`jax.jit`-compatible sampling method with the latter (by <gh-user:jeertmans>, in <gh-pr:297>).
+
+### Changed
+
+- Renamed `TriangleMesh.num_objects` to {attr}`TriangleMesh.num_primitives<differt.geometry.TriangleMesh.num_primitives>` to avoid possible confusion with {attr}`TriangleMesh.object_bounds<differt.geometry.TriangleMesh.object_bounds>`, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:297>).
+
+### Chore
+
+- Ignored lints C901 and PLR0912 globally, instead of per-case (by <gh-user:jeertmans>, in <gh-pr:297>).
+
 <!-- start changelog -->
 
 ## [0.3.1](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...v0.3.1)
