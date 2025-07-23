@@ -271,7 +271,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         return output
 
 
-def export(  # noqa: PLR0915
+def export(
     *,
     paths: Paths | Iterable[Paths],
     scene: TriangleScene,

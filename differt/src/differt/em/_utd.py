@@ -75,7 +75,7 @@ def L_i(
 
 
 @eqx.filter_jit
-def L_i(  # noqa: PLR0917
+def L_i(
     s_d: Float[Array, " *#batch"],
     sin_2_beta_0: Float[Array, " *#batch"],
     rho_1_i: Float[Array, " *#batch"] | None = None,

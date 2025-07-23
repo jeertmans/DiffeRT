@@ -260,9 +260,7 @@ extend-ignore = [
   "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
   "PD",  # pandas-vet
   "PLR0904",  # too-many-public-methods, counts @overload...
-  "PLR0912",  # too-many-branches
-  "PLR0913",  # too-many-arguments
-  "PLR0914",  # too-many-local-variables
+  "PLR091",  # too-many-*
   "PLR6104",  # non-augmented-assignment
   "Q000",  # bad-quotes-inline-string, conflicts with formatter
   "Q001",  # bad-quotes-multiline-string, conflicts with formatter

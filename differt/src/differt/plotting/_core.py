@@ -734,7 +734,7 @@ def _(
 
 
 @dispatch
-def draw_contour(  # noqa: PLR0917
+def draw_contour(
     data: Real[ArrayLike, "rows cols"],
     x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
@@ -796,7 +796,7 @@ def draw_contour(  # noqa: PLR0917
 
 
 @draw_contour.register("vispy")
-def _(  # noqa: PLR0917
+def _(
     data: Real[ArrayLike, "rows cols"],
     x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
@@ -861,7 +861,7 @@ def _(  # noqa: PLR0917
 
 
 @draw_contour.register("matplotlib")
-def _(  # noqa: PLR0917
+def _(
     data: Real[ArrayLike, "rows cols"],
     x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
@@ -891,7 +891,7 @@ def _(  # noqa: PLR0917
 
 
 @draw_contour.register("plotly")
-def _(  # noqa: PLR0917
+def _(
     data: Real[ArrayLike, "rows cols"],
     x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,

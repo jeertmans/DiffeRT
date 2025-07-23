@@ -205,7 +205,7 @@ plotly_html_show_formats = False
 # -- Linkcode settings
 
 
-def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:  # noqa: PLR0911
+def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:
     if domain != "py":
         return None
 
