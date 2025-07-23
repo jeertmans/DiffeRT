@@ -204,6 +204,77 @@ def _image_method(
 
 
 @jax.jit
+def _image_method(
+    from_vertex: Float[Array, "3"],
+    to_vertex: Float[Array, "3"],
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
+) -> Float[Array, "num_mirrors 3"]:
+    def forward(
+        previous_image: Float[Array, "3"],
+        mirror_vertex_and_normal: tuple[Float[Array, "3"], Float[Array, "3"]],
+    ) -> tuple[Float[Array, "3"], Float[Array, "3"]]:
+        # ruff: noqa: DOC201
+        """Perform forward pass on vertices by computing consecutive images."""
+        mirror_vertex, mirror_normal = mirror_vertex_and_normal
+        image = image_of_vertices_with_respect_to_mirrors(
+            previous_image,
+            mirror_vertex,
+            mirror_normal,
+        )
+        return image, image
+
+    def backward(
+        previous_intersection: Float[Array, "3"],
+        mirror_vertex_normal_and_image: tuple[
+            Float[Array, "3"],
+            Float[Array, "3"],
+            Float[Array, "3"],
+        ],
+    ) -> tuple[Float[Array, "3"], Float[Array, "3"]]:
+        # ruff: noqa: DOC201
+        """Perform backward pass on images by computing the intersection with mirrors."""
+        mirror_vertex, mirror_normal, image = mirror_vertex_normal_and_image
+
+        # We avoid NaNs (caused by subtraction of two infinities) by replacing
+        # previous_intersections with zeros when they are infinite.
+        no_previous_intersection = jnp.isinf(previous_intersection)
+        previous_intersection = jnp.where(
+            no_previous_intersection,
+            jnp.zeros_like(previous_intersection),
+            previous_intersection,
+        )
+        intersection = intersection_of_rays_with_planes(
+            previous_intersection,
+            image - previous_intersection,
+            mirror_vertex,
+            mirror_normal,
+        )
+        intersection: Array = jnp.where(
+            no_previous_intersection,
+            jnp.full_like(intersection, jnp.inf),
+            intersection,
+        )
+        return intersection, intersection
+
+    _, images = jax.lax.scan(
+        forward,
+        init=from_vertex,
+        xs=(mirror_vertices, mirror_normals),
+        unroll=True,
+    )
+    _, paths = jax.lax.scan(
+        backward,
+        init=to_vertex,
+        xs=(mirror_vertices, mirror_normals, images),
+        reverse=True,
+        unroll=True,
+    )
+
+    return paths
+
+
+@jax.jit
 def image_method(
     from_vertices: Float[ArrayLike, "*#batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"],
