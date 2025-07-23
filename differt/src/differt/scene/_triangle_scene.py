@@ -52,7 +52,7 @@ else:
 
 
 @eqx.filter_jit
-def _compute_paths(  # noqa: C901, PLR0915
+def _compute_paths(  # noqa: PLR0915
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -117,7 +117,7 @@ def _compute_paths(  # noqa: C901, PLR0915
     # [num_path_candidates order 3]
     mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
 
-    def fun(  # noqa: PLR0912
+    def fun(
         tx_vertices: Float[Array, "num_tx_vertices 3"],
         rx_vertices: Float[Array, "num_rx_vertices 3"],
     ) -> tuple[
@@ -948,7 +948,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
-    def compute_paths(  # noqa: C901, PLR0912, PLR0915
+    def compute_paths(  # noqa: PLR0915
         self,
         order: int | None = None,
         *,
@@ -1135,7 +1135,7 @@ class TriangleScene(eqx.Module):
         # [rx_batch_flattened 3]
         rx_vertices = self.receivers.reshape(-1, 3)
 
-        graph = CompleteGraph(self.mesh.num_objects)
+        graph = CompleteGraph(self.mesh.num_primitives)
 
         if method == "hybrid":
             if order is None:

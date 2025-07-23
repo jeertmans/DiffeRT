@@ -238,6 +238,7 @@ preview = true
 [tool.ruff.lint]
 extend-ignore = [
   "ANN401",  # any-type
+  "C901",  # complex-structure
   "COM812",  # missing-trailing-comma, conflicts with formatter
   "COM819",  # prohibited-trailing-comma, conflicts with formatter
   "CPY001",  # missing-copyright-notice
@@ -259,6 +260,7 @@ extend-ignore = [
   "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
   "PD",  # pandas-vet
   "PLR0904",  # too-many-public-methods, counts @overload...
+  "PLR0912",  # too-many-branches
   "PLR0913",  # too-many-arguments
   "PLR0914",  # too-many-local-variables
   "PLR6104",  # non-augmented-assignment
