@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.4.0](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...v0.4.0)
 
 ### Added
 
@@ -31,8 +35,6 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Ignored lints C901 and PLR0912 globally, instead of per-case (by <gh-user:jeertmans>, in <gh-pr:297>).
-
-<!-- start changelog -->
 
 ## [0.3.1](https://github.com/jeertmans/DiffeRT/compare/v0.3.0...v0.3.1)
 
