@@ -135,6 +135,76 @@ def intersection_of_rays_with_planes(
     )
 
 
+def _forward(
+    previous_image: Float[Array, "3"],
+    mirror_vertex_and_normal: tuple[Float[Array, "3"], Float[Array, "3"]],
+) -> tuple[Float[Array, "3"], Float[Array, "3"]]:
+    # Perform forward pass on vertices by computing consecutive images.
+    mirror_vertex, mirror_normal = mirror_vertex_and_normal
+    image = image_of_vertices_with_respect_to_mirrors(
+        previous_image,
+        mirror_vertex,
+        mirror_normal,
+    )
+    return image, image
+
+
+def _backward(
+    previous_intersection: Float[Array, "3"],
+    mirror_vertex_normal_and_image: tuple[
+        Float[Array, "3"],
+        Float[Array, "3"],
+        Float[Array, "3"],
+    ],
+) -> tuple[Float[Array, "3"], Float[Array, "3"]]:
+    # Perform backward pass on images by computing the intersection with mirrors.
+    mirror_vertex, mirror_normal, image = mirror_vertex_normal_and_image
+
+    # We avoid NaNs (caused by subtraction of two infinities) by replacing
+    # previous_intersections with zeros when they are infinite.
+    no_previous_intersection = jnp.isinf(previous_intersection)
+    previous_intersection = jnp.where(
+        no_previous_intersection,
+        jnp.zeros_like(previous_intersection),
+        previous_intersection,
+    )
+    intersection = intersection_of_rays_with_planes(
+        previous_intersection,
+        image - previous_intersection,
+        mirror_vertex,
+        mirror_normal,
+    )
+    intersection: Array = jnp.where(
+        no_previous_intersection,
+        jnp.full_like(intersection, jnp.inf),
+        intersection,
+    )
+    return intersection, intersection
+
+
+def _image_method(
+    from_vertex: Float[Array, "3"],
+    to_vertex: Float[Array, "3"],
+    mirror_vertices: Float[Array, "num_mirrors 3"],
+    mirror_normals: Float[Array, "num_mirrors 3"],
+) -> Float[Array, "num_mirrors 3"]:
+    _, images = jax.lax.scan(
+        _forward,
+        init=from_vertex,
+        xs=(mirror_vertices, mirror_normals),
+        unroll=True,
+    )
+    _, paths = jax.lax.scan(
+        _backward,
+        init=to_vertex,
+        xs=(mirror_vertices, mirror_normals, images),
+        reverse=True,
+        unroll=True,
+    )
+
+    return paths
+
+
 @jax.jit
 def image_method(
     from_vertices: Float[ArrayLike, "*#batch 3"],
@@ -278,93 +348,23 @@ def image_method(
     mirror_vertices = jnp.asarray(mirror_vertices)
     mirror_normals = jnp.asarray(mirror_normals)
 
-    # Put 'num_mirrors' axis as leading axis
-    mirror_vertices = jnp.moveaxis(mirror_vertices, -2, 0)
-    mirror_normals = jnp.moveaxis(mirror_normals, -2, 0)
-
-    # Broadcast scan carries, because shapes cannot differ between input and output
-    batch_and_3 = jnp.broadcast_shapes(
-        from_vertices.shape,
-        to_vertices.shape,
-        mirror_vertices.shape[1:],
-        mirror_normals.shape[1:],
-    )
-
     if mirror_vertices.shape[0] == 0:
         # If there are no mirrors, return empty array.
-        *batch, _ = batch_and_3
+        batch = jnp.broadcast_shapes(
+            from_vertices.shape[:-1],
+            to_vertices.shape[:-1],
+            mirror_vertices.shape[:-2],
+            mirror_normals.shape[:-2],
+        )
         dtype = jnp.result_type(
             from_vertices, to_vertices, mirror_vertices, mirror_normals
         )
         return jnp.empty((*batch, 0, 3), dtype=dtype)
 
-    from_vertices = jnp.broadcast_to(from_vertices, batch_and_3)
-    to_vertices = jnp.broadcast_to(to_vertices, batch_and_3)
-
-    def forward(
-        previous_images: Float[Array, "*batch 3"],
-        mirror_vertices_and_normals: tuple[
-            Float[Array, "*#batch 3"], Float[Array, "*#batch 3"]
-        ],
-    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        # ruff: noqa: DOC201
-        """Perform forward pass on vertices by computing consecutive images."""
-        mirror_vertices, mirror_normals = mirror_vertices_and_normals
-        images = image_of_vertices_with_respect_to_mirrors(
-            previous_images,
-            mirror_vertices,
-            mirror_normals,
-        )
-        return images, images
-
-    def backward(
-        previous_intersections: Float[Array, "*batch 3"],
-        mirror_vertices_normals_and_images: tuple[
-            Float[Array, "*#batch 3"],
-            Float[Array, "*#batch 3"],
-            Float[Array, "*#batch 3"],
-        ],
-    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        # ruff: noqa: DOC201
-        """Perform backward pass on images by computing the intersection with mirrors."""
-        mirror_vertices, mirror_normals, images = mirror_vertices_normals_and_images
-
-        # We avoid NaNs (caused by subtraction of two infinities) by replacing
-        # previous_intersections with zeros when they are infinite.
-        no_previous_intersections = jnp.isinf(previous_intersections)
-        previous_intersections = jnp.where(
-            no_previous_intersections,
-            jnp.zeros_like(previous_intersections),
-            previous_intersections,
-        )
-        intersections = intersection_of_rays_with_planes(
-            previous_intersections,
-            images - previous_intersections,
-            mirror_vertices,
-            mirror_normals,
-        )
-        intersections: Array = jnp.where(
-            no_previous_intersections,
-            jnp.full_like(intersections, jnp.inf),
-            intersections,
-        )
-        return intersections, intersections
-
-    _, images = jax.lax.scan(
-        forward,
-        init=from_vertices,
-        xs=(mirror_vertices, mirror_normals),
-        unroll=True,
-    )
-    _, paths = jax.lax.scan(
-        backward,
-        init=to_vertices,
-        xs=(mirror_vertices, mirror_normals, images),
-        reverse=True,
-        unroll=True,
-    )
-
-    return jnp.moveaxis(paths, 0, -2)  # Put 'num_mirrors' axis at the end
+    return jnp.vectorize(
+        _image_method,
+        signature="(3),(3),(n,3),(n,3)->(n,3)",
+    )(from_vertices, to_vertices, mirror_vertices, mirror_normals)
 
 
 @overload

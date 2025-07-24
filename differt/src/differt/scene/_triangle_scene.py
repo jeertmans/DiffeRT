@@ -52,7 +52,7 @@ else:
 
 
 @eqx.filter_jit
-def _compute_paths(  # noqa: PLR0915
+def _compute_paths(
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -948,7 +948,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
     ) -> SBRPaths: ...
 
-    def compute_paths(  # noqa: PLR0915
+    def compute_paths(
         self,
         order: int | None = None,
         *,

@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any, no_type_check
 
 import chex
@@ -11,7 +10,6 @@ from jaxtyping import Array, ArrayLike, Float
 from differt.geometry import orthogonal_basis
 
 
-@partial(jax.jit, inline=True)
 def _param_to_xyz(
     p: Float[Array, "*batch num_object_x_num_dims"],
     o: Float[Array, "*#batch num_objects 3"],
@@ -22,7 +20,6 @@ def _param_to_xyz(
     return o + jnp.sum(p * v, axis=-2)
 
 
-@partial(jax.jit, inline=True)
 def _loss(
     p: Float[Array, "*batch num_object_x_num_dims"],
     from_: Float[Array, "*#batch 3"],
@@ -43,6 +40,47 @@ def _loss(
         + jnp.linalg.norm(last_segment, axis=-1)
         + jnp.sum(jnp.linalg.norm(other_segments, axis=-1), axis=-1)
     )
+
+
+def _fermat_path_on_linear_objects(
+    from_vertex: Float[Array, "3"],
+    to_vertex: Float[Array, "3"],
+    object_origins: Float[Array, "num_objects 3"],
+    object_vectors: Float[Array, "num_objects num_dims 3"],
+    steps: int,
+    optimizer: optax.GradientTransformationExtraArgs,
+) -> Float[Array, "num_objects 3"]:
+    dtype = jnp.result_type(from_vertex, to_vertex, object_origins, object_vectors)
+    x_0 = jnp.zeros(object_vectors.shape[0] * object_vectors.shape[1], dtype=dtype)
+    opt_state = optimizer.init(x_0)
+    value_and_grad = optax.value_and_grad_from_state(_loss)
+
+    @no_type_check
+    def update(
+        state: tuple[Float[Array, " num_unknowns"], Any],
+        _: None,
+    ) -> tuple[tuple[Float[Array, " num_unknowns"], Any], float | Float[Array, " "]]:
+        x, opt_state = state
+        loss_value, grad = value_and_grad(
+            x, from_vertex, to_vertex, object_origins, object_vectors, state=opt_state
+        )
+        updates, opt_state = optimizer.update(
+            grad,
+            opt_state,
+            x,
+            value=loss_value,
+            grad=grad,
+            value_fn=_loss,
+            from_=from_vertex,
+            to=to_vertex,
+            o=object_origins,
+            v=object_vectors,
+        )
+        x = optax.apply_updates(x, updates)
+        return (x, opt_state), loss_value
+
+    (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
+    return _param_to_xyz(x, object_origins, object_vectors)
 
 
 @eqx.filter_jit
@@ -176,90 +214,31 @@ def fermat_path_on_linear_objects(
     object_origins = jnp.asarray(object_origins)
     object_vectors = jnp.asarray(object_vectors)
 
-    batch = jnp.broadcast_shapes(
-        from_vertices.shape[:-1],
-        to_vertices.shape[:-1],
-        object_origins.shape[:-2],
-        object_vectors.shape[:-3],
-    )
-
-    num_objects = object_origins.shape[-2]
-
-    if num_objects == 0:
+    if (num_objects := object_origins.shape[-2]) == 0 or (
+        object_vectors.shape[-2] == 0
+    ):
         # If there are no objects, return empty paths.
+        # If there are no dimensions, return origins.
+        batch = jnp.broadcast_shapes(
+            from_vertices.shape[:-1],
+            to_vertices.shape[:-1],
+            object_origins.shape[:-2],
+            object_vectors.shape[:-3],
+        )
         dtype = jnp.result_type(
             from_vertices, to_vertices, object_origins, object_vectors
         )
-        return jnp.empty((*batch, 0, 3), dtype=dtype)
-
-    num_dims = object_vectors.shape[-2]
-
-    if num_dims == 0:
-        # If there are no dimension, return origins.
-        dtype = jnp.result_type(
-            from_vertices, to_vertices, object_origins, object_vectors
-        )
+        if num_objects == 0:
+            return jnp.empty((*batch, 0, 3), dtype=dtype)
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
-
-    num_unknowns = num_objects * num_dims
-
-    objective = _loss
 
     optimizer = optimizer if optimizer is not None else optax.lbfgs()
 
-    def minimize(
-        x_0: Float[Array, " num_unknowns"],
-        from_: Float[Array, "3"],
-        to: Float[Array, "3"],
-        o: Float[Array, "num_objects 3"],
-        v: Float[Array, "num_objects num_dims 3"],
-    ) -> Float[Array, "num_objects 3"]:
-        opt_state = optimizer.init(x_0)
-
-        value_and_grad = optax.value_and_grad_from_state(objective)
-
-        @no_type_check
-        def update(
-            state: tuple[Float[Array, "*batch num_unknowns"], Any],
-            _: None,
-        ) -> tuple[
-            tuple[Float[Array, "*batch num_unknowns"], Any], float | Float[Array, " "]
-        ]:
-            x, opt_state = state
-            loss_value, grad = value_and_grad(x, from_, to, o, v, state=opt_state)
-            updates, opt_state = optimizer.update(
-                grad,
-                opt_state,
-                x,
-                value=loss_value,
-                grad=grad,
-                value_fn=objective,
-                from_=from_,
-                to=to,
-                o=o,
-                v=v,
-            )
-            x = optax.apply_updates(x, updates)
-            return (x, opt_state), loss_value
-
-        (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
-        return _param_to_xyz(x, o, v)
-
-    x_0 = jnp.zeros((*batch, num_unknowns))
-
-    for i in reversed(range(len(batch))):
-        minimize = jax.vmap(
-            minimize,
-            in_axes=(
-                0,
-                0 if from_vertices.ndim > i + 1 else None,
-                0 if to_vertices.ndim > i + 1 else None,
-                0 if object_origins.ndim > i + 2 else None,
-                0 if object_vectors.ndim > i + 3 else None,
-            ),
-        )
-
-    return minimize(x_0, from_vertices, to_vertices, object_origins, object_vectors)
+    return jnp.vectorize(
+        _fermat_path_on_linear_objects,
+        excluded={4, 5},
+        signature="(3),(3),(n,3),(n,d,3)->(n,3)",
+    )(from_vertices, to_vertices, object_origins, object_vectors, steps, optimizer)
 
 
 @eqx.filter_jit

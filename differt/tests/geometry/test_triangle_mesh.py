@@ -462,7 +462,7 @@ class TestTriangleMesh:
 
         assert mesh.num_triangles == (s.num_triangles + o.num_triangles)
 
-        if (  # noqa: PLR0916
+        if (
             (self_assume_quads and not self_empty)
             and (other_empty or other_assume_quads)
         ) or (
