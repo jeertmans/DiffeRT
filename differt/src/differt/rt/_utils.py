@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import Callable, Iterator, Sized
-from functools import cache
+from functools import cache, partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import equinox as eqx
@@ -432,76 +432,22 @@ def rays_intersect_any_triangle(
 
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
-    # Put 'num_triangles' axis as leading axis
-    triangle_vertices = jnp.moveaxis(triangle_vertices, -3, 0)
-    active_triangles = (
-        jnp.moveaxis(active_triangles, -1, 0)
-        if active_triangles is not None
-        else jnp.ones(triangle_vertices.shape[:-2], dtype=bool)
-    )
-
-    batch = jnp.broadcast_shapes(
-        ray_origins.shape[:-1],
-        ray_directions.shape[:-1],
-        triangle_vertices.shape[1:-2],
-    )
+    @partial(jax.vmap, in_axes=(None, None, -3), out_axes=-1)
+    def vfun(ray_origins: Float[Array, "*#batch 3"], ray_directions: Float[Array, "*#batch 3"], triangle_vertices: Float[Array, "*#batch 3 3"]) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
+        t, hit = rays_intersect_triangles(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            **kwargs,
+        )
+        if smoothing_factor is not None:
+            return jnp.minimum(smoothing_function(hit_threshold - t, smoothing_factor), hit)
+        return (t < hit_threshold) & hit
 
     if smoothing_factor is not None:
+        return vfun(ray_origins, ray_directions, triangle_vertices).sum(axis=-1, where=active_triangles).clip(max=1.0)
 
-        def scan_fun(
-            intersect: Float[Array, " *batch"],
-            triangle_vertices_and_active: tuple[
-                Float[Array, "*#batch 3 3"], Bool[Array, "*#batch"] | None
-            ],
-        ) -> tuple[Float[Array, " *batch"], None]:
-            triangle_vertices, active_triangles = triangle_vertices_and_active
-            t, hit = rays_intersect_triangles(
-                ray_origins,
-                ray_directions,
-                triangle_vertices,
-                smoothing_factor=smoothing_factor,
-                **kwargs,
-            )
-            hit *= active_triangles
-            intersect = (
-                intersect
-                + jnp.minimum(
-                    smoothing_function(hit_threshold - t, smoothing_factor), hit
-                )
-            ).clip(
-                max=1.0,
-            )
-            return intersect, None
-
-    else:
-
-        def scan_fun(
-            intersect: Bool[Array, " *batch"],
-            triangle_vertices_and_active: tuple[
-                Float[Array, "*#batch 3 3"], Bool[Array, "*#batch"] | None
-            ],
-        ) -> tuple[Bool[Array, " *batch"], None]:
-            triangle_vertices, active_triangles = triangle_vertices_and_active
-            t, hit = rays_intersect_triangles(
-                ray_origins,
-                ray_directions,
-                triangle_vertices,
-                **kwargs,
-            )
-            intersect |= (t < hit_threshold) & hit & active_triangles
-            return intersect, None
-
-    init = (
-        jnp.zeros(batch)
-        if smoothing_factor is not None
-        else jnp.zeros(batch, dtype=jnp.bool)
-    )
-
-    return jax.lax.scan(
-        scan_fun,
-        init=init,
-        xs=(triangle_vertices, active_triangles),
-    )[0]
+    return vfun(ray_origins, ray_directions, triangle_vertices).any(axis=-1, where=active_triangles)
 
 
 @eqx.filter_jit
@@ -583,33 +529,27 @@ def triangles_visible_from_vertices(
     # [*batch 3]
     ray_origins = vertices
 
-    # [2 3]
-    # note: currently we don't handle batches and generate one frustum for everything
-    # TODO: compute frustum for each batch
-    # TODO: handle 'active_triangles'
-    frustum = viewing_frustum(
+    # [*batch 2 3]
+    frustum = jnp.vectorize(viewing_frustum, excluded={1}, signature="(3)->(2,3)")(
         ray_origins,
         triangle_vertices.reshape(*triangle_vertices.shape[:-3], -1, 3),
-        reduce=True,
     )
 
-    # [num_rays 3]
-    ray_directions = fibonacci_lattice(num_rays, frustum=frustum)
+    # [*batch num_rays 3]
+    ray_directions = jnp.vectorize(lambda n, frustum: fibonacci_lattice(n, frustum=frustum), excluded={0}, signature="(2,3)->(n,3)")(num_rays, frustum)
 
-    batch = jnp.broadcast_shapes(ray_origins.shape[:-1], triangle_vertices.shape[:-3])
+    print(f"{ray_directions.shape=}, {ray_origins.shape=}, {triangle_vertices.shape=}")
 
-    def scan_fun(
-        visible: Bool[Array, "*batch num_triangles"],
-        ray_direction: Float[Array, "3"],
-    ) -> tuple[Bool[Array, " *batch num_triangles"], None]:
+    @partial(jax.vmap, in_axes=(None, -2, None), out_axes=-1)
+    def vfun(ray_origins: Float[Array, "*#batch 3"], ray_directions: Float[Array, "*#batch 3"], triangle_vertices: Float[Array, "*#batch num_triangles 3 3"]) -> Bool[Array, " *batch"]:
         t, hit = rays_intersect_triangles(
             ray_origins[..., None, :],
-            ray_direction[..., None, :],
+            ray_directions[..., None, :],
             triangle_vertices,
             **kwargs,
         )
         # A triangle is visible if it is the first triangle to be intersected by a ray.
-        visible = visible | (
+        return (
             t
             == jnp.min(
                 t,
@@ -620,13 +560,8 @@ def triangles_visible_from_vertices(
             )
         )
 
-        return visible, None
 
-    return jax.lax.scan(
-        scan_fun,
-        init=jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool),
-        xs=ray_directions,
-    )[0]
+    return vfun(ray_origins, ray_directions, triangle_vertices).any(axis=-1, where=active_triangles)
 
 
 @eqx.filter_jit
