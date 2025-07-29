@@ -248,6 +248,11 @@ class TriangleMesh(eqx.Module):
 
         Unless specified, the transformation or selection operations, like :meth:`rotate`,
         will not take the mask into account, and will apply to all triangles.
+
+    .. important::
+
+        When :attr:`assume_quads` is :data:`True`, a quad is considered active if both triangles
+        that form the quad are active.
     """
 
     def __check_init__(self) -> None:  # noqa: PLW3201
