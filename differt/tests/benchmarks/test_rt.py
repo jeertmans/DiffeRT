@@ -1,14 +1,11 @@
 from typing import Literal
 
-import jax
+import jax.numpy as jnp
 import pytest
-from jaxtyping import Array
 from pytest_codspeed import BenchmarkFixture
 
-from differt.geometry import Paths
 from differt.rt import (
     fermat_path_on_planar_mirrors,
-    generate_all_path_candidates,
     image_method,
     triangles_visible_from_vertices,
 )
@@ -23,14 +20,18 @@ def test_image_method(
     benchmark: BenchmarkFixture,
 ) -> None:
     setup = large_random_planar_mirrors_setup
-    _ = benchmark(
-        lambda: image_method(
+
+    def bench_fun() -> None:
+        image_method(
             setup.from_vertices,
             setup.to_vertices,
             setup.mirror_vertices,
             setup.mirror_normals,
         ).block_until_ready()
-    )
+
+    bench_fun()
+
+    _ = benchmark(bench_fun)
 
 
 @pytest.mark.benchmark(group="fermat_method")
@@ -39,14 +40,18 @@ def test_fermat(
     benchmark: BenchmarkFixture,
 ) -> None:
     setup = large_random_planar_mirrors_setup
-    _ = benchmark(
-        lambda: fermat_path_on_planar_mirrors(
+
+    def bench_fun() -> None:
+        fermat_path_on_planar_mirrors(
             setup.from_vertices,
             setup.to_vertices,
             setup.mirror_vertices,
             setup.mirror_normals,
         ).block_until_ready()
-    )
+
+    bench_fun()
+
+    _ = benchmark(bench_fun)
 
 
 @pytest.mark.benchmark(group="triangles_visible_from_vertices")
@@ -55,74 +60,38 @@ def test_transmitter_visibility_in_simple_street_canyon_scene(
     benchmark: BenchmarkFixture,
 ) -> None:
     scene = simple_street_canyon_scene
-    _ = benchmark(
-        lambda: triangles_visible_from_vertices(
+
+    def bench_fun() -> None:
+        triangles_visible_from_vertices(
             scene.transmitters,
             scene.mesh.triangle_vertices,
         ).block_until_ready()
-    )
 
-
-@pytest.mark.benchmark(group="compute_paths")
-@pytest.mark.parametrize("order", [0, 1, 2])
-@pytest.mark.parametrize("chunk_size", [None, 20_000])
-@pytest.mark.parametrize("assume_quads", [False, True])
-@pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
-def test_compute_paths_in_simple_street_canyon_scene(
-    order: int,
-    chunk_size: int | None,
-    assume_quads: bool,
-    method: Literal["exhaustive", "hybrid"],
-    simple_street_canyon_scene: TriangleScene,
-    benchmark: BenchmarkFixture,
-) -> None:
-    scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
-    if chunk_size:
-
-        def bench_fun() -> None:
-            for path in scene.compute_paths(
-                order,
-                method=method,
-                chunk_size=chunk_size,
-            ):
-                path.vertices.block_until_ready()
-
-    else:
-
-        def bench_fun() -> None:
-            scene.compute_paths(
-                order,
-                method=method,
-                chunk_size=None,
-            ).vertices.block_until_ready()
+    bench_fun()
 
     _ = benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="jitted_compute_paths")
-@pytest.mark.parametrize("provide_pc", [False, True])
-def test_jitted_compute_paths(
-    provide_pc: bool,
+@pytest.mark.benchmark(group="compute_paths")
+@pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
+def test_compute_paths_in_simple_street_canyon_scene(
+    method: Literal["exhaustive", "hybrid"],
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
 ) -> None:
-    scene = simple_street_canyon_scene
-
-    path_candidates = generate_all_path_candidates(scene.mesh.num_triangles, 2)
-
-    if provide_pc:
-
-        @jax.jit
-        def fun(path_candidates: Array) -> Paths:
-            return scene.compute_paths(path_candidates=path_candidates)
-
-    else:
-
-        @jax.jit
-        def fun(path_candidates: Array) -> Paths:
-            return scene.compute_paths(order=path_candidates.shape[1])
+    scene = simple_street_canyon_scene.set_assume_quads()
 
     def bench_fun() -> None:
-        fun(path_candidates).vertices.block_until_ready()
+        num_valid_paths = jnp.array(0, dtype=jnp.int32)
+        for order in range(3):
+            for paths in scene.compute_paths(
+                order=order,
+                method=method,
+                chunk_size=10_000,
+            ):
+                num_valid_paths += paths.num_valid_paths
+        num_valid_paths.block_until_ready()
+
+    bench_fun()
 
     _ = benchmark(bench_fun)

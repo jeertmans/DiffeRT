@@ -547,6 +547,7 @@ def triangles_visible_from_vertices(
         visible from a given transmitter, coloring them in dark gray.
 
         .. plotly::
+            :context: reset
 
             >>> import equinox as eqx
             >>> from differt.rt import (
@@ -573,6 +574,49 @@ def triangles_visible_from_vertices(
             ...     lambda s: s.mesh.face_colors,
             ...     scene,
             ...     scene.mesh.face_colors.at[visible_triangles, :].set(visible_color),
+            ... )
+            >>> fig = scene.plot(backend="plotly")
+            >>> fig  # doctest: +SKIP
+
+        In this example, a receiver is placed at the opposite side of the street canyon,
+        and its visible triangles are colored in blue. Triangles that are visible from both
+        the transmitter and the receiver are colored in yellow.
+
+        .. plotly::
+            :context:
+
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.receivers, scene, jnp.array([33, 0, 1.5])
+            ... )
+            >>> visible_triangles = triangles_visible_from_vertices(
+            ...     jnp.stack((scene.transmitters, scene.receivers)),
+            ...     scene.mesh.triangle_vertices,
+            ... )
+            >>> triangles_visible_from_tx = visible_triangles[0, :]
+            >>> triangles_visible_from_rx = visible_triangles[1, :]
+            >>> visible_by_tx_color = jnp.array([0.2, 0.2, 0.2])
+            >>> visible_by_rx_color = jnp.array([0.2, 0.8, 0.2])
+            >>> visible_by_both_color = jnp.array([0.8, 0.8, 0.2])
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.mesh.face_colors,
+            ...     scene,
+            ...     scene.mesh.face_colors.at[triangles_visible_from_tx, :].set(
+            ...         visible_by_tx_color
+            ...     ),
+            ... )
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.mesh.face_colors,
+            ...     scene,
+            ...     scene.mesh.face_colors.at[triangles_visible_from_rx, :].set(
+            ...         visible_by_rx_color
+            ...     ),
+            ... )
+            >>> scene = eqx.tree_at(
+            ...     lambda s: s.mesh.face_colors,
+            ...     scene,
+            ...     scene.mesh.face_colors.at[
+            ...         triangles_visible_from_tx & triangles_visible_from_rx, :
+            ...     ].set(visible_by_both_color),
             ... )
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
