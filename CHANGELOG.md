@@ -24,6 +24,8 @@ with one *slight* but **important** difference:
 
 - Refactored {func}`image_method<differt.rt.image_method>` and {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to use {func}`jnp.vectorize<jax.numpy.vectorize>` instead of a custom but complex chain of calls to {func}`jax.vmap`, reducing the code complexity while not affecting performance (by <gh-user:jeertmans>, in <gh-pr:298>).
 - Ignored lints PLR091* globally, instead of per-case (by <gh-user:jeertmans>, in <gh-pr:298>).
+- Improved code coverage for ray-triangle intersection tests (by <gh-user:jeertmans>, in <gh-pr:301>).
+- Refactored benchmarks to reduce the number of benchmarks and avoid depending on JIT compilation (by <gh-user:jeertmans>, in <gh-pr:301>).
 
 <!-- start changelog -->
 

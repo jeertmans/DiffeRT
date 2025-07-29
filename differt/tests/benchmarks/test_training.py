@@ -105,15 +105,6 @@ def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, " "]:
     return jnp.mean((pred - paths.mask.astype(pred.dtype)) ** 2)
 
 
-def test_dataloader(
-    simple_street_canyon_scene: TriangleScene,
-    benchmark: BenchmarkFixture,
-    key: PRNGKeyArray,
-) -> None:
-    dataloader = train_dataloader(simple_street_canyon_scene, key=key)
-    _ = benchmark(lambda: next(dataloader))
-
-
 def test_train_step(
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,
@@ -147,4 +138,9 @@ def test_train_step(
         initial=(model, opt_state, jnp.array(0.0)),
     )
 
-    _ = benchmark(lambda: next(iterator)[-1].block_until_ready())  # noqa: PLW0108
+    def bench_fun() -> None:
+        next(iterator)[-1].block_until_ready()
+
+    bench_fun()
+
+    _ = benchmark(bench_fun)
