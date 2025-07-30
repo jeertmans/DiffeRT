@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from equinox import nn
-from jaxtyping import Array, Float, PRNGKeyArray
+from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
 
 from differt.scene._triangle_scene import TriangleScene
@@ -138,9 +138,10 @@ def test_train_step(
         initial=(model, opt_state, jnp.array(0.0)),
     )
 
-    def bench_fun() -> None:
-        next(iterator)[-1].block_until_ready()
+    @jax.block_until_ready
+    def bench_fun() -> PyTree:
+        return next(iterator)
 
     bench_fun()
 
-    _ = benchmark(bench_fun)
+    benchmark(bench_fun)
