@@ -251,6 +251,7 @@ def test_rays_intersect_triangles_random_inputs(
 )
 @pytest.mark.parametrize("epsilon", [None, 1e-6, 1e-2])
 @pytest.mark.parametrize("hit_tol", [None, 0.0, 0.001, -0.5, 0.5])
+@pytest.mark.parametrize("with_active_triangles", [True, False])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_rays_intersect_any_triangle(
     ray_origins: Array,
@@ -258,6 +259,7 @@ def test_rays_intersect_any_triangle(
     triangle_vertices: Array,
     epsilon: float | None,
     hit_tol: float | None,
+    with_active_triangles: bool,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     if hit_tol is None:
@@ -266,14 +268,22 @@ def test_rays_intersect_any_triangle(
     else:
         hit_tol_arr = jnp.asarray(hit_tol)
 
+    active_triangles = (
+        jnp.ones(triangle_vertices.shape[:-2], dtype=bool)
+        if with_active_triangles
+        else None
+    )
+
     hit_threshold = 1.0 - hit_tol_arr
     with expectation:
         got = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
+            active_triangles=active_triangles,
             epsilon=epsilon,
             hit_tol=hit_tol,
+            batch_size=11,  # will create non-zero remainder
         )
         expected_t, expected_hit = rays_intersect_triangles(
             ray_origins[..., None, :],
@@ -344,6 +354,7 @@ def test_triangles_visible_from_vertices(
         vertex,
         cube_vertices,
         num_rays=num_rays,
+        batch_size=1,
     )
 
     with expectation:
@@ -357,21 +368,31 @@ def test_triangles_visible_from_vertices(
     [
         ((10, 3), (1, 3), (30, 3, 3)),
         ((100, 3), (100, 3), (1, 300, 3, 3)),
+        ((4, 3), (4, 3), (0, 3, 3)),
     ],
 )
 @pytest.mark.parametrize("epsilon", [None, 1e-2])
+@pytest.mark.parametrize("with_active_triangles", [True, False])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
 def test_first_triangles_hit_by_rays(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
     epsilon: float | None,
+    with_active_triangles: bool,
 ) -> None:
+    active_triangles = (
+        jnp.ones(triangle_vertices.shape[:-2], dtype=bool)
+        if with_active_triangles
+        else None
+    )
     got_indices, got_t = first_triangles_hit_by_rays(
         ray_origins,
         ray_directions,
         triangle_vertices,
+        active_triangles=active_triangles,
         epsilon=epsilon,
+        batch_size=11,  # will create non-zero remainder
     )
     expected_t, expected_hit = rays_intersect_triangles(
         ray_origins[..., None, :],
@@ -380,13 +401,17 @@ def test_first_triangles_hit_by_rays(
         epsilon=epsilon,
     )
     expected_t = jnp.where(expected_hit, expected_t, jnp.inf)
-    expected_indices = jnp.argmin(expected_t, axis=-1)
-    assert expected_indices.shape == got_indices.shape
-    expected_t = jnp.take_along_axis(
-        expected_t, jnp.expand_dims(expected_indices, axis=-1), axis=-1
-    ).squeeze(axis=-1)
-    assert expected_t.shape == got_t.shape
-    expected_indices = jnp.where(expected_t == jnp.inf, -1, expected_indices)
+    if triangle_vertices.shape[-3] == 0:
+        expected_t = jnp.full_like(expected_t, jnp.inf, shape=expected_t.shape[:-1])
+        expected_indices = jnp.full(expected_t.shape, -1, dtype=int)
+    else:
+        expected_indices = jnp.argmin(expected_t, axis=-1)
+        assert expected_indices.shape == got_indices.shape
+        expected_t = jnp.take_along_axis(
+            expected_t, jnp.expand_dims(expected_indices, axis=-1), axis=-1
+        ).squeeze(axis=-1)
+        assert expected_t.shape == got_t.shape
+        expected_indices = jnp.where(expected_t == jnp.inf, -1, expected_indices)
 
     chex.assert_trees_all_equal(got_indices, expected_indices)
     chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5)

@@ -75,14 +75,22 @@ def _compute_paths(
     num_rx_vertices = rx_vertices.shape[0]
     num_path_candidates, order = path_candidates.shape
 
-    # [num_path_candidates order 3]
+    if mesh.assume_quads:
+        # [num_path_candidates 2*order 3 3]
+        path_candidates = jnp.repeat(path_candidates, 2, axis=-1)
+        path_candidates = path_candidates.at[..., 1::2].add(1)  # Shift odd indices by 1
+        k = 2
+    else:
+        k = 1
+
+    # [num_path_candidates k*order 3]
     triangles = jnp.take(mesh.triangles, path_candidates, axis=0).reshape(
-        num_path_candidates, order, 3
+        num_path_candidates, k * order, 3
     )  # reshape required if mesh is empty
 
-    # [num_path_candidates order 3 3]
+    # [num_path_candidates k*order 3 3]
     triangle_vertices = jnp.take(mesh.vertices, triangles, axis=0).reshape(
-        num_path_candidates, order, 3, 3
+        num_path_candidates, k * order, 3, 3
     )  # reshape required if mesh is empty
 
     if mesh.mask is not None:
@@ -92,30 +100,18 @@ def _compute_paths(
     else:
         active_rays = None
 
-    if mesh.assume_quads:
-        # [num_path_candidates order 2 3]
-        quads = jnp.take(
-            mesh.triangles,
-            jnp.stack((path_candidates, path_candidates + 1), axis=-1),
-            axis=0,
-        ).reshape(num_path_candidates, order, 2, 3)  # reshape required if mesh is empty
-
-        # [num_path_candidates order 2 3 3]
-        quad_vertices = jnp.take(mesh.vertices, quads, axis=0).reshape(
-            num_path_candidates, order, 2, 3, 3
-        )  # reshape required if mesh is empty
-    else:
-        quad_vertices = None
-
     # [num_path_candidates order 3]
     mirror_vertices = triangle_vertices[
         ...,
+        :: (2 if mesh.assume_quads else 1),
         0,
         :,
     ]  # Only one vertex per triangle is needed
 
     # [num_path_candidates order 3]
-    mirror_normals = jnp.take(mesh.normals, path_candidates, axis=0)
+    mirror_normals = jnp.take(
+        mesh.normals, path_candidates[..., :: (2 if mesh.assume_quads else 1)], axis=0
+    )
 
     def fun(
         tx_vertices: Float[Array, "num_tx_vertices 3"],
@@ -159,23 +155,29 @@ def _compute_paths(
             if smoothing_factor is not None:
                 inside_triangles = (
                     rays_intersect_triangles(
-                        ray_origins[..., :-1, None, :],
-                        ray_directions[..., :-1, None, :],
-                        quad_vertices,  # type: ignore[reportArgumentType]
+                        jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
+                        jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
+                        triangle_vertices,
                         epsilon=epsilon,
                         smoothing_factor=smoothing_factor,
                     )[1]
+                    .reshape(
+                        num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
+                    )
                     .max(axis=-1, initial=0.0)
                     .min(axis=-1, initial=1.0)
                 )  # Reduce on 'order' axis and on the two triangles (per quad)
             else:
                 inside_triangles = (
                     rays_intersect_triangles(
-                        ray_origins[..., :-1, None, :],
-                        ray_directions[..., :-1, None, :],
-                        quad_vertices,  # type: ignore[reportArgumentType]
+                        jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
+                        jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
+                        triangle_vertices,
                         epsilon=epsilon,
                     )[1]
+                    .reshape(
+                        num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
+                    )
                     .any(axis=-1)
                     .all(axis=-1)
                 )  # Reduce on 'order' axis and on the two triangles (per quad)
@@ -224,6 +226,7 @@ def _compute_paths(
                 epsilon=epsilon,
                 hit_tol=hit_tol,
                 smoothing_factor=smoothing_factor,
+                batch_size=1024,
             ).max(axis=-1, initial=0.0)  # Reduce on 'order'
         else:
             blocked = rays_intersect_any_triangle(
@@ -233,6 +236,7 @@ def _compute_paths(
                 active_triangles=mesh.mask,
                 epsilon=epsilon,
                 hit_tol=hit_tol,
+                batch_size=1024,
             ).any(axis=-1)  # Reduce on 'order'
 
         # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
@@ -320,7 +324,7 @@ def _compute_paths(
         (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
     )
     path_candidates = jnp.broadcast_to(
-        path_candidates,
+        path_candidates[:, ::k],
         (
             num_tx_vertices,
             num_rx_vertices,

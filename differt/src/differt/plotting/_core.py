@@ -99,10 +99,14 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    if vertices.size == 0 or triangles.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
+        return canvas
+
     kwargs.setdefault("shading", "flat")
 
     vertices = np.asarray(vertices)
     triangles = np.asarray(triangles)
+
     view.add(Mesh(vertices=vertices, faces=triangles, **kwargs))
     view.camera.set_range()
 
@@ -202,6 +206,9 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    if paths.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
+        return canvas
+
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("marker_size", 0.0)
     paths = np.asarray(paths)
@@ -211,7 +218,6 @@ def _(
     connect[path_length - 1 :: path_length] = False
 
     view.add(LinePlot(data=paths, connect=connect, **kwargs))  # type: ignore[reportArgumentType]
-
     view.camera.set_range()
 
     return canvas
@@ -353,6 +359,9 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
+    if ray_origins.size == 0 or ray_directions.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
+        return canvas
+
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("arrow_size", 6.0)
 
@@ -370,7 +379,6 @@ def _(
     arrows = np.concatenate((body_ends, arrows_center), axis=-1)
 
     view.add(Arrow(pos=pos, connect=connect, arrows=arrows, **kwargs))  # type: ignore[reportArgumentType]
-
     view.camera.set_range()
 
     return canvas
@@ -512,6 +520,10 @@ def _(
     from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
 
     canvas, view = process_vispy_kwargs(kwargs)
+
+    if markers.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
+        return canvas
+
     kwargs.setdefault("size", 1)
     kwargs.setdefault("edge_width_rel", 0.05)
     kwargs.setdefault("scaling", "scene")
