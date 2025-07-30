@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 from functools import partial
 from typing import overload
 
@@ -430,12 +428,21 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
 
     if mirror_vertices.shape[-2] == 0:
         # If there are no mirrors, return empty array.
-        dtype = bool if smoothing_factor is None else float
-        return jnp.empty(mirror_vertices.shape[:-1], dtype=dtype)
+        batch = jnp.broadcast_shapes(
+            vertices.shape[:-2],
+            mirror_vertices.shape[:-2],
+            mirror_normals.shape[:-2],
+        )
+        dtype = (
+            bool
+            if smoothing_factor is None
+            else jnp.result_type(vertices, mirror_vertices, mirror_normals)
+        )
+        return jnp.empty((*batch, 0), dtype=dtype)
 
     # dot_{prev,next} = <(v_{prev,next} - mirror_v), mirror_n>
 
-    # [num_mirrors]
+    # [*batch num_mirrors 3]
     d_prev = vertices[..., :-2, :] - mirror_vertices
     d_next = vertices[..., +2:, :] - mirror_vertices
 
