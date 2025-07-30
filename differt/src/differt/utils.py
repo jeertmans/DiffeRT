@@ -170,7 +170,7 @@ def safe_divide(
         den: The denominator.
 
     Returns:
-        The result of ``num / dev``, except that division by zero returns 0.
+        The result of ``num / den``, except that division by zero returns 0.
 
     Examples:
         The following examples shows how division by zero is handled.

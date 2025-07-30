@@ -1,7 +1,7 @@
 # The `*batch` axes
 
 As you will probably notice, many functions we provided accept
-arrays with set of leading axes, referred to as `*batch`.
+arrays with a set of leading axes, referred to as `*batch`.
 
 This notation indicates that you may provide arbitrary many dimensions
 for the batch axes, and the output will preserve those batch dimensions
@@ -31,7 +31,7 @@ Thus, allowing for arbitrary batch dimensions will help you write
 code in a way that is mostly transparent to the number of *repetitions*.
 
 E.g., the following function computes the dot product
-between batch of arrays:
+between batches of arrays:
 
 ```python
 >>> import jax
@@ -61,7 +61,7 @@ Array(14., dtype=float32)
 ```
 
 That is, the resulting output will have a shape of `*batch`,
-where is entry is the result of the dot produt between `n` pairs of values
+where each entry is the result of the dot product between `n` pairs of values
 from the corresponding entries in `x` and `y` input arguments.
 
 ## Convenient arrays broadcasting with `*#batch`
@@ -73,7 +73,7 @@ with {func}`jax.numpy.broadcast_arrays` or similar.
 
 This serves two principal objectives:
 
-1. avoid, when possibly, unnecessary memory allocations, by not broadcasting
+1. avoid, when possible, unnecessary memory allocations, by not broadcasting
    arrays and directly using reduced results, like for the dot product.
    This, however, often depends on the ability of {func}`jax.jit` to
    optimize some unnecessary computations away.
@@ -84,7 +84,7 @@ This serves two principal objectives:
 If a function does not offer batch axes, there are two possibilities:
 
 1. you can use vectorization functions, like {func}`jax.vmap`, to
-   call a repeat a given function over another array axis;
+   repeatedly call a given function over another array axis;
 2. or you think code would really benefit from having batch axes.
    In that case, we recommend opening an issue on
    [GitHub](https://github.com/jeertmans/DiffeRT).
@@ -97,7 +97,7 @@ implement the batch axes.
 The biggest cost of using many batch dimensions is mainly in
 the memory footprint.
 
-E.g., in Ray Tracing applications, when dealing with larges scene
+E.g., in Ray Tracing applications, when dealing with large scenes
 (i.e., a large number of objects) or high-order paths,
 the size of some dimensions can rapidly become so large than they
 cannot fit inside your memory.
@@ -107,7 +107,7 @@ This is also why we propose chunked iterators
 as an alternative.
 
 Likewise, when a dimension is getting too big,
-it is recommend to just iterator of batches,
+it is recommended to just iterate over batches,
 rather than computing *everything all at once*.
 
 However, iterations are slow and this can become also a

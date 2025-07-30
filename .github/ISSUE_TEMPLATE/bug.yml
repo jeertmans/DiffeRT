@@ -18,7 +18,7 @@ body:
       > [!WARNING]
       > Before reporting your bug, please make sure to:
       >
-      > 1. create and activate virtual environment (venv);
+      > 1. create and activate a virtual environment (venv);
       > 2. install `differt` and the necessary dependencies;
       > 3. and reduce your Python to a minimal working example (MWE).
       >
@@ -33,7 +33,7 @@ body:
     label: Terms
     description: 'By submitting this issue, I have:'
     options:
-    - label: Checked the [existing issues](https://github.com/jeertmans/differt/issues?q=is%3Aissue+label%3Abug+) and [discussions](https://github.com/jeertmans/differt/discussions) to see if my issue had not already been reported;
+    - label: Checked the [existing issues](https://github.com/jeertmans/differt/issues?q=is%3Aissue+label%3Abug+) and [discussions](https://github.com/jeertmans/differt/discussions) to see if my issue has not already been reported;
       required: true
     - label: Checked the [documentation](https://differt.rtfd.io/);
       required: true
@@ -120,7 +120,7 @@ body:
     - Linux
     - macOS
     - Windows
-    - Other (please precise below)
+    - Other (please specify below)
   validations:
     required: true
 

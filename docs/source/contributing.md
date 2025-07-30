@@ -1,8 +1,8 @@
 # Contributing
 
-Thank you for your interest for this project!
+Thank you for your interest in this project!
 
-DiffeRT is mainly a one-person project, developed to support its research during his PhD.
+DiffeRT is mainly a one-person project, developed to support the author's research during his PhD.
 However, it is also open source so that *anyone* can use this tool for its own research.
 
 We hope that, by making this tool available to the public, other researchers will be
@@ -35,7 +35,7 @@ whenever you update a Python file,
 this is not true for the {mod}`differt_core` package and its Rust files.
 
 If you make any change to the Rust code of the latter, you need to rebuild it
-so that changes are taken into accounts:
+so that changes are taken into account:
 
 ```bash
 uv sync --reinstall-package differt-core

@@ -14,7 +14,7 @@
 
 This package contains the core backend of
 [DiffeRT](https://pypi.org/project/DiffeRT/),
-implemented in Rust for performances.
+implemented in Rust for performance.
 
 As a result, both `differt` and `differt-core` will
 share the same version, and `differt` directly depends on `differt-core`.

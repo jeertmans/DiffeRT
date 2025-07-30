@@ -4,7 +4,7 @@ DiffeRT: Differentiable Ray Tracing Toolbox for Radio Propagation
 DiffeRT is a Python module that aims to make *Differentiable Ray Tracing* accessible
 to researchers in radio propagation!
 
-It is currently developed as part of a PhD, but a lot of work is put into documentating and
+It is currently developed as part of a PhD, but a lot of work is put into documenting and
 testing the tool, so any researcher should be able to understand how to use this tool for
 their own research.
 

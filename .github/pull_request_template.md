@@ -14,7 +14,7 @@
 
 Check all the applicable boxes:
 
-- [ ] I understand that my contributions needs to pass the checks;
+- [ ] I understand that my contributions need to pass the checks;
 - [ ] If I created new functions / methods, I documented them and add type hints;
 - [ ] If I modified already existing code, I updated the documentation accordingly;
 - [ ] The title of my pull request is a short description of the requested changes.

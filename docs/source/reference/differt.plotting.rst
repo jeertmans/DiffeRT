@@ -19,7 +19,7 @@ of plotting functions, either permanently or inside a given scope.
 
 .. rubric:: Drawing functions
 
-List of all drawings functions provided by this module.
+List of all drawing functions provided by this module.
 
 .. note::
    Some functions might not support all three backends. In such cases, it is indicated in their documentation.

@@ -57,13 +57,13 @@ cuda-reload:
 devices:
     uv run python -c "import jax;print(jax.devices())"
 
-# Install marutin import hook to automatically build differt_core
+# Install maturin import hook to automatically build differt_core
 [group('dev')]
 [working-directory('differt-core')]
 hook-install:
     uv run python -m maturin_import_hook site install
 
-# Uninstall marutin import hook
+# Uninstall maturin import hook
 [group('dev')]
 [working-directory('differt-core')]
 hook-uninstall:

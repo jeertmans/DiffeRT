@@ -32,7 +32,7 @@ where units are meters for {math}`r`, and radians for {math}`\theta` and {math}`
 Arrays expressing such coordinates are **mainly** of the type and shape
 {class}`Float[Array, "... 3"]<jaxtyping.Float>`, but sometimes the radial component {math}`r` is omitted
 which means {class}`Float[Array, "... 2"]<jaxtyping.Float>` arrays can also be used in some places, usually
-as a mean to indicate a radial component equal to 1.
+as a means to indicate a radial component equal to 1.
 
 {numref}`fig:spherical` shows how spherical coordinates are defined.
 
@@ -64,7 +64,7 @@ and is implemented by {func}`cartesian_to_spherical<differt.geometry.cartesian_t
 
 ### Spherical to Cartesian
 
-Conversely, it is possibly to derive Cartesian coordinates from spherical coordinates using:
+Conversely, it is possible to derive Cartesian coordinates from spherical coordinates using:
 
 ```{math}
 \begin{bmatrix} x \\ y \\ z \end{bmatrix} =

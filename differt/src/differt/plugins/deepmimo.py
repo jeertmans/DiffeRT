@@ -286,7 +286,7 @@ def export(
         The current implementation assumes far-field propagation in free space, and isotropic antennas with vertical polarization.
 
         While tests show a good match with Sionna's :class:`sionna.rt.PathSolver` for most attributes,
-        :attr:`DeepMIMO.power` and :attr:`DeepMIMO.phase` are not exactly equals, and we don't know yet if our implementation is 100% correct. If you know how to improve this, please open an issue or a pull-request on GitHub!
+        :attr:`DeepMIMO.power` and :attr:`DeepMIMO.phase` are not exactly equal, and we don't know yet if our implementation is 100% correct. If you know how to improve this, please open an issue or a pull-request on GitHub!
 
     Args:
         paths: The geometrical paths.

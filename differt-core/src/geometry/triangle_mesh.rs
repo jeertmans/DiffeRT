@@ -155,7 +155,7 @@ impl TriangleMesh {
     ///
     /// The array contains the material indices,
     /// with a special placeholder value of ``-1``.
-    /// The obtain the name of the material, see :attr:`material_names`.
+    /// To obtain the name of the material, see :attr:`material_names`.
     /// This attribute is :data:`None` if all face materials are unset.
     #[getter]
     fn face_materials<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray1<isize>>> {
@@ -168,7 +168,7 @@ impl TriangleMesh {
     /// :class:`Int[np.ndarray, 'num_objects 2']<jaxtyping.Int>` | :data:`None`: The array of object indices.
     ///
     /// If the present mesh contains multiple objects, usually as a result of
-    /// appending multiple meshes together, this array contain start end end
+    /// appending multiple meshes together, this array contains start and end
     /// indices for each sub mesh.
     #[getter]
     fn object_bounds<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyArray2<usize>>> {

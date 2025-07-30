@@ -102,7 +102,7 @@ class Paths(eqx.Module):
     )
     """An optional mask to indicate which paths are valid and should be used.
 
-    The mask is kept separately to :attr:`vertices` so that we can keep information
+    The mask is kept separately to :attr:`vertices` so that we can keep information about
     batch ``*batch`` dimensions, which would not be possible if we were to directly
     store valid paths.
     """
@@ -451,7 +451,7 @@ class Paths(eqx.Module):
             ValueError: If :attr:`mask` is None.
         """
         if self.mask is None and self.confidence is None:
-            msg = "Cannot create multiplath cells from non-existing mask (or confidence matrix)!"
+            msg = "Cannot create multipath cells from non-existing mask (or confidence matrix)!"
             raise ValueError(msg)
 
         if self.mask is not None:
@@ -578,7 +578,7 @@ class SBRPaths(Paths):
 
     Warning:
         The ``mask`` argument is ignored as it will automatically
-        by overwritten with the last array in :attr:`masks`.
+        be overwritten with the last array in :attr:`masks`.
     """
 
     _: KW_ONLY

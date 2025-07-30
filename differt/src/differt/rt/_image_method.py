@@ -24,7 +24,7 @@ def image_of_vertices_with_respect_to_mirrors(
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
         mirror_normals: An array of mirror normals, where each normal has a unit
-            length and if perpendicular to the corresponding mirror.
+            length and is perpendicular to the corresponding mirror.
 
     Returns:
         An array of image vertices.
@@ -218,7 +218,7 @@ def image_method(
     of specular reflections on a pre-defined list of mirrors.
 
     The method assumes infinitely long mirrors, and will return invalid
-    paths in some degenerated cases such as consecutive colinear mirrors,
+    paths in some degenerated cases such as consecutive collinear mirrors,
     or impossible configurations. It is the user's responsibility to make
     sure that the returned path is correct.
 
@@ -241,7 +241,7 @@ def image_method(
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
         mirror_normals: An array of mirror normals, where each normal has a unit
-            length and if perpendicular to the corresponding mirror.
+            length and is perpendicular to the corresponding mirror.
 
     Returns:
         An array of ray paths obtained with the image method.
@@ -281,8 +281,8 @@ def image_method(
             valid path that can be taken to join BS and UE with, in between, reflection with
             two mirrors (the interaction order is important). First, the consecutive images
             of the BS are determined through each mirror, using line symmetry. Second,
-            intersections with mirrors are computed backward, `i.e.`, from last mirror to
-            first, by joining the UE, then the intersections points, with the images of the
+            intersections with mirrors are computed backward, i.e., from last mirror to
+            first, by joining the UE, then the intersection points, with the images of the
             BS. Finally, the valid path can be obtained by joining BS, the intermediary
             intersection points, and the UE :cite:`mpt-eucap2023{fig. 5, p. 3}`.
 

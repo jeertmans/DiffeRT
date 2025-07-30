@@ -417,7 +417,7 @@ def fibonacci_lattice(
         frustum: The spatial region where to sample points.
 
             The frustum in an array of min. and max. values for
-            azimutal and elevation angles, see :func:`viewing_frustum` for example.
+            azimuthal and elevation angles, see :func:`viewing_frustum` for example.
 
             It is allowed to pass a frustum with distance values, but it will be ignored
             as the distance of from sampled points to origin is always 1.
@@ -781,10 +781,10 @@ def viewing_frustum(
     a_min = jnp.min(a, axis=-1)
     a_max = jnp.max(a, axis=-1)
 
-    # The discontinuity for azimutal angles near -pi;pi can create
+    # The discontinuity for azimuthal angles near -pi;pi can create
     # issues, leading to a larger angular sector that expected.
 
-    # We map azimutal angles from [-pi;pi[ to [0;2pi[.
+    # We map azimuthal angles from [-pi;pi[ to [0;2pi[.
     two_pi = 2 * jnp.pi
 
     a_0 = (a + two_pi) % two_pi

@@ -12,7 +12,7 @@
 
    TriangleScene
 
-.. rubric:: Reusing scene from Sionna
+.. rubric:: Reusing scenes from Sionna
 
 Provide a compatibility layer with Sionna's scenes :cite:`sionna`.
 

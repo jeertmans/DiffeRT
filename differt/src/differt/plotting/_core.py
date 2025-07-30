@@ -284,7 +284,7 @@ def draw_rays(
         The resulting plot output.
 
     .. [#f1] Plotly's 3D quiver plot is just a cone, which does not look like an
-        arrow. To improve it, a line is prepended the cone.
+        arrow. To improve it, a line is prepended to the cone.
 
     .. raw:: html
 
@@ -600,7 +600,7 @@ def draw_image(
     Plot a 2D image on a 3D canvas, at a fixed z-coordinate.
 
     Args:
-        data: The image data array. Can be grayscale, RGB or RGBA.
+        data: The image data array. Can be grayscale, RGB, or RGBA.
             For more details on how the data is interpreted, please
             refer to the documentation of the function corresponding
             to the specified backend (see below).
@@ -621,7 +621,7 @@ def draw_image(
         The resulting plot output.
 
     Warning:
-        Matplotlib backend requires ``data`` to be either RGB or RGBA array.
+        Matplotlib backend requires ``data`` to be either an RGB or an RGBA array.
 
     Examples:
         The following example shows how to plot a 2-D image,

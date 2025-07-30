@@ -116,7 +116,7 @@ pub mod complete {
 
     /// A complete graph, i.e.,
     /// a simple undirected graph in which every pair of
-    /// distinc nodes is connected by a unique edge.
+    /// distinct nodes is connected by a unique edge.
     ///
     /// Args:
     ///     num_nodes (int): The number of nodes.
