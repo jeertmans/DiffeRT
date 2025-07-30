@@ -19,4 +19,4 @@ build:
 sphinx:
   builder: html
   configuration: docs/source/conf.py
-  fail_on_warning: false  # TODO: enable me
+  fail_on_warning: true
