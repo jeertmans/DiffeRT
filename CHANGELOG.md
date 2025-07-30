@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...HEAD)
+
+<!-- start changelog -->
+
+## [0.4.1](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...v0.4.1)
 
 ### Added
 
@@ -38,8 +42,6 @@ with one *slight* but **important** difference:
 ### Perf
 
 - [Improved performance for ray-triangle intersection tests]{#ray-triangle-perf-1} (i.e, {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`) by implementing a custom, batched, scan-like check. This avoids having to loop over all triangles (or rays) sequentially while preventing out-of-memory issues. A new `batch_size` argument is now available for these functions, allowing users to customize the size of each batch (by <gh-user:jeertmans>, in <gh-pr:300>).
-
-<!-- start changelog -->
 
 ## [0.4.0](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...v0.4.0)
 
