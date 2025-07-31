@@ -206,7 +206,7 @@ class TriangleMesh(eqx.Module):
 
     The array contains the material indices,
     with a special placeholder value of ``-1``.
-    The obtain the name of the material, see :attr:`material_names`.
+    To obtain the name of the material, see :attr:`material_names`.
     This attribute is :data:`None` if all face materials are unset.
     """
     material_names: tuple[str, ...] = eqx.field(
@@ -268,7 +268,7 @@ class TriangleMesh(eqx.Module):
 
         Warning:
             As it is not possible to guarantee that indexing would not break existing
-            object bounds, the :attr:`object_bounds` attributed is simply dropped.
+            object bounds, the :attr:`object_bounds` attribute is simply dropped.
 
         Args:
             key: The key used to index :attr:`triangles`
@@ -630,7 +630,7 @@ class TriangleMesh(eqx.Module):
         Return a new mesh by applying a scale factor to all triangle coordinates.
 
         Args:
-            scale_factor: The scate factor.
+            scale_factor: The scale factor.
 
         Returns:
             The new scaled mesh.

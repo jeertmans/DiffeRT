@@ -1,7 +1,7 @@
 # Installation
 
 DiffeRT consists of two Python modules, {mod}`differt` and {mod}`differt_core`,
-where the latter is direct dependency of the former, and both share the *exact same version*.
+where the latter is a direct dependency of the former, and both share the *exact same version*.
 
 The main package, {mod}`differt`, uses Python-only code. The core package, {mod}`differt_core`,
 even though only containing a very limited set of utilities, is written in Rust to offer good performances,
@@ -30,7 +30,7 @@ If you want to leverage the power of your GPU(s) or TPU(s), you may want
 to look at [JAX's installation guide](https://jax.readthedocs.io/en/latest/installation.html),
 as they provide the necessary information about how to install JAX with support for your target device.
 
-DiffeRT works seamlessly with JAX regardless of the active devices (i.e, CPU, GPU, or TPU).
+DiffeRT works seamlessly with JAX regardless of the active devices (i.e., CPU, GPU, or TPU).
 
 ### Optional dependencies
 
@@ -46,7 +46,7 @@ You may want to install those optional features by using *extras*[^1]:
 - **VisPy-specific:**
   - `vispy-backend`: provide a default [backend toolkit for VisPy](https://vispy.org/installation.html);
 - **Jupyter support:**
-  - `jupyter`: provide support for Matplotlib and VisPy interactive plot inside notebooks;
+  - `jupyter`: provide support for Matplotlib and VisPy interactive plots inside notebooks;
 - **Aliases:**
   - `all`: alias to `jupyter,matplotlib,plotly,vispy,vispy-backend`;
 
@@ -63,7 +63,7 @@ but performant program. It also heavily uses the capabilities brought by
 
 ### Requirements
 
-To run build this package locally, you need:
+To build this package locally, you need:
 
 - [Rust](https://www.rust-lang.org/)\* stable toolchain;
 - any modern C compiler\*;
@@ -77,7 +77,7 @@ use cases, so feel free to use them instead of the commands listed below.
 Requirements with an asterisk (\*) are only needed if you want to build {mod}`differt_core` from source. If you don't plan on making changes to the Rust code, see [building without Rust](#building-without-rust).
 :::
 
-[^2]: `just` is as alternative tool to Make, that provides more modern
+[^2]: `just` is an alternative tool to Make, that provides more modern
   user experience. Enter `just` to list all available recipes.
 
 ### Building

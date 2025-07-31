@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...HEAD)
 
+### Chore
+
+- Fixed typos left in documents with the help of Copilot (for most) and LanguageTool (for some) (by <gh-user:jeertmans>, in <gh-pr:304>).
+
 ### Fixed
 
 - Fixed a shape (and possibly `dtype`) issue in the fast path of {func}`consecutive_vertices_are_on_same_side_of_mirrors<differt.rt.consecutive_vertices_are_on_same_side_of_mirrors>`, that would raise an error when trying to stack arrays in {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` with a non-{data}`None` value for `smoothing_factor` (by <gh-user:jeertmans>, in <gh-pr:303>).
@@ -45,7 +49,7 @@ with one *slight* but **important** difference:
 
 ### Perf
 
-- [Improved performance for ray-triangle intersection tests]{#ray-triangle-perf-1} (i.e, {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`) by implementing a custom, batched, scan-like check. This avoids having to loop over all triangles (or rays) sequentially while preventing out-of-memory issues. A new `batch_size` argument is now available for these functions, allowing users to customize the size of each batch (by <gh-user:jeertmans>, in <gh-pr:300>).
+- [Improved performance for ray-triangle intersection tests]{#ray-triangle-perf-1} (i.e., {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`) by implementing a custom, batched, scan-like check. This avoids having to loop over all triangles (or rays) sequentially while preventing out-of-memory issues. A new `batch_size` argument is now available for these functions, allowing users to customize the size of each batch (by <gh-user:jeertmans>, in <gh-pr:300>).
 
 ## [0.4.0](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...v0.4.0)
 
@@ -93,7 +97,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added {attr}`TriangleMesh.mask<differt.geometry.TriangleMesh.mask>` attribute has been added to allow triangles to be selected using a mask instead of dropping the inactive ones. This is useful for generating multiple sub-meshes of a mesh without changing the memory allocated to each sub-mesh, thus enabling efficient stacking (by <gh-user:jeertmans>, in <gh-pr:287>).
+- Added {attr}`TriangleMesh.mask<differt.geometry.TriangleMesh.mask>` attribute to allow triangles to be selected using a mask instead of dropping the inactive ones. This is useful for generating multiple sub-meshes of a mesh without changing the memory allocated to each sub-mesh, thus enabling efficient stacking (by <gh-user:jeertmans>, in <gh-pr:287>).
 - Added a new `by_masking: bool = False` keyword-only parameter to {meth}`TriangleMesh.sample<differt.geometry.TriangleMesh.sample>` to allow sampling sub-meshes by setting the mask array, instead of dropping triangles (by <gh-user:jeertmans>, in <gh-pr:287>).
 - Added a new optional `active_triangles: Array | None = None` parameter to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` (by <gh-user:jeertmans>, in <gh-pr:287>).
 - Added `__version_info__` tuple to {mod}`differt` and {mod}`differt_core` (by <gh-user:jeertmans>, in <gh-pr:288>).

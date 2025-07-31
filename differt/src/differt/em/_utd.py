@@ -100,10 +100,10 @@ def L_i(
 
     where :math:`s^d` is the distance from the point of diffraction (:math:`Q_d`) to the observer
     point (:math:`P`),
-    :math:`\rho_1^i` is the principal radius of curvature of the incident wavewront at :math:`Q_d`
+    :math:`\rho_1^i` is the principal radius of curvature of the incident wavefront at :math:`Q_d`
     in the plane of incidence,
-    :math:`\rho_2^i` is the principal radius of curvature of the incident wavewront at :math:`Q_d`
-    in the place transverse to the plane of incidence,
+    :math:`\rho_2^i` is the principal radius of curvature of the incident wavefront at :math:`Q_d`
+    in the plane transverse to the plane of incidence,
     :math:`\rho_e^i` is radius of curvature of the incident wavefront in the edge-fixed
     plane of incidence., and :math:`\beta_0` is the angle of diffraction.
 

@@ -85,14 +85,14 @@ def generate_all_path_candidates(
     another, by passing by exactly ``order`` primitives. Calling this function
     is equivalent to calling :func:`itertools.product` with parameters
     ``[0, 1, ..., num_primitives - 1]`` and ``repeat=order``, and removing entries
-    with containing loops, i.e., two or more consecutive indices that are equal.
+    containing loops, i.e., two or more consecutive indices that are equal.
 
     Args:
         num_primitives: The (positive) number of primitives.
         order: The path order. An order less than one returns an empty array.
 
     Returns:
-        An unsigned array with primitive indices on each columns. Its number of
+        An unsigned array with primitive indices on each column. Its number of
         columns is actually equal to
         ``num_primitives * ((num_primitives - 1) ** (order - 1))``.
     """
@@ -206,12 +206,12 @@ def rays_intersect_triangles(
 
             Such a tolerance is especially useful when rays are hitting
             triangle edges, a very common case if geometries are planes
-            split into multiple triangles. shape
+            split into multiple triangles.
 
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
-            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            as described in :cite:`fully-eucap2024`, and this argument parameterizes the slope
             of the smoothing function. The second output value is now a real value
             between 0 (:data:`False`) and 1 (:data:`True`).
 
@@ -414,7 +414,7 @@ def rays_intersect_any_triangle(
             If not specified, the default is ten times the epsilon value
             of the currently used floating point dtype.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
-            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            as described in :cite:`fully-eucap2024`, and this argument parameterizes the slope
             of the smoothing function. The second output value is now a real value
             between 0 (:data:`False`) and 1 (:data:`True`).
 

@@ -24,16 +24,16 @@ def poynting_vector(
     b: Inexact[ArrayLike, "*#batch 3"],
 ) -> Inexact[Array, "*batch 3"]:
     r"""
-    Compute the Pointing vector in vacuum at from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
+    Compute the Poynting vector in vacuum from electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
     Args:
         e: The electrical field.
-        b: The magnetical field.
+        b: The magnetic field.
 
     Returns:
-        The pointing vector :math:`\vec{S}`.
+        The Poynting vector :math:`\vec{S}`.
 
-        It can be either real of complex-valued.
+        It can be either real or complex-valued.
     """
     return jnp.cross(jnp.asarray(e), jnp.asarray(b)) / mu_0
 
@@ -86,7 +86,7 @@ class Antenna(BaseAntenna):
     def reference_power(self) -> Float[Array, " "]:
         r"""The reference power (W) radiated by this antenna.
 
-        This is the maximal value of the pointing vector at a distance
+        This is the maximal value of the Poynting vector at a distance
         of one meter from this antenna, multiplied by the area of the sphere
         (:math:`4\phi`),
         to obtain a power.
@@ -109,7 +109,7 @@ class Antenna(BaseAntenna):
                 is assumed.
 
         Returns:
-            The electric :math:`\vec{E}` and magnetical :math:`\vec{B}` fields.
+            The electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
             Fields can be either real or complex-valued.
         """
@@ -131,9 +131,9 @@ class Antenna(BaseAntenna):
                 is assumed.
 
         Returns:
-            The pointing vector :math:`\vec{S}`.
+            The Poynting vector :math:`\vec{S}`.
 
-            It can be either real of complex-valued.
+            It can be either real or complex-valued.
         """
         e, b = self.fields(r, t)
         return poynting_vector(e, b)
@@ -147,7 +147,7 @@ class Antenna(BaseAntenna):
         Float[Array, "2*{num_points} {num_points}"],
     ]:
         """
-        Compute an estimate of the antenna directivity for azimutal and elevation angles.
+        Compute an estimate of the antenna directivity for azimuthal and elevation angles.
 
         .. note::
 
@@ -157,10 +157,10 @@ class Antenna(BaseAntenna):
         Args:
             num_points: The number of points to sample along the elevation axis.
 
-                Twice this number of points are sampled on the aximutal axis.
+                Twice this number of points are sampled on the azimuthal axis.
 
         Returns:
-            Azimutal and elevation angles, as well as corresponding directivity values.
+            Azimuthal and elevation angles, as well as corresponding directivity values.
 
         .. seealso::
 
@@ -220,12 +220,12 @@ class Antenna(BaseAntenna):
         """
         Plot the radiation pattern (normalized power) of this antenna.
 
-        The power is computed on points on an sphere around the antenna.
+        The power is computed on points on a sphere around the antenna.
 
         Args:
             num_points: The number of points to sample along the elevation axis.
 
-                Twice this number of points are sampled on the aximutal axis.
+                Twice this number of points are sampled on the azimuthal axis.
             distance: The distance from the antenna at which power samples
                 are evaluated.
             num_wavelengths: If provided, supersedes ``distance`` by setting
@@ -279,8 +279,8 @@ class Dipole(Antenna):
             By default, the dipole is aligned with the z-axis.
         current: The current (in A) flowing in the dipole.
 
-            If this is provided, which is the default, the only the direction of the moment
-            vector is used, and its insensity is set to match the dipole moment with
+            If this is provided, which is the default, only the direction of the moment
+            vector is used, and its intensity is set to match the dipole moment with
             specified current.
         charge: The dipole charge (in Coulomb), assuming opposite charges on either ends of the dipole.
 
@@ -533,7 +533,7 @@ class RadiationPattern(BaseAntenna):
             r: The array of positions.
 
         Returns:
-            The electric :math:`\vec{E}` and magnetical :math:`\vec{B}` fields.
+            The electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
 
             Fields can be either real or complex-valued.
         """
@@ -547,7 +547,7 @@ class RadiationPattern(BaseAntenna):
         Float[Array, "2*{num_points} {num_points}"],
     ]:
         """
-        Compute an estimate of the antenna directivity for azimutal and elevation angles.
+        Compute an estimate of the antenna directivity for azimuthal and elevation angles.
 
         .. note::
 
@@ -557,10 +557,10 @@ class RadiationPattern(BaseAntenna):
         Args:
             num_points: The number of points to sample along the elevation axis.
 
-                Twice this number of points are sampled on the aximutal axis.
+                Twice this number of points are sampled on the azimuthal axis.
 
         Returns:
-            Azimutal and elevation angles, as well as corresponding directivity values.
+            Azimuthal and elevation angles, as well as corresponding directivity values.
 
         .. seealso::
 
@@ -616,12 +616,12 @@ class RadiationPattern(BaseAntenna):
         """
         Plot the radiation pattern (normalized power) of this antenna.
 
-        The power is computed on points on an sphere around the antenna.
+        The power is computed on points on a sphere around the antenna.
 
         Args:
             num_points: The number of points to sample along the elevation axis.
 
-                Twice this number of points are sampled on the aximutal axis.
+                Twice this number of points are sampled on the azimuthal axis.
             distance: The distance from the antenna at which power samples
                 are evaluated.
             num_wavelengths: If provided, supersedes ``distance`` by setting

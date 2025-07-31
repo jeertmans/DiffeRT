@@ -116,7 +116,7 @@ def download_sionna_scenes(
                 else:  # pragma: no cover
                     msg = (
                         "You are using an old version of Python that doesn't include the 'filter' "
-                        "parameter in 'tarfile.TarFile.extractall'. This is can be security issue, and we "
+                        "parameter in 'tarfile.TarFile.extractall'. This can be a security issue, and we "
                         "recommend upgrading to a newer version of Python: 3.12, 3.11.4, or 3.10.12."
                     )
                     warnings.warn(msg, UserWarning, stacklevel=2)
@@ -212,7 +212,7 @@ def main() -> None:  # pragma: no cover
         "-f",
         "--force",
         action="store_true",
-        help="force to clean any existing folder with '--no-cached' is set.",
+        help="force to clean any existing folder when '--no-cached' is set.",
     )
     parser.add_argument(
         "--cached",
@@ -224,7 +224,7 @@ def main() -> None:  # pragma: no cover
         "--chunk-size",
         type=int,
         default=1024,
-        help="the chunk size, in bytes, used when for displaying progress",
+        help="the chunk size, in bytes, used for displaying progress",
     )
     parser.add_argument(
         "--progress",

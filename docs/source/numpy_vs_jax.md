@@ -6,7 +6,7 @@ for most common applications. It comes with a large set of utilities,
 and many other Python modules are built on top, like
 [SciPy](https://scipy.org/).
 
-However, it lacks one keep component we need for differentiability:
+However, it lacks one key component we need for differentiability:
 automatic differentiation (autodiff). And this is where
 [JAX](https://github.com/jax-ml/jax) comes into play. While providing
 an almost identical syntax to NumPy, JAX offers autodiff everywhere
@@ -17,7 +17,7 @@ and provides just-in-time compilation to optimize your code.
 
 ## Where JAX arrays are used
 
-As a results of the aforementioned pros, JAX arrays are used in the vast
+As a result of the aforementioned pros, JAX arrays are used in the vast
 majority of the codebase, both as input and as output types.
 
 JAX arrays use the following type annotations:
@@ -27,16 +27,16 @@ to the
 and `Shape` describes
 the [array shape](https://docs.kidger.site/jaxtyping/api/array/#shape).
 
-## Where NumPY arrays are used
+## Where NumPy arrays are used
 
 In some cases, using JAX arrays is just not possible.
 We can identify two specific cases:
 
 1. For plotting, we rely on third-party libraries that
    may not support JAX arrays, e.g., Vispy. As a result,
-   {mod}`differt.plotting` automatically convert NumPy arrays.
+   {mod}`differt.plotting` automatically converts NumPy arrays.
 2. In the Rust code, there is no way of directly creating JAX
-   arrays, but well for NumPy. Therefore, directly calling the functions
+   arrays, but works well for NumPy. Therefore, directly calling the functions
    declared with Rust code will return NumPy arrays.
 
 Similarly, NumPy arrays use the following type annotations:

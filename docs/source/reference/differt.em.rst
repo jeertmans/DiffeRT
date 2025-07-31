@@ -43,9 +43,9 @@ where :math:`P` is the observation point and :math:`Q_r` is the reflection point
 
 where :math:`\boldsymbol{R}` is the dyadic matrix with the reflection coefficients.
 
-The foundamentals of UTD are described are also described in :cite:`utd-mcnamara`,
-where Chapter 6 (p. 263) covers three-dimension wedge diffraction. A similar expression
-can be obtained to express the diffraction field in function of the incident field
+The fundamentals of UTD are also described in :cite:`utd-mcnamara`,
+where Chapter 6 (p. 263) covers three-dimensional wedge diffraction. A similar expression
+can be obtained to express the diffraction field as a function of the incident field
 :cite:`utd-mcnamara{eq. 6.13, p. 268}`:
 
 .. math::
@@ -69,7 +69,7 @@ where :math:`\boldsymbol{D}` is the dyadic matrix with the diffraction coefficie
 .. rubric:: Antennas
 
 The following antenna classes are defined to work in vacuum.
-If you want to use those classes in another media, you can do so
+If you want to use those classes in another medium, you can do so
 by multiplying the output fields by relative permeabilities and permittivities,
 when relevant.
 

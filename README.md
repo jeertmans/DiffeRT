@@ -21,7 +21,7 @@ Differentiable Ray Tracing toolbox for Radio Propagation powered by the [JAX eco
 > [!WARNING]
 > This package is still under important development, see
 > the [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestone for future
-> features, and the [CHANGELOG](https://github.com/jeertmans/DiffeRT/blob/main/README.md)
+> features, and the [CHANGELOG](https://github.com/jeertmans/DiffeRT/blob/main/CHANGELOG.md)
 > for versioning policy.
 >
 > If you have any suggestion regarding the development of this package,
@@ -59,7 +59,7 @@ if your issue does not fit one of the proposed topics.
 The more precise you are in the description of your problem, the faster we will
 be able to help you!
 
-If you rather have question than a problem,
+If you rather have a question than a problem,
 then it is probably best suited to ask it in the
 [Q&A category of the discussions](https://github.com/jeertmans/DiffeRT/discussions/categories/q-a).
 

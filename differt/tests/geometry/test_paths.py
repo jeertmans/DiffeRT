@@ -285,7 +285,7 @@ class TestPaths:
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
         with pytest.raises(
             ValueError,
-            match=r"Cannot create multiplath cells from non-existing mask \(or confidence matrix\)!",
+            match=r"Cannot create multipath cells from non-existing mask \(or confidence matrix\)!",
         ):
             _ = random_paths(
                 6, 3, 2, num_objects=20, with_mask=False, key=key

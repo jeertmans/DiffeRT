@@ -692,7 +692,7 @@ class TriangleScene(eqx.Module):
         Return a new scene by applying a scale factor to all the objects in the scene.
 
         Args:
-            scale_factor: The scate factor.
+            scale_factor: The scale factor.
 
         Returns:
             The new scaled scene.
