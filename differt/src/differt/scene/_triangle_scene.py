@@ -8,8 +8,6 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jax.experimental.shard_map import shard_map
-from jax.sharding import PartitionSpec as P
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 import differt_core.scene
@@ -58,7 +56,6 @@ def _compute_paths(
     rx_vertices: Float[Array, "num_rx_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
-    parallel: bool,
     epsilon: Float[ArrayLike, " "] | None,
     hit_tol: Float[ArrayLike, " "] | None,
     min_len: Float[ArrayLike, " "] | None,
@@ -113,200 +110,161 @@ def _compute_paths(
         mesh.normals, path_candidates[..., :: (2 if mesh.assume_quads else 1)], axis=0
     )
 
-    def fun(
-        tx_vertices: Float[Array, "num_tx_vertices 3"],
-        rx_vertices: Float[Array, "num_rx_vertices 3"],
-    ) -> tuple[
-        Float[
-            Array,
-            "num_tx_vertices num_rx_vertices num_path_candidates path_length 3",
-        ],
-        Bool[Array, "num_tx_vertices num_rx_vertices num_path_candidates"]
-        | Float[Array, "num_tx_vertices num_rx_vertices num_path_candidates"],
-    ]:
-        # 2 - Trace paths
+    # 2 - Trace paths
 
-        # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
-        paths = image_method(
-            tx_vertices[:, None, None, :],
-            rx_vertices[None, :, None, :],
+    # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
+    paths = image_method(
+        tx_vertices[:, None, None, :],
+        rx_vertices[None, :, None, :],
+        mirror_vertices,
+        mirror_normals,
+    )
+
+    # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
+    full_paths = assemble_paths(
+        tx_vertices[:, None, None, :],
+        paths,
+        rx_vertices[None, :, None, :],
+    )
+
+    # 3 - Identify invalid paths
+
+    # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
+    ray_origins = full_paths[..., :-1, :]
+    # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
+    ray_directions = jnp.diff(full_paths, axis=-2)
+
+    # 3.1 - Check if paths vertices are inside respective triangles
+
+    # [num_tx_vertices num_rx_vertices num_path_candidates]
+    if mesh.assume_quads:
+        if smoothing_factor is not None:
+            inside_triangles = (
+                rays_intersect_triangles(
+                    jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
+                    jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
+                    triangle_vertices,
+                    epsilon=epsilon,
+                    smoothing_factor=smoothing_factor,
+                )[1]
+                .reshape(
+                    num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
+                )
+                .max(axis=-1, initial=0.0)
+                .min(axis=-1, initial=1.0)
+            )  # Reduce on 'order' axis and on the two triangles (per quad)
+        else:
+            inside_triangles = (
+                rays_intersect_triangles(
+                    jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
+                    jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
+                    triangle_vertices,
+                    epsilon=epsilon,
+                )[1]
+                .reshape(
+                    num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
+                )
+                .any(axis=-1)
+                .all(axis=-1)
+            )  # Reduce on 'order' axis and on the two triangles (per quad)
+    elif smoothing_factor is not None:
+        inside_triangles = rays_intersect_triangles(
+            ray_origins[..., :-1, :],
+            ray_directions[..., :-1, :],
+            triangle_vertices,
+            epsilon=epsilon,
+            smoothing_factor=smoothing_factor,
+        )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
+    else:
+        inside_triangles = rays_intersect_triangles(
+            ray_origins[..., :-1, :],
+            ray_directions[..., :-1, :],
+            triangle_vertices,
+            epsilon=epsilon,
+        )[1].all(axis=-1)  # Reduce on 'order' axis
+
+    # 3.2 - Check if consecutive path vertices are on the same side of mirrors
+
+    # [num_tx_vertices num_rx_vertices num_path_candidates]
+    if smoothing_factor is not None:
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+            full_paths,
             mirror_vertices,
             mirror_normals,
-        )
+            smoothing_factor=smoothing_factor,
+        ).min(axis=-1, initial=1.0)  # Reduce on 'order'
+    else:
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+            full_paths,
+            mirror_vertices,
+            mirror_normals,
+        ).all(axis=-1)  # Reduce on 'order'
 
-        # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
-        full_paths = assemble_paths(
-            tx_vertices[:, None, None, :],
-            paths,
-            rx_vertices[None, :, None, :],
-        )
+    # 3.3 - Identify paths that are blocked by other objects
 
-        # 3 - Identify invalid paths
+    # [num_tx_vertices num_rx_vertices num_path_candidates]
+    if smoothing_factor is not None:
+        blocked = rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+            active_triangles=mesh.mask,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+            smoothing_factor=smoothing_factor,
+            batch_size=1024,
+        ).max(axis=-1, initial=0.0)  # Reduce on 'order'
+    else:
+        blocked = rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+            active_triangles=mesh.mask,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+            batch_size=1024,
+        ).any(axis=-1)  # Reduce on 'order'
 
-        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
-        ray_origins = full_paths[..., :-1, :]
-        # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
-        ray_directions = jnp.diff(full_paths, axis=-2)
+    # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
-        # 3.1 - Check if paths vertices are inside respective triangles
+    ray_lengths = dot(ray_directions)  # Squared norm
 
-        # [num_tx_vertices num_rx_vertices num_path_candidates]
-        if mesh.assume_quads:
-            if smoothing_factor is not None:
-                inside_triangles = (
-                    rays_intersect_triangles(
-                        jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
-                        jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
-                        triangle_vertices,
-                        epsilon=epsilon,
-                        smoothing_factor=smoothing_factor,
-                    )[1]
-                    .reshape(
-                        num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
-                    )
-                    .max(axis=-1, initial=0.0)
-                    .min(axis=-1, initial=1.0)
-                )  # Reduce on 'order' axis and on the two triangles (per quad)
-            else:
-                inside_triangles = (
-                    rays_intersect_triangles(
-                        jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
-                        jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
-                        triangle_vertices,
-                        epsilon=epsilon,
-                    )[1]
-                    .reshape(
-                        num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
-                    )
-                    .any(axis=-1)
-                    .all(axis=-1)
-                )  # Reduce on 'order' axis and on the two triangles (per quad)
-        elif smoothing_factor is not None:
-            inside_triangles = rays_intersect_triangles(
-                ray_origins[..., :-1, :],
-                ray_directions[..., :-1, :],
-                triangle_vertices,
-                epsilon=epsilon,
-                smoothing_factor=smoothing_factor,
-            )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
-        else:
-            inside_triangles = rays_intersect_triangles(
-                ray_origins[..., :-1, :],
-                ray_directions[..., :-1, :],
-                triangle_vertices,
-                epsilon=epsilon,
-            )[1].all(axis=-1)  # Reduce on 'order' axis
+    if smoothing_factor is not None:
+        too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
+            axis=-1, initial=0.0
+        )  # Any path segment being too small
+    else:
+        too_small = (ray_lengths < min_len).any(
+            axis=-1
+        )  # Any path segment being too small
 
-        # 3.2 - Check if consecutive path vertices are on the same side of mirrors
+    # 3.5 - Identify paths that are not finite
+    is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
+    full_paths = jnp.where(
+        is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths)
+    )
 
-        # [num_tx_vertices num_rx_vertices num_path_candidates]
-        if smoothing_factor is not None:
-            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
-                full_paths,
-                mirror_vertices,
-                mirror_normals,
-                smoothing_factor=smoothing_factor,
-            ).min(axis=-1, initial=1.0)  # Reduce on 'order'
-        else:
-            valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
-                full_paths,
-                mirror_vertices,
-                mirror_normals,
-            ).all(axis=-1)  # Reduce on 'order'
-
-        # 3.3 - Identify paths that are blocked by other objects
-
-        # [num_tx_vertices num_rx_vertices num_path_candidates]
-        if smoothing_factor is not None:
-            blocked = rays_intersect_any_triangle(
-                ray_origins,
-                ray_directions,
-                mesh.triangle_vertices,
-                active_triangles=mesh.mask,
-                epsilon=epsilon,
-                hit_tol=hit_tol,
-                smoothing_factor=smoothing_factor,
-                batch_size=1024,
-            ).max(axis=-1, initial=0.0)  # Reduce on 'order'
-        else:
-            blocked = rays_intersect_any_triangle(
-                ray_origins,
-                ray_directions,
-                mesh.triangle_vertices,
-                active_triangles=mesh.mask,
-                epsilon=epsilon,
-                hit_tol=hit_tol,
-                batch_size=1024,
-            ).any(axis=-1)  # Reduce on 'order'
-
-        # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
-
-        ray_lengths = dot(ray_directions)  # Squared norm
-
-        if smoothing_factor is not None:
-            too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
-                axis=-1, initial=0.0
-            )  # Any path segment being too small
-        else:
-            too_small = (ray_lengths < min_len).any(
-                axis=-1
-            )  # Any path segment being too small
-
-        # 3.5 - Identify paths that are not finite
-        is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
-        full_paths = jnp.where(
-            is_finite[..., None, None], full_paths, jnp.zeros_like(full_paths)
-        )
-
-        if smoothing_factor is not None:
-            confidence = jnp.stack(
-                (
-                    inside_triangles,
-                    valid_reflections,
-                    1.0 - blocked,
-                    1.0 - too_small,
-                    is_finite.astype(inside_triangles.dtype),
-                ),
-                axis=-1,
-            ).min(axis=-1, initial=1.0)
-            if active_rays is not None:
-                confidence *= active_rays
-            return full_paths, confidence
+    if smoothing_factor is not None:
+        mask = None
+        confidence = jnp.stack(
+            (
+                inside_triangles,
+                valid_reflections,
+                1.0 - blocked,
+                1.0 - too_small,
+                is_finite.astype(inside_triangles.dtype),
+            ),
+            axis=-1,
+        ).min(axis=-1, initial=1.0)
+        if active_rays is not None:
+            confidence *= active_rays
+    else:
+        confidence = None
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
         if active_rays is not None:
             mask &= active_rays
-        return full_paths, mask
 
-    if parallel:
-        num_devices = jax.device_count()
-
-        if (num_tx_vertices * num_rx_vertices) % num_devices == 0:
-            tx_mesh = math.gcd(num_tx_vertices, num_devices)
-            rx_mesh = num_devices // tx_mesh
-            in_specs = (P("i", None), P("j", None))
-            out_specs = (P("i", "j", None, None, None), P("i", "j", None))
-        else:
-            msg = (
-                f"Found {num_devices} devices available, "
-                "but could not find any input with a size that is a multiple of that value. "
-                "Please user a number of transmitter and receiver points that is a "
-                f"multiple of {num_devices}."
-            )
-            raise ValueError(msg)
-
-        fun = shard_map(
-            fun,
-            jax.make_mesh((tx_mesh, rx_mesh), axis_names=("i", "j")),
-            in_specs=in_specs,
-            out_specs=out_specs,
-        )
-
-    if smoothing_factor is not None:
-        vertices, confidence = fun(tx_vertices, rx_vertices)
-        mask = None
-    else:
-        vertices, mask = fun(tx_vertices, rx_vertices)
-        confidence = None
+    vertices = full_paths
 
     # 4 - Generate output paths and reshape
 
@@ -352,7 +310,6 @@ def _compute_paths_sbr(
     *,
     order: int,
     num_rays: int,
-    parallel: bool,
     epsilon: Float[ArrayLike, " "] | None,
     max_dist: Float[ArrayLike, " "],
 ) -> SBRPaths:
@@ -465,51 +422,12 @@ def _compute_paths_sbr(
             masks,
         )
 
-    def fun(
-        ray_origins: Float[Array, "num_tx_vertices num_rays 3"],
-        ray_directions: Float[Array, "num_tx_vertices num_rays 3"],
-    ) -> tuple[
-        Int[Array, "order_plus_1 num_tx_vertices num_rays"],
-        Float[Array, "order_plus_1 num_tx_vertices num_rays 3"],
-        Bool[Array, "order_plus_1 num_tx_vertices num_rx_vertices num_rays"],
-    ]:
-        valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
-        _, (path_candidates, vertices, masks) = jax.lax.scan(
-            scan_fun,
-            (ray_origins, ray_directions, valid_rays),
-            length=order + 1,
-        )
-        return (path_candidates, vertices, masks)
-
-    if parallel:
-        num_devices = jax.device_count()
-
-        if (num_tx_vertices * num_rays) % num_devices == 0:
-            tx_mesh = math.gcd(num_tx_vertices, num_devices)
-            ray_mesh = num_devices // tx_mesh
-            in_specs = (P("i", "j", None), P("i", "j", None))
-            out_specs = (
-                P(None, "i", "j"),
-                P(None, "i", "j", None),
-                P(None, "i", None, "j"),
-            )
-        else:
-            msg = (
-                f"Found {num_devices} devices available, "
-                "but could not find any input with a size that is a multiple of that value. "
-                "Please user a number of transmitters and rays that is a "
-                f"multiple of {num_devices}."
-            )
-            raise ValueError(msg)
-
-        fun = shard_map(
-            fun,
-            jax.make_mesh((tx_mesh, ray_mesh), axis_names=("i", "j")),
-            in_specs=in_specs,
-            out_specs=out_specs,
-        )
-
-    path_candidates, vertices, masks = fun(ray_origins, ray_directions)
+    valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
+    _, (path_candidates, vertices, masks) = jax.lax.scan(
+        scan_fun,
+        (ray_origins, ray_directions, valid_rays),
+        length=order + 1,
+    )
 
     path_candidates = jnp.moveaxis(path_candidates[:-1, ...], 0, -1)
     vertices = jnp.moveaxis(vertices[:-1, ...], 0, -2)
@@ -853,7 +771,6 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -871,7 +788,6 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -889,7 +805,6 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -907,7 +822,6 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -925,7 +839,6 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"],
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -943,7 +856,6 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: None = None,
         min_len: None = None,
@@ -960,7 +872,6 @@ class TriangleScene(eqx.Module):
         chunk_size: int | None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
-        parallel: bool = False,
         epsilon: Float[ArrayLike, " "] | None = None,
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
@@ -1031,16 +942,7 @@ class TriangleScene(eqx.Module):
                 to triangle indices, not quadrilateral indices).
 
                 **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
-            parallel: If :data:`True`, ray tracing is performed in parallel across all available
-                devices. The number of transmitters times the number of receivers
-                **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
-
-                When ``method == 'sbr'``, the number of transmitters times the number of rays
-                **must** be a multiple of :func:`jax.device_count`, otherwise an error is raised.
-
-                .. warning::
-                    Parallel execution is automatically disabled if ``jax>=0.6`` is used, see `#280 <https://github.com/jeertmans/DiffeRT/issues/280>`_.
-            epsilon: Tolelance for checking ray / objects intersection, see
+            epsilon: Tolerance for checking ray / objects intersection, see
                 :func:`rays_intersect_triangles<differt.rt.rays_intersect_triangles>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
                 :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`.
@@ -1088,18 +990,8 @@ class TriangleScene(eqx.Module):
 
                 If ``method == 'sbr'`` or ``method == 'hybrid'`, and ``order`` is not provided.
 
-                If ``parallel`` is :data:`True`, and the number of devices is not a divisor of the number of transmitters times the number of receivers, or the number of transmitters times the number of rays.
-
         .. [#f1] Passing the squared length/distance is useful to avoid computing square root values, which is expensive.
-        """  # noqa: DOC502
-        if parallel and jax.__version_info__ >= (0, 6):
-            msg = (
-                "Parallel execution is automatically disabled when using jax>=0.6, "
-                "as it is not (yet) compatible with the new JAX API. See "
-                "https://github.com/jeertmans/DiffeRT/issues/280."
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
-            parallel = False
+        """
         if (order is None) == (path_candidates is None):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
             raise ValueError(msg)
@@ -1126,7 +1018,6 @@ class TriangleScene(eqx.Module):
                 self.receivers.reshape(-1, 3),
                 order=order,
                 num_rays=num_rays,
-                parallel=parallel,
                 epsilon=epsilon,
                 max_dist=max_dist,
             ).reshape(*tx_batch, *rx_batch, -1)
@@ -1196,7 +1087,6 @@ class TriangleScene(eqx.Module):
                         2 * path_candidates if assume_quads else path_candidates,
                         dtype=int,
                     ),
-                    parallel=parallel,
                     epsilon=epsilon,
                     hit_tol=hit_tol,
                     min_len=min_len,
@@ -1233,7 +1123,6 @@ class TriangleScene(eqx.Module):
             tx_vertices,
             rx_vertices,
             path_candidates,
-            parallel=parallel,
             epsilon=epsilon,
             hit_tol=hit_tol,
             min_len=min_len,

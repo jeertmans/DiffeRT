@@ -28,11 +28,6 @@ from differt_core.scene import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
 
-skip_if_not_8_devices = pytest.mark.skipif(
-    jax.device_count() != 8, reason="This test assumes there are exactly 8 devices."
-)
-parallel_disabled = jax.__version_info__ >= (0, 6)
-
 
 class TestTriangleScene:
     def test_load_xml(self, sionna_folder: Path, subtests: SubTests) -> None:
@@ -385,9 +380,6 @@ class TestTriangleScene:
             ),
         ],
     )
-    @pytest.mark.parametrize(
-        "parallel", [False, pytest.param(True, marks=skip_if_not_8_devices)]
-    )
     @pytest.mark.parametrize("assume_quads", [False, True])
     def test_compute_paths_on_empty_scene(
         self,
@@ -396,17 +388,13 @@ class TestTriangleScene:
         path_candidates: Int[Array, "num_path_candidates order"] | None,
         method: Literal["exhaustive", "sbr", "hybrid"],
         expectation: AbstractContextManager[Exception],
-        parallel: bool,
         assume_quads: bool,
         key: PRNGKeyArray,
     ) -> None:
         # TODO: tests and fix issue in higher-order
         key_tx, key_rx = jax.random.split(key, 2)
 
-        if parallel:
-            transmitters = jax.random.uniform(key_tx, (8, 3))
-        else:
-            transmitters = jax.random.uniform(key_tx, (1, 3))
+        transmitters = jax.random.uniform(key_tx, (1, 3))
 
         receivers = jax.random.uniform(key_rx, (1, 3))
 
@@ -418,19 +406,11 @@ class TestTriangleScene:
             receivers[None, :, None, :],
         )
 
-        if parallel and parallel_disabled:
-            maybe_warns = pytest.warns(
-                UserWarning, match="Parallel execution is automatically disabled"
-            )
-        else:
-            maybe_warns = does_not_raise()
-
-        with expectation, maybe_warns:
+        with expectation:
             got = scene.compute_paths(  # type: ignore[reportCallIssue]
                 order=order,
                 chunk_size=chunk_size,  # type: ignore[reportArgumentType]
                 path_candidates=path_candidates,
-                parallel=parallel,
                 method=method,  # type: ignore[reportArgumentType]
             )
 
@@ -465,84 +445,6 @@ class TestTriangleScene:
             paths.vertices,
             (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
         )
-
-    @skip_if_not_8_devices
-    @pytest.mark.parametrize(
-        ("m_tx", "n_tx", "m_rx", "n_rx", "expectation"),
-        [
-            (8, 8, 1, 1, does_not_raise()),
-            (1, 1, 8, 8, does_not_raise()),
-            (4, 2, 1, 1, does_not_raise()),
-            (1, 1, 2, 4, does_not_raise()),
-            (1, 4, 2, 1, does_not_raise()),
-            (1, 2, 4, 1, does_not_raise()),
-            (
-                7,
-                1,
-                1,
-                1,
-                pytest.raises(ValueError, match="Found 8 devices available")
-                if not parallel_disabled
-                else does_not_raise(),
-            ),
-            (
-                1,
-                2,
-                3,
-                1,
-                pytest.raises(ValueError, match="Found 8 devices available")
-                if not parallel_disabled
-                else does_not_raise(),
-            ),
-        ],
-    )
-    @pytest.mark.parametrize(
-        "method",
-        [
-            "exhaustive",
-            "sbr",
-            pytest.param(
-                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
-            ),
-        ],
-    )
-    def test_compute_paths_parallel(
-        self,
-        m_tx: int,
-        n_tx: int,
-        m_rx: int,
-        n_rx: int,
-        method: Literal["exhaustive", "sbr", "hybrid"],
-        expectation: AbstractContextManager[Exception],
-        advanced_path_tracing_example_scene: TriangleScene,
-    ) -> None:
-        scene = advanced_path_tracing_example_scene
-        scene = scene.with_transmitters_grid(m_tx, n_tx)
-        scene = scene.with_receivers_grid(m_rx, n_rx)
-
-        num_rays = m_rx * n_rx
-
-        if parallel_disabled:
-            maybe_warns = pytest.warns(
-                UserWarning, match="Parallel execution is automatically disabled"
-            )
-        else:
-            maybe_warns = does_not_raise()
-
-        with expectation, maybe_warns:
-            paths = scene.compute_paths(
-                order=1, method=method, num_rays=num_rays, parallel=True
-            )
-
-            # TODO: fix this when 'hybrid' is implemented
-            num_path_candidates = (
-                num_rays if method == "sbr" else scene.mesh.triangles.shape[0]
-            )
-
-            chex.assert_shape(
-                paths.vertices,
-                (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
-            )
 
     @pytest.mark.parametrize("backend", [vispy, matplotlib, plotly])
     def test_plot(
