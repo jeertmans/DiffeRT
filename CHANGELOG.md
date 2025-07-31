@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)
 
 ### Chore
 
@@ -31,8 +35,6 @@ with one *slight* but **important** difference:
 ### Removed
 
 - Removed `parallel` keyword argument in {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` as it was no longer supported, and its presence increased the code complexity. Executing code on multiple devices should be automatically handled by {func}`jax.jit`, or manually specified by the end-user. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:305>).
-
-<!-- start changelog -->
 
 ## [0.4.1](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...v0.4.1)
 
