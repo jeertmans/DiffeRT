@@ -75,6 +75,8 @@ for a detailed step-by-step procedure.
 
 ## Citing
 
+<!-- start citing -->
+
 If you use this software, please cite it as:
 
 ```bibtex
@@ -86,6 +88,12 @@ If you use this software, please cite it as:
   version = {v0.5.0}
 }
 ```
+
+For other citation formats, please refer to the [*Cite this repository*](https://github.com/jeertmans/DiffeRT) button the main page of our GitHub repository or to our [Zenodo records](https://doi.org/10.5281/zenodo.11386432).
+
+Thank you for using this software and helping us!
+
+<!-- end citing -->
 
 [pypi-version-badge]: https://img.shields.io/pypi/v/DiffeRT?label=DiffeRT&color=blueviolet
 [pypi-version-url]: https://pypi.org/project/DiffeRT/
