@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float
 
-from differt.utils import dot, smoothing_function
+from differt.utils import smoothing_function
 
 
 @partial(jax.jit, inline=True)
@@ -73,7 +73,10 @@ def image_of_vertices_with_respect_to_mirrors(
     # [*batch num_mirrors ]
     incident = vertices - mirror_vertices  # incident vectors
     return (
-        vertices - 2.0 * dot(incident, mirror_normals, keepdims=True) * mirror_normals
+        vertices
+        - 2.0
+        * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
+        * mirror_normals
     )
 
 
@@ -114,9 +117,9 @@ def intersection_of_rays_with_planes(
     u = ray_directions
     v = plane_vertices - ray_origins
     # [*batch 1]
-    un = dot(u, plane_normals, keepdims=True)
+    un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
     # [*batch 1]
-    vn = dot(v, plane_normals, keepdims=True)
+    vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
 
     parallel = un == 0.0
     un = jnp.where(parallel, jnp.ones_like(un), un)
@@ -447,8 +450,8 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     d_next = vertices[..., +2:, :] - mirror_vertices
 
     # [*batch num_mirrors]
-    dot_prev = dot(d_prev, mirror_normals)
-    dot_next = dot(d_next, mirror_normals)
+    dot_prev = jnp.sum(d_prev * mirror_normals, axis=-1)
+    dot_next = jnp.sum(d_next * mirror_normals, axis=-1)
 
     if smoothing_factor is not None:
         return smoothing_function(

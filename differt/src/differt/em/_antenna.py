@@ -13,7 +13,7 @@ from differt.geometry import (
     spherical_to_cartesian,
 )
 from differt.plotting import PlotOutput, draw_surface
-from differt.utils import dot, safe_divide
+from differt.utils import safe_divide
 
 from ._constants import c, epsilon_0, mu_0
 
@@ -576,7 +576,7 @@ class RadiationPattern(BaseAntenna):
 
         s, p = self.polarization_vectors(r)
 
-        g = dot(s) + dot(p)
+        g = jnp.sum(s * s, axis=-1) + jnp.sum(p * p, axis=-1)
 
         # TODO: check if this is correct
 
@@ -672,12 +672,12 @@ class HWDipolePattern(RadiationPattern):
         r = jnp.asarray(r)
         r_hat, r = normalize(r - self.center, keepdims=True)
 
-        cos_theta = dot(r_hat, self.direction)
+        cos_theta = jnp.sum(r_hat * self.direction, axis=-1)
         sin_theta = jnp.sqrt(1 - cos_theta**2)
 
         d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
 
-        cos_theta = dot(d)
+        cos_theta = jnp.sum(d * d, axis=-1)
         sin_theta = jnp.sin(d)
         _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
         raise NotImplementedError

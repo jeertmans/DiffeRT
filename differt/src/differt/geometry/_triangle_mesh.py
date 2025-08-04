@@ -890,62 +890,6 @@ class TriangleMesh(eqx.Module):
             (vertices, triangles),
         )
 
-    def sort(self) -> Self:
-        """
-        Return a new mesh with vertices sorted in ascending order.
-
-        Returns:
-            A new mesh with vertices sorted in ascending order.
-
-        Examples:
-            The following example shows how sorting a mesh
-            affects the order of the vertices, and thus the triangles numbering,
-            but not the actual geometry.
-
-            .. plotly::
-                :context: reset
-
-                >>> from differt.geometry import TriangleMesh
-                >>>
-                >>> mesh = TriangleMesh.plane(
-                ...     jnp.array([0.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
-                ... )
-                >>> mesh.vertices
-                Array([[ 0. ,  0.5,  0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. , -0.5, -0.5],
-                       [ 0. ,  0.5, -0.5]], dtype=float32)
-                >>> mesh.triangles
-                Array([[0, 1, 2],
-                       [0, 2, 3]], dtype=int32)
-                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-
-            .. plotly::
-                :context:
-
-                >>> sorted_mesh = mesh.sort()
-                >>> sorted_mesh.vertices
-                Array([[ 0. , -0.5, -0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. ,  0.5, -0.5],
-                       [ 0. ,  0.5,  0.5]], dtype=float32)
-                >>> sorted_mesh.triangles
-                Array([[3, 1, 0],
-                       [3, 0, 2]], dtype=int32)
-                >>> fig = sorted_mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-        """
-        # TODO: handle mask
-        indices = jnp.lexsort(self.vertices.T[::-1])
-        vertices = self.vertices[indices]
-        triangles = jnp.argsort(indices)[self.triangles]
-        return eqx.tree_at(
-            lambda m: (m.vertices, m.triangles),
-            self,
-            (vertices, triangles),
-        )
-
     @overload
     def set_face_colors(
         self,

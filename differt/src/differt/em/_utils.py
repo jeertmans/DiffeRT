@@ -6,7 +6,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Int
 
 from differt.geometry import normalize, path_lengths, perpendicular_vectors
-from differt.utils import dot
 
 from ._constants import c
 from ._interaction_type import InteractionType
@@ -293,10 +292,10 @@ def sp_rotation_matrix(
     e_a_p = jnp.asarray(e_a_p)
     e_b_s = jnp.asarray(e_b_s)
     e_b_p = jnp.asarray(e_b_p)
-    r11 = dot(e_b_s, e_a_s, keepdims=True)
-    r12 = dot(e_b_s, e_a_p, keepdims=True)
-    r21 = dot(e_b_p, e_a_s, keepdims=True)
-    r22 = dot(e_b_p, e_a_p, keepdims=True)
+    r11 = jnp.sum(e_b_s * e_a_s, axis=-1, keepdims=True)
+    r12 = jnp.sum(e_b_s * e_a_p, axis=-1, keepdims=True)
+    r21 = jnp.sum(e_b_p * e_a_s, axis=-1, keepdims=True)
+    r22 = jnp.sum(e_b_p * e_a_p, axis=-1, keepdims=True)
 
     r11, r12, r21, r22 = jnp.broadcast_arrays(r11, r12, r21, r22)
 

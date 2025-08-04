@@ -485,21 +485,32 @@ class TestTriangleMesh:
 
         chex.assert_trees_all_equal(mesh, s.append(o))
 
-    def test_drop_duplicates(self) -> None:
+    def test_drop_duplicates(self, key: PRNGKeyArray) -> None:
+        def sort_mesh(mesh: TriangleMesh) -> TriangleMesh:
+            indices = jnp.lexsort(mesh.vertices.T[::-1])
+            vertices = mesh.vertices[indices]
+            triangles = jnp.argsort(indices)[mesh.triangles]
+            return eqx.tree_at(
+                lambda m: (m.vertices, m.triangles),
+                self,
+                (vertices, triangles),
+            )
+
         mesh = TriangleMesh.box()
         got_mesh = sum(
             mesh.iter_objects(), start=TriangleMesh.empty()
         ).drop_duplicates()
-        expected_mesh = mesh.sort()
+        expected_mesh = sort_mesh(mesh)
 
         chex.assert_trees_all_equal(got_mesh, expected_mesh)
 
         # .sort() is a no-op after .drop_duplicates()
-        chex.assert_trees_all_equal(got_mesh.sort(), got_mesh)
+        chex.assert_trees_all_equal(sort_mesh(got_mesh), got_mesh)
 
-    def test_sort(self, key: PRNGKeyArray) -> None:
         mesh = TriangleMesh.box().drop_duplicates()
-        got_mesh = mesh.sample(size=mesh.num_triangles, preserve=True, key=key).sort()
+        got_mesh = sort_mesh(
+            mesh.sample(size=mesh.num_triangles, preserve=True, key=key)
+        )
         chex.assert_trees_all_equal(got_mesh, mesh)
 
     @pytest.mark.parametrize(

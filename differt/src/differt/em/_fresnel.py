@@ -258,7 +258,6 @@ def reflection_coefficients(
            ... )
            >>> from differt.geometry import normalize
            >>> from differt.rt import image_method
-           >>> from differt.utils import dot
 
            The first step is to define the antenna and the geometry of the scene.
            Here, we place a dipole antenna above the origin, and generate a
@@ -344,7 +343,7 @@ def reflection_coefficients(
            >>> # [num_positions 3]
            >>> E_i, B_i = ant.fields(reflection_points - tx_position, t=-tau)
            >>> # [num_positions 1]
-           >>> cos_theta = dot(ground_normal, -k_i, keepdims=True)
+           >>> cos_theta = jnp.sum(ground_normal * -k_i, axis=-1, keepdims=True)
            >>> n_r = 1.5  # Air to glass
            >>> # [num_positions 1]
            >>> r_s, r_p = reflection_coefficients(n_r, cos_theta)
@@ -366,10 +365,10 @@ def reflection_coefficients(
            We then transform XYZ-components into local s and p components.
 
            >>> # [num_positions 1]
-           >>> E_i_s = dot(E_i, e_i_s, keepdims=True)
-           >>> E_i_p = dot(E_i, e_i_p, keepdims=True)
-           >>> B_i_s = dot(B_i, e_i_s, keepdims=True)
-           >>> B_i_p = dot(B_i, e_i_p, keepdims=True)
+           >>> E_i_s = jnp.sum(E_i * e_i_s, axis=-1, keepdims=True)
+           >>> E_i_p = jnp.sum(E_i * e_i_p, axis=-1, keepdims=True)
+           >>> B_i_s = jnp.sum(B_i * e_i_s, axis=-1, keepdims=True)
+           >>> B_i_p = jnp.sum(B_i * e_i_p, axis=-1, keepdims=True)
 
            Then, we apply reflection coefficients to the local s and p components.
 
@@ -446,7 +445,7 @@ def reflection_coefficients(
            ...     color="green",
            ...     label="Exact",
            ... )  # doctest: +SKIP
-           >>> P_tot_pw = A_e * dot(E_tot, E_tot) / z_0
+           >>> P_tot_pw = A_e * jnp.sum(E_tot * E_tot, axis=-1) / z_0
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_tot_pw / ant.reference_power),
