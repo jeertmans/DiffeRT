@@ -147,7 +147,7 @@ class Paths(eqx.Module):
 
     def reshape(self, *batch: int) -> Self:
         """
-        Return a copy with reshaped paths' batch dimensions to match a given shape.
+        Return a new paths instance with reshaped paths' batch dimensions to match a given shape.
 
         Args:
             batch: The new batch shapes.
@@ -182,7 +182,7 @@ class Paths(eqx.Module):
 
     def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
         """
-        Return a copy by squeezing one or more axes of paths' batch dimensions.
+        Return a new paths instance by squeezing one or more axes of paths' batch dimensions.
 
         Args:
             axis: See :func:`jax.numpy.squeeze` for allowed values.
@@ -235,7 +235,7 @@ class Paths(eqx.Module):
     @eqx.filter_jit
     def mask_duplicate_objects(self, axis: int = -1) -> Self:
         """
-        Return a copy by masking duplicate objects along a given axis.
+        Return a new paths instance by masking duplicate objects along a given axis.
 
         E.g., when generating path candidates from a generative Machine Learning model,
         see :ref:`sampling-paths`, it is possible that the model generates the same
@@ -363,7 +363,7 @@ class Paths(eqx.Module):
         return objects
 
     def masked(self) -> Self:
-        """Return a flattened copy of this object that only keeps valid paths.
+        """Return a flattened version of this object that only keeps valid paths.
 
         The returned object has all batch dimensions flattened into one,
         keeping only the paths where :attr:`mask` is :data:`True` (or where :attr:`confidence` is greater than or equal to :attr:`confidence_threshold`), and :attr:`mask` and :attr:`confidence` attributes are set to :data:`None`.

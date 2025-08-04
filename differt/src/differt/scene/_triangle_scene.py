@@ -501,15 +501,15 @@ class TriangleScene(eqx.Module):
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
-        Return a copy of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
+        Return a new instance of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
 
-        This is simply a convenient wrapper around :meth:`TriangleMesh.set_assume_quads<differt.geometry.TriangleMesh.set_assume_quads>`.
+        This is simply a convenient wrapper to call :meth:`TriangleMesh.set_assume_quads<differt.geometry.TriangleMesh.set_assume_quads>` on the inner :attr:`mesh` attribute.
 
         Args:
             flag: The new flag value.
 
         Returns:
-            A new scene.
+            A new scene with the same structure with the inner mesh's :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
         """
         return eqx.tree_at(lambda s: s.mesh, self, self.mesh.set_assume_quads(flag))
 
@@ -517,7 +517,7 @@ class TriangleScene(eqx.Module):
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
         """
-        Return a copy of this scene with a 2D grid of transmitters placed at a fixed height.
+        Return a new instance of this scene with a 2D grid of transmitters placed at a fixed height.
 
         The transmitters are uniformly spaced on the whole scene.
 
@@ -528,7 +528,7 @@ class TriangleScene(eqx.Module):
             height: The height at which transmitters are placed.
 
         Returns:
-            The new scene.
+            The new scene with a 2D grid of transmitters.
         """
         if n is None:
             n = m
@@ -551,7 +551,7 @@ class TriangleScene(eqx.Module):
         self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
     ) -> Self:
         """
-        Return a copy of this scene with a 2D grid of receivers placed at a fixed height.
+        Return a new instance of this scene with a 2D grid of receivers placed at a fixed height.
 
         The receivers are uniformly spaced on the whole scene.
 
@@ -562,7 +562,7 @@ class TriangleScene(eqx.Module):
             height: The height at which receivers are placed.
 
         Returns:
-            The new scene.
+            The new scene with a 2D grid of receivers.
         """
         if n is None:
             n = m
