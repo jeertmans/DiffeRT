@@ -1,7 +1,7 @@
 # ruff: noqa: ERA001
 
-import os
 import sys
+import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from typing import (
@@ -28,7 +28,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import NotRequired
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -873,13 +873,11 @@ class TriangleMesh(eqx.Module):
         """
         Return a new mesh with duplicate vertices removed.
 
-        Vertices are also sorted in ascending order, so that calling :meth:`sort()` after this method
-        will not change the order of the vertices.
+        Vertices are also sorted in ascending order
 
         Returns:
             A new mesh with duplicate vertices removed.
         """
-        # TODO: handle mask
         vertices, unique_inverse = jnp.unique(
             self.vertices, axis=0, return_inverse=True
         )

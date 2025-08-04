@@ -17,7 +17,6 @@ from differt.rt._utils import (
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
-from differt.utils import sorted_array2
 
 from ..utils import random_inputs
 
@@ -68,7 +67,11 @@ def test_generate_all_path_candidates(
     expected: Array,
 ) -> None:
     got = generate_all_path_candidates(num_primitives, order)
-    got = sorted_array2(got)  # order may not be the same so we sort
+    got = (
+        got.at[jnp.lexsort(got.T[::-1])].get(unique_indices=True)
+        if got.size > 0
+        else got
+    )  # order may not be the same so we sort
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)
 
@@ -84,10 +87,18 @@ def test_generate_all_path_candidates(
 )
 def test_generate_all_path_candidates_iter(num_primitives: int, order: int) -> None:
     expected = generate_all_path_candidates(num_primitives, order)
-    expected = sorted_array2(expected)
+    expected = (
+        expected.at[jnp.lexsort(expected.T[::-1])].get(unique_indices=True)
+        if expected.size > 0
+        else expected
+    )
     got = list(generate_all_path_candidates_iter(num_primitives, order))
     got = jnp.asarray(got)
-    got = sorted_array2(got)
+    got = (
+        got.at[jnp.lexsort(got.T[::-1])].get(unique_indices=True)
+        if got.size > 0
+        else got
+    )
 
     chex.assert_trees_all_equal_shapes_and_dtypes(got, expected)
     chex.assert_trees_all_equal(got, expected)

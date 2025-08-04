@@ -492,7 +492,7 @@ class TestTriangleMesh:
             triangles = jnp.argsort(indices)[mesh.triangles]
             return eqx.tree_at(
                 lambda m: (m.vertices, m.triangles),
-                self,
+                mesh,
                 (vertices, triangles),
             )
 

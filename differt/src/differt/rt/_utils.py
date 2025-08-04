@@ -1,6 +1,5 @@
 # ruff: noqa: ERA001
-
-import os
+import typing
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -14,7 +13,7 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     import sys
 
     if sys.version_info >= (3, 11):

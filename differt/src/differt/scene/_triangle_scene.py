@@ -1,5 +1,5 @@
 import math
-import os
+import typing
 import warnings
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -32,7 +32,7 @@ from differt.rt import (
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     import sys
 
     if sys.version_info >= (3, 11):
@@ -383,13 +383,10 @@ def _compute_paths_sbr(
             rx_vertices[None, :, None, :] - ray_origins[:, None, ...]
         )
 
-        # [num_tx_vertices num_rx_vertices num_rays 3]
-        perp = jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices)
-
         # [num_tx_vertices num_rx_vertices num_rays]
-        ray_distances_to_rx_vertices = jnp.sum(
-            perp, axis=-1
-        )  # Squared distance from rays to RXs
+        ray_distances_to_rx_vertices = jnp.square(
+            jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices)
+        ).sum(axis=-1)  # Squared distance from rays to RXs
 
         # [num_tx_vertices num_rx_vertices num_rays]
         t_rxs = jnp.sum(
@@ -417,7 +414,7 @@ def _compute_paths_sbr(
         ray_directions = (
             ray_directions
             - 2.0
-            * jnp.sum(ray_directions * mirror_normals, keepdims=True)
+            * jnp.sum(ray_directions * mirror_normals, axis=-1, keepdims=True)
             * mirror_normals
         )
 
