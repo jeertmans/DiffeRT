@@ -264,7 +264,7 @@ class TriangleMesh(eqx.Module):
             raise ValueError(msg)
 
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
-        """Return a copy of this mesh, taking only specific triangles.
+        """Return a new instance of this mesh, taking only specific triangles.
 
         Warning:
             As it is not possible to guarantee that indexing would not break existing
@@ -275,7 +275,7 @@ class TriangleMesh(eqx.Module):
                 along the first axis.
 
         Returns:
-            A new mesh.
+            A new mesh with selected triangles.
         """
         return eqx.tree_at(
             lambda m: (
@@ -373,7 +373,7 @@ class TriangleMesh(eqx.Module):
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
-        Return a copy of this mesh with :attr:`assume_quads` set to ``flag``.
+        Return a new instance of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
 
         Unlike with using :func:`equinox.tree_at`, this function will also
         perform runtime checks.
@@ -382,7 +382,7 @@ class TriangleMesh(eqx.Module):
             flag: The new flag value.
 
         Returns:
-            A new mesh.
+            A new mesh with the same structure with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
         """
         mesh = eqx.tree_at(lambda m: m.assume_quads, self, flag)
         mesh.__check_init__()
@@ -573,7 +573,7 @@ class TriangleMesh(eqx.Module):
         return _TriangleMeshVerticesUpdateHelper(self)
 
     def masked(self) -> Self:
-        """Return a pruned copy of this object that only keeps masked (i.e., active) triangles.
+        """Return a new instance of this object that only keeps masked (i.e., active) triangles.
 
         .. important::
             This method does not preserve the :attr:`object_bounds` attribute.
@@ -696,14 +696,14 @@ class TriangleMesh(eqx.Module):
 
             Two important exceptions are:
 
-            * If one mesh is empty, a copy of the other mesh is returned as is;
-            * If both meshes are empty, then a copy of ``self`` is returned.
+            * If one mesh is empty, a new instance of the other mesh is returned as is;
+            * If both meshes are empty, then a new instance of ``self`` is returned.
 
         Args:
             other: The mesh to append.
 
         Returns:
-            The new mesh.
+            The new mesh with a structure that is the result of combining both input meshes.
 
         Examples:
             The following example shows how to create a mesh of nested cubes.
@@ -945,7 +945,7 @@ class TriangleMesh(eqx.Module):
         key: PRNGKeyArray | None = None,
     ) -> Self:
         """
-        Return a copy of this mesh, with new face colors.
+        Return a new instance of this mesh, with new face colors.
 
         Args:
             colors: The array of RGB colors.
@@ -1088,7 +1088,7 @@ class TriangleMesh(eqx.Module):
 
     def set_materials(self, *names: str) -> Self:
         """
-        Return a copy of this mesh, with new face materials from material names.
+        Return a new instance of this mesh, with new face materials from material names.
 
         If a material name is not in :attr:`material_names`, it is added.
 
@@ -1129,7 +1129,7 @@ class TriangleMesh(eqx.Module):
         self, materials: Int[ArrayLike, " "] | Int[ArrayLike, "#num_triangles"]
     ) -> Self:
         """
-        Return a copy of this mesh, with new face materials.
+        Return a new instance of this mesh, with new face materials.
 
         Args:
             materials: The material indices.

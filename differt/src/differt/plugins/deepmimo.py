@@ -164,19 +164,19 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
     def jax(self) -> "DeepMIMO[Array]":
         """
-        Return a copy of this class with arrays converted to JAX arrays.
+        Return a new instance of this class with arrays converted to JAX arrays.
 
         Returns:
-            A copy of this with JAX arrays.
+            A new instance of this with JAX arrays.
         """
         return jax.tree.map(jnp.asarray, self)
 
     def numpy(self) -> "DeepMIMO[np.ndarray]":  # type: ignore[reportMissingTypeArgument]
         """
-        Return a copy of this class with arrays converted to NumPy arrays.
+        Return a new instance of this class with arrays converted to NumPy arrays.
 
         Returns:
-            A copy of this with NumPy arrays.
+            A new instance of this with NumPy arrays.
         """
         return jax.tree.map(np.asarray, self)
 
