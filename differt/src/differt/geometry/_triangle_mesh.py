@@ -1,9 +1,17 @@
 # ruff: noqa: ERA001
 
 import os
+import sys
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    TypedDict,
+    TypeVar,
+    overload,
+)
 
 import equinox as eqx
 import jax
@@ -15,15 +23,33 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
-    import sys
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
+if TYPE_CHECKING or "READTHEDOCS" in os.environ:
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
         from typing_extensions import Self
 else:
-    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping
+
+
+class _AtIndexingKwargs(TypedDict):
+    indices_are_sorted: bool
+    unique_indices: bool
+    wrap_negative_indices: NotRequired[bool]
+
+
+_AT_INDEXING_KWARGS: _AtIndexingKwargs = {
+    "indices_are_sorted": True,
+    "unique_indices": True,
+}
+
+if jax.__version_info__ >= (0, 7, 0):
+    _AT_INDEXING_KWARGS["wrap_negative_indices"] = False
 
 
 @jax.jit
@@ -134,16 +160,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].set(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
         )
 
     def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
         index = self._triangles_index(**kwargs)
-        return self.mesh.vertices.at[index, :].get(
-            indices_are_sorted=True, unique_indices=True
-        )
+        return self.mesh.vertices.at[index, :].get(**_AT_INDEXING_KWARGS)
 
     def apply(
         self,
@@ -157,9 +179,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].apply(
-                func, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
         )
 
     def add(self, values: Any, **kwargs: Any) -> _T:
@@ -167,9 +187,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].add(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
         )
 
     def mul(self, values: Any, **kwargs: Any) -> _T:
@@ -177,9 +195,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].mul(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].mul(values, **_AT_INDEXING_KWARGS),
         )
 
 
@@ -323,15 +339,25 @@ class TriangleMesh(eqx.Module):
                     self,
                     (
                         self.vertices,
-                        self.triangles[start:stop, :],
-                        self.face_colors[start:stop, :]
+                        self.triangles.at[start:stop, :].get(
+                            **_AT_INDEXING_KWARGS,
+                        ),
+                        self.face_colors.at[start:stop, :].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
                         if self.face_colors is not None
                         else None,
-                        self.face_materials[start:stop]
+                        self.face_materials.at[start:stop].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
                         if self.face_materials is not None
                         else None,
                         jnp.array([[0, stop - start]]),
-                        self.mask[start:stop] if self.mask is not None else None,
+                        self.mask.at[start:stop].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
+                        if self.mask is not None
+                        else None,
                     ),
                     is_leaf=lambda x: x is None,
                 )
@@ -1156,9 +1182,9 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def plane(
         cls,
-        vertex_a: Float[Array, "3"],
-        vertex_b: Float[Array, "3"],
-        vertex_c: Float[Array, "3"],
+        vertex_a: Float[ArrayLike, "3"],
+        vertex_b: Float[ArrayLike, "3"],
+        vertex_c: Float[ArrayLike, "3"],
         *,
         normal: None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
@@ -1169,11 +1195,11 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def plane(
         cls,
-        vertex_a: Float[Array, "3"],
+        vertex_a: Float[ArrayLike, "3"],
         vertex_b: None = None,
         vertex_c: None = None,
         *,
-        normal: Float[Array, "3"],
+        normal: Float[ArrayLike, "3"],
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
     ) -> Self: ...
