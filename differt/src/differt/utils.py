@@ -127,7 +127,7 @@ def sorted_array2(array: Shaped[ArrayLike, "m n"]) -> Shaped[Array, "m n"]:
     if array.size == 0:
         return array
 
-    return array[jnp.lexsort(array.T[::-1])]
+    return array.at[jnp.lexsort(array.T[::-1])].get(unique_indices=True)
 
 
 @partial(jax.jit, static_argnames=("shape",))

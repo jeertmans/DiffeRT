@@ -24,6 +24,10 @@ with one *slight* but **important** difference:
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
 
+### Perf
+
+- Changed naive indexing by customized {attr}`at<jax.numpy.ndarray.at>` indexing to enable niche optimizations (by <gh-user:jeertmans>, in <gh-pr:308>).
+
 <!-- start changelog -->
 
 ## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)
