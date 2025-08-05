@@ -6,26 +6,6 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int
 
 
-@jax.jit
-def pairwise_cross(
-    u: Float[ArrayLike, "m 3"],
-    v: Float[ArrayLike, "n 3"],
-) -> Float[Array, "m n 3"]:
-    """
-    Compute the pairwise cross product between two arrays of vectors.
-
-    Args:
-        u: First array of vectors.
-        v: Second array of vectors.
-
-    Returns:
-        A 3D tensor with all cross products.
-    """
-    u = jnp.asarray(u)
-    v = jnp.asarray(v)
-    return jnp.cross(u[:, None, :], v[None, :, :])
-
-
 @overload
 def normalize(
     vectors: Float[ArrayLike, "*batch 3"],

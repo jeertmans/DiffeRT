@@ -28,6 +28,10 @@ with one *slight* but **important** difference:
 
 - Changed naive indexing by customized {attr}`at<jax.numpy.ndarray.at>` indexing to enable niche optimizations (by <gh-user:jeertmans>, in <gh-pr:308>).
 
+### Removed
+
+- Removed `differt.utils.sorted_array2`, `differt.utils.dot`, `differt.geometry.pairwise_cross`,`differt.geometry.TriangleMesh.sort` to reduce the size of the API by limiting it to RT-related functionalities. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:309>).
+
 <!-- start changelog -->
 
 ## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)

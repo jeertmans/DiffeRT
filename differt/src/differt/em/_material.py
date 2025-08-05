@@ -1,7 +1,7 @@
 # ruff: noqa: FURB152
 
 import operator
-import os
+import typing
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     import sys
 
     if sys.version_info >= (3, 11):

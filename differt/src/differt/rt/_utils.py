@@ -1,6 +1,5 @@
 # ruff: noqa: ERA001
-
-import os
+import typing
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -11,10 +10,10 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.geometry import fibonacci_lattice, viewing_frustum
-from differt.utils import dot, smoothing_function
+from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     import sys
 
     if sys.version_info >= (3, 11):
@@ -297,7 +296,7 @@ def rays_intersect_triangles(
     h = jnp.cross(ray_directions, edge_2)
 
     # [*batch]
-    a = dot(h, edge_1)
+    a = jnp.sum(h * edge_1, axis=-1)
     a = jnp.where(a == 0.0, jnp.inf, a)  # Avoid division by zero
 
     if smoothing_factor is not None:
@@ -307,7 +306,7 @@ def rays_intersect_triangles(
 
     f = 1.0 / a
     s = ray_origins - vertex_0
-    u = f * dot(s, h)
+    u = f * jnp.sum(s * h, axis=-1)
 
     if smoothing_factor is not None:
         hit = jnp.stack(
@@ -322,7 +321,7 @@ def rays_intersect_triangles(
         hit &= (u >= 0.0) & (u <= 1.0)
 
     q = jnp.cross(s, edge_1)
-    v = f * dot(q, ray_directions)
+    v = f * jnp.sum(q * ray_directions, axis=-1)
 
     if smoothing_factor is not None:
         hit = jnp.stack(
@@ -336,7 +335,7 @@ def rays_intersect_triangles(
     else:
         hit &= (v >= 0.0) & (u + v <= 1.0)
 
-    t = f * dot(q, edge_2)
+    t = f * jnp.sum(q * edge_2, axis=-1)
 
     if smoothing_factor is not None:
         hit = jnp.minimum(hit, smoothing_function(t - epsilon, smoothing_factor))

@@ -1,5 +1,5 @@
 import math
-import os
+import typing
 import warnings
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -29,10 +29,10 @@ from differt.rt import (
     rays_intersect_triangles,
     triangles_visible_from_vertices,
 )
-from differt.utils import dot, smoothing_function
+from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     import sys
 
     if sys.version_info >= (3, 11):
@@ -227,7 +227,7 @@ def _compute_paths(
 
     # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
-    ray_lengths = dot(ray_directions)  # Squared norm
+    ray_lengths = jnp.sum(ray_directions * ray_directions, axis=-1)  # Squared norm
 
     if smoothing_factor is not None:
         too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
@@ -378,19 +378,19 @@ def _compute_paths_sbr(
 
         # 2 - Check if the rays pass near RX
 
-        # [num_tx_vertices num_rx_vertices num_rays]
+        # [num_tx_vertices num_rx_vertices num_rays 3]
         ray_origins_to_rx_vertices = (
             rx_vertices[None, :, None, :] - ray_origins[:, None, ...]
         )
 
         # [num_tx_vertices num_rx_vertices num_rays]
-        ray_distances_to_rx_vertices = dot(
+        ray_distances_to_rx_vertices = jnp.square(
             jnp.cross(ray_directions[:, None, ...], ray_origins_to_rx_vertices)
-        )  # Squared distance from rays to RXs
+        ).sum(axis=-1)  # Squared distance from rays to RXs
 
         # [num_tx_vertices num_rx_vertices num_rays]
-        t_rxs = dot(
-            ray_directions[:, None, ...], ray_origins_to_rx_vertices
+        t_rxs = jnp.sum(
+            ray_directions[:, None, ...] * ray_origins_to_rx_vertices, axis=-1
         )  # Distance (scaled by ray directions) from RXs projected onto rays to ray origins
 
         masks = jnp.where(
@@ -413,7 +413,9 @@ def _compute_paths_sbr(
         ray_origins += t_hit[..., None] * ray_directions
         ray_directions = (
             ray_directions
-            - 2.0 * dot(ray_directions, mirror_normals, keepdims=True) * mirror_normals
+            - 2.0
+            * jnp.sum(ray_directions * mirror_normals, axis=-1, keepdims=True)
+            * mirror_normals
         )
 
         return (ray_origins, ray_directions, valid_rays), (

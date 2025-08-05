@@ -11,6 +11,7 @@ import inspect
 import operator
 import os
 import sys
+import typing
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -117,6 +118,7 @@ ogp_use_first_image = True
 
 always_document_param_types = False
 always_use_bars_union = True
+autodoc_preserve_defaults = True
 
 # -- MyST-nb settings
 myst_url_schemes = {
@@ -167,6 +169,10 @@ nb_mime_priority_overrides = [
     ("*", "text/html", 0),
 ]
 
+# We cannot access log files on RTD, so we print to stderr
+
+nb_execution_show_tb = "READTHEDOCS" in os.environ
+
 # -- Bibtex
 
 bibtex_bibfiles = ["references.bib"]
@@ -206,7 +212,7 @@ plotly_html_show_formats = False
 # -- Linkcode settings
 
 
-def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:
+def linkcode_resolve(domain: str, info: dict[str, str]) -> str | None:
     if domain != "py":
         return None
 
@@ -338,6 +344,8 @@ def fix_reference(
 
 
 def setup(app: Sphinx) -> None:
+    typing.GENERATING_DOCS = True  # type: ignore[reportAttributeAccessIssue]
+
     import jaxtyping  # noqa: PLC0415
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.

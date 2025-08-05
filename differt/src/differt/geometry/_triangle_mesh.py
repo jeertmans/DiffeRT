@@ -1,7 +1,7 @@
 # ruff: noqa: ERA001
 
-import os
 import sys
+import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from typing import (
@@ -28,7 +28,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import NotRequired
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
@@ -873,73 +873,15 @@ class TriangleMesh(eqx.Module):
         """
         Return a new mesh with duplicate vertices removed.
 
-        Vertices are also sorted in ascending order, so that calling :meth:`sort()` after this method
-        will not change the order of the vertices.
+        Vertices are also sorted in ascending order
 
         Returns:
             A new mesh with duplicate vertices removed.
         """
-        # TODO: handle mask
         vertices, unique_inverse = jnp.unique(
             self.vertices, axis=0, return_inverse=True
         )
         triangles = jnp.take(unique_inverse, self.triangles, axis=0)
-        return eqx.tree_at(
-            lambda m: (m.vertices, m.triangles),
-            self,
-            (vertices, triangles),
-        )
-
-    def sort(self) -> Self:
-        """
-        Return a new mesh with vertices sorted in ascending order.
-
-        Returns:
-            A new mesh with vertices sorted in ascending order.
-
-        Examples:
-            The following example shows how sorting a mesh
-            affects the order of the vertices, and thus the triangles numbering,
-            but not the actual geometry.
-
-            .. plotly::
-                :context: reset
-
-                >>> from differt.geometry import TriangleMesh
-                >>>
-                >>> mesh = TriangleMesh.plane(
-                ...     jnp.array([0.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
-                ... )
-                >>> mesh.vertices
-                Array([[ 0. ,  0.5,  0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. , -0.5, -0.5],
-                       [ 0. ,  0.5, -0.5]], dtype=float32)
-                >>> mesh.triangles
-                Array([[0, 1, 2],
-                       [0, 2, 3]], dtype=int32)
-                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-
-            .. plotly::
-                :context:
-
-                >>> sorted_mesh = mesh.sort()
-                >>> sorted_mesh.vertices
-                Array([[ 0. , -0.5, -0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. ,  0.5, -0.5],
-                       [ 0. ,  0.5,  0.5]], dtype=float32)
-                >>> sorted_mesh.triangles
-                Array([[3, 1, 0],
-                       [3, 0, 2]], dtype=int32)
-                >>> fig = sorted_mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-        """
-        # TODO: handle mask
-        indices = jnp.lexsort(self.vertices.T[::-1])
-        vertices = self.vertices[indices]
-        triangles = jnp.argsort(indices)[self.triangles]
         return eqx.tree_at(
             lambda m: (m.vertices, m.triangles),
             self,

@@ -9,7 +9,6 @@ from differt.rt._fermat import (
     fermat_path_on_linear_objects,
     fermat_path_on_planar_mirrors,
 )
-from differt.utils import dot
 
 from .utils import PlanarMirrorsSetup
 
@@ -99,7 +98,8 @@ def test_fermat_path_diffraction_keller_cone(num_dims: int) -> None:
     i = rays[..., 0, :]
     d = rays[..., 1, :]
     chex.assert_trees_all_close(
-        dot(i, edge_vectors[:, 0, :]), dot(d, edge_vectors[:, 0, :])
+        jnp.sum(i * edge_vectors[:, 0, :], axis=-1),
+        jnp.sum(d * edge_vectors[:, 0, :], axis=-1),
     )
 
 
