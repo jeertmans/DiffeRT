@@ -8,7 +8,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -24,7 +23,7 @@ description = "Core backend of DiffeRT implemented in Rust"
 dynamic = ["license", "readme", "version"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 name = "differt-core"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 
 [tool.maturin]
 bindings = "pyo3"

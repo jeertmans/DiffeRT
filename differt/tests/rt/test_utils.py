@@ -319,6 +319,7 @@ def test_rays_intersect_any_triangle(
             epsilon=epsilon,
             hit_tol=hit_tol,
             smoothing_factor=1e8,
+            batch_size=11,  # will create non-zero remainder
         )
 
         chex.assert_trees_all_equal(got > 0.5, expected)

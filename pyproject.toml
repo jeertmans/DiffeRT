@@ -1,7 +1,7 @@
 [dependency-groups]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
-  "jax[cuda]>=0.5.0",
+  "jax[cuda]>=0.7.0",
 ]
 dev = [
   {include-group = "codspeed"},
@@ -77,7 +77,7 @@ tests-vispy = [
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 dependencies = []
 name = "differt-dev"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "1.0.0"
 
 [tool.bumpversion]
