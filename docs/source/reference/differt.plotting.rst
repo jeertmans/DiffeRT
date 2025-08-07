@@ -15,6 +15,7 @@ of plotting functions, either permanently or inside a given scope.
 
    reuse
    set_defaults
+   update_defaults
    use
 
 .. rubric:: Drawing functions
