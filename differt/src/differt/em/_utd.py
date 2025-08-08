@@ -8,8 +8,6 @@ import jax.numpy as jnp
 import jax.scipy.special as jsp
 from jaxtyping import Array, Complex, Float
 
-from differt.utils import dot
-
 # TODO: use ArrayLike instead of Array as inputs
 
 

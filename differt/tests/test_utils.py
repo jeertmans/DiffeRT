@@ -1,86 +1,13 @@
 import chex
 import jax
 import jax.numpy as jnp
-import pytest
 from jaxtyping import Array, PRNGKeyArray
 
 from differt.utils import (
-    dot,
     safe_divide,
     sample_points_in_bounding_box,
     smoothing_function,
-    sorted_array2,
 )
-
-from .utils import random_inputs
-
-
-@pytest.mark.parametrize(
-    ("u", "v"),
-    [
-        ((10, 3), (1, 3)),
-        ((1, 3), (10, 10, 3)),
-    ],
-)
-@pytest.mark.parametrize("pass_v", [False, True])
-@pytest.mark.parametrize("keepdims", [False, True])
-@random_inputs("u", "v")
-def test_dot(
-    u: Array,
-    v: Array,
-    pass_v: bool,
-    keepdims: bool,
-) -> None:
-    if pass_v:
-        got = dot(u, v, keepdims=keepdims)
-        expected = jnp.sum(u * v, axis=-1, keepdims=keepdims)
-    else:
-        got = dot(u, v, keepdims=keepdims)
-        expected = jnp.sum(u * v, axis=-1, keepdims=keepdims)
-
-    chex.assert_trees_all_close(got, expected)
-
-
-@pytest.mark.parametrize(
-    ("array", "expected"),
-    [
-        (jnp.empty((0, 0)), jnp.empty((0, 0))),
-        (jnp.empty((1, 0)), jnp.empty((1, 0))),
-        (jnp.empty((0, 1)), jnp.empty((0, 1))),
-        (jnp.ones((4, 5)), jnp.ones((4, 5))),
-        (jnp.arange(9).reshape(3, 3)[::-1, :], jnp.arange(9).reshape(3, 3)),
-        (
-            jnp.array(
-                [
-                    [7, 8, 9],
-                    [0, 1, 0],
-                    [0, 0, 0],
-                    [0, 0, 1],
-                    [4, 5, 6],
-                    [1, 2, 3],
-                    [1, 0, 0],
-                    [1, 0, 1],
-                ],
-            ),
-            jnp.array(
-                [
-                    [0, 0, 0],
-                    [0, 0, 1],
-                    [0, 1, 0],
-                    [1, 0, 0],
-                    [1, 0, 1],
-                    [1, 2, 3],
-                    [4, 5, 6],
-                    [7, 8, 9],
-                ],
-            ),
-        ),
-    ],
-)
-def test_sorted_array2(array: Array, expected: Array) -> None:
-    got = sorted_array2(array)
-
-    chex.assert_trees_all_close(got, expected)
 
 
 def test_sample_points_in_bounding_box(key: PRNGKeyArray) -> None:

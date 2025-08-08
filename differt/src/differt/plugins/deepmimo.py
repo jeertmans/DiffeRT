@@ -29,7 +29,7 @@ from differt.geometry import (
 from differt.plotting import PlotOutput, draw_paths, reuse
 from differt.rt import SizedIterator
 from differt.scene import TriangleScene
-from differt.utils import dot, safe_divide
+from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
 
@@ -164,19 +164,19 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
     def jax(self) -> "DeepMIMO[Array]":
         """
-        Return a copy of this class with arrays converted to JAX arrays.
+        Return a new instance of this class with arrays converted to JAX arrays.
 
         Returns:
-            A copy of this with JAX arrays.
+            A new instance of this with JAX arrays.
         """
         return jax.tree.map(jnp.asarray, self)
 
     def numpy(self) -> "DeepMIMO[np.ndarray]":  # type: ignore[reportMissingTypeArgument]
         """
-        Return a copy of this class with arrays converted to NumPy arrays.
+        Return a new instance of this class with arrays converted to NumPy arrays.
 
         Returns:
-            A copy of this with NumPy arrays.
+            A new instance of this with NumPy arrays.
         """
         return jax.tree.map(np.asarray, self)
 
@@ -490,7 +490,7 @@ def export(
             # [num_tx num_rx num_path_candidates order 3]
             (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
             # [num_tx num_rx num_path_candidates order 1]
-            cos_theta = dot(obj_normals, -k_i, keepdims=True)
+            cos_theta = jnp.sum(obj_normals * -k_i, axis=-1, keepdims=True)
             # [num_tx num_rx num_path_candidates order 1]
             r_s, r_p = reflection_coefficients(obj_n_r[..., None], cos_theta)
             # [num_tx num_rx num_path_candidates 1]
@@ -499,8 +499,8 @@ def export(
             # [num_tx num_rx num_path_candidates order 3]
             (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
             # [num_tx num_rx num_path_candidates 1]
-            fields_i_s = dot(fields_i, e_i_s[..., 0, :], keepdims=True)
-            fields_i_p = dot(fields_i, e_i_p[..., 0, :], keepdims=True)
+            fields_i_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
+            fields_i_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
             # [num_tx num_rx num_path_candidates 1]
             fields_r_s = r_s * fields_i_s
             fields_r_p = r_p * fields_i_p
@@ -537,7 +537,7 @@ def export(
             axis=-1,
         )
 
-    a = dot(fields, polarization)
+    a = jnp.sum(fields * polarization, axis=-1)
     wavelength = c / frequency
     a *= wavelength / (4 * jnp.pi)
     power = jnp.abs(a) ** 2 / z_0

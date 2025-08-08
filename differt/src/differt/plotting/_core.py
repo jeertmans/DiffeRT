@@ -1,4 +1,3 @@
-import os
 import warnings
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
@@ -17,7 +16,7 @@ from ._utils import (
 # otherwise array annotations do not render correctly.
 # However, we still import when building docs (online)
 # so return type is correctly documented.
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.figure import Figure as MplFigure
     from plotly.graph_objects import Figure
     from vispy.scene.canvas import SceneCanvas as Canvas

@@ -1,9 +1,17 @@
 # ruff: noqa: ERA001
 
-import os
+import sys
+import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    TypedDict,
+    TypeVar,
+    overload,
+)
 
 import equinox as eqx
 import jax
@@ -15,15 +23,33 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if TYPE_CHECKING or "READTHEDOCS" in os.environ:
-    import sys
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
+if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     if sys.version_info >= (3, 11):
         from typing import Self
     else:
         from typing_extensions import Self
 else:
-    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping
+
+
+class _AtIndexingKwargs(TypedDict):
+    indices_are_sorted: bool
+    unique_indices: bool
+    wrap_negative_indices: NotRequired[bool]
+
+
+_AT_INDEXING_KWARGS: _AtIndexingKwargs = {
+    "indices_are_sorted": True,
+    "unique_indices": True,
+}
+
+if jax.__version_info__ >= (0, 7, 0):
+    _AT_INDEXING_KWARGS["wrap_negative_indices"] = False
 
 
 @jax.jit
@@ -134,16 +160,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].set(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
         )
 
     def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
         index = self._triangles_index(**kwargs)
-        return self.mesh.vertices.at[index, :].get(
-            indices_are_sorted=True, unique_indices=True
-        )
+        return self.mesh.vertices.at[index, :].get(**_AT_INDEXING_KWARGS)
 
     def apply(
         self,
@@ -157,9 +179,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].apply(
-                func, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
         )
 
     def add(self, values: Any, **kwargs: Any) -> _T:
@@ -167,9 +187,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].add(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
         )
 
     def mul(self, values: Any, **kwargs: Any) -> _T:
@@ -177,9 +195,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
-            self.mesh.vertices.at[index, :].mul(
-                values, indices_are_sorted=True, unique_indices=True
-            ),
+            self.mesh.vertices.at[index, :].mul(values, **_AT_INDEXING_KWARGS),
         )
 
 
@@ -264,7 +280,7 @@ class TriangleMesh(eqx.Module):
             raise ValueError(msg)
 
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
-        """Return a copy of this mesh, taking only specific triangles.
+        """Return a new instance of this mesh, taking only specific triangles.
 
         Warning:
             As it is not possible to guarantee that indexing would not break existing
@@ -275,7 +291,7 @@ class TriangleMesh(eqx.Module):
                 along the first axis.
 
         Returns:
-            A new mesh.
+            A new mesh with selected triangles.
         """
         return eqx.tree_at(
             lambda m: (
@@ -323,15 +339,25 @@ class TriangleMesh(eqx.Module):
                     self,
                     (
                         self.vertices,
-                        self.triangles[start:stop, :],
-                        self.face_colors[start:stop, :]
+                        self.triangles.at[start:stop, :].get(
+                            **_AT_INDEXING_KWARGS,
+                        ),
+                        self.face_colors.at[start:stop, :].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
                         if self.face_colors is not None
                         else None,
-                        self.face_materials[start:stop]
+                        self.face_materials.at[start:stop].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
                         if self.face_materials is not None
                         else None,
                         jnp.array([[0, stop - start]]),
-                        self.mask[start:stop] if self.mask is not None else None,
+                        self.mask.at[start:stop].get(
+                            **_AT_INDEXING_KWARGS,
+                        )
+                        if self.mask is not None
+                        else None,
                     ),
                     is_leaf=lambda x: x is None,
                 )
@@ -408,7 +434,7 @@ class TriangleMesh(eqx.Module):
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
-        Return a copy of this mesh with :attr:`assume_quads` set to ``flag``.
+        Return a new instance of this scene with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
 
         Unlike with using :func:`equinox.tree_at`, this function will also
         perform runtime checks.
@@ -417,7 +443,7 @@ class TriangleMesh(eqx.Module):
             flag: The new flag value.
 
         Returns:
-            A new mesh.
+            A new mesh with the same structure with :attr:`TriangleMesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>` set to ``flag``.
         """
         mesh = eqx.tree_at(lambda m: m.assume_quads, self, flag)
         mesh.__check_init__()
@@ -608,7 +634,7 @@ class TriangleMesh(eqx.Module):
         return _TriangleMeshVerticesUpdateHelper(self)
 
     def masked(self) -> Self:
-        """Return a pruned copy of this object that only keeps masked (i.e., active) triangles.
+        """Return a new instance of this object that only keeps masked (i.e., active) triangles.
 
         .. important::
             This method does not preserve the :attr:`object_bounds` attribute.
@@ -731,14 +757,14 @@ class TriangleMesh(eqx.Module):
 
             Two important exceptions are:
 
-            * If one mesh is empty, a copy of the other mesh is returned as is;
-            * If both meshes are empty, then a copy of ``self`` is returned.
+            * If one mesh is empty, a new instance of the other mesh is returned as is;
+            * If both meshes are empty, then a new instance of ``self`` is returned.
 
         Args:
             other: The mesh to append.
 
         Returns:
-            The new mesh.
+            The new mesh with a structure that is the result of combining both input meshes.
 
         Examples:
             The following example shows how to create a mesh of nested cubes.
@@ -882,73 +908,15 @@ class TriangleMesh(eqx.Module):
         """
         Return a new mesh with duplicate vertices removed.
 
-        Vertices are also sorted in ascending order, so that calling :meth:`sort()` after this method
-        will not change the order of the vertices.
+        Vertices are also sorted in ascending order
 
         Returns:
             A new mesh with duplicate vertices removed.
         """
-        # TODO: handle mask
         vertices, unique_inverse = jnp.unique(
             self.vertices, axis=0, return_inverse=True
         )
         triangles = jnp.take(unique_inverse, self.triangles, axis=0)
-        return eqx.tree_at(
-            lambda m: (m.vertices, m.triangles),
-            self,
-            (vertices, triangles),
-        )
-
-    def sort(self) -> Self:
-        """
-        Return a new mesh with vertices sorted in ascending order.
-
-        Returns:
-            A new mesh with vertices sorted in ascending order.
-
-        Examples:
-            The following example shows how sorting a mesh
-            affects the order of the vertices, and thus the triangles numbering,
-            but not the actual geometry.
-
-            .. plotly::
-                :context: reset
-
-                >>> from differt.geometry import TriangleMesh
-                >>>
-                >>> mesh = TriangleMesh.plane(
-                ...     jnp.array([0.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
-                ... )
-                >>> mesh.vertices
-                Array([[ 0. ,  0.5,  0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. , -0.5, -0.5],
-                       [ 0. ,  0.5, -0.5]], dtype=float32)
-                >>> mesh.triangles
-                Array([[0, 1, 2],
-                       [0, 2, 3]], dtype=int32)
-                >>> fig = mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-
-            .. plotly::
-                :context:
-
-                >>> sorted_mesh = mesh.sort()
-                >>> sorted_mesh.vertices
-                Array([[ 0. , -0.5, -0.5],
-                       [ 0. , -0.5,  0.5],
-                       [ 0. ,  0.5, -0.5],
-                       [ 0. ,  0.5,  0.5]], dtype=float32)
-                >>> sorted_mesh.triangles
-                Array([[3, 1, 0],
-                       [3, 0, 2]], dtype=int32)
-                >>> fig = sorted_mesh.plot(opacity=0.5, backend="plotly")
-                >>> fig  # doctest: +SKIP
-        """
-        # TODO: handle mask
-        indices = jnp.lexsort(self.vertices.T[::-1])
-        vertices = self.vertices[indices]
-        triangles = jnp.argsort(indices)[self.triangles]
         return eqx.tree_at(
             lambda m: (m.vertices, m.triangles),
             self,
@@ -980,7 +948,7 @@ class TriangleMesh(eqx.Module):
         key: PRNGKeyArray | None = None,
     ) -> Self:
         """
-        Return a copy of this mesh, with new face colors.
+        Return a new instance of this mesh, with new face colors.
 
         Args:
             colors: The array of RGB colors.
@@ -1123,7 +1091,7 @@ class TriangleMesh(eqx.Module):
 
     def set_materials(self, *names: str) -> Self:
         """
-        Return a copy of this mesh, with new face materials from material names.
+        Return a new instance of this mesh, with new face materials from material names.
 
         If a material name is not in :attr:`material_names`, it is added.
 
@@ -1164,7 +1132,7 @@ class TriangleMesh(eqx.Module):
         self, materials: Int[ArrayLike, " "] | Int[ArrayLike, "#num_triangles"]
     ) -> Self:
         """
-        Return a copy of this mesh, with new face materials.
+        Return a new instance of this mesh, with new face materials.
 
         Args:
             materials: The material indices.
@@ -1191,9 +1159,9 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def plane(
         cls,
-        vertex_a: Float[Array, "3"],
-        vertex_b: Float[Array, "3"],
-        vertex_c: Float[Array, "3"],
+        vertex_a: Float[ArrayLike, "3"],
+        vertex_b: Float[ArrayLike, "3"],
+        vertex_c: Float[ArrayLike, "3"],
         *,
         normal: None = None,
         side_length: Float[ArrayLike, " "] = 1.0,
@@ -1204,11 +1172,11 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def plane(
         cls,
-        vertex_a: Float[Array, "3"],
+        vertex_a: Float[ArrayLike, "3"],
         vertex_b: None = None,
         vertex_c: None = None,
         *,
-        normal: Float[Array, "3"],
+        normal: Float[ArrayLike, "3"],
         side_length: Float[ArrayLike, " "] = 1.0,
         rotate: Float[ArrayLike, " "] | None = None,
     ) -> Self: ...
