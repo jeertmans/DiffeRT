@@ -342,6 +342,15 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0]
 
     @property
+    def num_active_triangles(self) -> int | Int[Array, " "]:
+        """
+        The number of active triangles.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        """
+        return jnp.sum(self.mask) if self.mask is not None else self.num_triangles
+
+    @property
     def num_quads(self) -> int:
         """The number of quadrilaterals.
 
@@ -355,6 +364,21 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0] // 2
 
     @property
+    def num_active_quads(self) -> int | Int[Array, " "]:
+        """The number of active quadrilaterals.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+
+        Raises:
+            ValueError: If :attr:`assume_quads` is :data:`False`.
+        """
+        if not self.assume_quads:
+            msg = "Cannot access the number of active quadrilaterals if 'assume_quads' is set to 'False'."
+            raise ValueError(msg)
+
+        return jnp.sum(self.mask[::2]) if self.mask is not None else self.num_quads
+
+    @property
     def num_primitives(self) -> int:
         """The number of primitives.
 
@@ -362,6 +386,17 @@ class TriangleMesh(eqx.Module):
         else :attr:`num_triangles`.
         """
         return self.num_quads if self.assume_quads else self.num_triangles
+
+    @property
+    def num_active_primitives(self) -> int | Int[Array, " "]:
+        """The number of active primitives.
+
+        This is a convenient alias to :attr:`num_active_quads` if :attr:`assume_quads` is :data:`True`
+        else :attr:`num_active_triangles`.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        """
+        return self.num_active_quads if self.assume_quads else self.num_active_triangles
 
     @property
     def triangle_vertices(self) -> Float[Array, "num_triangles 3 3"]:
