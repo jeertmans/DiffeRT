@@ -40,7 +40,7 @@ all = [
 ]
 jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl>=0.9.4"]
 matplotlib = ["matplotlib>=3.8.1"]
-plotly = ["plotly>=5.18.0,<6"]  # Apparently, Plotly>=6 doesn't work with Jupyter, see https://github.com/plotly/plotly.py/issues/5027 and related issues
+plotly = ["plotly>=5.18.0"]
 vispy = [
   "vispy>=0.14.1",
   # PyOpenGL seems to be needed, see:

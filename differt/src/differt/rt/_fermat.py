@@ -84,48 +84,6 @@ def _fermat_path_on_linear_objects(
 
 
 @eqx.filter_jit
-def _fermat_path_on_linear_objects(
-    from_vertex: Float[Array, "3"],
-    to_vertex: Float[Array, "3"],
-    object_origins: Float[Array, "num_objects 3"],
-    object_vectors: Float[Array, "num_objects num_dims 3"],
-    steps: int,
-    optimizer: optax.GradientTransformationExtraArgs,
-) -> Float[Array, "num_objects 3"]:
-    dtype = jnp.result_type(from_vertex, to_vertex, object_origins, object_vectors)
-    x_0 = jnp.zeros(object_vectors.shape[0] * object_vectors.shape[1], dtype=dtype)
-    opt_state = optimizer.init(x_0)
-    value_and_grad = optax.value_and_grad_from_state(_loss)
-
-    @no_type_check
-    def update(
-        state: tuple[Float[Array, " num_unknowns"], Any],
-        _: None,
-    ) -> tuple[tuple[Float[Array, " num_unknowns"], Any], float | Float[Array, " "]]:
-        x, opt_state = state
-        loss_value, grad = value_and_grad(
-            x, from_vertex, to_vertex, object_origins, object_vectors, state=opt_state
-        )
-        updates, opt_state = optimizer.update(
-            grad,
-            opt_state,
-            x,
-            value=loss_value,
-            grad=grad,
-            value_fn=_loss,
-            from_=from_vertex,
-            to=to_vertex,
-            o=object_origins,
-            v=object_vectors,
-        )
-        x = optax.apply_updates(x, updates)
-        return (x, opt_state), loss_value
-
-    (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
-    return _param_to_xyz(x, object_origins, object_vectors)
-
-
-@eqx.filter_jit
 def fermat_path_on_linear_objects(
     from_vertices: Float[ArrayLike, "*#batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"],

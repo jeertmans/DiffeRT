@@ -212,7 +212,6 @@ def _compute_paths(
             epsilon=epsilon,
             hit_tol=hit_tol,
             smoothing_factor=smoothing_factor,
-            batch_size=1,
         ).max(axis=-1, initial=0.0)  # Reduce on 'order'
     else:
         blocked = rays_intersect_any_triangle(
@@ -222,7 +221,6 @@ def _compute_paths(
             active_triangles=mesh.mask,
             epsilon=epsilon,
             hit_tol=hit_tol,
-            batch_size=1,
         ).any(axis=-1)  # Reduce on 'order'
 
     # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
