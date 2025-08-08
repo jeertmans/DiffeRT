@@ -1,0 +1,812 @@
+{
+  "results_26e09ca60735e34efcfdaa4bf43e3962ac502bb78cc9d6da92299ae8c8604701": {
+    "untrained_1": {
+      "accuracies": "60.40%, 58.10%",
+      "hit_rates": "62.83%, 60.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.60%, 0.00%",
+      "hit_rates": "3.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=128   batch=20"
+  },
+  "results_9f170e58470dc66041c2aefc49e168810cddf481567ce158370800045c7d1ac9": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.00%",
+      "hit_rates": "28.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=256   batch=10"
+  },
+  "results_9a281abd1a814f048dd45fa49d307de974ea85de3ef25d6e10b9a9e1d4448318": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.40%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=128   batch=10"
+  },
+  "results_7bf6fa0610aade2519fb49a7cab086391404f0c554f859b91fc890b98420691c": {
+    "untrained_1": {
+      "accuracies": "70.50%, 70.50%",
+      "hit_rates": "70.17%, 69.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.10%, 0.10%",
+      "hit_rates": "1.00%, 1.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=128   batch=20"
+  },
+  "results_8e62d59e6cd9030e5affb10f12c4e9be1e533bcd592b045d3334703d4170b07e": {
+    "untrained_1": {
+      "accuracies": "21.30%, 21.00%",
+      "hit_rates": "52.83%, 51.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.40%, 0.20%",
+      "hit_rates": "2.09%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.00%, 0.70%",
+      "hit_rates": "8.50%, 5.09%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=256   batch=10"
+  },
+  "results_5d23f50056f411e0a31dfc8b46f838b26d9be8b78dd42fac037c3a71b6d9cd03": {
+    "untrained_1": {
+      "accuracies": "78.60%, 77.00%",
+      "hit_rates": "70.17%, 68.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.90%, 0.90%",
+      "hit_rates": "3.05%, 3.05%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=256   batch=20"
+  },
+  "results_9b9c2c803c95f10a7258eca212c568544c81688c44af51840c01b95680827b83": {
+    "untrained_1": {
+      "accuracies": "72.70%, 68.00%",
+      "hit_rates": "69.50%, 67.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.00%",
+      "hit_rates": "1.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=256   batch=10"
+  },
+  "results_e2ffd87955ded262eced9b01cde519383036c2f1fc14ff3d50e78da5a07d3c1d": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.60%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=256   batch=10"
+  },
+  "results_c3619f620eeaa9f5ab3582262d8478b5f3d3b81c592d209b89730a86e032bd42": {
+    "untrained_1": {
+      "accuracies": "25.30%, 24.30%",
+      "hit_rates": "55.83%, 55.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.30%, 1.00%",
+      "hit_rates": "10.04%, 8.50%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=256   batch=20"
+  },
+  "results_f9dd40e42993ab1100ad00b551d5c326ac1623c29d19afa7131cb4d8bec565c8": {
+    "untrained_1": {
+      "accuracies": "11.10%, 11.10%",
+      "hit_rates": "45.33%, 45.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.90%, 0.60%",
+      "hit_rates": "7.04%, 5.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=256   batch=10"
+  },
+  "results_6580a47e01a21d470afba05ae134d0cf544ef431c10b225b1d74a038056bba84": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.60%",
+      "hit_rates": "28.17%, 24.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.20%",
+      "hit_rates": "2.09%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=64   batch=20"
+  },
+  "results_dc219b1114bc77f0377c66d24631ddd1374e45c1de20c55365d81d259c065e28": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.00%",
+      "hit_rates": "28.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=256   batch=20"
+  },
+  "results_a52887dd00c790a3a355d8c0794c11fe26e6894855af44cad1f53b1e1a48adb8": {
+    "untrained_1": {
+      "accuracies": "79.10%, 76.00%",
+      "hit_rates": "69.67%, 68.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=256   batch=20"
+  },
+  "results_df1e08c87ada1623fd5353237b4eb6e1d1773021b036051341b8971167b19507": {
+    "untrained_1": {
+      "accuracies": "19.90%, 19.90%",
+      "hit_rates": "52.83%, 52.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.10%, 0.80%",
+      "hit_rates": "8.59%, 5.09%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=256   batch=10"
+  },
+  "results_32187568b5e646b53d8c62abe05295c5c3a1751a7aec2dc82130999c46ea4b36": {
+    "untrained_1": {
+      "accuracies": "6.50%, 0.00%",
+      "hit_rates": "34.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=128   batch=10"
+  },
+  "results_957cc5285ef86a21d3d96efbe86dbe9414656a8c3ee528133c94122bf85c1f24": {
+    "untrained_1": {
+      "accuracies": "78.80%, 76.60%",
+      "hit_rates": "72.17%, 69.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "2.50%, 0.00%",
+      "hit_rates": "3.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=64   batch=20"
+  },
+  "results_2647dbd8f2f0ba19976a2acbec7ccff52af1581acc94b28bc8d43ddb3461b569": {
+    "untrained_1": {
+      "accuracies": "4.10%, 4.10%",
+      "hit_rates": "28.17%, 27.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.20%",
+      "hit_rates": "2.09%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=128   batch=10"
+  },
+  "results_8647a18e0b829c1bc6c62a5a664031f48295ae39846ddadefa7ff6da3e3fb3bb": {
+    "untrained_1": {
+      "accuracies": "51.40%, 49.20%",
+      "hit_rates": "60.83%, 60.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.80%, 0.70%",
+      "hit_rates": "5.50%, 4.50%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=64   batch=20"
+  },
+  "results_1d628a73eb87f9ce1168932e1596ff122cbdd23ac22e279be22ce3fcdced3cf9": {
+    "untrained_1": {
+      "accuracies": "50.80%, 49.40%",
+      "hit_rates": "61.33%, 59.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.05%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.70%, 0.70%",
+      "hit_rates": "4.50%, 4.50%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=64   batch=10"
+  },
+  "results_704a56760f2358963df747d7643209a9c230210d99225ae4037e800a651f7b56": {
+    "untrained_1": {
+      "accuracies": "71.70%, 69.40%",
+      "hit_rates": "69.67%, 68.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.50%, 1.50%",
+      "hit_rates": "6.09%, 5.04%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=256   batch=10"
+  },
+  "results_d098f3aa161d9813872b4b370f3920d833eced0dd82ad73b12c7529696ceb087": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.60%",
+      "hit_rates": "28.17%, 24.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=64   batch=10"
+  },
+  "results_87fc5d6dfdfbe90f69ef7bfa59336b38780b7472a607c783874cc4b239c15917": {
+    "untrained_1": {
+      "accuracies": "76.50%, 73.90%",
+      "hit_rates": "70.67%, 68.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "3.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.00%",
+      "hit_rates": "1.04%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=64   batch=10"
+  },
+  "results_0227abb0d9209cb5e9472c3da01219234e2ec82234c5ea6f51736dafca12a0cb": {
+    "untrained_1": {
+      "accuracies": "56.20%, 51.30%",
+      "hit_rates": "63.83%, 61.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "2.60%, 1.40%",
+      "hit_rates": "10.00%, 6.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=128   batch=10"
+  },
+  "results_ea96d1a9248e60d4d2fd775e62a1cc56d6a343d634c9e22b27c5c9bc698adc30": {
+    "untrained_1": {
+      "accuracies": "50.10%, 48.80%",
+      "hit_rates": "60.83%, 60.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.50%, 0.50%",
+      "hit_rates": "3.50%, 3.50%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=64   batch=10"
+  },
+  "results_3e78bb51b4d7a81fcea5ac7098b06c38fd51fa0fd30ff8a6c7f0b2eb5f0d41eb": {
+    "untrained_1": {
+      "accuracies": "4.00%, 1.00%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=128   batch=20"
+  },
+  "results_4dc9e8c8a03e18667be319a7367ccff3a8c8545c745c5692261c95f7a9acb831": {
+    "untrained_1": {
+      "accuracies": "73.30%, 69.30%",
+      "hit_rates": "69.50%, 69.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=10   num_features=256   batch=10"
+  },
+  "results_2d49e60c8adc7c7aef4f3a555ff19c39ba1b1104eeef55f43a8e71bd92957a9a": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.00%",
+      "hit_rates": "28.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=256   batch=20"
+  },
+  "results_26b91b513d83a958d7b79de2d9482d510e5a30be1a47b601add2734cf2b73228": {
+    "untrained_1": {
+      "accuracies": "55.90%, 53.00%",
+      "hit_rates": "62.33%, 60.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=64   batch=20"
+  },
+  "results_7206fb1636ae7e9f82da4c6e8b93a243d33e37b78c6862a0996efa5456c184e1": {
+    "untrained_1": {
+      "accuracies": "56.80%, 55.20%",
+      "hit_rates": "63.83%, 61.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.90%, 0.60%",
+      "hit_rates": "6.50%, 4.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=64   batch=20"
+  },
+  "results_1c5b21218bfc4fa37c2516b178916fd51437213fffe8bc9125f728c7e4705c5a": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.60%",
+      "hit_rates": "28.17%, 24.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=64   batch=20"
+  },
+  "results_795d25e5bf3e0cc80472af47fb5000b021eae4f7b320b400390d3fb30a1974ff": {
+    "untrained_1": {
+      "accuracies": "78.00%, 75.80%",
+      "hit_rates": "70.00%, 69.67%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.10%, 0.00%",
+      "hit_rates": "1.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=64   batch=20"
+  },
+  "results_de9ef1a01b2e146d2a065dce7dd51b110d836e351db5a576c41a02886aadba98": {
+    "untrained_1": {
+      "accuracies": "75.00%, 73.70%",
+      "hit_rates": "70.50%, 68.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.00%, 0.00%",
+      "hit_rates": "1.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=64   batch=10"
+  },
+  "results_d800c35eca2994dd5095210feddf1861cc4fd187e3102fda90eec0240778cc34": {
+    "untrained_1": {
+      "accuracies": "23.20%, 22.90%",
+      "hit_rates": "55.83%, 55.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.00%, 0.80%",
+      "hit_rates": "8.09%, 5.59%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=256   batch=20"
+  },
+  "results_12a2201afb086fe667b68df943eb3d087dd9e0986eb4b4d9580441f927f12530": {
+    "untrained_1": {
+      "accuracies": "64.30%, 64.30%",
+      "hit_rates": "65.33%, 64.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=128   batch=10"
+  },
+  "results_31115dc93ce4c06bb676d52bfc43304dab89ca806a114256386138db9b3b9cc8": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.50%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=256   batch=20"
+  },
+  "results_8a9e8b6fc06f1eef69048dc6b48507c1b1336ed307779899570f36c9e7ea169a": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.90%",
+      "hit_rates": "28.17%, 26.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.60%, 0.20%",
+      "hit_rates": "2.13%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=128   batch=10"
+  },
+  "results_dd22db09dbb5cd291bc8d1f25ce907084c2d123fcabbf6840b02776983c4a961": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.40%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=256   batch=10"
+  },
+  "results_a81c58c512f80303510580917009bfd4d792f123b94829effea7a4e8e0f28b52": {
+    "untrained_1": {
+      "accuracies": "4.80%, 4.80%",
+      "hit_rates": "30.33%, 30.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.90%, 0.40%",
+      "hit_rates": "4.13%, 4.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=128   batch=20"
+  },
+  "results_f91e88e55fd157496abcf78f2d0416a80243e4f95807c8acafb2180b1755761c": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.50%",
+      "hit_rates": "28.17%, 1.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=128   batch=20"
+  },
+  "results_154ac5ef73c670aa981b1237aa191602b2772dc290d2a7384303a00a2ea94796": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.60%",
+      "hit_rates": "28.17%, 24.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=64   batch=10"
+  },
+  "results_1686f364dea93f37722d258e912aea7842d529aac8088e6f2c342f7053217aea": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.00%",
+      "hit_rates": "28.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=128   batch=20"
+  },
+  "results_e922ea4825465b2ec09bb31f7eeba5093408650bd31bda4fe484b3bddb325f6c": {
+    "untrained_1": {
+      "accuracies": "4.40%, 4.30%",
+      "hit_rates": "28.33%, 28.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.70%, 0.30%",
+      "hit_rates": "3.13%, 3.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=10   num_features=128   batch=20"
+  },
+  "results_ff2fcf76c579843e17f9f13c69bc922a1452c131573e02ff8d3d68679fe5b63d": {
+    "untrained_1": {
+      "accuracies": "4.10%, 4.10%",
+      "hit_rates": "28.33%, 27.33%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.30%",
+      "hit_rates": "3.00%, 3.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=128   batch=10"
+  },
+  "results_c4e0a37aee4b5b34a96f2d1b1dfa9207f90707a0cd3520ccf82841dc5092cecd": {
+    "untrained_1": {
+      "accuracies": "7.80%, 7.80%",
+      "hit_rates": "35.83%, 35.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.00%, 1.00%",
+      "hit_rates": "7.00%, 6.09%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=128   batch=20"
+  },
+  "results_d992ed26c25265ba84c3f90e9aa93c2b88e348e58dc56676be20f29b70641b5e": {
+    "untrained_1": {
+      "accuracies": "4.00%, 0.00%",
+      "hit_rates": "28.17%, 0.00%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.00%, 0.00%",
+      "hit_rates": "0.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=10   num_features=128   batch=10"
+  },
+  "results_60c5e6a52d31f160715b3e92bda2f6675410574cbdf3f69cb22e6311495ee0f9": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.70%",
+      "hit_rates": "28.17%, 25.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.40%, 0.20%",
+      "hit_rates": "2.09%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=64   batch=10"
+  },
+  "results_4f1bcda29d13c4a2fac20aa122cb0b765e935d88f1818cfaff69158c14886da9": {
+    "untrained_1": {
+      "accuracies": "53.00%, 51.60%",
+      "hit_rates": "62.33%, 61.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.20%, 0.80%",
+      "hit_rates": "8.00%, 6.50%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=64   batch=10"
+  },
+  "results_addf2abae06137b6bc230cd181e3ccad30c5652f265b34ab53017ae53d32e753": {
+    "untrained_1": {
+      "accuracies": "75.10%, 75.10%",
+      "hit_rates": "69.67%, 69.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.00%",
+      "hit_rates": "0.50%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=20   num_features=64   batch=10"
+  },
+  "results_df1e15fe26a55707565c088d422b98fb546621b7bffe24652f67092e20dfe1d7": {
+    "untrained_1": {
+      "accuracies": "69.80%, 69.70%",
+      "hit_rates": "70.17%, 69.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.60%, 0.30%",
+      "hit_rates": "5.50%, 3.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=20   num_features=128   batch=20"
+  },
+  "results_a8c65440554500f23edf4e4b28dc8088a1e3771030c0801b518f7ecfea2be9c0": {
+    "untrained_1": {
+      "accuracies": "80.50%, 78.90%",
+      "hit_rates": "70.17%, 69.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.80%, 0.00%",
+      "hit_rates": "1.00%, 0.00%"
+    },
+    "params": "learning_rate=0.001   num_path_candidates=50   num_features=64   batch=20"
+  },
+  "results_3fc52ebdb1f8f9d18c2d548f7a4ceb8115bb208f5f0b802fd6c6345911ac8ced": {
+    "untrained_1": {
+      "accuracies": "22.30%, 22.00%",
+      "hit_rates": "54.83%, 53.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.00%, 0.60%",
+      "hit_rates": "8.54%, 6.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=20   num_features=256   batch=20"
+  },
+  "results_14cecac19a5e90d0ae626409ae49969774792039b0dda6854e95e6cde4ae2623": {
+    "untrained_1": {
+      "accuracies": "78.50%, 78.50%",
+      "hit_rates": "69.67%, 68.17%"
+    },
+    "untrained_2": {
+      "accuracies": "0.30%, 0.10%",
+      "hit_rates": "2.04%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "1.20%, 1.10%",
+      "hit_rates": "2.05%, 2.05%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=256   batch=20"
+  },
+  "results_9a9426606456fbcd4be87709a18941d3f71f1a267745f9a36bf03e28503763d0": {
+    "untrained_1": {
+      "accuracies": "4.00%, 3.70%",
+      "hit_rates": "28.17%, 25.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.20%",
+      "hit_rates": "2.00%, 2.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.30%, 0.20%",
+      "hit_rates": "2.04%, 2.00%"
+    },
+    "params": "learning_rate=1e-05   num_path_candidates=50   num_features=64   batch=20"
+  },
+  "results_a7a4f52a7f4e8603a5365caa591f53548c8b2fb46e6e94f4a532ce5172e20d98": {
+    "untrained_1": {
+      "accuracies": "65.40%, 61.20%",
+      "hit_rates": "65.33%, 64.83%"
+    },
+    "untrained_2": {
+      "accuracies": "0.20%, 0.10%",
+      "hit_rates": "2.00%, 1.00%"
+    },
+    "trained_2": {
+      "accuracies": "0.20%, 0.00%",
+      "hit_rates": "2.00%, 0.00%"
+    },
+    "params": "learning_rate=0.0001   num_path_candidates=50   num_features=128   batch=10"
+  }
+}
