@@ -23,6 +23,11 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
+- Fixed plotting issue in the coherence example notebook, where the scene in the second row was not plotted correctly, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+
+### Fixed
+
+- [Fixed the update of default values in context managers]{#fixed-update-defaults} to actually merge the new values with the existing ones, instead of replacing them, allowing for the nesting multiple context manager without any surprise (by <gh-user:jeertmans>, in <gh-pr:312>).
 
 ### Perf
 
