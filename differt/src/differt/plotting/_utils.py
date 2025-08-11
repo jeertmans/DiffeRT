@@ -110,6 +110,9 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     """
     Set default backend and keyword arguments for future plotting utilities.
 
+    Previous defaults are ignored. To merge new defaults with the existing ones,
+    use :func:`update_defaults`.
+
     Args:
         backend: The name of the backend to be passed to
             :func:`get_backend`.
@@ -171,10 +174,34 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     return backend
 
 
+def update_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
+    """
+    Update default backend and keyword arguments for future plotting utilities.
+
+    Like :func:`set_defaults`, but it merges the provided keyword arguments with the existing defaults. Context managers, such as :func:`use`, use this to temporarily change the defaults without losing previous values, which allows for the nesting of multiple context managers.
+
+    Args:
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
+        kwargs: Keyword arguments that will be passed to the
+            corresponding ``process_*_kwargs`` function, and
+            plot utilities.
+
+    Returns:
+        The name of the (new) default backend.
+    """
+    backend = get_backend(backend)
+
+    kwargs = {**config.defaults.kwargs, **kwargs}
+
+    config.set_defaults(backend=backend, kwargs=kwargs)
+    return backend
+
+
 @contextmanager
 def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
     """
-    Create a context manager that sets plotting defaults and returns the current default backend.
+    Create a context manager that updates plotting defaults and returns the current default backend.
 
     When exiting the context, the previous default backend
     and default keyword arguments are set back.
@@ -183,7 +210,7 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         backend: The name of the backend to be passed to
             :func:`get_backend`.
         kwargs: Keywords arguments passed to
-            :func:`set_defaults`.
+            :func:`update_defaults`.
 
     Yields:
         The name of the default backend used in this context.
@@ -225,6 +252,7 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         Using plotly backend with args = (), kwargs = {'color': 'black'}
     """
     backend = get_backend(backend)
+    kwargs = {**config.defaults.kwargs, **kwargs}
 
     with config.with_defaults(backend=backend, kwargs=kwargs):
         try:
@@ -630,10 +658,10 @@ def reuse(
         backend: The name of the backend to be passed to
             :func:`get_backend`.
         pass_all_kwargs: Whether to pass all keyword arguments
-            to :func:`set_defaults` or just the backend-specific ones,
+            to :func:`update_defaults` or just the backend-specific ones,
             i.e., the ones that are returned by :func:`process_kwargs`.
         kwargs: Keywords arguments passed to
-            :func:`set_defaults`.
+            :func:`update_defaults`.
 
     Yields:
         The canvas or figure that is reused for this context.
@@ -660,7 +688,9 @@ def reuse(
 
     kwargs = {**backend_kwargs, **kwargs} if pass_all_kwargs else backend_kwargs
 
-    with config.with_defaults(backend=backend, kwargs=kwargs):
+    with config.with_defaults(
+        backend=backend, kwargs={**config.defaults.kwargs, **kwargs}
+    ):
         try:
             yield canvas_or_fig
         finally:
