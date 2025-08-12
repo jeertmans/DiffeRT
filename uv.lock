@@ -943,6 +943,7 @@ dev = [
     { name = "sphinxcontrib-apidoc" },
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxext-opengraph" },
+    { name = "treescope" },
 ]
 docs = [
     { name = "beartype" },
@@ -963,6 +964,7 @@ docs = [
     { name = "sphinxcontrib-apidoc" },
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxext-opengraph" },
+    { name = "treescope" },
 ]
 icmlcn2025 = [
     { name = "differt", extra = ["all"] },
@@ -1084,6 +1086,7 @@ dev = [
     { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
+    { name = "treescope", specifier = ">=0.1.10" },
 ]
 docs = [
     { name = "beartype", specifier = ">=0.20" },
@@ -1102,6 +1105,7 @@ docs = [
     { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
+    { name = "treescope", specifier = ">=0.1.10" },
 ]
 icmlcn2025 = [
     { name = "differt", extras = ["all"], editable = "differt" },
@@ -5921,14 +5925,14 @@ wheels = [
 
 [[package]]
 name = "treescope"
-version = "0.1.9"
+version = "0.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/27/80ad254da167e0055d5679aefd224ab08844a4cd55aeee7ef72c999d5fc6/treescope-0.1.9.tar.gz", hash = "sha256:ba6cdbdc9c5b52691d5f3bb4c5d5c7daa5627119acac8640b46d37e6aabe63a6", size = 544385, upload-time = "2025-02-17T19:58:01.712Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/2a/d13d3c38862632742d2fe2f7ae307c431db06538fd05ca03020d207b5dcc/treescope-0.1.10.tar.gz", hash = "sha256:20f74656f34ab2d8716715013e8163a0da79bdc2554c16d5023172c50d27ea95", size = 138870, upload-time = "2025-08-08T05:43:48.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/09/b7e7bc5f21313d227e4fb98d2037646457ec06746327c5dd8ffed75e41e1/treescope-0.1.9-py3-none-any.whl", hash = "sha256:68677013a9f0228212fccf835f3fb037be07ae8b4c5f6f58eefab11198f83cf7", size = 182162, upload-time = "2025-02-17T19:57:57.7Z" },
+    { url = "https://files.pythonhosted.org/packages/43/2b/36e984399089c026a6499ac8f7401d38487cf0183839a4aa78140d373771/treescope-0.1.10-py3-none-any.whl", hash = "sha256:dde52f5314f4c29d22157a6fe4d3bd103f9cae02791c9e672eefa32c9aa1da51", size = 182255, upload-time = "2025-08-08T05:43:46.673Z" },
 ]
 
 [[package]]
