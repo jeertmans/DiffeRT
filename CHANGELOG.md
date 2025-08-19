@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...HEAD)
 
+### Added
+
+- Added {func}`update_defaults<differt.plotting.update_defaults>`, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+
 ### Chore
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
