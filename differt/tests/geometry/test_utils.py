@@ -231,19 +231,23 @@ def test_assemble_paths() -> None:
     ],
 )
 def test_assemble_paths_random_inputs(
-    shapes: tuple[tuple[int, ...], ...],
+    shapes: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
+    | tuple[tuple[int, ...], tuple[int, ...]],
     expectation: AbstractContextManager[Exception],
     key: PRNGKeyArray,
 ) -> None:
     keys = jax.random.split(key, len(shapes))
 
-    path_segments = [
-        jax.random.uniform(key, shape=shape)
-        for key, shape in zip(keys, shapes, strict=False)
-    ]
+    from_vertices = jax.random.uniform(keys[0], shape=shapes[0])
+    to_vertices = jax.random.uniform(keys[1], shape=shapes[1])
+    if len(shapes) == 3:
+        intermediate_vertices = jax.random.uniform(keys[2], shape=shapes[2])
+    else:
+        intermediate_vertices = to_vertices
+        to_vertices = None
 
     with expectation:
-        _ = assemble_paths(*path_segments)
+        _ = assemble_paths(from_vertices, intermediate_vertices, to_vertices)
 
 
 def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:

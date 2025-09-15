@@ -6,7 +6,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeVar, no_type_check
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ParamSpec,
+    Protocol,
+    TypeVar,
+    no_type_check,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
@@ -261,7 +268,7 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
             pass
 
 
-class _Dispatcher(Generic[P, T]):
+class _Dispatcher(Protocol[P, T]):
     registry: types.MappingProxyType[str, Callable[P, T]]
 
     def __call__(
