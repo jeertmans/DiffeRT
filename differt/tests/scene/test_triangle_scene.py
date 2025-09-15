@@ -518,3 +518,113 @@ class TestTriangleScene:
         )
 
         chex.assert_trees_all_equal(got, expected)
+
+    @pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_no_path_candidate(
+        self,
+        method: Literal["exhaustive", "hybrid"],
+        assume_quads: bool,
+    ) -> None:
+        mesh = TriangleMesh.box(6.0, 6.0, 6.0)
+
+        mask = jnp.zeros((mesh.num_triangles,), dtype=bool)
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = TriangleScene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        paths = scene.compute_paths(
+            order=1,
+            method=method,
+            disconnect_inactive_triangles=True,
+        )
+
+        assert paths.vertices.shape[0] == 0, (
+            "No active triangles should lead to no path candidates."
+        )
+
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_disconnect_inactive_triangles(
+        self,
+        assume_quads: bool,
+    ) -> None:
+        # Create a scene with a masked mesh
+        outer_mesh = TriangleMesh.box(6.0, 6.0, 6.0)
+        inner_mesh = TriangleMesh.box(1.0, 1.0, 1.0)
+        mesh = outer_mesh + inner_mesh
+
+        # Mask to keep only the outer mesh (disconnect inner mesh)
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),
+            jnp.zeros((inner_mesh.num_triangles,), dtype=bool),
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = TriangleScene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        # Compute paths with and without disconnecting inactive triangles
+        paths = scene.compute_paths(
+            order=1,
+            disconnect_inactive_triangles=False,
+        )
+        paths_disc = scene.compute_paths(
+            order=1,
+            disconnect_inactive_triangles=True,
+        )
+
+        assert paths.vertices.shape[0] > paths_disc.vertices.shape[0], (
+            "Disconnecting inactive triangles should reduce the number of path candidates."
+        )
+
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_hybrid_always_disconnects(
+        self,
+        assume_quads: bool,
+    ) -> None:
+        # For hybrid method, inactive triangles are always disconnected regardless
+        # of the disconnect_inactive_triangles parameter
+        outer_mesh = TriangleMesh.box(6.0, 6.0, 6.0)
+        inner_mesh = TriangleMesh.box(1.0, 1.0, 1.0)
+        mesh = outer_mesh + inner_mesh
+
+        # Mask to keep only the outer mesh
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),
+            jnp.zeros((inner_mesh.num_triangles,), dtype=bool),
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = TriangleScene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        # Test with both True and False - should get same results for hybrid method
+        paths_true = scene.compute_paths(
+            order=1, method="hybrid", disconnect_inactive_triangles=True
+        )
+
+        paths_false = scene.compute_paths(
+            order=1, method="hybrid", disconnect_inactive_triangles=False
+        )
+
+        # Should get the same results since hybrid always disconnects inactive triangles
+        chex.assert_trees_all_equal(paths_true, paths_false)

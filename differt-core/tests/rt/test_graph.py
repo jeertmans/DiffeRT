@@ -1,4 +1,5 @@
 import logging
+import re
 
 import numpy as np
 import pytest
@@ -45,6 +46,76 @@ class TestDiGraph:
             ):
                 for node in nodes:
                     assert node not in path
+
+    @pytest.mark.parametrize("fast_mode", [True, False])
+    def test_filter_by_mask(self, fast_mode: bool) -> None:
+        graph = DiGraph.from_complete_graph(CompleteGraph(8))
+        from_, to = graph.insert_from_and_to_nodes()
+
+        # Create a mask that disconnects nodes 1, 3, 5, 7 (keeps 0, 2, 4, 6)
+        mask = np.array([True, False, True, False, True, False, True, False])
+        disconnected_nodes = [1, 3, 5, 7]
+
+        # Count paths before filtering
+        paths_before = len(
+            list(graph.all_paths(from_, to, 3, include_from_and_to=False))
+        )
+
+        # Apply the mask filter
+        graph.filter_by_mask(mask, fast_mode=fast_mode)
+
+        # Count paths after filtering and verify no disconnected nodes appear
+        paths_after = []
+        for path in graph.all_paths(from_, to, 3, include_from_and_to=False):
+            paths_after.append(path)
+            for node in disconnected_nodes:
+                assert node not in path, (
+                    f"Path {path} should not contain disconnected node {node}"
+                )
+
+        # Verify that we have fewer paths after filtering
+        assert len(paths_after) < paths_before, (
+            "Should have fewer paths after filtering by mask"
+        )
+
+    @pytest.mark.parametrize("fast_mode", [True, False])
+    def test_filter_by_mask_all_disconnected(self, fast_mode: bool) -> None:
+        graph = DiGraph.from_complete_graph(CompleteGraph(4))
+        from_, to = graph.insert_from_and_to_nodes(direct_path=False)
+
+        # Disconnect all intermediate nodes
+        mask = np.array([False, False, False, False])
+        graph.filter_by_mask(mask, fast_mode=fast_mode)
+
+        # Should have no paths when all intermediate nodes are disconnected
+        paths = list(graph.all_paths(from_, to, 4, include_from_and_to=False))
+        assert len(paths) == 0, "Should have no paths when all nodes are disconnected"
+
+    def test_filter_by_mask_wrong_size(self) -> None:
+        graph = DiGraph.from_complete_graph(CompleteGraph(5))
+
+        # Test with mask of wrong size
+        wrong_mask = np.array([True, False, True])  # Only 3 elements for 5 nodes
+        # Ok to use a smaller mask
+        graph.filter_by_mask(wrong_mask, fast_mode=True)
+
+        graph = DiGraph.from_complete_graph(CompleteGraph(5))
+
+        wrong_mask = np.array([
+            True,
+            False,
+            True,
+            False,
+            False,
+            False,
+        ])  # 6 elements for 5 nodes
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "'mask' length (6) must be smaller than or equal to the number of nodes in the graph (5)"
+            ),
+        ):
+            graph.filter_by_mask(wrong_mask, fast_mode=True)
 
     @pytest.mark.parametrize("fast_mode", [True, False])
     def test_disconnect_nodes_equivalence(self, fast_mode: bool) -> None:
