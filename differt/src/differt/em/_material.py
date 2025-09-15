@@ -12,12 +12,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
-    import sys
-
-    if sys.version_info >= (3, 11):
-        from typing import Self
-    else:
-        from typing_extensions import Self
+    from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 

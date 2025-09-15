@@ -23,12 +23,16 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added {func}`update_defaults<differt.plotting.update_defaults>`, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+- [Added the possibility to pass {data}`None` for the `batch_size` argument]{#ray-triangle-batch-size-none} of {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`, to indicate that no batching should be performed, i.e., all operations are executed in a single {func}`jax.vmap` call (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Added `batch_size` argument to {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` to allow users to specify the size of the batch used for ray-triangle intersection tests, see [above](#ray-triangle-batch-size-none) (by <gh-user:jeertmans>, in <gh-pr:310>).
 
 ### Chore
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
 - Fixed plotting issue in the coherence example notebook, where the scene in the second row was not plotted correctly, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
 - Added `jaxtyped` Pytest marker to automatically skip tests that require jaxtyping when it is disabled (by <gh-user:jeertmans>, in <gh-pr:321>).
+- Bumped minimum required JAX version to [`0.7.0`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-0-july-22-2025) to use `wrap_negative_indices=False` with {func}`jax.numpy.ndarray.at<jax.numpy.ndarray.at>` (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Dropped Python 3.10 because we need JAX 0.7.0. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:310>).
 
 ### Fixed
 
