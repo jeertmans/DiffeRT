@@ -28,6 +28,7 @@ with one *slight* but **important** difference:
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
 - Fixed plotting issue in the coherence example notebook, where the scene in the second row was not plotted correctly, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+- Added `jaxtyped` Pytest marker to automatically skip tests that require jaxtyping when it is disabled (by <gh-user:jeertmans>, in <gh-pr:321>).
 
 ### Fixed
 

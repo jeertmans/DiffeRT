@@ -40,18 +40,26 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
         ((10, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
         ((1, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
         ((3,), (1, 3), (1, 3), does_not_raise()),
-        ((20, 3), (10, 3), (10, 3), pytest.raises(TypeError)),
-        (
+        pytest.param(
+            (20, 3),
+            (10, 3),
+            (10, 3),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
+        pytest.param(
             (10, 3),
             (20, 3),
             (10, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
-        (
+        pytest.param(
             (10, 3),
             (10, 4),
             (10, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
     ],
 )
@@ -158,8 +166,22 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
         ((10, 3), (10, 3), (1, 3), (1, 3), does_not_raise()),
         ((3,), (3,), (3,), (3,), does_not_raise()),
         ((10, 3), (1, 10, 3), (1, 1, 3), (10, 1, 3), does_not_raise()),
-        ((10, 3), (1, 10, 3), (1, 1, 3), (10, 2, 3), pytest.raises(TypeError)),
-        ((20, 3), (10, 3), (10, 3), (10, 3), pytest.raises(TypeError)),
+        pytest.param(
+            (10, 3),
+            (1, 10, 3),
+            (1, 1, 3),
+            (10, 2, 3),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
+        pytest.param(
+            (20, 3),
+            (10, 3),
+            (10, 3),
+            (10, 3),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
     ],
 )
 @random_inputs("ray_origins", "ray_directions", "plane_vertices", "plane_normals")
@@ -247,23 +269,26 @@ def test_image_method_return_vertices_on_mirrors(
         ((12, 3), (10, 3), (10, 3), does_not_raise()),
         ((4, 12, 3), (10, 3), (10, 3), does_not_raise()),
         ((6, 7, 12, 3), (10, 3), (10, 3), does_not_raise()),
-        (
+        pytest.param(
             (12, 3),
             (10, 3),
             (11, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
-        (
+        pytest.param(
             (10, 3),
             (12, 4),
             (12, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
-        (
+        pytest.param(
             (12, 3),
             (11, 4),
             (11, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
     ],
 )

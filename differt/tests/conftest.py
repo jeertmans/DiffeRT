@@ -4,7 +4,6 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import chex
 import jax
 import numpy as np
 import pytest
@@ -19,10 +18,6 @@ if TYPE_CHECKING:
 
     from jaxtyping import PRNGKeyArray
     from matplotlib.figure import Figure
-
-
-def pytest_configure() -> None:
-    chex.set_n_cpu_devices(8)
 
 
 @pytest.fixture
@@ -82,3 +77,20 @@ def close_figure(
             plt.close(fig)
     else:
         yield None
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "jaxtyped: mark test as requiring jaxtyping")
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    if "differt" in config.getoption("--jaxtyping-packages", default=""):  # type: ignore[reportOperatorIssue]
+        return
+    skip_jaxtyping = pytest.mark.skip(
+        reason='need --jaxtyping-packages="differt,..." option to run'
+    )
+    for item in items:
+        if "jaxtyped" in item.keywords:
+            item.add_marker(skip_jaxtyping)

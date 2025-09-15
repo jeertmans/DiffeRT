@@ -197,11 +197,12 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
     [
         ((3,), (3,), (3, 3), does_not_raise()),
         ((15, 5, 3), (15, 5, 3), (5, 3, 3), does_not_raise()),
-        (
+        pytest.param(
             (15, 5, 3),
             (15, 5, 3),
             (15, 3, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
     ],
 )
@@ -246,17 +247,19 @@ def test_rays_intersect_triangles_random_inputs(
         ((20, 10, 3), (20, 10, 3), (20, 10, 5, 3, 3), does_not_raise()),
         ((10, 3), (10, 3), (1, 3, 3), does_not_raise()),
         ((3,), (3,), (1, 3, 3), does_not_raise()),
-        (
+        pytest.param(
             (10, 3),
             (20, 3),
             (1, 3, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
-        (
+        pytest.param(
             (10, 3),
             (10, 4),
             (10, 3, 3),
             pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
         ),
     ],
 )
