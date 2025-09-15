@@ -494,13 +494,13 @@ def assemble_paths(
     from_vertices = jnp.asarray(from_vertices)
     intermediate_vertices = jnp.asarray(intermediate_vertices)
     if to_vertices is None:
-        batch = jnp.broadcast_shapes(
-            from_vertices.shape[:-1], intermediate_vertices.shape[:-1]
-        )
+        to_vertices = intermediate_vertices
+        del intermediate_vertices
+        batch = jnp.broadcast_shapes(from_vertices.shape[:-1], to_vertices.shape[:-1])
         return jnp.concatenate(
             (
                 jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
-                jnp.broadcast_to(intermediate_vertices[..., None, :], (*batch, 1, 3)),
+                jnp.broadcast_to(to_vertices[..., None, :], (*batch, 1, 3)),
             ),
             axis=-2,
         )

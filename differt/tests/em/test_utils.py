@@ -25,14 +25,29 @@ from ..utils import random_inputs
     ("lengths", "speed", "expectation"),
     [
         ((10,), (1,), does_not_raise()),
-        ((10,), (2,), pytest.raises(TypeError)),
+        pytest.param(
+            (10,),
+            (2,),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
         ((20, 10), (1,), does_not_raise()),
         ((20, 10), (10,), does_not_raise()),
         ((20, 1), (10,), does_not_raise()),
         ((20, 1), (1, 10), does_not_raise()),
         ((20, 1), (), does_not_raise()),
-        ((20, 10), (20,), pytest.raises(TypeError)),
-        ((10, 4), (10, 5), pytest.raises(TypeError)),
+        pytest.param(
+            (20, 10),
+            (20,),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
+        pytest.param(
+            (10, 4),
+            (10, 5),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
     ],
 )
 @random_inputs("lengths", "speed")
@@ -53,7 +68,11 @@ def test_lengths_to__delays_random_inputs(
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
-        ((10, 4), pytest.raises(TypeError)),
+        pytest.param(
+            (10, 4),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
         ((1, 3), does_not_raise()),
         ((0, 3), does_not_raise()),
     ],
