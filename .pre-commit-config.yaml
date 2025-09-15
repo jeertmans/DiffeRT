@@ -35,7 +35,6 @@ repos:
     entry: cargo +stable check
     language: system
     types: [rust]
-    args: []
     pass_filenames: false
   - id: cargo-fmt
     name: cargo fmt
@@ -43,14 +42,12 @@ repos:
     entry: cargo +nightly fmt --
     language: system
     types: [rust]
-    args: []
   - id: cargo-clippy
     name: cargo clippy
     description: Check files with cargo clippy
     entry: cargo +stable clippy
     language: system
     types: [rust]
-    args: []
     pass_filenames: false
   - id: nbsetup
     name: nbsetup
@@ -59,7 +56,6 @@ repos:
     language: python
     types: [jupyter]
     additional_dependencies: [nbformat]
-    args: []
 - repo: https://github.com/flying-sheep/bibfmt
   rev: v4.3.0
   hooks:
