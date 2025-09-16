@@ -57,7 +57,7 @@ Spherical coordinates can be derived from Cartesian coordinates using the follow
 \begin{bmatrix}r \\ \theta \\ \varphi \end{bmatrix} =
 \begin{bmatrix}
 \sqrt{x^2 + y^2 + z^2} \\ \arccos(z / \sqrt{x^2 + y^2 + z^2}) \\ \arctan(y / x)
-\end{bmatrix},\ \ \ 0 \le \theta \le \pi,\ \ \ 0 \le \varphi < 2\pi,
+\end{bmatrix},\ \ \ 0 \le \theta \le \pi,\ \ \ -\pi < \varphi < \pi,
 ```
 
 and is implemented by {func}`cartesian_to_spherical<differt.geometry.cartesian_to_spherical>`.

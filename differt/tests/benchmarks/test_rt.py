@@ -166,3 +166,32 @@ def test_compute_paths(
     bench_fun()
 
     benchmark(bench_fun)
+
+
+@pytest.mark.benchmark(group="compute_paths_disconnect_optimization")
+@pytest.mark.parametrize("disconnect_inactive_triangles", [False, True])
+def test_compute_paths_disconnect_inactive_triangles_benchmark(
+    disconnect_inactive_triangles: bool,
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    """Benchmark the performance benefit of disconnecting inactive triangles."""
+    scene = random_scene(simple_street_canyon_scene.set_assume_quads(), key=key)
+
+    @jax.block_until_ready
+    def bench_fun() -> Array:
+        num_valid_paths = jnp.array(0, dtype=jnp.int32)
+        for order in range(3):
+            for paths in scene.compute_paths(
+                order=order,
+                method="exhaustive",
+                chunk_size=10_000,
+                disconnect_inactive_triangles=disconnect_inactive_triangles,
+            ):
+                num_valid_paths += paths.num_valid_paths
+        return num_valid_paths
+
+    bench_fun()
+
+    benchmark(bench_fun)
