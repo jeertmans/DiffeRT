@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.6.0](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...v0.6.0)
 
 ### Added
 
@@ -56,8 +60,6 @@ with one *slight* but **important** difference:
 ### Removed
 
 - Removed `differt.utils.sorted_array2`, `differt.utils.dot`, `differt.geometry.pairwise_cross`,`differt.geometry.TriangleMesh.sort` to reduce the size of the API by limiting it to RT-related functionalities. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:309>).
-
-<!-- start changelog -->
 
 ## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)
 
