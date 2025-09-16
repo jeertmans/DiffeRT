@@ -52,6 +52,9 @@ class DiGraph:
         to_adjacency: Bool[np.ndarray, " num_nodes"],
     ) -> tuple[int, int]: ...
     def disconnect_nodes(self, *nodes: int, fast_mode: bool = True) -> None: ...
+    def filter_by_mask(
+        self, mask: Bool[np.ndarray, " num_nodes"], fast_mode: bool = True
+    ) -> None: ...
     def all_paths(
         self,
         from_: int,

@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.0.0
   hooks:
   - id: check-yaml
   - id: check-toml
@@ -16,7 +16,7 @@ repos:
     args: [--autofix, --trailing-commas]
     exclude: Cargo.lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.12.7
+  rev: v0.13.0
   hooks:
   - id: ruff-check
     args: [--fix]
@@ -24,7 +24,7 @@ repos:
   - id: ruff-format
     types_or: [python, pyi, jupyter]
 - repo: https://github.com/RobertCraigie/pyright-python
-  rev: v1.1.403
+  rev: v1.1.405
   hooks:
   - id: pyright
 - repo: local
@@ -35,7 +35,6 @@ repos:
     entry: cargo +stable check
     language: system
     types: [rust]
-    args: []
     pass_filenames: false
   - id: cargo-fmt
     name: cargo fmt
@@ -43,14 +42,12 @@ repos:
     entry: cargo +nightly fmt --
     language: system
     types: [rust]
-    args: []
   - id: cargo-clippy
     name: cargo clippy
     description: Check files with cargo clippy
     entry: cargo +stable clippy
     language: system
     types: [rust]
-    args: []
     pass_filenames: false
   - id: nbsetup
     name: nbsetup
@@ -59,7 +56,6 @@ repos:
     language: python
     types: [jupyter]
     additional_dependencies: [nbformat]
-    args: []
 - repo: https://github.com/flying-sheep/bibfmt
   rev: v4.3.0
   hooks:
@@ -81,6 +77,6 @@ repos:
     - tomli
     exclude_types: [jupyter]  # GitHub action will run on Notebooks
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.8.4
+  rev: 0.8.17
   hooks:
   - id: uv-lock

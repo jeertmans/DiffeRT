@@ -33,12 +33,7 @@ from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
-    import sys
-
-    if sys.version_info >= (3, 11):
-        from typing import Self
-    else:
-        from typing_extensions import Self
+    from typing import Self
 
     try:
         from sionna.rt import Scene as SionnaScene
@@ -61,6 +56,7 @@ def _compute_paths(
     min_len: Float[ArrayLike, " "] | None,
     smoothing_factor: Float[ArrayLike, " "] | None,
     confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    batch_size: int | None,
 ) -> Paths:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
@@ -73,7 +69,7 @@ def _compute_paths(
     num_path_candidates, order = path_candidates.shape
 
     if mesh.assume_quads:
-        # [num_path_candidates 2*order 3 3]
+        # [num_path_candidates 2*order]
         path_candidates = jnp.repeat(path_candidates, 2, axis=-1)
         path_candidates = path_candidates.at[..., 1::2].add(1)  # Shift odd indices by 1
         k = 2
@@ -112,20 +108,27 @@ def _compute_paths(
 
     # 2 - Trace paths
 
-    # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
-    paths = image_method(
-        tx_vertices[:, None, None, :],
-        rx_vertices[None, :, None, :],
-        mirror_vertices,
-        mirror_normals,
-    )
-
-    # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
-    full_paths = assemble_paths(
-        tx_vertices[:, None, None, :],
-        paths,
-        rx_vertices[None, :, None, :],
-    )
+    if num_path_candidates == 0:
+        dtype = jnp.result_type(
+            tx_vertices, rx_vertices, mirror_vertices, mesh.vertices
+        )
+        # [num_tx_vertices num_rx_vertices num_path_candidates order+2 3]
+        full_paths = jnp.empty(
+            (num_tx_vertices, num_rx_vertices, 0, order + 2, 3), dtype=dtype
+        )
+    else:
+        # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
+        paths = image_method(
+            tx_vertices[:, None, None, :],
+            rx_vertices[None, :, None, :],
+            mirror_vertices,
+            mirror_normals,
+        )
+        full_paths = assemble_paths(
+            tx_vertices[:, None, None, :],
+            paths,
+            rx_vertices[None, :, None, :],
+        )
 
     # 3 - Identify invalid paths
 
@@ -212,6 +215,7 @@ def _compute_paths(
             epsilon=epsilon,
             hit_tol=hit_tol,
             smoothing_factor=smoothing_factor,
+            batch_size=batch_size,
         ).max(axis=-1, initial=0.0)  # Reduce on 'order'
     else:
         blocked = rays_intersect_any_triangle(
@@ -221,6 +225,7 @@ def _compute_paths(
             active_triangles=mesh.mask,
             epsilon=epsilon,
             hit_tol=hit_tol,
+            batch_size=batch_size,
         ).any(axis=-1)  # Reduce on 'order'
 
     # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
@@ -310,6 +315,7 @@ def _compute_paths_sbr(
     num_rays: int,
     epsilon: Float[ArrayLike, " "] | None,
     max_dist: Float[ArrayLike, " "],
+    batch_size: int | None,
 ) -> SBRPaths:
     # 1 - Prepare arrays
 
@@ -372,6 +378,7 @@ def _compute_paths_sbr(
             triangle_vertices,
             active_triangles=mesh.mask,
             epsilon=epsilon,
+            batch_size=batch_size,
         )
 
         # 2 - Check if the rays pass near RX
@@ -777,6 +784,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
 
     @overload
@@ -794,6 +803,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
 
     @overload
@@ -811,6 +822,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -828,6 +841,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> Iterator[Paths]: ...
 
     @overload
@@ -845,6 +860,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
 
     @overload
@@ -862,6 +879,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> SBRPaths: ...
 
     def compute_paths(
@@ -878,6 +897,8 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, " "] = 1e-3,
         smoothing_factor: Float[ArrayLike, " "] | None = None,
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
     ) -> Paths | SizedIterator[Paths] | Iterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -971,6 +992,27 @@ class TriangleScene(eqx.Module):
 
                     Currently, only the ``'exhaustive'`` method is supported.
             confidence_threshold: A threshold value for deciding which paths are valid.
+            batch_size: If specified, the number of triangles or rays to process in one batch
+                when checking for intersections.
+
+                If :data:`None`, everything is processed in one batch, which can lead to
+                memory issues on large scenes.
+
+                See :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`,
+                :func:`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`,
+                and :func:`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`
+                for more details.
+            disconnect_inactive_triangles: If :data:`True`, inactive triangles (where
+                the mesh mask is :data:`False`) are disconnected from the graph before
+                generating path candidates. This can significantly reduce computational
+                time for scenes with many inactive triangles, but the path candidates
+                array size will vary based on the mask, which can trigger recompilations
+                in JIT-compiled code.
+
+                For the ``'hybrid'`` method, inactive triangles are always disconnected
+                regardless of this parameter value, as the method already depends on
+                the mask.
+
 
         Returns:
             The paths, as class wrapping path vertices, object indices, and a masked
@@ -1020,6 +1062,7 @@ class TriangleScene(eqx.Module):
                 num_rays=num_rays,
                 epsilon=epsilon,
                 max_dist=max_dist,
+                batch_size=batch_size,
             ).reshape(*tx_batch, *rx_batch, -1)
 
         # 0 - Constants arrays of chunks
@@ -1043,6 +1086,7 @@ class TriangleScene(eqx.Module):
                 active_triangles=self.mesh.mask,
                 num_rays=num_rays,
                 epsilon=epsilon,
+                batch_size=batch_size,
             ).any(axis=0)  # reduce on all transmitters
 
             triangles_visible_from_rx = triangles_visible_from_vertices(
@@ -1051,6 +1095,7 @@ class TriangleScene(eqx.Module):
                 active_triangles=self.mesh.mask,
                 num_rays=num_rays,
                 epsilon=epsilon,
+                batch_size=batch_size,
             ).any(axis=0)  # reduce on all receivers
 
             if assume_quads:
@@ -1066,6 +1111,25 @@ class TriangleScene(eqx.Module):
                 from_adjacency=np.asarray(triangles_visible_from_tx),
                 to_adjacency=np.asarray(triangles_visible_from_rx),
             )
+            if self.mesh.mask is not None:
+                # The number of path candidates generated by the 'hybrid' method already
+                # depends on the mask, so we will always disconnect nodes in that case.
+                mask = self.mesh.mask
+                if assume_quads:
+                    # For quads, we need both triangles to be active
+                    mask = mask[0::2] & mask[1::2]
+                graph.filter_by_mask(
+                    np.asarray(mask), fast_mode=True
+                )  # Further reduce graph size by removing inactive triangles
+        elif disconnect_inactive_triangles and self.mesh.mask is not None:
+            mask = self.mesh.mask
+            if assume_quads:
+                # For quads, we need both triangles to be active
+                mask = mask[0::2] & mask[1::2]
+
+            graph = DiGraph.from_complete_graph(graph)
+            from_, to = graph.insert_from_and_to_nodes()
+            graph.filter_by_mask(np.asarray(mask), fast_mode=True)
         else:
             from_ = graph.num_nodes
             to = from_ + 1
@@ -1092,6 +1156,7 @@ class TriangleScene(eqx.Module):
                     min_len=min_len,
                     smoothing_factor=smoothing_factor,
                     confidence_threshold=confidence_threshold,
+                    batch_size=batch_size,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -1128,6 +1193,7 @@ class TriangleScene(eqx.Module):
             min_len=min_len,
             smoothing_factor=smoothing_factor,
             confidence_threshold=confidence_threshold,
+            batch_size=batch_size,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

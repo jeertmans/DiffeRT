@@ -6,7 +6,6 @@ requires = ["hatchling", "hatch-fancy-pypi-readme"]
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -16,14 +15,13 @@ classifiers = [
 ]
 dependencies = [
   "chex>=0.1.86",
-  "differt-core==0.5.0",
+  "differt-core==0.6.0",
   "equinox>=0.12.2",
   "filelock>=3.15.4",
-  "jax>=0.4.32",  # TODO: fixme, issue with pmap
+  "jax>=0.7.0",
   "jaxtyping>=0.3.2",
   "numpy>=1.26.1",
   "optax>=0.1.7",
-  "typing-extensions>=4.9.0;python_version<'3.11'",
   "requests>=2.32.0",
   "tqdm>=4.66.2",
 ]
@@ -32,7 +30,7 @@ dynamic = ["readme", "version"]
 keywords = ["ray tracing", "differentiable", "propagation", "radio", "jax"]
 license = "MIT"
 name = "DiffeRT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 [project.optional-dependencies]
 all = [

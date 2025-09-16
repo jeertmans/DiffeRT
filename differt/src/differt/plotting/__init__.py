@@ -100,6 +100,7 @@ __all__ = (
     "process_vispy_kwargs",
     "reuse",
     "set_defaults",
+    "update_defaults",
     "use",
     "view_from_canvas",
 )
@@ -123,6 +124,7 @@ from ._utils import (
     process_vispy_kwargs,
     reuse,
     set_defaults,
+    update_defaults,
     use,
     view_from_canvas,
 )

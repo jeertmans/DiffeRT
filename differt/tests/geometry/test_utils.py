@@ -33,7 +33,11 @@ from ..utils import random_inputs
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
-        ((10, 4), pytest.raises(TypeError)),
+        pytest.param(
+            (10, 4),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
     ],
 )
 @pytest.mark.parametrize("keepdims", [False, True])
@@ -95,7 +99,11 @@ def test_orthogonal_basis(u: Array) -> None:
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
-        ((10, 4), pytest.raises(TypeError)),
+        pytest.param(
+            (10, 4),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
         ((1, 3), does_not_raise()),
         ((0, 3), does_not_raise()),
     ],
@@ -226,24 +234,36 @@ def test_assemble_paths() -> None:
         (((3,), (3,)), does_not_raise()),
         (((3,), (2, 1, 3), (3,)), does_not_raise()),
         (((1, 5, 3), (10, 5, 2, 3), (3,)), does_not_raise()),
-        (((3,), (6, 4), (3,)), pytest.raises(TypeError)),
-        (((1, 3), (3,), (1, 3)), pytest.raises(TypeError)),
+        pytest.param(
+            ((3,), (6, 4), (3,)),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
+        pytest.param(
+            ((1, 3), (3,), (1, 3)),
+            pytest.raises(TypeError),
+            marks=pytest.mark.jaxtyped,
+        ),
     ],
 )
 def test_assemble_paths_random_inputs(
-    shapes: tuple[tuple[int, ...], ...],
+    shapes: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
+    | tuple[tuple[int, ...], tuple[int, ...]],
     expectation: AbstractContextManager[Exception],
     key: PRNGKeyArray,
 ) -> None:
     keys = jax.random.split(key, len(shapes))
 
-    path_segments = [
-        jax.random.uniform(key, shape=shape)
-        for key, shape in zip(keys, shapes, strict=False)
-    ]
+    from_vertices = jax.random.uniform(keys[0], shape=shapes[0])
+    to_vertices = jax.random.uniform(keys[-1], shape=shapes[-1])
+    if len(shapes) == 3:
+        intermediate_vertices = jax.random.uniform(keys[1], shape=shapes[1])
+    else:
+        intermediate_vertices = to_vertices
+        to_vertices = None
 
     with expectation:
-        _ = assemble_paths(*path_segments)
+        _ = assemble_paths(from_vertices, intermediate_vertices, to_vertices)
 
 
 def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:

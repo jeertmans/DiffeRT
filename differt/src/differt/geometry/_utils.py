@@ -1,9 +1,10 @@
 from functools import partial
 from typing import Literal, no_type_check, overload
 
+import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, DTypeLike, Float, Int
+from jaxtyping import Array, ArrayLike, Bool, DTypeLike, Float, Int
 
 
 @overload
@@ -494,13 +495,13 @@ def assemble_paths(
     from_vertices = jnp.asarray(from_vertices)
     intermediate_vertices = jnp.asarray(intermediate_vertices)
     if to_vertices is None:
-        batch = jnp.broadcast_shapes(
-            from_vertices.shape[:-1], intermediate_vertices.shape[:-1]
-        )
+        to_vertices = intermediate_vertices
+        del intermediate_vertices
+        batch = jnp.broadcast_shapes(from_vertices.shape[:-1], to_vertices.shape[:-1])
         return jnp.concatenate(
             (
                 jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
-                jnp.broadcast_to(intermediate_vertices[..., None, :], (*batch, 1, 3)),
+                jnp.broadcast_to(to_vertices[..., None, :], (*batch, 1, 3)),
             ),
             axis=-2,
         )
@@ -575,7 +576,7 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    optimize: bool = False,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
     reduce: Literal[False] = False,
 ) -> Float[Array, "*batch 2 3"]: ...
 
@@ -585,7 +586,7 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    optimize: bool = False,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
     reduce: Literal[True] = True,
 ) -> Float[Array, "2 3"]: ...
 
@@ -595,16 +596,17 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    optimize: bool = False,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
     reduce: bool,
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
 
 
-@partial(jax.jit, static_argnames=("reduce",))
+@eqx.filter_jit
 def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,  # type: ignore[reportRedeclaration]
     reduce: bool = False,
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
     r"""
@@ -623,6 +625,8 @@ def viewing_frustum(
     Args:
         viewing_vertex: The coordinates of the viewer (i.e., camera).
         world_vertices: The array of world coordinates.
+        active_vertices: An optional mask to select which vertices
+            to consider when computing the frustum.
         reduce: Whether to reduce batch dimensions.
 
     Returns:
@@ -747,19 +751,19 @@ def viewing_frustum(
     xyz = world_vertices - viewing_vertex[..., None, :]
     rpa = cartesian_to_spherical(xyz)
 
+    if active_vertices is not None:
+        active_vertices: Array = jnp.asarray(active_vertices)
+
     r, p, a = rpa[..., 0], rpa[..., 1], rpa[..., 2]
 
-    if reduce:
-        r = r.ravel()
-        p = p.ravel()
-        a = a.ravel()
+    axis = None if reduce else -1
 
-    r_min = jnp.min(r, axis=-1)
-    r_max = jnp.max(r, axis=-1)
-    p_min = jnp.min(p, axis=-1)
-    p_max = jnp.max(p, axis=-1)
-    a_min = jnp.min(a, axis=-1)
-    a_max = jnp.max(a, axis=-1)
+    r_min = jnp.min(r, axis=axis, where=active_vertices, initial=jnp.inf)
+    r_max = jnp.max(r, axis=axis, where=active_vertices, initial=0)
+    p_min = jnp.min(p, axis=axis, where=active_vertices, initial=jnp.pi)
+    p_max = jnp.max(p, axis=axis, where=active_vertices, initial=0)
+    a_min = jnp.min(a, axis=axis, where=active_vertices, initial=jnp.pi)
+    a_max = jnp.max(a, axis=axis, where=active_vertices, initial=-jnp.pi)
 
     # The discontinuity for azimuthal angles near -pi;pi can create
     # issues, leading to a larger angular sector that expected.
@@ -768,8 +772,8 @@ def viewing_frustum(
     two_pi = 2 * jnp.pi
 
     a_0 = (a + two_pi) % two_pi
-    a_0_min = jnp.min(a_0, axis=-1)
-    a_0_max = jnp.max(a_0, axis=-1)
+    a_0_min = jnp.min(a_0, axis=axis, where=active_vertices, initial=two_pi)
+    a_0_max = jnp.max(a_0, axis=axis, where=active_vertices, initial=0)
 
     a_width = a_max - a_min
     a_0_width = a_0_max - a_0_min
@@ -782,8 +786,8 @@ def viewing_frustum(
 
     # For polar angle, we 'try' to fix a similar issue.
     # TODO: improve this.
-    p_0_min = p_max
-    p_0_max = p_min
+    p_0_min = p_min
+    p_0_max = p_max
 
     p_min = jnp.where(p_min == p_max, 0.0, p_min)
     p_0_max = jnp.where(p_0_min == p_0_max, jnp.pi, p_0_max)
@@ -797,14 +801,17 @@ def viewing_frustum(
         jnp.stack((p_min, p_max)),
     )
 
-    return jnp.stack((
-        r_min,
-        p_min,
-        a_min,
-        r_max,
-        p_max,
-        a_max,
-    )).reshape(*r.shape[:-1], 2, 3)
+    return jnp.stack(
+        (
+            r_min,
+            p_min,
+            a_min,
+            r_max,
+            p_max,
+            a_max,
+        ),
+        axis=-1,
+    ).reshape(*r.shape[:-1], 2, 3)
 
 
 @jax.jit

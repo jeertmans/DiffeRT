@@ -1,6 +1,5 @@
 # ruff: noqa: ERA001
 
-import sys
 import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
@@ -8,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    NotRequired,
     TypedDict,
     TypeVar,
     overload,
@@ -23,16 +23,8 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
-
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
-    if sys.version_info >= (3, 11):
-        from typing import Self
-    else:
-        from typing_extensions import Self
+    from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping
 

@@ -18,11 +18,40 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.6.0](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...v0.6.0)
+
+### Added
+
+- Added {func}`update_defaults<differt.plotting.update_defaults>`, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+- [Added the possibility to pass {data}`None` for the `batch_size` argument]{#ray-triangle-batch-size-none} of {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`, to indicate that no batching should be performed, i.e., all operations are executed in a single {func}`jax.vmap` call (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Added a `batch_size` argument to {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` to allow users to specify the size of the batch used for ray-triangle intersection tests, see [above](#ray-triangle-batch-size-none) (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Added the {meth}`DiGraph.filter_by_mask<differt_core.rt.DiGraph.filter_by_mask>` to disconnected nodes based on a mask (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Added a `disconnect_inactive_triangles` to {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` to allow reducing the number of path candidates, at the cost of potential recompilations (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Added an `active_vertices` argument to {func}`viewing_frustum<differt.geometry.viewing_frustum>` to allow users to specify which vertices are active (by <gh-user:jeertmans>, in <gh-pr:322>).
+
+### Changed
+
+- Changed {meth}`DiGraph.disconnect_nodes<differt_core.rt.DiGraph.disconnect_nodes>` to raise an {class}`IndexError` when the node indices are out of bounds (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Changed the behavior of {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to select the triangle with the closest center to the ray origin when two or more triangles are hit at the same distance (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Changed the behavior of {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to include the triangle centers in the world vertices when computing the viewing frustum (by <gh-user:jeertmans>, in <gh-pr:322>).
 
 ### Chore
 
 - Rephrased the documentation of methods returning shallow copies to clarify that they return new instances, and do not necessarily copy inner arrays (by <gh-user:jeertmans>, in <gh-pr:307>).
+- Fixed plotting issue in the coherence example notebook, where the scene in the second row was not plotted correctly, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
+- Added `jaxtyped` Pytest marker to automatically skip tests that require jaxtyping when it is disabled (by <gh-user:jeertmans>, in <gh-pr:321>).
+- Bumped minimum required JAX version to [`0.7.0`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-0-july-22-2025) to use `wrap_negative_indices=False` with {attr}`at<jax.numpy.ndarray.at>` (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Dropped Python 3.10 because we need JAX 0.7.0. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:310>).
+
+### Fixed
+
+- [Fixed the update of default values in context managers]{#fixed-update-defaults} to actually merge the new values with the existing ones, instead of replacing them, allowing for the nesting multiple context manager without any surprise (by <gh-user:jeertmans>, in <gh-pr:312>).
+- Fixed a typo in {func}`viewing_frustum<differt.geometry.viewing_frustum>` that led to incorrect behavior (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Fixed a typo in {ref}`conventions` where the azimuth angle was incorrectly described to be in  {math}`[0^\circ, 360^\circ]` instead of {math}`[-180^\circ, 180^\circ]` (by <gh-user:jeertmans>, in <gh-pr:322>).
 
 ### Perf
 
@@ -31,8 +60,6 @@ with one *slight* but **important** difference:
 ### Removed
 
 - Removed `differt.utils.sorted_array2`, `differt.utils.dot`, `differt.geometry.pairwise_cross`,`differt.geometry.TriangleMesh.sort` to reduce the size of the API by limiting it to RT-related functionalities. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:309>).
-
-<!-- start changelog -->
 
 ## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)
 

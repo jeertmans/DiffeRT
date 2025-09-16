@@ -6,7 +6,11 @@ use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
     ndarray::{Array2, ArrayView1, ArrayView2, Axis, parallel::prelude::*},
 };
-use pyo3::{prelude::*, types::PyType};
+use pyo3::{
+    exceptions::{PyIndexError, PyValueError},
+    prelude::*,
+    types::PyType,
+};
 
 /// NodeId type.
 pub type NodeId = usize;
@@ -820,11 +824,18 @@ pub mod directed {
         ///         from the nodes is sufficient, and faster to perform,
         ///         but can lead to a slower graph traversal when
         ///         generating all possible paths.
+        ///
+        /// Raises:
+        ///     IndexError: If any of the specified nodes is not part
+        ///         of the graph.
         #[pyo3(signature = (*nodes, fast_mode=true))]
         #[pyo3(text_signature = "(self, *nodes, fast_mode=True)")]
-        pub fn disconnect_nodes(&mut self, mut nodes: Vec<usize>, fast_mode: bool) {
+        pub fn disconnect_nodes(&mut self, mut nodes: Vec<usize>, fast_mode: bool) -> PyResult<()> {
             for i in nodes.iter() {
-                self.edges_list[*i].clear();
+                self.edges_list
+                    .get_mut(*i)
+                    .ok_or_else(|| PyIndexError::new_err(format!("Node {i} is out-of-bounds")))?
+                    .clear();
             }
 
             if !fast_mode {
@@ -834,6 +845,68 @@ pub mod directed {
                     edge.retain(|node| nodes.binary_search(node).is_err());
                 }
             }
+
+            Ok(())
+        }
+
+        /// Disconnect all nodes where the mask is False, keeping only
+        /// nodes where the mask is True.
+        ///
+        /// This is a more efficient version of :meth:`disconnect_nodes` when
+        /// working with NumPy boolean arrays, as it avoids creating
+        /// intermediate Vec<usize> collections.
+        ///
+        /// This has two effects:
+        ///
+        /// - all paths from nodes where mask is False will be removed;
+        /// - and all paths to nodes where mask is False will be removed.
+        ///
+        /// Args:
+        ///     mask (:class:`Bool[ndarray, "num_nodes"]<jaxtyping.Bool>`): A boolean mask array where
+        ///         :data:`True` means the node should remain connected, and
+        ///         :data:`False` means the node should be disconnected.
+        ///     fast_mode (bool): If set to :data:`True` (default),
+        ///         only disconnecting all paths (i.e., edges)
+        ///         from the nodes is sufficient, and faster to perform,
+        ///         but can lead to a slower graph traversal when
+        ///         generating all possible paths.
+        ///
+        /// Raises:
+        ///     ValueError: If the length of ``mask`` is larger
+        ///         from the number of nodes in the graph.
+        #[pyo3(signature = (mask, fast_mode=true))]
+        #[pyo3(text_signature = "(self, mask, fast_mode=True)")]
+        pub fn filter_by_mask(
+            &mut self,
+            mask: PyReadonlyArray1<bool>,
+            fast_mode: bool,
+        ) -> PyResult<()> {
+            let mask = mask.as_array();
+
+            if mask.len() > self.num_nodes() {
+                return Err(PyValueError::new_err(format!(
+                    "'mask' length ({}) must be smaller than or equal to the number of nodes in \
+                     the graph ({})",
+                    mask.len(),
+                    self.num_nodes()
+                )));
+            }
+
+            // Clear edges from nodes that should be disconnected
+            for (i, &keep_node) in mask.iter().enumerate() {
+                if !keep_node {
+                    self.edges_list[i].clear();
+                }
+            }
+
+            if !fast_mode {
+                // Remove references to disconnected nodes from all other nodes
+                for edge_list in self.edges_list.iter_mut() {
+                    edge_list.retain(|&node| if node < mask.len() { mask[node] } else { true });
+                }
+            }
+
+            Ok(())
         }
 
         /// Return an iterator over all paths of length ``depth``
@@ -1135,7 +1208,7 @@ pub(crate) fn graph(m: Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use std::cmp::Ordering;
 
-    use ndarray::array;
+    use numpy::{PyArrayMethods, ToPyArray, ndarray::array, pyo3::Python};
     use rstest::*;
 
     use super::{complete::CompleteGraph, directed::DiGraph, *};
@@ -1501,5 +1574,133 @@ mod tests {
         let di_iter = di_graph.all_paths(from, to, depth + 2, true);
 
         assert!(complete_iter.eq(di_iter));
+    }
+
+    #[rstest]
+    #[case(true)]
+    #[case(false)]
+    fn test_di_graph_disconnect_node(#[case] fast_mode: bool) {
+        let mut graph: DiGraph = CompleteGraph::new(10).into();
+        let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
+
+        // Count paths before disconnecting any nodes
+        let paths_before = graph.all_paths(from, to, 3, false).count();
+
+        // Disconnect nodes 2 and 5
+        let disconnected_nodes = vec![2, 5];
+        graph
+            .disconnect_nodes(disconnected_nodes.clone(), fast_mode)
+            .unwrap();
+
+        // Count paths after disconnecting nodes
+        let paths_after: Vec<_> = graph.all_paths(from, to, 3, false).collect();
+
+        // Verify that no path contains any of the disconnected nodes
+        for path in &paths_after {
+            for &node in &disconnected_nodes {
+                assert!(
+                    !path.contains(&node),
+                    "Path {:?} should not contain disconnected node {}",
+                    path,
+                    node
+                );
+            }
+        }
+
+        // Verify that we have fewer paths after disconnection
+        assert!(
+            paths_after.len() < paths_before,
+            "Should have fewer paths after disconnecting nodes"
+        );
+
+        // Test disconnecting a single node
+        let mut graph2: DiGraph = CompleteGraph::new(5).into();
+        let (from2, to2) = graph2.insert_from_and_to_nodes(true, None, None);
+
+        let paths_before2 = graph2.all_paths(from2, to2, 4, false).count();
+        graph2.disconnect_nodes(vec![1], fast_mode).unwrap();
+        let paths_after2: Vec<_> = graph2.all_paths(from2, to2, 4, false).collect();
+
+        // Verify node 1 is not in any path
+        for path in &paths_after2 {
+            assert!(
+                !path.contains(&1),
+                "Path {:?} should not contain disconnected node 1",
+                path
+            );
+        }
+
+        assert!(paths_after2.len() < paths_before2);
+
+        // Test disconnecting all intermediate nodes (should result in no paths for depth > 2)
+        let mut graph3: DiGraph = CompleteGraph::new(3).into();
+        let (from3, to3) = graph3.insert_from_and_to_nodes(false, None, None); // No direct path
+
+        // Disconnect all intermediate nodes (0, 1, 2)
+        graph3.disconnect_nodes(vec![0, 1, 2], fast_mode).unwrap();
+        let paths_after3 = graph3.all_paths(from3, to3, 4, false).count();
+
+        // Should have no paths since all intermediate nodes are disconnected
+        assert_eq!(
+            paths_after3, 0,
+            "Should have no paths when all intermediate nodes are disconnected"
+        );
+    }
+
+    #[rstest]
+    #[case(true)]
+    #[case(false)]
+    fn test_di_graph_filter_by_mask(#[case] fast_mode: bool) {
+        Python::with_gil(|py| {
+            let mut graph: DiGraph = CompleteGraph::new(8).into();
+            let (from, to) = graph.insert_from_and_to_nodes(true, None, None);
+
+            // Count paths before filtering
+            let paths_before = graph.all_paths(from, to, 3, false).count();
+
+            // Create a mask that keeps nodes 0, 2, 4, 6 and disconnects 1, 3, 5, 7
+            let mask = array![true, false, true, false, true, false, true, false].to_pyarray(py);
+
+            // Apply the mask filter
+            graph.filter_by_mask(mask.readonly(), fast_mode).unwrap();
+
+            // Count paths after filtering
+            let paths_after: Vec<_> = graph.all_paths(from, to, 3, false).collect();
+
+            // Verify that no path contains any of the disconnected nodes (1, 3, 5, 7)
+            let disconnected_nodes = vec![1, 3, 5, 7];
+            for path in &paths_after {
+                for &node in &disconnected_nodes {
+                    assert!(
+                        !path.contains(&node),
+                        "Path {:?} should not contain disconnected node {}",
+                        path,
+                        node
+                    );
+                }
+            }
+
+            // Verify that we have fewer paths after filtering
+            assert!(
+                paths_after.len() < paths_before,
+                "Should have fewer paths after filtering by mask"
+            );
+
+            // Test with a mask that disconnects all nodes (should result in no paths)
+            let mut graph2: DiGraph = CompleteGraph::new(4).into();
+            let (from2, to2) = graph2.insert_from_and_to_nodes(false, None, None);
+
+            // Disconnect all intermediate nodes
+            let all_false_mask = ndarray::array![false, false, false, false].to_pyarray(py);
+            graph2
+                .filter_by_mask(all_false_mask.readonly(), fast_mode)
+                .unwrap();
+
+            let paths_after2 = graph2.all_paths(from2, to2, 4, false).count();
+            assert_eq!(
+                paths_after2, 0,
+                "Should have no paths when all nodes are disconnected"
+            );
+        });
     }
 }

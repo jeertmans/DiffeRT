@@ -1,7 +1,7 @@
 [dependency-groups]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
-  "jax[cuda]>=0.5.0",
+  "jax[cuda]>=0.7.0",
 ]
 dev = [
   {include-group = "codspeed"},
@@ -78,14 +78,14 @@ tests-vispy = [
 authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
 dependencies = []
 name = "differt-dev"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "1.0.0"
 
 [tool.bumpversion]
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.5.0"
+current_version = "0.6.0"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"

@@ -6,14 +6,16 @@ import pytest
 from pytest_subtests import SubTests
 
 from differt.scene._sionna import (
-    download_sionna_scenes,
+    download_sionna_scenes as no_timeout_download_sionna_scenes,
+)
+from differt.scene._sionna import (
     get_sionna_scene,
     list_sionna_scenes,
 )
 from differt_core.scene import SionnaScene
 
 # Let's put a timeout on downloading the scenes.
-download_sionna_scenes = partial(download_sionna_scenes, timeout=600.0)
+download_sionna_scenes = partial(no_timeout_download_sionna_scenes, timeout=600.0)
 
 
 @pytest.fixture

@@ -7,10 +7,13 @@ import pytest
 from differt.plotting import (
     dispatch,
     get_backend,
+    process_kwargs,
     process_matplotlib_kwargs,
     process_plotly_kwargs,
     process_vispy_kwargs,
     reuse,
+    set_defaults,
+    update_defaults,
     use,
     view_from_canvas,
 )
@@ -228,3 +231,23 @@ def test_reuse(backend: str) -> None:
 
     with reuse(backend) as got:
         assert isinstance(got, expected)
+
+    with reuse(backend, pass_all_kwargs=True, a=1, b=2):
+        with reuse(backend, pass_all_kwargs=True, a=3, c=4):
+            kwargs = {}
+            process_kwargs(kwargs, backend=backend)
+            assert kwargs == {"a": 3, "b": 2, "c": 4}
+
+    with reuse(backend, pass_all_kwargs=True, a=1, b=2):
+        set_defaults()  # Clear defaults
+        with reuse(backend, pass_all_kwargs=True, a=3, c=4):
+            kwargs = {}
+            process_kwargs(kwargs, backend=backend)
+            assert kwargs == {"a": 3, "c": 4}
+
+    with reuse(backend, pass_all_kwargs=True, a=1, b=2):
+        update_defaults(b=6, e=7)
+        with reuse(backend, pass_all_kwargs=True, a=3, c=4):
+            kwargs = {}
+            process_kwargs(kwargs, backend=backend)
+            assert kwargs == {"a": 3, "b": 6, "c": 4, "e": 7}
