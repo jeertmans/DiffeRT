@@ -20,6 +20,12 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...HEAD)
 
+### Chore
+
+- Added Python 3.14 and 3.14t to the list of tested Python versions (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Update the macOS runners (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Updated PyPI's Trove classifiers to list Python 3.14 and free-threaded Python (by <gh-user:jeertmans>, in <gh-pr:323>).
+
 <!-- start changelog -->
 
 ## [0.6.0](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...v0.6.0)

@@ -72,10 +72,9 @@ def normalize(
     """
     vectors = jnp.asarray(vectors)
     lengths = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
+    lengths: Array = jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths)
 
-    return vectors / jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths), (
-        lengths if keepdims else jnp.squeeze(lengths, axis=-1)
-    )
+    return vectors / lengths, (lengths if keepdims else jnp.squeeze(lengths, axis=-1))
 
 
 @partial(jax.jit, inline=True)
