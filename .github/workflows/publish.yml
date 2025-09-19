@@ -27,17 +27,17 @@ jobs:
     strategy:
       matrix:
         platform:
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86_64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: aarch64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: armv7
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: s390x
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: ppc64le
     steps:
     - name: Checkout repository
@@ -69,13 +69,13 @@ jobs:
     strategy:
       matrix:
         platform:
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86_64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: aarch64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: armv7
     steps:
     - name: Checkout repository
@@ -142,7 +142,7 @@ jobs:
         platform:
         - runner: macos-13
           target: x86_64
-        - runner: macos-14
+        - runner: macos-latest
           target: aarch64
     steps:
     - name: Checkout repository
