@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...HEAD)
 
+### Chore
+
+- Bumped minimum required JAX version to [`0.7.2`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-2-september-16-2025) as JAX `0.7.0` and `0.7.1` contained bugs (by <gh-user:jeertmans>, in <gh-pr:325>).
+
 <!-- start changelog -->
 
 ## [0.6.0](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...v0.6.0)

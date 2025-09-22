@@ -72,8 +72,9 @@ def normalize(
     """
     vectors = jnp.asarray(vectors)
     lengths = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
+    lengths_no_zero: Array = jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths)  # type: ignore[reportAssignmentType]
 
-    return vectors / jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths), (
+    return vectors / lengths_no_zero, (
         lengths if keepdims else jnp.squeeze(lengths, axis=-1)
     )
 
