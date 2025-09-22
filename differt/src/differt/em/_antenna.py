@@ -645,7 +645,7 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.poynting_vector(r)
+        s = self.poynting_vector(r)  # type: ignore[reportAttributeAccessIssue]
 
         p = jnp.linalg.norm(s, axis=-1, keepdims=True)
 

@@ -573,7 +573,7 @@ def process_matplotlib_kwargs(
         return None
 
     def new_ax3d() -> Axes3D:
-        return figure.add_subplot(projection="3d")  # type: ignore[reportReturnType]
+        return figure.add_subplot(projection="3d")
 
     ax = maybe_ax or current_ax3d() or new_ax3d()
 

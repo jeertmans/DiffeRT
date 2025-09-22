@@ -1,7 +1,7 @@
 [dependency-groups]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
-  "jax[cuda]>=0.7.0",
+  "jax[cuda]>=0.7.2",
 ]
 dev = [
   {include-group = "codspeed"},
