@@ -23,6 +23,9 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Bumped minimum required JAX version to [`0.7.2`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-2-september-16-2025) as JAX `0.7.0` and `0.7.1` contained bugs (by <gh-user:jeertmans>, in <gh-pr:325>).
+- Added Python 3.14 and 3.14t to the list of tested Python versions (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Update the macOS runners (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Updated PyPI's Trove classifiers to list Python 3.14 and free-threaded Python (by <gh-user:jeertmans>, in <gh-pr:323>).
 
 <!-- start changelog -->
 

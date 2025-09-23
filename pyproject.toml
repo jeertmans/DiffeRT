@@ -1,4 +1,10 @@
 [dependency-groups]
+beartype = [
+  "beartype>=0.22.0rc0",  # See https://github.com/beartype/beartype/issues/555
+]
+bump = [
+  "bump-my-version>=0.20.3",  # Pydantic>=2.12 is needed for Python 3.14
+]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
   "jax[cuda]>=0.7.2",
@@ -7,14 +13,13 @@ dev = [
   {include-group = "codspeed"},
   {include-group = "docs"},
   {include-group = "tests"},
-  "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
   "pre-commit>=3.5.0",
 ]
 docs = [
+  {include-group = "beartype"},
   {include-group = "sionna"},
   "differt[all]",
-  "beartype>=0.20",
   "myst-nb>=0.17.2",
   "pillow>=10.1.0",
   "plotly<6",
@@ -39,11 +44,11 @@ profiling = [
   "tensorflow>=2.19.0",
 ]
 sionna = [
-  "sionna-rt==1.1.0;sys_platform=='linux'",
+  "sionna-rt==1.1.0;python_version<'3.14' and sys_platform=='linux'",
 ]
 tests = [
+  {include-group = "beartype"},
   "differt",
-  "beartype>=0.20",
   "chex>=0.1.84",
   "pytest>=7.4.3,<8.3.5",
   "pytest-benchmark>=4.0.0",
