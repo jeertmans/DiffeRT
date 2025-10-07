@@ -36,6 +36,7 @@ def test_image_method(
     setup = large_random_planar_mirrors_setup
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         return image_method(
             setup.from_vertices,
@@ -57,6 +58,7 @@ def test_fermat(
     setup = large_random_planar_mirrors_setup
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         return fermat_path_on_planar_mirrors(
             setup.from_vertices,
@@ -82,6 +84,7 @@ def test_rays_intersect_any_triangle(
     ray_directions = fibonacci_lattice(1_000_000)
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         return rays_intersect_any_triangle(
             ray_origins,
@@ -104,6 +107,7 @@ def test_transmitter_visibility(
     scene = random_scene(simple_street_canyon_scene, key=key)
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         return triangles_visible_from_vertices(
             scene.transmitters,
@@ -128,6 +132,7 @@ def test_first_triangles_hit_by_rays(
     ray_directions = fibonacci_lattice(1_000_000)
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> tuple[Array, Array]:
         return first_triangles_hit_by_rays(
             ray_origins,
@@ -152,6 +157,7 @@ def test_compute_paths(
     scene = random_scene(simple_street_canyon_scene.set_assume_quads(), key=key)
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         num_valid_paths = jnp.array(0, dtype=jnp.int32)
         for order in range(3):
@@ -180,6 +186,7 @@ def test_compute_paths_disconnect_inactive_triangles_benchmark(
     scene = random_scene(simple_street_canyon_scene.set_assume_quads(), key=key)
 
     @jax.block_until_ready
+    @jax.jit
     def bench_fun() -> Array:
         num_valid_paths = jnp.array(0, dtype=jnp.int32)
         for order in range(3):
