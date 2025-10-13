@@ -1,86 +1,12 @@
-from typing import Any, no_type_check
+from functools import partial
+from typing import Any
 
-import chex
 import equinox as eqx
-import jax
 import jax.numpy as jnp
-import optax
+from fpt_jax import trace_rays
 from jaxtyping import Array, ArrayLike, Float
 
 from differt.geometry import orthogonal_basis
-
-
-def _param_to_xyz(
-    p: Float[Array, "*batch num_object_x_num_dims"],
-    o: Float[Array, "*#batch num_objects 3"],
-    v: Float[Array, "*#batch num_objects num_dims 3"],
-) -> Float[Array, "*batch num_objects 3"]:
-    *_, num_objects, num_dims, _ = v.shape
-    p = jnp.reshape(p, (*p.shape[:-1], num_objects, num_dims, 1))
-    return o + jnp.sum(p * v, axis=-2)
-
-
-def _loss(
-    p: Float[Array, "*batch num_object_x_num_dims"],
-    from_: Float[Array, "*#batch 3"],
-    to: Float[Array, "*#batch 3"],
-    o: Float[Array, "*#batch num_objects 3"],
-    v: Float[Array, "*#batch num_objects num_dims 3"],
-) -> Float[Array, " *batch"]:
-    chex.assert_axis_dimension_gt(p, -1, 0, exception_type=TypeError)
-    chex.assert_axis_dimension(
-        p, -1, v.shape[-2] * v.shape[-3], exception_type=TypeError
-    )
-    xyz = _param_to_xyz(p, o, v)
-    first_segment = xyz[..., 0, :] - from_
-    last_segment = to - xyz[..., -1, :]
-    other_segments = jnp.diff(xyz, axis=-2)
-    return (
-        jnp.linalg.norm(first_segment, axis=-1)
-        + jnp.linalg.norm(last_segment, axis=-1)
-        + jnp.sum(jnp.linalg.norm(other_segments, axis=-1), axis=-1)
-    )
-
-
-def _fermat_path_on_linear_objects(
-    from_vertex: Float[Array, "3"],
-    to_vertex: Float[Array, "3"],
-    object_origins: Float[Array, "num_objects 3"],
-    object_vectors: Float[Array, "num_objects num_dims 3"],
-    steps: int,
-    optimizer: optax.GradientTransformationExtraArgs,
-) -> Float[Array, "num_objects 3"]:
-    dtype = jnp.result_type(from_vertex, to_vertex, object_origins, object_vectors)
-    x_0 = jnp.zeros(object_vectors.shape[0] * object_vectors.shape[1], dtype=dtype)
-    opt_state = optimizer.init(x_0)
-    value_and_grad = optax.value_and_grad_from_state(_loss)
-
-    @no_type_check
-    def update(
-        state: tuple[Float[Array, " num_unknowns"], Any],
-        _: None,
-    ) -> tuple[tuple[Float[Array, " num_unknowns"], Any], float | Float[Array, " "]]:
-        x, opt_state = state
-        loss_value, grad = value_and_grad(
-            x, from_vertex, to_vertex, object_origins, object_vectors, state=opt_state
-        )
-        updates, opt_state = optimizer.update(
-            grad,
-            opt_state,
-            x,
-            value=loss_value,
-            grad=grad,
-            value_fn=_loss,
-            from_=from_vertex,
-            to=to_vertex,
-            o=object_origins,
-            v=object_vectors,
-        )
-        x = optax.apply_updates(x, updates)
-        return (x, opt_state), loss_value
-
-    (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
-    return _param_to_xyz(x, object_origins, object_vectors)
 
 
 @eqx.filter_jit
@@ -91,7 +17,6 @@ def fermat_path_on_linear_objects(
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
     *,
     steps: int = 10,
-    optimizer: optax.GradientTransformationExtraArgs | None = None,
 ) -> Float[Array, "*batch num_objects 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect or diffract on a given list of objects in between.
@@ -124,14 +49,6 @@ def fermat_path_on_linear_objects(
             It is used as the initial guess of the minimization procedure.
         object_vectors: An array of base vectors describing the objects.
         steps: The number of optimization steps to perform.
-        optimizer: The optimizer to use. If not provided,
-            uses :func:`optax.lbfgs`.
-
-            .. important::
-
-                The optimizer should store the gradient in the state. In the future,
-                we hope to support optimizers that do not store the gradient in the state,
-                such as :func:`optax.adam` or :func:`optax.sgd`.
 
     Returns:
         An array of ray paths obtained based on Fermat's principle.
@@ -232,13 +149,10 @@ def fermat_path_on_linear_objects(
             return jnp.empty((*batch, 0, 3), dtype=dtype)
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
 
-    optimizer = optimizer if optimizer is not None else optax.lbfgs()
-
     return jnp.vectorize(
-        _fermat_path_on_linear_objects,
-        excluded={4, 5},
+        partial(trace_rays, num_iters=steps),
         signature="(3),(3),(n,3),(n,d,3)->(n,3)",
-    )(from_vertices, to_vertices, object_origins, object_vectors, steps, optimizer)
+    )(from_vertices, to_vertices, object_origins, object_vectors)
 
 
 @eqx.filter_jit
