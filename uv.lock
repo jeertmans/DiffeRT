@@ -774,15 +774,15 @@ name = "dash"
 version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "flask" },
-    { name = "importlib-metadata" },
-    { name = "nest-asyncio" },
-    { name = "plotly" },
-    { name = "requests" },
-    { name = "retrying" },
-    { name = "setuptools" },
-    { name = "typing-extensions" },
-    { name = "werkzeug" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "importlib-metadata", marker = "python_full_version < '3.13'" },
+    { name = "nest-asyncio", marker = "python_full_version < '3.13'" },
+    { name = "plotly", marker = "python_full_version < '3.13'" },
+    { name = "requests", marker = "python_full_version < '3.13'" },
+    { name = "retrying", marker = "python_full_version < '3.13'" },
+    { name = "setuptools", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/80/37/8b5621e0a0b3c6e81a8b6cd3f033aa4b750f53e288dd1a494a887a8a06e9/dash-3.2.0.tar.gz", hash = "sha256:93300b9b99498f8b8ed267e61c455b4ee1282c7e4d4b518600eec87ce6ddea55", size = 7558708, upload-time = "2025-07-31T19:18:59.014Z" }
 wheels = [
@@ -840,10 +840,10 @@ dependencies = [
     { name = "differt-core" },
     { name = "equinox" },
     { name = "filelock" },
+    { name = "fpt-jax" },
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "numpy" },
-    { name = "optax" },
     { name = "requests" },
     { name = "tqdm" },
 ]
@@ -884,6 +884,7 @@ requires-dist = [
     { name = "differt-core", editable = "differt-core" },
     { name = "equinox", specifier = ">=0.13.1" },
     { name = "filelock", specifier = ">=3.15.4" },
+    { name = "fpt-jax", git = "https://github.com/jeertmans/fpt-jax.git" },
     { name = "ipympl", marker = "extra == 'all'", specifier = ">=0.9.4" },
     { name = "ipympl", marker = "extra == 'jupyter'", specifier = ">=0.9.4" },
     { name = "jax", specifier = ">=0.7.2" },
@@ -895,7 +896,6 @@ requires-dist = [
     { name = "notebook", marker = "extra == 'all'", specifier = ">5" },
     { name = "notebook", marker = "extra == 'jupyter'", specifier = ">5" },
     { name = "numpy", specifier = ">=1.26.1" },
-    { name = "optax", specifier = ">=0.1.7" },
     { name = "plotly", marker = "extra == 'all'", specifier = ">=5.18.0" },
     { name = "plotly", marker = "extra == 'plotly'", specifier = ">=5.18.0" },
     { name = "pyopengl", marker = "sys_platform == 'darwin' and extra == 'all'", specifier = ">=3.1.0" },
@@ -943,6 +943,7 @@ dev = [
     { name = "differt", extra = ["all"] },
     { name = "maturin-import-hook" },
     { name = "myst-nb" },
+    { name = "optax" },
     { name = "pillow" },
     { name = "plotly" },
     { name = "pre-commit" },
@@ -1000,6 +1001,7 @@ tests = [
     { name = "beartype" },
     { name = "chex" },
     { name = "differt" },
+    { name = "optax" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
@@ -1014,6 +1016,7 @@ tests-extended = [
     { name = "chex" },
     { name = "differt", extra = ["all"] },
     { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'" },
+    { name = "optax" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
@@ -1028,6 +1031,7 @@ tests-matplotlib = [
     { name = "beartype" },
     { name = "chex" },
     { name = "differt", extra = ["matplotlib"] },
+    { name = "optax" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
@@ -1041,6 +1045,7 @@ tests-plotly = [
     { name = "beartype" },
     { name = "chex" },
     { name = "differt", extra = ["plotly"] },
+    { name = "optax" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
@@ -1054,6 +1059,7 @@ tests-vispy = [
     { name = "beartype" },
     { name = "chex" },
     { name = "differt", extra = ["vispy", "vispy-backend"] },
+    { name = "optax" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
@@ -1078,6 +1084,7 @@ dev = [
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "maturin-import-hook", specifier = ">=0.3.0" },
     { name = "myst-nb", specifier = ">=0.17.2" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pillow", specifier = ">=10.1.0" },
     { name = "plotly", specifier = "<6" },
     { name = "pre-commit", specifier = ">=3.5.0" },
@@ -1133,6 +1140,7 @@ tests = [
     { name = "beartype", specifier = ">=0.22.0rc0" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -1148,6 +1156,7 @@ tests-extended = [
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "open3d-cpu", marker = "python_full_version < '3.13' and sys_platform == 'linux'", specifier = ">=0.19.0" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -1163,6 +1172,7 @@ tests-matplotlib = [
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["matplotlib"], editable = "differt" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -1177,6 +1187,7 @@ tests-plotly = [
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["plotly"], editable = "differt" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -1191,6 +1202,7 @@ tests-vispy = [
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["vispy", "vispy-backend"], editable = "differt" },
+    { name = "optax", specifier = ">=0.2.6" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.1.0" },
@@ -1325,12 +1337,12 @@ name = "flask"
 version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "blinker" },
-    { name = "click" },
-    { name = "itsdangerous" },
-    { name = "jinja2" },
-    { name = "markupsafe" },
-    { name = "werkzeug" },
+    { name = "blinker", marker = "python_full_version < '3.13'" },
+    { name = "click", marker = "python_full_version < '3.13'" },
+    { name = "itsdangerous", marker = "python_full_version < '3.13'" },
+    { name = "jinja2", marker = "python_full_version < '3.13'" },
+    { name = "markupsafe", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/dc/6d/cfe3c0fcc5e477df242b98bfe186a4c34357b4847e87ecaef04507332dab/flask-3.1.2.tar.gz", hash = "sha256:bf656c15c80190ed628ad08cdfd3aaa35beb087855e2f494910aa3774cc4fd87", size = 720160, upload-time = "2025-08-19T21:03:21.205Z" }
 wheels = [
@@ -1414,6 +1426,14 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/6d/04d16243eb441e8de61074c7809e92d2e35df4cd11af5632e486bc630dab/fonttools-4.60.0-cp314-cp314t-win32.whl", hash = "sha256:0f7b2c251dc338973e892a1e153016114e7a75f6aac7a49b84d5d1a4c0608d08", size = 2281217, upload-time = "2025-09-17T11:33:36.965Z" },
     { url = "https://files.pythonhosted.org/packages/ab/5f/09bd2f9f28ef0d6f3620fa19699d11c4bc83ff8a2786d8ccdd97c209b19a/fonttools-4.60.0-cp314-cp314t-win_amd64.whl", hash = "sha256:c8a72771106bc7434098db35abecd84d608857f6e116d3ef00366b213c502ce9", size = 2344738, upload-time = "2025-09-17T11:33:39.372Z" },
     { url = "https://files.pythonhosted.org/packages/f9/a4/247d3e54eb5ed59e94e09866cfc4f9567e274fbf310ba390711851f63b3b/fonttools-4.60.0-py3-none-any.whl", hash = "sha256:496d26e4d14dcccdd6ada2e937e4d174d3138e3d73f5c9b6ec6eb2fd1dab4f66", size = 1142186, upload-time = "2025-09-17T11:33:59.287Z" },
+]
+
+[[package]]
+name = "fpt-jax"
+version = "0.1.0"
+source = { git = "https://github.com/jeertmans/fpt-jax.git#4a7c3a8d1eed5730d527fd265b2a5492a402051d" }
+dependencies = [
+    { name = "jax" },
 ]
 
 [[package]]
@@ -1926,9 +1946,9 @@ name = "ipydatawidgets"
 version = "4.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ipywidgets" },
-    { name = "numpy" },
-    { name = "traittypes" },
+    { name = "ipywidgets", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "traittypes", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bc/88/332ba20bb0e0b8078f97bc1469f332be796b804c565b41163b93241e0657/ipydatawidgets-4.3.5.tar.gz", hash = "sha256:394f2489576587cfd755377a09a067f46cad22081965092021fd1abcbe7852a8", size = 799182, upload-time = "2023-06-14T11:16:06.587Z" }
 wheels = [
@@ -2798,7 +2818,7 @@ name = "mitsuba"
 version = "3.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "drjit" },
+    { name = "drjit", marker = "python_full_version < '3.14'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/06/82/9a2979fb5bace4aaec35e2aa0bd9a66c8e11b8ccd3f617f508c9f3c24b46/mitsuba-3.6.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:734f6f337758ea1ac6c1b2a741f67d0421746a24ab7749d671378a9fe03923d6", size = 57732081, upload-time = "2025-01-16T13:35:06.179Z" },
@@ -3346,21 +3366,21 @@ name = "open3d-cpu"
 version = "0.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "addict" },
-    { name = "configargparse" },
-    { name = "dash" },
-    { name = "flask" },
-    { name = "ipywidgets" },
-    { name = "matplotlib" },
-    { name = "nbformat" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pillow" },
-    { name = "pyquaternion" },
-    { name = "pyyaml" },
-    { name = "scikit-learn" },
-    { name = "tqdm" },
-    { name = "werkzeug" },
+    { name = "addict", marker = "python_full_version < '3.13'" },
+    { name = "configargparse", marker = "python_full_version < '3.13'" },
+    { name = "dash", marker = "python_full_version < '3.13'" },
+    { name = "flask", marker = "python_full_version < '3.13'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.13'" },
+    { name = "matplotlib", marker = "python_full_version < '3.13'" },
+    { name = "nbformat", marker = "python_full_version < '3.13'" },
+    { name = "numpy", marker = "python_full_version < '3.13'" },
+    { name = "pandas", marker = "python_full_version < '3.13'" },
+    { name = "pillow", marker = "python_full_version < '3.13'" },
+    { name = "pyquaternion", marker = "python_full_version < '3.13'" },
+    { name = "pyyaml", marker = "python_full_version < '3.13'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.13'" },
+    { name = "tqdm", marker = "python_full_version < '3.13'" },
+    { name = "werkzeug", marker = "python_full_version < '3.13'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/cf/594247b6d76c2ad11f957544dffc441e82cd731035366318f26d8f980107/open3d_cpu-0.19.0-cp311-cp311-manylinux_2_31_x86_64.whl", hash = "sha256:ef477615f71708b7dad5c9cf912da13b57891f3ab4076c18c675ff27b73974f2", size = 99650635, upload-time = "2025-01-08T07:20:17.096Z" },
@@ -4135,6 +4155,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b0/1e/c6a28a142f14e735088534cc92951c3f48cccd77cdd4f3b10d7996be420f/pyqt6_sip-13.10.2-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:3dde8024d055f496eba7d44061c5a1ba4eb72fc95e5a9d7a0dbc908317e0888b", size = 303833, upload-time = "2025-05-23T12:26:41.075Z" },
     { url = "https://files.pythonhosted.org/packages/89/63/e5adf350c1c3123d4865c013f164c5265512fa79f09ad464fb2fdf9f9e61/pyqt6_sip-13.10.2-cp313-cp313-win_amd64.whl", hash = "sha256:0b097eb58b4df936c4a2a88a2f367c8bb5c20ff049a45a7917ad75d698e3b277", size = 53527, upload-time = "2025-05-23T12:26:42.625Z" },
     { url = "https://files.pythonhosted.org/packages/58/74/2df4195306d050fbf4963fb5636108a66e5afa6dc05fd9e81e51ec96c384/pyqt6_sip-13.10.2-cp313-cp313-win_arm64.whl", hash = "sha256:cc6a1dfdf324efaac6e7b890a608385205e652845c62130de919fd73a6326244", size = 45373, upload-time = "2025-05-23T12:26:43.536Z" },
+    { url = "https://files.pythonhosted.org/packages/23/57/74b4eb7a51b9133958daa8409b55de95e44feb694d4e2e3eba81a070ca20/pyqt6_sip-13.10.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:8a76a06a8e5c5b1f17a3f6f3c834ca324877e07b960b18b8b9bbfd9c536ec658", size = 112354, upload-time = "2025-10-08T08:44:00.22Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/cb/fdef02e0d6ee8443a9683a43650d61c6474b634b6ae6e1c6f097da6310bf/pyqt6_sip-13.10.2-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9128d770a611200529468397d710bc972f1dcfe12bfcbb09a3ccddcd4d54fa5b", size = 323488, upload-time = "2025-10-08T08:44:01.965Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/5b/8ede8d6234c3ea884cbd097d7d47ff9910fb114efe041af62b4453acd23b/pyqt6_sip-13.10.2-cp314-cp314-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:d820a0fae7315932c08f27dc0a7e33e0f50fe351001601a8eb9cf6f22b04562e", size = 303881, upload-time = "2025-10-08T08:44:04.086Z" },
+    { url = "https://files.pythonhosted.org/packages/be/44/b5e78b072d1594643b0f1ff348f2bf54d4adb5a3f9b9f0989c54e33238d6/pyqt6_sip-13.10.2-cp314-cp314-win_amd64.whl", hash = "sha256:3213bb6e102d3842a3bb7e59d5f6e55f176c80880ff0b39d0dac0cfe58313fb3", size = 55098, upload-time = "2025-10-08T08:44:08.943Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/91/357e9fcef5d830c3d50503d35e0357818aca3540f78748cc214dfa015d00/pyqt6_sip-13.10.2-cp314-cp314-win_arm64.whl", hash = "sha256:ce33ff1f94960ad4b08035e39fa0c3c9a67070bec39ffe3e435c792721504726", size = 46088, upload-time = "2025-10-08T08:44:10.014Z" },
 ]
 
 [[package]]
@@ -4142,7 +4167,7 @@ name = "pyquaternion"
 version = "0.9.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7d/0d/3d092aa20efaedacb89c3221a92c6491be5b28f618a2c36b52b53e7446c2/pyquaternion-0.9.9.tar.gz", hash = "sha256:b1f61af219cb2fe966b5fb79a192124f2e63a3f7a777ac3cadf2957b1a81bea8", size = 15530, upload-time = "2020-10-05T01:31:30.327Z" }
 wheels = [
@@ -4296,10 +4321,10 @@ name = "pythreejs"
 version = "2.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ipydatawidgets" },
-    { name = "ipywidgets" },
-    { name = "numpy" },
-    { name = "traitlets" },
+    { name = "ipydatawidgets", marker = "python_full_version < '3.14'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "traitlets", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0a/2e/0ec94286b8eb3fe1200700080e8adb2c8d871bb8db589858a49600d97a7d/pythreejs-2.4.2.tar.gz", hash = "sha256:a568bfdc4c3797c4c2339158928edc7dcf6fa4a267b08e3cec5121e2078b5bd6", size = 4731310, upload-time = "2023-02-20T00:23:30.081Z" }
 wheels = [
@@ -4695,10 +4720,10 @@ name = "scikit-learn"
 version = "1.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "joblib" },
-    { name = "numpy" },
-    { name = "scipy" },
-    { name = "threadpoolctl" },
+    { name = "joblib", marker = "python_full_version < '3.13'" },
+    { name = "numpy", marker = "python_full_version < '3.13'" },
+    { name = "scipy", marker = "python_full_version < '3.13'" },
+    { name = "threadpoolctl", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/98/c2/a7855e41c9d285dfe86dc50b250978105dce513d6e459ea66a6aeb0e1e0c/scikit_learn-1.7.2.tar.gz", hash = "sha256:20e9e49ecd130598f1ca38a1d85090e1a600147b9c02fa6f15d69cb53d968fda", size = 7193136, upload-time = "2025-09-09T08:21:29.075Z" }
 wheels = [
@@ -4856,15 +4881,15 @@ name = "sionna-rt"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "drjit" },
-    { name = "importlib-resources" },
-    { name = "ipywidgets" },
-    { name = "matplotlib" },
-    { name = "mitsuba" },
-    { name = "numpy" },
-    { name = "pythreejs" },
-    { name = "scipy" },
-    { name = "typing-extensions" },
+    { name = "drjit", marker = "python_full_version < '3.14'" },
+    { name = "importlib-resources", marker = "python_full_version < '3.14'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.14'" },
+    { name = "matplotlib", marker = "python_full_version < '3.14'" },
+    { name = "mitsuba", marker = "python_full_version < '3.14'" },
+    { name = "numpy", marker = "python_full_version < '3.14'" },
+    { name = "pythreejs", marker = "python_full_version < '3.14'" },
+    { name = "scipy", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/a2/e37f1e63469a015c735a6af324743e529ede437577946c9b5816939d2d0e/sionna_rt-1.1.0-py3-none-any.whl", hash = "sha256:d249703e5af88dd5dc468012bca1a43dc2d87085febca0c14ea82c915bca75bf", size = 8536992, upload-time = "2025-06-05T17:52:53.46Z" },
@@ -5449,7 +5474,7 @@ name = "traittypes"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "traitlets" },
+    { name = "traitlets", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/71/0578e44d2110f93c2136eb705f5b11e706e1e8ea3acaaaeac043bd40d8fd/traittypes-0.2.1.tar.gz", hash = "sha256:be6fa26294733e7489822ded4ae25da5b4824a8a7a0e0c2dccfde596e3489bd6", size = 13544, upload-time = "2018-06-16T07:34:00.929Z" }
 wheels = [
