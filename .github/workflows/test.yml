@@ -141,7 +141,6 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.pyversion }}
-        allow-prereleases: true
 
     - name: Install NumPy
       run: pip install numpy

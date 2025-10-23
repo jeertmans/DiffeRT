@@ -20,6 +20,11 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...HEAD)
 
+
+### Chore
+
+- Updated CI to fix builds on Windows, and also explicitly build free-threaded wheels (by <gh-user:jeertmans>, in <gh-pr:336>).
+
 <!-- start changelog -->
 
 ## [0.6.1](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...v0.6.1)

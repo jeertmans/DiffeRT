@@ -52,8 +52,17 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        manylinux: auto
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: auto
         working-directory: differt-core
 
@@ -90,8 +99,17 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        manylinux: musllinux_1_2
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: musllinux_1_2
         working-directory: differt-core
 
@@ -119,13 +137,22 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: 3.x
+        architecture: ${{ matrix.platform.target }}
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
     - name: Upload wheels
@@ -157,8 +184,16 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
     - name: Upload wheels
