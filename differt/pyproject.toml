@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
   "chex>=0.1.86",
-  "differt-core==0.6.1",
+  "differt-core==0.6.2",
   "equinox>=0.13.1",
   "filelock>=3.15.4",
   "fpt-jax@git+https://github.com/jeertmans/fpt-jax.git#eucap2026",

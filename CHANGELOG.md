@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
+
+<!-- start changelog -->
+
+## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
 
 ### Changed
 
@@ -27,8 +31,6 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Updated CI to fix builds on Windows, and also explicitly build free-threaded wheels (by <gh-user:jeertmans>, in <gh-pr:336>).
-
-<!-- start changelog -->
 
 ## [0.6.1](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...v0.6.1)
 
