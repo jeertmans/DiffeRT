@@ -138,7 +138,7 @@ jobs:
       uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.pyversion }}
         allow-prereleases: true
@@ -159,7 +159,7 @@ jobs:
       uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
 
     - name: Install NumPy
       run: pip install numpy
@@ -197,7 +197,7 @@ jobs:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PY_VERSION }}
 
@@ -247,7 +247,7 @@ jobs:
       uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
 
     - name: Install NumPy
       run: pip install numpy
