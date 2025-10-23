@@ -19,7 +19,7 @@ dependencies = [
   "differt-core==0.6.1",
   "equinox>=0.13.1",
   "filelock>=3.15.4",
-  "fpt-jax",
+  "fpt-jax@git+https://github.com/jeertmans/fpt-jax.git#eucap2026",
   "jax>=0.7.2",
   "jaxtyping>=0.3.2",
   "numpy>=1.26.1",
@@ -99,4 +99,3 @@ pattern = '^version = "(?P<version>[^"]+)'
 
 [tool.uv.sources]
 differt_core = {workspace = true}
-fpt-jax = {git = "https://github.com/jeertmans/fpt-jax.git"}
