@@ -19,7 +19,7 @@ dependencies = [
   "differt-core==0.6.2",
   "equinox>=0.13.1",
   "filelock>=3.15.4",
-  "fpt-jax@git+https://github.com/jeertmans/fpt-jax.git#eucap2026",
+  "fpt-jax==0.1.0",
   "jax>=0.7.2",
   "jaxtyping>=0.3.2",
   "numpy>=1.26.1",

@@ -67,7 +67,7 @@ def fermat_path_on_linear_objects(
             specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
         implicit_diff: Whether to use implicit differentiation for computing the gradient.
             See :cite:`fpt-eucap2026` and its
-            `GitHub page <https://github.com/jeertmans/fpt-jax/tree/eucap2026>`_ for more details.
+            `GitHub page <https://github.com/jeertmans/fpt-jax/tree/v0.1.0>`_ for more details.
 
     Returns:
         An array of ray paths obtained based on Fermat's principle.
