@@ -9,19 +9,20 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Free Threading",
   "Operating System :: OS Independent",
   "Topic :: Scientific/Engineering",
 ]
 dependencies = [
   "chex>=0.1.86",
-  "differt-core==0.6.0",
+  "differt-core==0.6.2",
   "equinox>=0.13.1",
   "filelock>=3.15.4",
+  "fpt-jax@git+https://github.com/jeertmans/fpt-jax.git#eucap2026",
   "jax>=0.7.2",
   "jaxtyping>=0.3.2",
   "numpy>=1.26.1",
-  "optax>=0.1.7",
   "requests>=2.32.0",
   "tqdm>=4.66.2",
 ]

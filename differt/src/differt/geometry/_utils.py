@@ -391,11 +391,6 @@ def fibonacci_lattice(
     Args:
         n: The size of the lattice.
         dtype: The float dtype of the vertices.
-        grid: Whether to return a grid of shape ``{n} {n} 3``
-            instead. This is mainly useful if you need to plot
-            a surface that is generated from a lattice.
-
-            Unused if ``frustum`` is passed.
         frustum: The spatial region where to sample points.
 
             The frustum in an array of min. and max. values for

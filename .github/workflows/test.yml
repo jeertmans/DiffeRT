@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v6
@@ -54,10 +54,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t]
+        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
         resolution: [highest, lowest-direct]
         include:
         - pyversion: 3.13t      # Qt bindings not available for this version
+          group: tests
+        - pyversion: 3.14t      # Qt bindings not available for this version
           group: tests
         - pyversion: '3.11'
           group: tests-matplotlib
@@ -66,10 +68,10 @@ jobs:
         - pyversion: '3.11'
           group: tests-vispy
         exclude:
-        - os: macos-latest  # jaxlib wheels not available
-          pyversion: 3.13t
         - os: windows-latest  # jaxlib wheels not available
           pyversion: 3.13t
+        - os: windows-latest  # jaxlib wheels not available
+          pyversion: 3.14t
         - os: windows-latest  # bugs with NumPy
           pyversion: '3.13'
         - pyversion: '3.11'
@@ -83,7 +85,7 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v6
@@ -129,14 +131,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t]
+        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.pyversion }}
 
@@ -153,10 +155,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
 
     - name: Install NumPy
       run: pip install numpy
@@ -186,7 +188,7 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download scenes
       uses: actions/download-artifact@v4
@@ -194,7 +196,7 @@ jobs:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PY_VERSION }}
 
@@ -230,8 +232,9 @@ jobs:
       run: uv pip install ${{ steps.pgo-wheel.outputs.wheel }} --force-reinstall
 
     - name: Run CodSpeed benchmarks
-      uses: CodSpeedHQ/action@v3
+      uses: CodSpeedHQ/action@v4
       with:
+        mode: instrumentation
         run: uv run --group=codspeed pytest differt/tests/benchmarks --jaxtyping-packages="" --codspeed
 
   rust-benchmark:
@@ -240,10 +243,10 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
 
     - name: Install NumPy
       run: pip install numpy
@@ -262,7 +265,7 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download scenes
       uses: actions/download-artifact@v4
