@@ -1,5 +1,4 @@
 import chex
-import jax
 import jax.experimental
 import jax.numpy as jnp
 import pytest

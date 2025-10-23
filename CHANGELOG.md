@@ -20,6 +20,9 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...HEAD)
 
+### Changed
+
+- Changed {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to leverage the `fpt-jax` library {cite}`fpt-eucap2026` for better performance and faster gradient computations (by <gh-user:jeertmans>, in <gh-pr:335>).
 
 ### Chore
 
