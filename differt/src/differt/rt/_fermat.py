@@ -43,7 +43,7 @@ def fermat_path_on_linear_objects(
     .. important::
 
         The current implementation uses the ``fpt-jax`` library
-        :cite:`fpt-eucap2026`, which defines :func:`jax.custom_vjp` functions for more
+        :cite:`fpt-eucap2026`, which defines :class:`jax.custom_vjp` functions for more
         efficient gradient computations, see the paper for more details. The implementation
         is not guaranteed to converge for all configurations of vertices and objects,
         and the user may need to tune the number of steps to achieve convergence.
@@ -66,9 +66,8 @@ def fermat_path_on_linear_objects(
         unroll_linesearch: Whether to unroll the line search loop. Can be a boolean or an integer
             specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
         implicit_diff: Whether to use implicit differentiation for computing the gradient.
-            See :cite:`fpt-eucap2026` and its `GitHub page <fpt-jax-gh>`_ for more details.
-
-            .. _fpt-jax-gh: https://github.com/jeertmans/fpt-jax/tree/eucap2026
+            See :cite:`fpt-eucap2026` and its
+            `GitHub page <https://github.com/jeertmans/fpt-jax/tree/eucap2026>`_ for more details.
 
     Returns:
         An array of ray paths obtained based on Fermat's principle.
@@ -176,7 +175,7 @@ def fermat_path_on_linear_objects(
         object_vectors,
         num_iters=steps,
         unroll=unroll,
-        num_linesearch_iters=linesearch_steps,
+        num_iters_linesearch=linesearch_steps,
         unroll_linesearch=unroll_linesearch,
         implicit_diff=implicit_diff,
     )
