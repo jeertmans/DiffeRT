@@ -311,23 +311,12 @@ def transition_matrices(
     interaction_types: Int[ArrayLike, "*batch path_length-2"],
     object_normals: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, "*batch 2 2"]:
-    # ruff: noqa: D417, DOC202
     """
     Compute the transition matrix, ...
 
-    Args:
-        k_i: The array of propagation direction of incident fields.
+    .. warning::
 
-            Each vector must have a unit length.
-        k_r: The array of propagation direction of reflected fields.
-
-            Each vector must have a unit length.
-        normals: The array of local normals.
-
-            Each vector must have a unit length.
-
-    Returns:
-        The array of s and p directions, before and after reflection.
+        Do not use this function yet, it is not implemented!
     """
     vertices = jnp.asarray(vertices)
     objects = jnp.asarray(objects)
