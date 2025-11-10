@@ -27,24 +27,24 @@ jobs:
     strategy:
       matrix:
         platform:
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86_64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: aarch64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: armv7
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: s390x
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: ppc64le
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -52,13 +52,22 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        manylinux: auto
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: auto
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-linux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -69,20 +78,20 @@ jobs:
     strategy:
       matrix:
         platform:
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86_64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: x86
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: aarch64
-        - runner: ubuntu-22.04
+        - runner: ubuntu-24.04
           target: armv7
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -90,13 +99,22 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        manylinux: musllinux_1_2
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: musllinux_1_2
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-musllinux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -113,23 +131,32 @@ jobs:
           target: x86
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
+        architecture: ${{ matrix.platform.target }}
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-windows-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -142,14 +169,14 @@ jobs:
         platform:
         - runner: macos-13
           target: x86_64
-        - runner: macos-14
+        - runner: macos-latest
           target: aarch64
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.x
 
@@ -157,12 +184,20 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist --find-interpreter
-        sccache: 'true'
+        args: --release --out dist
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        working-directory: differt-core
+
+    - name: Build free-threaded wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ matrix.platform.target }}
+        args: --release --out dist -i python3.13t -i python3.14t
+        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-macos-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -172,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Build sdist
       uses: PyO3/maturin-action@v1
@@ -182,7 +217,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-sdist
         path: differt-core/dist
@@ -199,16 +234,16 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download build wheels
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: differt-core/dist
         pattern: differt-core-wheels-*
 
     - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v3
       with:
         subject-path: differt-core/dist/differt-core-wheels-*
 
@@ -225,10 +260,10 @@ jobs:
     environment: release
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -236,13 +271,13 @@ jobs:
       run: uv build --package differt -o differt/dist
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-wheels-sdist
         path: differt/dist/differt-*.tar.gz
 
     - name: Upload wheels any
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-wheels-any
         path: differt/dist/differt-*.whl
@@ -259,17 +294,17 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Download build wheels
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: differt/dist
         pattern: differt-wheels-*
         merge-multiple: true
 
     - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@v2
+      uses: actions/attest-build-provenance@v3
       with:
         subject-path: differt/dist/*
 

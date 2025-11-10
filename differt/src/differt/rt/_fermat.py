@@ -1,86 +1,11 @@
-from typing import Any, no_type_check
+from typing import Any
 
-import chex
 import equinox as eqx
-import jax
+import fpt_jax
 import jax.numpy as jnp
-import optax
 from jaxtyping import Array, ArrayLike, Float
 
 from differt.geometry import orthogonal_basis
-
-
-def _param_to_xyz(
-    p: Float[Array, "*batch num_object_x_num_dims"],
-    o: Float[Array, "*#batch num_objects 3"],
-    v: Float[Array, "*#batch num_objects num_dims 3"],
-) -> Float[Array, "*batch num_objects 3"]:
-    *_, num_objects, num_dims, _ = v.shape
-    p = jnp.reshape(p, (*p.shape[:-1], num_objects, num_dims, 1))
-    return o + jnp.sum(p * v, axis=-2)
-
-
-def _loss(
-    p: Float[Array, "*batch num_object_x_num_dims"],
-    from_: Float[Array, "*#batch 3"],
-    to: Float[Array, "*#batch 3"],
-    o: Float[Array, "*#batch num_objects 3"],
-    v: Float[Array, "*#batch num_objects num_dims 3"],
-) -> Float[Array, " *batch"]:
-    chex.assert_axis_dimension_gt(p, -1, 0, exception_type=TypeError)
-    chex.assert_axis_dimension(
-        p, -1, v.shape[-2] * v.shape[-3], exception_type=TypeError
-    )
-    xyz = _param_to_xyz(p, o, v)
-    first_segment = xyz[..., 0, :] - from_
-    last_segment = to - xyz[..., -1, :]
-    other_segments = jnp.diff(xyz, axis=-2)
-    return (
-        jnp.linalg.norm(first_segment, axis=-1)
-        + jnp.linalg.norm(last_segment, axis=-1)
-        + jnp.sum(jnp.linalg.norm(other_segments, axis=-1), axis=-1)
-    )
-
-
-def _fermat_path_on_linear_objects(
-    from_vertex: Float[Array, "3"],
-    to_vertex: Float[Array, "3"],
-    object_origins: Float[Array, "num_objects 3"],
-    object_vectors: Float[Array, "num_objects num_dims 3"],
-    steps: int,
-    optimizer: optax.GradientTransformationExtraArgs,
-) -> Float[Array, "num_objects 3"]:
-    dtype = jnp.result_type(from_vertex, to_vertex, object_origins, object_vectors)
-    x_0 = jnp.zeros(object_vectors.shape[0] * object_vectors.shape[1], dtype=dtype)
-    opt_state = optimizer.init(x_0)
-    value_and_grad = optax.value_and_grad_from_state(_loss)
-
-    @no_type_check
-    def update(
-        state: tuple[Float[Array, " num_unknowns"], Any],
-        _: None,
-    ) -> tuple[tuple[Float[Array, " num_unknowns"], Any], float | Float[Array, " "]]:
-        x, opt_state = state
-        loss_value, grad = value_and_grad(
-            x, from_vertex, to_vertex, object_origins, object_vectors, state=opt_state
-        )
-        updates, opt_state = optimizer.update(
-            grad,
-            opt_state,
-            x,
-            value=loss_value,
-            grad=grad,
-            value_fn=_loss,
-            from_=from_vertex,
-            to=to_vertex,
-            o=object_origins,
-            v=object_vectors,
-        )
-        x = optax.apply_updates(x, updates)
-        return (x, opt_state), loss_value
-
-    (x, _), _ = jax.lax.scan(update, (x_0, opt_state), length=steps)
-    return _param_to_xyz(x, object_origins, object_vectors)
 
 
 @eqx.filter_jit
@@ -91,7 +16,10 @@ def fermat_path_on_linear_objects(
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
     *,
     steps: int = 10,
-    optimizer: optax.GradientTransformationExtraArgs | None = None,
+    unroll: int | bool = 1,
+    linesearch_steps: int = 1,
+    unroll_linesearch: int | bool = 1,
+    implicit_diff: bool = True,
 ) -> Float[Array, "*batch num_objects 3"]:
     """
     Return the ray paths between pairs of vertices, that reflect or diffract on a given list of objects in between.
@@ -112,6 +40,14 @@ def fermat_path_on_linear_objects(
     :func:`image method<differt.rt.image_method>`, choosing an appropriate origin can be important
     as it will be used as the initial point of the minimization procedure.
 
+    .. important::
+
+        The current implementation uses the ``fpt-jax`` library
+        :cite:`fpt-eucap2026`, which defines :class:`jax.custom_vjp` functions for more
+        efficient gradient computations, see the paper for more details. The implementation
+        is not guaranteed to converge for all configurations of vertices and objects,
+        and the user may need to tune the number of steps to achieve convergence.
+
     Args:
         from_vertices: An array of ``from`` vertices, i.e., vertices from which the
             ray paths start. In a radio communications context, this is usually
@@ -124,14 +60,14 @@ def fermat_path_on_linear_objects(
             It is used as the initial guess of the minimization procedure.
         object_vectors: An array of base vectors describing the objects.
         steps: The number of optimization steps to perform.
-        optimizer: The optimizer to use. If not provided,
-            uses :func:`optax.lbfgs`.
-
-            .. important::
-
-                The optimizer should store the gradient in the state. In the future,
-                we hope to support optimizers that do not store the gradient in the state,
-                such as :func:`optax.adam` or :func:`optax.sgd`.
+        unroll: Whether to unroll the optimization loop. Can be a boolean or an integer
+            specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
+        linesearch_steps: The number of line search steps to perform at each iteration.
+        unroll_linesearch: Whether to unroll the line search loop. Can be a boolean or an integer
+            specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
+        implicit_diff: Whether to use implicit differentiation for computing the gradient.
+            See :cite:`fpt-eucap2026` and its
+            `GitHub page <https://github.com/jeertmans/fpt-jax/tree/v0.1.0>`_ for more details.
 
     Returns:
         An array of ray paths obtained based on Fermat's principle.
@@ -232,13 +168,17 @@ def fermat_path_on_linear_objects(
             return jnp.empty((*batch, 0, 3), dtype=dtype)
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
 
-    optimizer = optimizer if optimizer is not None else optax.lbfgs()
-
-    return jnp.vectorize(
-        _fermat_path_on_linear_objects,
-        excluded={4, 5},
-        signature="(3),(3),(n,3),(n,d,3)->(n,3)",
-    )(from_vertices, to_vertices, object_origins, object_vectors, steps, optimizer)
+    return fpt_jax.trace_rays(
+        from_vertices,
+        to_vertices,
+        object_origins,
+        object_vectors,
+        num_iters=steps,
+        unroll=unroll,
+        num_iters_linesearch=linesearch_steps,
+        unroll_linesearch=unroll_linesearch,
+        implicit_diff=implicit_diff,
+    )
 
 
 @eqx.filter_jit

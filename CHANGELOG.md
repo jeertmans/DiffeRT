@@ -18,9 +18,28 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
 
 <!-- start changelog -->
+
+## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
+
+### Changed
+
+- Changed {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to leverage the `fpt-jax` library {cite}`fpt-eucap2026` for better performance and faster gradient computations (by <gh-user:jeertmans>, in <gh-pr:335>).
+
+### Chore
+
+- Updated CI to fix builds on Windows, and also explicitly build free-threaded wheels (by <gh-user:jeertmans>, in <gh-pr:336>).
+
+## [0.6.1](https://github.com/jeertmans/DiffeRT/compare/v0.6.0...v0.6.1)
+
+### Chore
+
+- Bumped minimum required JAX version to [`0.7.2`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-2-september-16-2025) as JAX `0.7.0` and `0.7.1` contained bugs (by <gh-user:jeertmans>, in <gh-pr:325>).
+- Added Python 3.14 and 3.14t to the list of tested Python versions (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Update the macOS runners (by <gh-user:jeertmans>, in <gh-pr:323>).
+- Updated PyPI's Trove classifiers to list Python 3.14 and free-threaded Python (by <gh-user:jeertmans>, in <gh-pr:323>).
 
 ## [0.6.0](https://github.com/jeertmans/DiffeRT/compare/v0.5.0...v0.6.0)
 

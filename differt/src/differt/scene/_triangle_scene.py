@@ -62,6 +62,8 @@ def _compute_paths(
         dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
         min_len = 10 * jnp.finfo(dtype).eps
 
+    min_len = jnp.asarray(min_len)
+
     # 1 - Broadcast arrays
 
     num_tx_vertices = tx_vertices.shape[0]

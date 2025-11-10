@@ -278,6 +278,8 @@ def rays_intersect_triangles(
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         epsilon = 10 * jnp.finfo(dtype).eps
 
+    epsilon = jnp.asarray(epsilon)
+
     # [*batch 3]
     vertex_0 = triangle_vertices[..., 0, :]
     vertex_1 = triangle_vertices[..., 1, :]
@@ -292,7 +294,7 @@ def rays_intersect_triangles(
 
     # [*batch]
     a = jnp.sum(h * edge_1, axis=-1)
-    a = jnp.where(a == 0.0, jnp.inf, a)  # Avoid division by zero
+    a: Array = jnp.where(a == 0.0, jnp.inf, a)  # Avoid division by zero
 
     if smoothing_factor is not None:
         hit = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)

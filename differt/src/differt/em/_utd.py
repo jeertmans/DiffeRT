@@ -1,4 +1,5 @@
 # ruff: noqa: N802, N806
+# type: ignore  # noqa: PGH003
 from functools import partial
 from typing import Any, Literal, overload
 
