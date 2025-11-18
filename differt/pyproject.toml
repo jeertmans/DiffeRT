@@ -37,16 +37,11 @@ requires-python = ">=3.11"
 all = [
   "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
 ]
-jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl>=0.9.4"]
+jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl>=0.9.4", "ipykernel<7"]
 matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = [
   "vispy>=0.14.1",
-  # PyOpenGL seems to be needed, see:
-  # https://github.com/vispy/vispy/issues/2547
-  # https://github.com/vispy/vispy/pull/2549
-  # https://github.com/bitcraze/crazyflie-clients-python/pull/708
-  "PyOpenGL>=3.1.0;platform_system=='Darwin'",
 ]
 vispy-backend = ["PyQt6>=6.6.1"]
 

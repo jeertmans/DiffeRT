@@ -143,6 +143,11 @@ myst_url_schemes = {
         "title": "@{{path}}",
         "classes": ["github"],
     },
+    "ext-gh-issue": {
+        "url": "https://github.com/{{path}}/issues/{{fragment}}",
+        "title": "Issue {{path}}#{{fragment}}",
+        "classes": ["github"],
+    },
 }
 
 myst_heading_anchors = 3
