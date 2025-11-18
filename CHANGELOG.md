@@ -23,6 +23,7 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
+- Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
 
 <!-- start changelog -->
 
