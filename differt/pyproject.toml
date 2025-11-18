@@ -37,7 +37,7 @@ requires-python = ">=3.11"
 all = [
   "differt[jupyter,matplotlib,plotly,vispy,vispy-backend]",
 ]
-jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl>=0.9.4"]
+jupyter = ["notebook>5", "jupyter-rfb>=0.4.2", "ipympl>=0.9.4", "ipykernel<7"]
 matplotlib = ["matplotlib>=3.8.1"]
 plotly = ["plotly>=5.18.0"]
 vispy = [
