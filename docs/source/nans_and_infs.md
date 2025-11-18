@@ -18,6 +18,6 @@ While this protective handling may introduce a small computational overhead, it 
 
 NaN values are strictly avoided within DiffeRT. Although they can theoretically be used to indicate invalid results, NaNs tend to spread uncontrollably, making it difficult to trace their origin. Therefore, NaNs are never permitted in either the function outputs or their gradients.
 
-To achieve this, we take proactive steps—such as using safe division and conditional logic-to avoid scenarios like division by zero. In addition, we utilize JAX's built-in tools for [debugging NaNs](https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html#debugging-nans), which makes it easier to locate and eliminate potential sources of NaNs during development.
+To achieve this, we take proactive steps—such as using safe division and conditional logic-to avoid scenarios like division by zero. In addition, we utilize JAX's built-in tools for [debugging NaNs](https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html#debugging-nans-and-infs), which makes it easier to locate and eliminate potential sources of NaNs during development.
 
 If you encounter a case where one of our functions returns a NaN, please report it on [GitHub](https://github.com/jeertmans/DiffeRT/issues/new/choose).
