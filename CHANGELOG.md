@@ -25,6 +25,10 @@ with one *slight* but **important** difference:
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
 
+### Fixed
+
+- Restricted `ipykernel` version to `<7` to avoid compatibility issues with `jupyter_rfb`, see <ext-gh-issue:vispy/jupyter_rfb#121> (by <gh-user:jeertmans>, in <gh-pr:347>).
+
 <!-- start changelog -->
 
 ## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
