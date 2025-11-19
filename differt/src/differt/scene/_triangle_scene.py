@@ -702,7 +702,7 @@ class TriangleScene(eqx.Module):
             mi_scene (mitsuba.Scene): The Mitsuba scene object.
 
                 You can obtain the Mitsuba scene object from a Sionna scene
-                its ``.mi_scene`` attribute.
+                via its ``.mi_scene`` attribute.
 
         Returns:
             The corresponding scene containing only triangle meshes.
