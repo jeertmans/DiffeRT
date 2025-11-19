@@ -990,9 +990,9 @@ class TriangleScene(eqx.Module):
 
                 For more details, refer to :ref:`smoothing`.
 
-                  .. warning::
+                .. warning::
 
-                    Currently, only the ``'exhaustive'`` method is supported.
+                  Currently, only the ``'exhaustive'`` method is supported.
             confidence_threshold: A threshold value for deciding which paths are valid.
             batch_size: If specified, the number of triangles or rays to process in one batch
                 when checking for intersections.
