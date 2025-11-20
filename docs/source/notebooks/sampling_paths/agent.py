@@ -9,10 +9,13 @@ from jaxtyping import (
     Array,
     Float,
     Int,
+    Key,
     PRNGKeyArray,
 )
 
+from .generators import random_scene
 from .memory import Memory
+from .metrics import reward
 from .model import Model
 
 if TYPE_CHECKING:

@@ -5,8 +5,11 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 from jaxtyping import (
+    Array,
+    Key,
     PRNGKeyArray,
 )
+from tqdm.auto import trange
 
 from differt.scene import (
     TriangleScene,
@@ -101,3 +104,42 @@ def train_dataloader(*, key: PRNGKeyArray) -> Iterator[TriangleScene]:
     while True:
         key, key_to_use = jr.split(key, 2)
         yield random_scene(key=key_to_use)
+
+
+def validation_scene_keys(
+    *,
+    order: int,
+    num_scenes: int = 100,
+    progress: bool = True,
+    key: PRNGKeyArray,
+) -> Key[Array, " num_scenes"]:
+    """
+    Return a fixed set of scene keys for validating the model.
+
+    Args:
+        order: The path order to be used.
+        num_scenes: The number of scene keys to generate.
+        progress: Whether to show a progress bar when generating the scenes.
+        key: The random key to be used.
+    Returns:
+        A fixed set of scene keys, for which the corresponding scenes contain valid paths of the given order.
+    """
+
+    def keys(key: PRNGKeyArray) -> Iterator[PRNGKeyArray]:
+        old_key = key
+        while True:
+            old_key, new_key = jr.split(old_key)
+            yield new_key
+
+    generator = filter(
+        lambda key: random_scene(key=key).compute_paths(order=order).mask.sum()
+        > 0,
+        keys(key),
+    )
+
+    if progress:
+        it = trange(num_scenes, desc="Selecting validation scenes")
+    else:
+        it = range(num_scenes)
+
+    return jnp.stack([next(generator) for _ in it])
