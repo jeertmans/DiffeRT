@@ -11,7 +11,9 @@ from jaxtyping import (
     Int,
     Key,
     PRNGKeyArray,
+    jaxtyped,
 )
+from beartype import beartype as typechecker
 
 from .generators import random_scene
 from .memory import Memory
@@ -56,7 +58,11 @@ class Agent(eqx.Module):
         self.batch_size = batch_size
         self.augmented = augmented
 
-        assert not augmented
+        if augmented:
+            msg = "Data augmentation for the agent is not implemented yet."
+            raise NotImplementedError(
+                msg
+            )
 
         self.model = Model(
             order=order,
@@ -77,6 +83,7 @@ class Agent(eqx.Module):
     def train_flow_model(
         self, *, key: PRNGKeyArray
     ) -> tuple[Self, Float[Array, " "]]:
+        @jaxtyped(typechecker=typechecker)
         def loss(
             model: Model, key: PRNGKeyArray
         ) -> tuple[
@@ -93,12 +100,14 @@ class Agent(eqx.Module):
             # Sums of forward and backward flows (policies)
             sum_log_P_F = 0.0
             sum_log_P_B = 0.0
-            flow_mismatch = 0.0
 
             for i, key in enumerate(jr.split(key, self.order)):
                 edge_flow_key, action_key = jr.split(key)
+                if model.flow.log_probabilities:
+                    logits = parent_flows
+                else:
+                    logits = jnp.log(parent_flows)
 
-                logits = parent_flows
                 action = jr.categorical(action_key, logits=logits)
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
@@ -112,28 +121,22 @@ class Agent(eqx.Module):
                     scene, partial_path_candidate, key=edge_flow_key
                 )
 
-                if i == (self.order - 1):
-                    sum_edge_flows = reward(
-                        partial_path_candidate.reshape(1, -1), scene
-                    ).reshape(())
-                else:
-                    sum_edge_flows = edge_flows.sum()
-
-                flow_mismatch += (parent_flows[action] - sum_edge_flows) ** 2
-
+                # Only one possible backward action: one leaf has exactly one parent
+                # which means P_B = 1
                 sum_log_P_B += jnp.log(1)
 
                 parent_flows = edge_flows
 
             path_candidate = partial_path_candidate
             R = reward(path_candidate.reshape(1, -1), scene).reshape(())
-            log_R = jnp.log(R).clip(min=-100.0)
-            log_Z = jnp.log(model.Z(scene)).clip(min=-100.0)
+            log_R = jnp.log(R).clip(min=-20.0)
+            log_Z = jnp.log(model.Z(scene)).clip(min=-20.0)
 
             tb_loss = (log_Z + sum_log_P_F - log_R - sum_log_P_B) ** 2
 
             return tb_loss, (path_candidate, R)
 
+        @jaxtyped(typechecker=typechecker)
         def batch_loss(
             model: Model,
             keys: Key[Array, " batch_size"],
@@ -186,14 +189,17 @@ class Agent(eqx.Module):
     def train_Z_model(
         self, *, key: PRNGKeyArray
     ) -> tuple[Self, Float[Array, " "]]:
+        @jaxtyped(typechecker=typechecker)
         def loss(model: Model, key: PRNGKeyArray) -> Float[Array, " "]:
             scene = random_scene(key=key)
             num_valid_paths = scene.compute_paths(order=self.order).mask.sum()
             Z = model.Z(scene)
             delta = Z - num_valid_paths
+            #return delta ** 2
             # We penalize more if the model under-estimates
             return jnp.where(delta > 0, delta, -10 * delta)
 
+        @jaxtyped(typechecker=typechecker)
         def batch_loss(
             model: Model,
             keys: Key[Array, " batch_size"],

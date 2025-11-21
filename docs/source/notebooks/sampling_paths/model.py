@@ -8,7 +8,10 @@ from jaxtyping import (
     Int,
     Key,
     PRNGKeyArray,
+    jaxtyped,
 )
+
+from beartype import beartype as typechecker
 
 from differt.scene import (
     TriangleScene,
@@ -56,14 +59,17 @@ class Model(eqx.Module):
         self.shared = eqx.nn.Shared((flow, z), where, get)
 
     @property
+    @jaxtyped(typechecker=typechecker)
     def flow(self) -> Flow:
         return self.shared()[0]
 
     @property
-    def Z(self) -> Flow:
+    @jaxtyped(typechecker=typechecker)
+    def Z(self) -> Z:
         return self.shared()[1]
 
     @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def __call__(
         self,
         scene: TriangleScene,
@@ -82,7 +88,10 @@ class Model(eqx.Module):
         for i, key in enumerate(jr.split(key, self.order)):
             edge_flow_key, action_key = jr.split(key)
 
-            logits = parent_flows
+            if self.flow.log_probabilities:
+                logits = parent_flows
+            else:
+                logits = jnp.log(parent_flows)
             action = jr.categorical(action_key, logits=logits)
             partial_path_candidate = partial_path_candidate.at[i].set(action)
 
@@ -98,6 +107,7 @@ class Model(eqx.Module):
         return partial_path_candidate
 
     @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
     def evaluate(
         self,
         scene_keys: Key[Array, " num_scenes"],

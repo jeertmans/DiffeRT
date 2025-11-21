@@ -1,12 +1,14 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float, Int
+from jaxtyping import Array, Float, Int, jaxtyped
+from beartype import beartype as typechecker
 
 from differt.scene import TriangleScene
 
 
 @eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
 def reward(
     predicted_path_candidates: Int[Array, "batch order"],
     scene: TriangleScene,
@@ -35,6 +37,7 @@ def reward(
 
 
 @eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
 def accuracy(
     scene: TriangleScene,
     predicted_path_candidates: Int[Array, "num_path_candidates order"],
@@ -44,9 +47,8 @@ def accuracy(
     return num_valid_paths / predicted_path_candidates.shape[0]
 
 
-eqx.filter_jit
-
-
+@eqx.filter_jit
+@jaxtyped(typechecker=typechecker)
 def hit_rate(
     scene: TriangleScene,
     predicted_path_candidates: Int[Array, "num_path_candidates order"],
