@@ -97,8 +97,11 @@ class Agent(eqx.Module):
 
             for i, key in enumerate(jr.split(key, self.order)):
                 edge_flow_key, action_key = jr.split(key)
+                if model.flow.log_probabilities:
+                    logits = parent_flows
+                else:
+                    logits = jnp.log(parent_flows)
 
-                logits = parent_flows
                 action = jr.categorical(action_key, logits=logits)
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
@@ -121,6 +124,8 @@ class Agent(eqx.Module):
 
                 flow_mismatch += (parent_flows[action] - sum_edge_flows) ** 2
 
+                # Only one possible backward action: one leaf has exactly one parent
+                # which means P_B = 1
                 sum_log_P_B += jnp.log(1)
 
                 parent_flows = edge_flows
@@ -191,6 +196,7 @@ class Agent(eqx.Module):
             num_valid_paths = scene.compute_paths(order=self.order).mask.sum()
             Z = model.Z(scene)
             delta = Z - num_valid_paths
+            #return delta ** 2
             # We penalize more if the model under-estimates
             return jnp.where(delta > 0, delta, -10 * delta)
 

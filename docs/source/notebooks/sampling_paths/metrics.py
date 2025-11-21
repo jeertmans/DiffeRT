@@ -44,9 +44,7 @@ def accuracy(
     return num_valid_paths / predicted_path_candidates.shape[0]
 
 
-eqx.filter_jit
-
-
+@eqx.filter_jit
 def hit_rate(
     scene: TriangleScene,
     predicted_path_candidates: Int[Array, "num_path_candidates order"],

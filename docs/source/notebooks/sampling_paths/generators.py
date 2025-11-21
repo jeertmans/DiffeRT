@@ -32,11 +32,11 @@ def random_scene(
     """
     Return a random scene with one TX and one RX, at random positions, and a random number of objects.
 
-    The number of objects can be anywhere between 'num_objects // 2' and 'num_objects',
-    where 'num_objects' is the total number of objects in the scene. Again, we avoid
-    sampling scene with very few objects, as they usually contain no valid paths.
+    The number of objects is randomly sampled based on a random fill factor.
 
     Args:
+        min_fill_factor: The minimum fill factor to be used.
+        max_fill_factor: The maximum fill factor to be used.
         key: The random key to be used.
 
     Returns:

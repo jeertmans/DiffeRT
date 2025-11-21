@@ -36,7 +36,7 @@ class Memory(eqx.Module):
     rewards: Float[Array, " memory_size"]
     counter: Int[Array, " "]
 
-    def __init__(self, memory_size: int, order: int, key_dtype: type) -> None:
+    def __init__(self, memory_size: int, order: int, key_dtype: jnp.dtype) -> None:
         self.memory_size = memory_size
 
         self.scene_keys = jnp.empty((memory_size,), dtype=key_dtype)

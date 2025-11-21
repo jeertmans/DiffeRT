@@ -60,7 +60,7 @@ class Model(eqx.Module):
         return self.shared()[0]
 
     @property
-    def Z(self) -> Flow:
+    def Z(self) -> Z:
         return self.shared()[1]
 
     @eqx.filter_jit
@@ -82,7 +82,10 @@ class Model(eqx.Module):
         for i, key in enumerate(jr.split(key, self.order)):
             edge_flow_key, action_key = jr.split(key)
 
-            logits = parent_flows
+            if self.flow.log_probabilities:
+                logits = parent_flows
+            else:
+                logits = jnp.log(parent_flows)
             action = jr.categorical(action_key, logits=logits)
             partial_path_candidate = partial_path_candidate.at[i].set(action)
 
