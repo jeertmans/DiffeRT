@@ -182,11 +182,11 @@ class Flow(eqx.Module):
         )
         # Stop flow from flowing to masked objects
         if scene.mesh.mask is not None:
-            flows = jnp.where(scene.mesh.mask, flows, -jnp.inf)
+            flows = jnp.where(scene.mesh.mask, flows, -100)
 
         # Stop flow from flowing to the same object twice in a row
         flows = flows.at[last_object].set(
-            -jnp.inf, wrap_negative_indices=False
+            -100, wrap_negative_indices=False
         )
 
         # Convert to probabilities if needed
@@ -204,7 +204,7 @@ class Flow(eqx.Module):
         # Dropout
         q = 1.0 - jax.lax.stop_gradient(self.dropout_rate)
         mask = jr.bernoulli(key, q, flows.shape)
-        return jnp.where(mask, flows, -jnp.inf if self.log_probabilities else 0.0)
+        return jnp.where(mask, flows, -100.0 if self.log_probabilities else 0.0)
 
 
 class Z(eqx.Module):
