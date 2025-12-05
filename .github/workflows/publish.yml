@@ -41,7 +41,7 @@ jobs:
           target: ppc64le
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -67,7 +67,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-linux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -88,7 +88,7 @@ jobs:
           target: armv7
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -114,7 +114,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-musllinux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -131,7 +131,7 @@ jobs:
           target: x86
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -156,7 +156,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-windows-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -173,7 +173,7 @@ jobs:
           target: aarch64
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -197,7 +197,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-macos-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -207,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Build sdist
       uses: PyO3/maturin-action@v1
@@ -217,7 +217,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-core-wheels-sdist
         path: differt-core/dist
@@ -234,10 +234,10 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download build wheels
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: differt-core/dist
         pattern: differt-core-wheels-*
@@ -260,10 +260,10 @@ jobs:
     environment: release
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -271,13 +271,13 @@ jobs:
       run: uv build --package differt -o differt/dist
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-wheels-sdist
         path: differt/dist/differt-*.tar.gz
 
     - name: Upload wheels any
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: differt-wheels-any
         path: differt/dist/differt-*.whl
@@ -294,10 +294,10 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download build wheels
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: differt/dist
         pattern: differt-wheels-*

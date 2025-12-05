@@ -7,7 +7,7 @@ The main package, {mod}`differt`, uses Python-only code. The core package, {mod}
 even though only containing a very limited set of utilities, is written in Rust to offer good performances,
 especially when reading large files or generating path candidates (see {ref}`path_candidates`).
 
-Pre-built binaries are available for most platforms, and we recommend users to install DiffeRT with pip.
+Pre-built binaries are available for most platforms, and we recommend that users install DiffeRT from PyPI.
 
 ## Pip Install
 
@@ -18,7 +18,7 @@ pip install differt
 ```
 
 :::{important}
-If you encounter an error with installing from pip, e.g.,
+If you encounter an error with installing from PyPI, e.g.,
 because it is missing pre-built binaries for your platform,
 please report it as
 [an issue in GitHub](https://github.com/jeertmans/DiffeRT/issues)!
@@ -28,14 +28,14 @@ please report it as
 
 If you want to leverage the power of your GPU(s) or TPU(s), you may want
 to look at [JAX's installation guide](https://jax.readthedocs.io/en/latest/installation.html),
-as they provide the necessary information about how to install JAX with support for your target device.
+which provides the necessary information about how to install JAX with support for your target device.
 
 DiffeRT works seamlessly with JAX regardless of the active devices (i.e., CPU, GPU, or TPU).
 
 ### Optional dependencies
 
-By default, DiffeRT will only install a limited set of dependencies, and will not include
-any plotting backend, for example.
+By default, DiffeRT installs only a limited set of dependencies and does not include
+any plotting backend.
 
 You may want to install those optional features by using *extras*[^1]:
 

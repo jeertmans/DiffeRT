@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -44,7 +44,7 @@ jobs:
       run: tree -L 2 differt/src/differt/scene/scenes
 
     - name: Upload scenes
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -85,10 +85,10 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -112,7 +112,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Download scenes
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -135,7 +135,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -155,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -188,10 +188,10 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download scenes
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -201,7 +201,7 @@ jobs:
         python-version: ${{ env.PY_VERSION }}
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -243,7 +243,7 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -265,16 +265,16 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download scenes
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
