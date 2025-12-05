@@ -846,6 +846,7 @@ dependencies = [
     { name = "numpy" },
     { name = "requests" },
     { name = "tqdm" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -904,6 +905,7 @@ requires-dist = [
     { name = "pyqt6", marker = "extra == 'vispy-backend'", specifier = ">=6.6.1" },
     { name = "requests", specifier = ">=2.32.0" },
     { name = "tqdm", specifier = ">=4.66.2" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "vispy", marker = "extra == 'all'", specifier = ">=0.14.1" },
     { name = "vispy", marker = "extra == 'vispy'", specifier = ">=0.14.1" },
 ]

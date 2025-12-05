@@ -60,16 +60,6 @@ class TestPaths:
 
         assert paths.mask is not None
 
-        with pytest.warns(
-            UserWarning, match="Setting both 'mask' and 'confidence' arguments"
-        ):
-            paths = Paths(
-                paths.vertices,
-                paths.objects,
-                mask=paths.mask,
-                confidence=paths.mask.astype(float),
-            )
-
     @pytest.mark.parametrize("with_mask", [False, True])
     @pytest.mark.parametrize(
         ("batch", "axis", "expectation"),
@@ -154,7 +144,7 @@ class TestPaths:
         chex.assert_trees_all_equal(got.num_valid_paths, 3)
 
         paths = eqx.tree_at(
-            lambda p: p.confidence,
+            lambda p: p.mask,
             paths,
             jnp.ones_like(mask, dtype=float),
             is_leaf=lambda x: x is None,
@@ -207,7 +197,7 @@ class TestPaths:
         chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
         paths = eqx.tree_at(
-            lambda p: p.confidence,
+            lambda p: p.mask,
             paths,
             jnp.ones((path_candidates.shape[0], 2, 3, 4, 1), dtype=float),
             is_leaf=lambda x: x is None,
@@ -285,7 +275,7 @@ class TestPaths:
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
         with pytest.raises(
             ValueError,
-            match=r"Cannot create multipath cells from non-existing mask \(or confidence matrix\)!",
+            match="Cannot create multipath cells from non-existing mask!",
         ):
             _ = random_paths(
                 6, 3, 2, num_objects=20, with_mask=False, key=key
