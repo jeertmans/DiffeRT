@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from functools import cache
 from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 import jax
 import numpy as np
 import pytest
 
+plt: ModuleType | None = None
+
 try:
     import matplotlib.pyplot as plt
 except ImportError:
-    plt = None
+    pass
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
