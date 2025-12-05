@@ -41,7 +41,7 @@ jobs:
           target: ppc64le
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -88,7 +88,7 @@ jobs:
           target: armv7
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -131,7 +131,7 @@ jobs:
           target: x86
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -173,7 +173,7 @@ jobs:
           target: aarch64
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install Python
       uses: actions/setup-python@v6
@@ -207,7 +207,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Build sdist
       uses: PyO3/maturin-action@v1
@@ -234,7 +234,7 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download build wheels
       uses: actions/download-artifact@v6
@@ -260,7 +260,7 @@ jobs:
     environment: release
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v7
@@ -294,7 +294,7 @@ jobs:
       attestations: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download build wheels
       uses: actions/download-artifact@v6
