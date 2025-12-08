@@ -35,10 +35,12 @@ from differt_core.rt import CompleteGraph, DiGraph
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 
+    SionnaScene: type | Any = Any
+
     try:
         from sionna.rt import Scene as SionnaScene
     except ImportError:
-        SionnaScene = Any
+        pass
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
     SionnaScene = Any
