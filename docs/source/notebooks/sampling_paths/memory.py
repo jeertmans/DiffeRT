@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import jax.random as jr
 from beartype import beartype as typechecker
@@ -121,7 +122,7 @@ class Memory(eqx.Module):
     ]:
         # JIT-friendly way of sampling indices up to min(counter, memory_size)
         indices = jnp.arange(self.memory_size)
-        p = jnp.where(self.rewards[indices] > 0, 10.0, 1.0)
+        p = jax.nn.softmax(self.rewards[indices])
         p = jnp.where(indices >= self.counter, 0.0, p)
         indices = jr.choice(key, indices, (batch_size,), replace=False, p=p)
         return (

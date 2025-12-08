@@ -27,10 +27,18 @@ else:
 
 
 class Agent(eqx.Module):
+    """
+    Agent that learns to sample path candidates on triangle scenes.
+    It uses flow matching to learn a flow model that estimates the flow of paths
+    through the scene, and uses this flow model to sample path candidates.
+
+    Additionally, it uses a memory to store past experiences of sampled path candidates
+    and their rewards, which can be used to quickly compute averaged rewards and train the flow model
+    on path experiences by imposing that the total flow matches the total number of valid paths.
+    """
     # Static
     order: int = eqx.field(static=True)
     batch_size: int = eqx.field(static=True)
-    augmented: bool = eqx.field(static=True)
 
     # Trainable
     model: Model
@@ -48,27 +56,21 @@ class Agent(eqx.Module):
         num_embeddings: int = 128,
         width_size: int = 256,
         depth: int = 3,
+        dropout_rate: float = 0.15,
         batch_size: int = 64,
         optim: optax.GradientTransformationExtraArgs | None = None,
-        augmented: bool = False,
         memory_size: int = 10_000,
         key: PRNGKeyArray,
     ) -> None:
         self.order = order
         self.batch_size = batch_size
-        self.augmented = augmented
-
-        if augmented:
-            msg = "Data augmentation for the agent is not implemented yet."
-            raise NotImplementedError(
-                msg
-            )
 
         self.model = Model(
             order=order,
             num_embeddings=num_embeddings,
             width_size=width_size,
             depth=depth,
+            dropout_rate=dropout_rate,
             key=key,
         )
 
@@ -80,7 +82,7 @@ class Agent(eqx.Module):
         self.steps_count = jnp.array(0)
 
     @eqx.filter_jit
-    def train_flow_model(
+    def train_flow_matching(
         self, *, key: PRNGKeyArray
     ) -> tuple[Self, Float[Array, " "]]:
         @jaxtyped(typechecker=typechecker)
@@ -97,44 +99,32 @@ class Agent(eqx.Module):
                 key=parent_flow_key,
             )
 
-            # Sums of forward and backward flows (policies)
-            sum_log_P_F = 0.0
-            sum_log_P_B = 0.0
+            # Sums of flow mismatch
+            flow_mismatch = jnp.array(0.0)
 
             for i, key in enumerate(jr.split(key, self.order)):
                 edge_flow_key, action_key = jr.split(key)
-                if model.flow.log_probabilities:
-                    logits = parent_flows
-                else:
-                    logits = jnp.log(parent_flows)
-
-                action = jr.categorical(action_key, logits=logits)
+                action = jr.categorical(action_key, logits=jnp.log(parent_flows))
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
                 )
 
-                sum_log_P_F += jax.nn.log_softmax(logits)[action]
-
-                # jax.debug.print("Action = {a}", a=action)
-
-                edge_flows = model.flow(
+                if i == self.order - 1:
+                    path_candidate = partial_path_candidate
+                    R = reward(path_candidate.reshape(1, -1), scene).reshape(())
+                    edge_flows = jnp.zeros_like(parent_flows)
+                else:
+                    R = 0.0
+                    edge_flows = model.flow(
                     scene, partial_path_candidate, key=edge_flow_key
-                )
+                    )
 
-                # Only one possible backward action: one leaf has exactly one parent
-                # which means P_B = 1
-                sum_log_P_B += jnp.log(1)
+                flow_mismatch += (parent_flows[action] - edge_flows.sum() - R) ** 2
 
                 parent_flows = edge_flows
 
-            path_candidate = partial_path_candidate
-            R = reward(path_candidate.reshape(1, -1), scene).reshape(())
-            log_R = jnp.log(R).clip(min=-20.0)
-            log_Z = jnp.log(model.Z(scene)).clip(min=-20.0)
 
-            tb_loss = (log_Z + sum_log_P_F - log_R - sum_log_P_B) ** 2
-
-            return tb_loss, (path_candidate, R)
+            return flow_mismatch, (path_candidate, R)
 
         @jaxtyped(typechecker=typechecker)
         def batch_loss(
@@ -186,18 +176,19 @@ class Agent(eqx.Module):
         )
 
     @eqx.filter_jit
-    def train_Z_model(
+    def train_total_flow(
         self, *, key: PRNGKeyArray
     ) -> tuple[Self, Float[Array, " "]]:
         @jaxtyped(typechecker=typechecker)
         def loss(model: Model, key: PRNGKeyArray) -> Float[Array, " "]:
             scene = random_scene(key=key)
             num_valid_paths = scene.compute_paths(order=self.order).mask.sum()
-            Z = model.Z(scene)
-            delta = Z - num_valid_paths
-            #return delta ** 2
-            # We penalize more if the model under-estimates
-            return jnp.where(delta > 0, delta, -10 * delta)
+            parent_flows = model.flow(
+                scene,
+                -jnp.ones(self.order, dtype=int),
+                key=key,
+            )
+            return (num_valid_paths - parent_flows.sum())**2
 
         @jaxtyped(typechecker=typechecker)
         def batch_loss(
@@ -206,8 +197,13 @@ class Agent(eqx.Module):
         ) -> Float[Array, " "]:
             return jax.vmap(loss, in_axes=(None, 0))(model, keys).mean()
 
+        # Sample scene (keys) from memory, with higher probability for scene who obtained higher rewards
+        keys, _, _ = self.memory.sample_experiences(
+            batch_size=self.batch_size, key=key
+        )
+
         losses, grads = eqx.filter_value_and_grad(batch_loss)(
-            self.model, jr.split(key, self.batch_size)
+            self.model, keys
         )
 
         updates, opt_state = self.optim.update(

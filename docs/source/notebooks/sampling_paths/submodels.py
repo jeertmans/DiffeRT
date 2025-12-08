@@ -71,7 +71,7 @@ class SceneEncoder(eqx.Module):
 
 
 class StateEncoder(eqx.Module):
-    """Generate embeddings for a (partial) path candidates."""
+    """Generate embeddings for a (partial) path candidate."""
 
     attention: eqx.nn.MultiheadAttention
 
@@ -104,14 +104,13 @@ class StateEncoder(eqx.Module):
 
 
 class Flow(eqx.Module):
-    dropout_rate: float
-    inference: bool
-    log_probabilities: bool
+    order: int = eqx.field(static=True)
 
     scene_encoder: SceneEncoder
     state_encoder: StateEncoder
 
     head: eqx.nn.MLP
+    dropout: eqx.nn.Dropout
 
     def __init__(
         self,
@@ -122,7 +121,6 @@ class Flow(eqx.Module):
         depth: int,
         dropout_rate: float = 0.05,
         inference: bool = False,
-        log_probabilities: bool = True,
         key: PRNGKeyArray,
     ) -> None:
         scene_enc_key, state_enc_key, head_key = jr.split(key, 3)
@@ -145,14 +143,9 @@ class Flow(eqx.Module):
             depth=depth,
             key=head_key,
         )
-        self.dropout_rate = dropout_rate
-        self.inference = inference
-        self.log_probabilities = log_probabilities
-        if not log_probabilities:
-            msg = "Non-log probabilities are not implemented yet."
-            raise NotImplementedError(
-                msg
-            )
+        self.dropout = eqx.nn.Dropout(dropout_rate, inference=inference)
+
+        self.order = order
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
@@ -164,105 +157,56 @@ class Flow(eqx.Module):
         inference: bool | None = None,
         key: PRNGKeyArray | None = None,
     ) -> Float[Array, " num_objects"]:
+        """
+        Compute unnormalized probabilities (flows) for selecting the next object in the path
+        given the current partial path candidate and the scene.
+        """
+        # Compute index of the last filled position in the partial path candidate
+        # e.g.: partial_path_candidate = [a b c -1 -1] -> i = 3, last_object = c
         i = jnp.argwhere(
             partial_path_candidate == -1, size=1, fill_value=-1
         ).reshape(())
         last_object = partial_path_candidate.at[i - 1].get(
-            wrap_negative_indices=False, fill_value=-1
+            mode="fill", fill_value=-1,
+            wrap_negative_indices=False
         )
         # [num_objects num_embeddings]
         object_embeds = self.scene_encoder(scene)
         # [num_embeddings]
-        pc_embeds = self.state_encoder(partial_path_candidate, object_embeds).at[i-1].get(wrap_negative_indices=False, fill_value=0.0)
+        pc_embeds = self.state_encoder(partial_path_candidate, object_embeds).at[i-1].get(mode="fill", fill_value=0.0, wrap_negative_indices=False)
         # [num_objects num_embeddings]
         pc_embeds = jnp.tile(pc_embeds, (object_embeds.shape[0], 1))
         # [num_objects]
         flows = jax.vmap(self.head)(
             jnp.concat((object_embeds, pc_embeds), axis=1)
         )
+        flows = jnp.exp(flows)
+
         # Stop flow from flowing to masked objects
         if scene.mesh.mask is not None:
-            flows = jnp.where(scene.mesh.mask, flows, -100)
+            flows = jnp.where(scene.mesh.mask, flows, 0.0)
 
         # Stop flow from flowing to the same object twice in a row
         flows = flows.at[last_object].set(
-            -100, wrap_negative_indices=False
+            0.0, wrap_negative_indices=False
         )
 
-        # Convert to probabilities if needed
-        if not self.log_probabilities:
-            flows = jnp.exp(flows)
+        # Stop flow from flowing to unreachable objects
+        object_centers = scene.mesh.triangle_vertices.mean(axis=-2)
+        object_normals = scene.mesh.normals
+        
+        if self.order == 1:
+            tx_to_object = object_centers - scene.transmitters.reshape(3)
+            rx_to_object = object_centers - scene.receivers.reshape(3)
 
-        if inference is None:
-            inference = self.inference
-        if inference:
-            return flows
-        if key is None:
-            msg = "Argument 'key' cannot be 'None' when not running in inference mode."
-            raise ValueError(msg)
+            same_side_of_objects = jnp.sign(jnp.sum(tx_to_object * object_normals, axis=-1)) == jnp.sign(jnp.sum(rx_to_object * object_normals, axis=-1))
 
-        # Dropout
-        q = 1.0 - jax.lax.stop_gradient(self.dropout_rate)
-        mask = jr.bernoulli(key, q, flows.shape)
-        return jnp.where(mask, flows, -100.0 if self.log_probabilities else 0.0)
+            flows = jnp.where(same_side_of_objects, flows, 0.0)
+            r = jnp.linalg.norm(tx_to_object, axis=-1) + jnp.linalg.norm(rx_to_object, axis=-1)
+            flows *= jax.nn.softmax(-r, where=scene.mesh.mask)
+        else:
+            pass
+        # last_object_center = jnp.where(last_object != -1, object_centers[last_object], scene.transmitters.reshape(3))
+        # TODO: implement this
 
-
-class Z(eqx.Module):
-    """Estimate the number of valid paths in a scene using a Deep Sets architecture."""
-    scene_encoder: SceneEncoder
-    """Transform-invariant encoder for scene objects."""
-    phi: eqx.nn.MLP
-    """Layer to transform object embeddings."""
-    alpha: eqx.nn.MLP
-    """Layer to compute attention weights over objects."""
-    rho: eqx.nn.MLP
-    """Layer to compute final output."""
-
-    def __init__(
-        self,
-        num_embeddings: int,
-        width_size: int,
-        depth: int,
-        *,
-        key: PRNGKeyArray,
-    ) -> None:
-        scene_enc_key, phi_key, alpha_key, rho_key = jr.split(key, 4)
-        self.scene_encoder = SceneEncoder(
-            num_embeddings=num_embeddings,
-            width_size=width_size,
-            depth=depth,
-            key=scene_enc_key,
-        )
-        self.phi = eqx.nn.MLP(
-            in_size=num_embeddings,
-            out_size=num_embeddings,
-            width_size=width_size,
-            depth=depth,
-            key=phi_key,
-        )
-        self.alpha = eqx.nn.MLP(
-            in_size=num_embeddings,
-            out_size="scalar",
-            width_size=width_size,
-            depth=depth,
-            key=alpha_key,
-        )
-        self.rho = eqx.nn.MLP(
-            in_size=num_embeddings,
-            out_size="scalar",
-            width_size=width_size,
-            depth=depth,
-            key=rho_key,
-        )
-
-    @jaxtyped(typechecker=typechecker)
-    def __call__(self, scene: TriangleScene) -> Float[Array, " "]:
-        x = self.scene_encoder(scene)
-        x_phi = jax.vmap(self.phi)(x)
-        # Compute attention weights over objects, while ignoring masked objects
-        x_alpha = jax.nn.softmax(jax.vmap(self.alpha)(x), where=scene.mesh.mask)
-        out = self.rho(jnp.dot(x_alpha, x_phi))
-        # Clip output to positive values only
-        # because it makes no sense to predict a negative
-        # number of valid paths
-        return jnp.exp(out)
+        return self.dropout(flows, key=key, inference=inference)

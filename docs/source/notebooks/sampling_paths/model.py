@@ -19,13 +19,13 @@ from differt.scene import (
 
 from .generators import random_scene
 from .metrics import accuracy, hit_rate
-from .submodels import Flow, Z
+from .submodels import Flow
 
 
 class Model(eqx.Module):
     order: int = eqx.field(static=True)
 
-    shared: eqx.nn.Shared
+    flow: Flow
 
     def __init__(
         self,
@@ -34,39 +34,19 @@ class Model(eqx.Module):
         num_embeddings: int,
         width_size: int,
         depth: int,
+        dropout_rate: float,
         key: PRNGKeyArray,
     ) -> None:
         self.order = order
 
-        flow_key, z_key = jr.split(key)
-        flow = Flow(
+        self.flow = Flow(
             order=order,
             num_embeddings=num_embeddings,
             width_size=width_size,
             depth=depth,
-            key=flow_key,
+            dropout_rate=dropout_rate,
+            key=key,
         )
-        z = Z(
-            num_embeddings=num_embeddings,
-            width_size=width_size,
-            depth=depth,
-            key=z_key,
-        )
-
-        # Explicitly share the scene encoder
-        where = lambda flow_and_z: flow_and_z[1].scene_encoder
-        get = lambda flow_and_z: flow_and_z[0].scene_encoder
-        self.shared = eqx.nn.Shared((flow, z), where, get)
-
-    @property
-    @jaxtyped(typechecker=typechecker)
-    def flow(self) -> Flow:
-        return self.shared()[0]
-
-    @property
-    @jaxtyped(typechecker=typechecker)
-    def Z(self) -> Z:
-        return self.shared()[1]
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
@@ -88,11 +68,7 @@ class Model(eqx.Module):
         for i, key in enumerate(jr.split(key, self.order)):
             edge_flow_key, action_key = jr.split(key)
 
-            if self.flow.log_probabilities:
-                logits = parent_flows
-            else:
-                logits = jnp.log(parent_flows)
-            action = jr.categorical(action_key, logits=logits)
+            action = jr.categorical(action_key, logits=jnp.log(parent_flows))
             partial_path_candidate = partial_path_candidate.at[i].set(action)
 
             edge_flows = self.flow(
@@ -119,7 +95,6 @@ class Model(eqx.Module):
         Evaluate the model accuracy and hit rate on a sequence of scenes.
 
         Args:
-            model: The model to evaluate.
             scene_keys: The scene keys to generate scenes on which to evaluate the model.
             num_path_candidates: The number of path candidates that will be
                 generated to compute the accuracy.
