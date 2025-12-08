@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v7
@@ -85,7 +85,7 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v7
@@ -135,7 +135,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -155,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -188,7 +188,7 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download scenes
       uses: actions/download-artifact@v6
@@ -243,7 +243,7 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -265,7 +265,7 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Download scenes
       uses: actions/download-artifact@v6
