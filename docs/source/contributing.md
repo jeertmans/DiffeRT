@@ -25,7 +25,7 @@ Depending on what you aim to do, the following sections may help you.
 
 :::{attention}
 If you don't plan on changing the Rust code ({mod}`differt_core` package),
-we recommend you to check out the [building without Rust](./installation.md#building-without-rust) section.
+we recommend that you check out the [building without Rust](./installation.md#building-without-rust) section.
 :::
 
 ### Updating the `differt-core` package

@@ -1,9 +1,9 @@
 # The `*batch` axes
 
-As you will probably notice, many functions we provided accept
+As you will probably notice, many functions we provide accept
 arrays with a set of leading axes, referred to as `*batch`.
 
-This notation indicates that you may provide arbitrary many dimensions
+This notation indicates that you may provide arbitrarily many dimensions
 for the batch axes, and the output will preserve those batch dimensions
 in the output.
 
@@ -68,7 +68,7 @@ from the corresponding entries in `x` and `y` input arguments.
 
 Very frequently, input arguments will actually be annotated with `*#batch`
 instead of `*batch`. The important difference is that the former allows
-any input shapes, as long as they can be broadcasted together, i.e.,
+any input shapes, as long as they can be broadcast together, i.e.,
 with {func}`jax.numpy.broadcast_arrays` or similar.
 
 This serves two principal objectives:
@@ -92,15 +92,15 @@ If a function does not offer batch axes, there are two possibilities:
 For the latter, you can also directly suggest a patch if you know how to
 implement the batch axes.
 
-## When too large batches cause out-of-memory errors
+## When batches are too large (out-of-memory errors)
 
-The biggest cost of using many batch dimensions is mainly in
-the memory footprint.
+The biggest cost of using many batch dimensions is the additional
+memory footprint.
 
 E.g., in Ray Tracing applications, when dealing with large scenes
 (i.e., a large number of objects) or high-order paths,
-the size of some dimensions can rapidly become so large than they
-cannot fit inside your memory.
+the size of some dimensions can rapidly become so large that they
+cannot fit in memory.
 This is also why we propose chunked iterators
 (e.g.,
 {class}`AllPathsFromCompleteGraphChunksIter<differt_core.rt.AllPathsFromCompleteGraphChunksIter>`)
@@ -110,7 +110,7 @@ Likewise, when a dimension is getting too big,
 it is recommended to just iterate over batches,
 rather than computing *everything all at once*.
 
-However, iterations are slow and this can become also a
+However, iterations are slow and can also become a
 bottleneck in your pipeline. In some cases,
 if you are only interested in a *reduced* result,
 JAX may be able to optimize the computation such that some batch

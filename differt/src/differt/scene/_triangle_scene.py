@@ -737,7 +737,7 @@ class TriangleScene(eqx.Module):
             mi_scene (mitsuba.Scene): The Mitsuba scene object.
 
                 You can obtain the Mitsuba scene object from a Sionna scene
-                its ``.mi_scene`` attribute.
+                via its ``.mi_scene`` attribute.
 
         Returns:
             The corresponding scene containing only triangle meshes.
@@ -1120,9 +1120,9 @@ class TriangleScene(eqx.Module):
 
                 For more details, refer to :ref:`smoothing`.
 
-                  .. warning::
+                .. warning::
 
-                    Currently, only the ``'exhaustive'`` method is supported.
+                  Currently, only the ``'exhaustive'`` method is supported.
             confidence_threshold: A threshold value for deciding which paths are valid.
             batch_size: If specified, the number of triangles or rays to process in one batch
                 when checking for intersections.
