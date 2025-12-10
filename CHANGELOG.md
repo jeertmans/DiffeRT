@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
 
+### Added
+
+- Added generic type variables to define the type {class}`Paths<differt.geometry.Paths>`'s {attr}`mask<differt.geometry.Paths.mask>` and {attr}`interaction_types<differt.geometry.Paths.interaction_types>` attributes (by <gh-user:jeertmans>, in <gh-pr:349>).
+
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
@@ -29,6 +33,10 @@ with one *slight* but **important** difference:
 
 - Restricted `ipykernel` version to `<7` to avoid compatibility issues with `jupyter_rfb`, see <ext-gh-issue:vispy/jupyter_rfb#121> (by <gh-user:jeertmans>, in <gh-pr:347>).
 - Pinned `sphinx` to `<9` to avoid breakage with `sphinx-autodoc-typehints` and the Sphinx v9 release (by <gh-user:jeertmans>, in <gh-pr:352>).
+
+### Removed
+
+- Removed `differt.geometry.Paths.confidence` attribute from {class}`Paths<differt.geometry.Paths>` to reduce API complexity, by integrating it inside the {attr}`Paths.mask<differt.geometry.Paths.mask>` attribute (by <gh-user:jeertmans>, in <gh-pr:349>).
 
 <!-- start changelog -->
 
@@ -199,7 +207,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added support for {attr}`confidence<differt.geometry.Paths.confidence>` attribute in {attr}`Paths.mask_duplicate_objects<differt.geometry.Paths.mask_duplicate_objects>` (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Added support for `differt.geometry.Paths.confidence` attribute in {attr}`Paths.mask_duplicate_objects<differt.geometry.Paths.mask_duplicate_objects>` (by <gh-user:jeertmans>, in <gh-pr:272>).
 - Added the {attr}`Paths.shape<differt.geometry.Paths.shape>` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
   The following equality should always hold: `paths.reshape(*batch).shape = batch`.
 - Added the {mod}`differt.plugins` package and {mod}`differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).

@@ -25,6 +25,7 @@ dependencies = [
   "numpy>=1.26.1",
   "requests>=2.32.0",
   "tqdm>=4.66.2",
+  "typing-extensions>=4.15.0",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["readme", "version"]

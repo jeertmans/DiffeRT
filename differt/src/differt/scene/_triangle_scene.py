@@ -44,6 +44,43 @@ else:
     SionnaScene = Any
 
 
+B = Bool[Array, " *batch"]
+F = Float[Array, " *batch"]
+M = B | F
+
+
+@overload
+def _compute_paths(
+    mesh: TriangleMesh,
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    rx_vertices: Float[Array, "num_rx_vertices 3"],
+    path_candidates: Int[Array, "num_path_candidates order"],
+    *,
+    epsilon: Float[ArrayLike, " "] | None,
+    hit_tol: Float[ArrayLike, " "] | None,
+    min_len: Float[ArrayLike, " "] | None,
+    smoothing_factor: Float[ArrayLike, " "],
+    confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    batch_size: int | None,
+) -> Paths[F]: ...
+
+
+@overload
+def _compute_paths(
+    mesh: TriangleMesh,
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    rx_vertices: Float[Array, "num_rx_vertices 3"],
+    path_candidates: Int[Array, "num_path_candidates order"],
+    *,
+    epsilon: Float[ArrayLike, " "] | None,
+    hit_tol: Float[ArrayLike, " "] | None,
+    min_len: Float[ArrayLike, " "] | None,
+    smoothing_factor: None,
+    confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    batch_size: int | None,
+) -> Paths[B]: ...
+
+
 @eqx.filter_jit
 def _compute_paths(
     mesh: TriangleMesh,
@@ -57,7 +94,7 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, " "] | None,
     confidence_threshold: Float[ArrayLike, " "] = 0.5,
     batch_size: int | None,
-) -> Paths:
+) -> Paths[M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, tx_vertices)
         min_len = 10 * jnp.finfo(dtype).eps
@@ -250,8 +287,7 @@ def _compute_paths(
     )
 
     if smoothing_factor is not None:
-        mask = None
-        confidence = jnp.stack(
+        mask = jnp.stack(
             (
                 inside_triangles,
                 valid_reflections,
@@ -262,9 +298,8 @@ def _compute_paths(
             axis=-1,
         ).min(axis=-1, initial=1.0)
         if active_rays is not None:
-            confidence *= active_rays
+            mask *= active_rays
     else:
-        confidence = None
         mask = inside_triangles & valid_reflections & ~blocked & ~too_small & is_finite
         if active_rays is not None:
             mask &= active_rays
@@ -302,7 +337,6 @@ def _compute_paths(
         vertices,
         objects,
         mask=mask,
-        confidence=confidence,
         confidence_threshold=confidence_threshold,
     )
 
@@ -319,6 +353,7 @@ def _compute_paths_sbr(
     max_dist: Float[ArrayLike, " "],
     batch_size: int | None,
 ) -> SBRPaths:
+    # TODO: type annotations for SBRPaths with mask dtype
     # 1 - Prepare arrays
 
     # [num_triangles 3 3]
@@ -784,11 +819,30 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        smoothing_factor: Float[ArrayLike, " "],
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Paths: ...
+    ) -> Paths[F]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        method: Literal["exhaustive"] = "exhaustive",
+        chunk_size: None = None,
+        num_rays: int = int(1e6),
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
+    ) -> Paths[B]: ...
 
     @overload
     def compute_paths(
@@ -803,11 +857,30 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        smoothing_factor: Float[ArrayLike, " "],
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Paths: ...
+    ) -> Paths[F]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int,
+        *,
+        method: Literal["hybrid"],
+        chunk_size: None = None,
+        num_rays: int = int(1e6),
+        path_candidates: None = None,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
+    ) -> Paths[B]: ...
 
     @overload
     def compute_paths(
@@ -822,11 +895,30 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        smoothing_factor: Float[ArrayLike, " "],
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> SizedIterator[Paths]: ...
+    ) -> SizedIterator[Paths[F]]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        method: Literal["exhaustive"] = "exhaustive",
+        chunk_size: int,
+        num_rays: int = int(1e6),
+        path_candidates: None = None,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
+    ) -> SizedIterator[Paths[B]]: ...
 
     @overload
     def compute_paths(
@@ -841,11 +933,30 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        smoothing_factor: Float[ArrayLike, " "],
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Iterator[Paths]: ...
+    ) -> Iterator[Paths[F]]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int,
+        *,
+        method: Literal["hybrid"],
+        chunk_size: int,
+        num_rays: int = int(1e6),
+        path_candidates: None = None,
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
+    ) -> Iterator[Paths[B]]: ...
 
     @overload
     def compute_paths(
@@ -860,11 +971,30 @@ class TriangleScene(eqx.Module):
         hit_tol: Float[ArrayLike, " "] | None = None,
         min_len: Float[ArrayLike, " "] | None = None,
         max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
+        smoothing_factor: Float[ArrayLike, " "],
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Paths: ...
+    ) -> Paths[F]: ...
+
+    @overload
+    def compute_paths(
+        self,
+        order: int | None = None,
+        *,
+        method: Literal["exhaustive"] = "exhaustive",
+        chunk_size: int,
+        num_rays: int = int(1e6),
+        path_candidates: Int[ArrayLike, "num_path_candidates order"],
+        epsilon: Float[ArrayLike, " "] | None = None,
+        hit_tol: Float[ArrayLike, " "] | None = None,
+        min_len: Float[ArrayLike, " "] | None = None,
+        max_dist: Float[ArrayLike, " "] = 1e-3,
+        smoothing_factor: None = None,
+        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        batch_size: int | None = 512,
+        disconnect_inactive_triangles: bool = False,
+    ) -> Paths[B]: ...
 
     @overload
     def compute_paths(
@@ -901,7 +1031,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Paths | SizedIterator[Paths] | Iterator[Paths] | SBRPaths:
+    ) -> Paths[M] | SizedIterator[Paths[M]] | Iterator[Paths[M]] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
 
