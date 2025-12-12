@@ -16,6 +16,8 @@ from differt.scene import (
     TriangleScene,
 )
 
+from differt.rt import triangles_visible_from_vertices
+
 
 class SceneEncoder(eqx.Module):
     """Generate embeddings from triangle vertices."""
@@ -56,7 +58,7 @@ class SceneEncoder(eqx.Module):
             .rotate(basis)
             .triangle_vertices
         )
-        xyz = triangle_vertices.reshape(-1, 9)
+        xyz = triangle_vertices.reshape(-1, 3 * 3)
         return jax.vmap(self.mlp)(xyz)
 
         rpa = cartesian_to_spherical(xyz)
@@ -100,7 +102,9 @@ class StateEncoder(eqx.Module):
         # 1 - to ignore invalid objects
         # 2 - to ignore path candidate entries that are not yet filled
         # TODO: return embeddings from last candidate?
-        return self.attention(query, query, query)
+        mask = jnp.tile(partial_path_candidate[: None] != -1, (1, query.shape[1]))
+        mask = None  # DOESNT not work as intended yet
+        return self.attention(query, query, query, mask = mask)
 
 
 class Flow(eqx.Module):
@@ -183,19 +187,22 @@ class Flow(eqx.Module):
         flows = jnp.exp(flows)
 
         # Stop flow from flowing to masked objects
-        if scene.mesh.mask is not None:
-            flows = jnp.where(scene.mesh.mask, flows, 0.0)
+        mask = (jnp.ones_like(flows).astype(bool) if scene.mesh.mask is None
+                else scene.mesh.mask)
 
-        # Stop flow from flowing to the same object twice in a row
-        flows = flows.at[last_object].set(
-            0.0, wrap_negative_indices=False
+        mask = mask.at[last_object].set(
+            False, wrap_negative_indices=False
         )
 
         # Stop flow from flowing to unreachable objects
         object_centers = scene.mesh.triangle_vertices.mean(axis=-2)
         object_normals = scene.mesh.normals
+
+        mask &= jnp.where(last_object  == -1, triangles_visible_from_vertices(scene.transmitters, scene.mesh.triangle_vertices), True)
+
+        flows = jnp.where(mask, flows, 0.0)
         
-        if self.order == 1:
+        if self.order == 1 and False:
             tx_to_object = object_centers - scene.transmitters.reshape(3)
             rx_to_object = object_centers - scene.receivers.reshape(3)
 

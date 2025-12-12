@@ -88,7 +88,7 @@ class Model(eqx.Module):
         self,
         scene_keys: Key[Array, " num_scenes"],
         *,
-        num_path_candidates: int = 1,
+        num_path_candidates: int = 10,
         key: PRNGKeyArray,
     ) -> tuple[Float[Array, " "], Float[Array, " "]]:
         """
@@ -97,7 +97,7 @@ class Model(eqx.Module):
         Args:
             scene_keys: The scene keys to generate scenes on which to evaluate the model.
             num_path_candidates: The number of path candidates that will be
-                generated to compute the accuracy.
+                generated to compute the accuracy and hit rate.
             key: The random key to be used.
 
         Returns:
