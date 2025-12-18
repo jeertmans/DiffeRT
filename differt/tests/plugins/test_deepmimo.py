@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001
 from dataclasses import asdict
 from itertools import chain
 
@@ -228,7 +227,7 @@ def test_match_sionna_on_simple_street_canyon() -> None:
 
     chex.assert_trees_all_close(
         dm.power,
-        10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
+        10.0 * jnp.log10(jnp.abs(a) ** 2 / z_0),
         atol=0.1,  # 0.1 dB absolute tolerance
         rtol=0.04,  # 4% relative tolerance
     )

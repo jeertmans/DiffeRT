@@ -516,7 +516,9 @@ def export(
                         e_i_p[..., i + 1, :],
                     )
                     # Stack fields into a 2D vector for rotation
-                    fields_vec = jnp.stack([fields_s[..., 0], fields_p[..., 0]], axis=-1)
+                    fields_vec = jnp.stack(
+                        [fields_s[..., 0], fields_p[..., 0]], axis=-1
+                    )
                     # Apply rotation
                     fields_vec = jnp.einsum("...ij,...j->...i", R, fields_vec)
                     # Unstack back
