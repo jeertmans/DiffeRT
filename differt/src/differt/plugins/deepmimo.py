@@ -19,7 +19,6 @@ from differt.em import (
     materials,
     reflection_coefficients,
     sp_directions,
-    sp_rotation_matrix,
     z_0,
 )
 from differt.geometry import (
