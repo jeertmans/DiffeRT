@@ -9,15 +9,17 @@ from threading import RLock
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
+    LiteralString,
     ParamSpec,
     Protocol,
     TypeVar,
+    get_args,
     no_type_check,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
-    from typing import Literal
 
     from matplotlib.figure import Figure as MplFigure
     from mpl_toolkits.mplot3d import Axes3D
@@ -25,13 +27,13 @@ if TYPE_CHECKING:
     from vispy.scene.canvas import SceneCanvas as Canvas
     from vispy.scene.widgets.viewbox import ViewBox
 
-    BackendName = Literal["vispy", "matplotlib", "plotly"]
     T = TypeVar("T", Canvas, MplFigure, Figure)
     PlotOutput = Canvas | MplFigure | Figure
 else:
     T = TypeVar("T")
     PlotOutput = Any
 
+BackendName = Literal["vispy", "matplotlib", "plotly"]
 P = ParamSpec("P")
 
 
@@ -64,7 +66,7 @@ class _Config:
 
 # Immutables
 
-SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+SUPPORTED_BACKENDS: tuple[BackendName, ...] = get_args(BackendName)
 """The list of supported backends."""
 
 # Mutables
@@ -73,7 +75,7 @@ config = _Config()
 """Mutable config object with mutability of default values guarded by a lock."""
 
 
-def get_backend(backend: str | None = None) -> BackendName:
+def get_backend(backend: LiteralString | None = None) -> BackendName:
     """
     Return the name of the backend to use.
 
@@ -113,7 +115,7 @@ def get_backend(backend: str | None = None) -> BackendName:
     return backend
 
 
-def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
+def set_defaults(backend: LiteralString | None = None, **kwargs: Any) -> BackendName:
     """
     Set default backend and keyword arguments for future plotting utilities.
 
@@ -181,7 +183,7 @@ def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     return backend
 
 
-def update_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
+def update_defaults(backend: LiteralString | None = None, **kwargs: Any) -> BackendName:
     """
     Update default backend and keyword arguments for future plotting utilities.
 
@@ -206,7 +208,7 @@ def update_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
 
 
 @contextmanager
-def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
+def use(backend: LiteralString | None = None, **kwargs: Any) -> Iterator[BackendName]:
     """
     Create a context manager that updates plotting defaults and returns the current default backend.
 
@@ -278,7 +280,7 @@ class _Dispatcher(Protocol[P, T]):
     ) -> T: ...
     def register(
         self,
-        backend: str,
+        backend: LiteralString,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
@@ -352,7 +354,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
     registry: dict[str, Callable[P, PlotOutput]] = {}
 
     def register(
-        backend: str,
+        backend: LiteralString,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Return a wrapper that will call the decorated function for the specified backend.
@@ -421,7 +423,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
         #
         # The motivation is detailed in P612:
         # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend_opt: str | None = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
+        backend_opt: LiteralString | None = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
         backend = get_backend(backend_opt)
 
         try:
@@ -611,7 +613,7 @@ def process_plotly_kwargs(
 
 def process_kwargs(
     kwargs: MutableMapping[str, Any],
-    backend: str | None = None,
+    backend: LiteralString | None = None,
 ) -> tuple[BackendName, Canvas | MplFigure | Figure, dict[str, Any]]:
     """
     Process keyword arguments passed to some plotting utility.
@@ -657,7 +659,7 @@ def process_kwargs(
 
 @contextmanager
 def reuse(
-    backend: str | None = None, pass_all_kwargs: bool = False, **kwargs: Any
+    backend: LiteralString | None = None, pass_all_kwargs: bool = False, **kwargs: Any
 ) -> Iterator[Canvas | MplFigure | Figure]:
     """Create a context manager that will automatically reuse the current canvas / figure.
 

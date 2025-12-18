@@ -1,7 +1,6 @@
 # ruff: noqa: ERA001
 from dataclasses import asdict
 from itertools import chain
-from typing import TYPE_CHECKING
 
 import chex
 import equinox as eqx
@@ -16,9 +15,6 @@ from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
 from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
-
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
 
 
 def test_export(key: PRNGKeyArray) -> None:

@@ -1223,9 +1223,9 @@ class TriangleScene(eqx.Module):
         Returns:
             The resulting plot output.
         """
-        tx_kwargs = {"labels": "tx", **(tx_kwargs or {})}
-        rx_kwargs = {"labels": "rx", **(rx_kwargs or {})}
-        mesh_kwargs = {} if mesh_kwargs is None else mesh_kwargs
+        tx_kwargs: dict[str, Any] = {"labels": "tx", **(tx_kwargs or {})}
+        rx_kwargs: dict[str, Any] = {"labels": "rx", **(rx_kwargs or {})}
+        mesh_kwargs: Mapping[str, Any] = {} if mesh_kwargs is None else mesh_kwargs
 
         with reuse(pass_all_kwargs=True, **kwargs) as result:
             if self.transmitters.size > 0:
