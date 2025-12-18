@@ -459,48 +459,107 @@ def export(
             # [num_tx num_rx num_path_candidates order 1]
             r_s, r_p = reflection_coefficients(obj_n_r[..., None], cos_theta)
 
-            # Project initial field onto first interaction's incident basis
-            # [num_tx num_rx num_path_candidates 1]
-            fields_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
-            fields_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
-
-            # Keep track of the last reflected basis for the next transformation
-            last_e_r_s = e_i_s[..., 0, :]  # Start with first incident basis (before any reflection)
-            last_e_r_p = e_i_p[..., 0, :]
-
-            # Apply reflections sequentially through each interaction
-            # TODO: write this without the for-loop
+            # Compute transmitter and receiver local s-p bases
+            # based on departure and arrival directions (matching Sionna's approach)
+            # For departure direction k_d = k[..., 0, :], compute local spherical basis
+            k_tx = k[..., 0, :]  # [num_tx num_rx num_path_candidates 3]
+            # For arrival direction k_rx = -k[..., -1, :], compute local spherical basis
+            k_rx = -k[..., -1, :]  # [num_tx num_rx num_path_candidates 3]
+            
+            # Convert to spherical coordinates to get theta and phi
+            # [num_tx num_rx num_path_candidates 3] -> (r, theta, phi)
+            _, theta_tx, phi_tx = jnp.split(cartesian_to_spherical(k_tx), 3, axis=-1)
+            _, theta_rx, phi_rx = jnp.split(cartesian_to_spherical(k_rx), 3, axis=-1)
+            
+            # Compute theta_hat and phi_hat for transmitter (s=theta_hat, p=phi_hat in Sionna)
+            # theta_hat = [cos(theta)*cos(phi), cos(theta)*sin(phi), -sin(theta)]
+            e_tx_s = jnp.concatenate([
+                jnp.cos(theta_tx) * jnp.cos(phi_tx),
+                jnp.cos(theta_tx) * jnp.sin(phi_tx),
+                -jnp.sin(theta_tx),
+            ], axis=-1)
+            # phi_hat = [-sin(phi), cos(phi), 0]
+            e_tx_p = jnp.concatenate([
+                -jnp.sin(phi_tx),
+                jnp.cos(phi_tx),
+                jnp.zeros_like(phi_tx),
+            ], axis=-1)
+            
+            # Compute theta_hat and phi_hat for receiver
+            e_rx_s = jnp.concatenate([
+                jnp.cos(theta_rx) * jnp.cos(phi_rx),
+                jnp.cos(theta_rx) * jnp.sin(phi_rx),
+                -jnp.sin(theta_rx),
+            ], axis=-1)
+            e_rx_p = jnp.concatenate([
+                -jnp.sin(phi_rx),
+                jnp.cos(phi_rx),
+                jnp.zeros_like(phi_rx),
+            ], axis=-1)
+            
+            # Initialize transfer matrix as identity [num_tx num_rx num_path_candidates 2 2]
+            num_tx = paths.vertices.shape[0]
+            num_rx = paths.vertices.shape[1]
+            num_candidates = paths.vertices.shape[2]
+            mat_t = jnp.eye(2, dtype=fields.dtype)
+            mat_t = jnp.broadcast_to(
+                mat_t, (num_tx, num_rx, num_candidates, 2, 2)
+            )
+            
+            # Initialize last basis with transmitter basis
+            last_e_s = e_tx_s
+            last_e_p = e_tx_p
+            
+            # Apply reflections sequentially through each interaction (matrix-based approach)
             for i in range(paths.order):
-                # If not the first interaction, rotate from previous reflected basis to current incident basis
-                if i > 0:
-                    # Compute rotation matrix from previous reflected basis to current incident basis
-                    R = sp_rotation_matrix(
-                        last_e_r_s,
-                        last_e_r_p,
-                        e_i_s[..., i, :],
-                        e_i_p[..., i, :],
-                    )
-                    # Stack fields into a 2D vector for rotation
-                    fields_vec = jnp.stack(
-                        [fields_s[..., 0], fields_p[..., 0]], axis=-1
-                    )
-                    # Apply rotation
-                    fields_vec = jnp.einsum("...ij,...j->...i", R, fields_vec)
-                    # Unstack back
-                    fields_s = fields_vec[..., 0:1]
-                    fields_p = fields_vec[..., 1:2]
-
-                # Apply reflection coefficients at interaction i
-                fields_s = fields_s * r_s[..., i, :]
-                fields_p = fields_p * r_p[..., i, :]
-
-                # Update last reflected basis for next iteration
-                last_e_r_s = e_r_s[..., i, :]
-                last_e_r_p = e_r_p[..., i, :]
-
-            # Project back to Cartesian coordinates using last interaction's reflected basis
+                # Change of basis: from last basis to current incident basis
+                # [num_tx num_rx num_path_candidates 2 2]
+                mat_cob = sp_rotation_matrix(
+                    last_e_s,
+                    last_e_p,
+                    e_i_s[..., i, :],
+                    e_i_p[..., i, :],
+                )
+                # Apply change of basis to transfer matrix
+                # [num_tx num_rx num_path_candidates 2 2]
+                mat_t = jnp.einsum("...ij,...jk->...ik", mat_cob, mat_t)
+                
+                # Apply reflection coefficients as diagonal matrix
+                # [num_tx num_rx num_path_candidates 2]
+                r_diag = jnp.stack([r_s[..., i, 0], r_p[..., i, 0]], axis=-1)
+                # Broadcast to [num_tx num_rx num_path_candidates 2 2] diagonal
+                # [num_tx num_rx num_path_candidates 2 2]
+                mat_t = mat_t * r_diag[..., :, None]
+                
+                # Update last basis to current reflected basis
+                last_e_s = e_r_s[..., i, :]
+                last_e_p = e_r_p[..., i, :]
+            
+            # Final transformation to receiver basis
+            # [num_tx num_rx num_path_candidates 2 2]
+            mat_cob_rx = sp_rotation_matrix(
+                last_e_s,
+                last_e_p,
+                e_rx_s,
+                e_rx_p,
+            )
+            mat_t = jnp.einsum("...ij,...jk->...ik", mat_cob_rx, mat_t)
+            
+            # Project transmitter field onto transmitter s-p basis
+            # [num_tx num_rx num_path_candidates 2]
+            field_tx_s = jnp.sum(fields_i * e_tx_s, axis=-1, keepdims=False)
+            field_tx_p = jnp.sum(fields_i * e_tx_p, axis=-1, keepdims=False)
+            field_tx_sp = jnp.stack([field_tx_s, field_tx_p], axis=-1)
+            
+            # Apply transfer matrix to get field at receiver in receiver s-p basis
+            # [num_tx num_rx num_path_candidates 2]
+            field_rx_sp = jnp.einsum("...ij,...j->...i", mat_t, field_tx_sp)
+            
+            # Project back to Cartesian coordinates using receiver basis
             # [num_tx num_rx num_path_candidates 3]
-            fields_r = fields_s * last_e_r_s + fields_p * last_e_r_p
+            fields_r = (
+                field_rx_sp[..., 0:1] * e_rx_s + field_rx_sp[..., 1:2] * e_rx_p
+            )
         else:
             # [num_tx num_rx num_path_candidates 3]
             fields_r = fields_i
