@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em import materials
+from differt.em import materials, z_0
 from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
 from differt.scene import TriangleScene
@@ -219,16 +219,16 @@ def test_match_sionna_on_simple_street_canyon() -> None:
     a = a[:, 0, :, 0, :, :]  # Take only the first TX and RX polarization
     a = a[..., 0]  # Take only the first time instant
 
-    # TODO: Understand why phase and power are not matching
-
-    del a
-
-    # chex.assert_trees_all_equal(
+    # Test power first
+    chex.assert_trees_all_close(
+        dm.power,
+        10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
+        atol=1e-3,
+    )
+    
+    # Then test phase
+    # chex.assert_trees_all_close(
     #     dm.phase,
-    #     jnp.angle(a, deg=True)
-    # )
-
-    # chex.assert_trees_all_equal(
-    #     dm.power,
-    #     10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
+    #     jnp.angle(a, deg=True),
+    #     atol=1e-3,
     # )

@@ -19,6 +19,7 @@ from differt.em import (
     materials,
     reflection_coefficients,
     sp_directions,
+    sp_rotation_matrix,
     z_0,
 )
 from differt.geometry import (
@@ -496,8 +497,6 @@ def export(
             # [num_tx num_rx num_path_candidates 1]
             r_s = jnp.prod(r_s, axis=-2)
             r_p = jnp.prod(r_p, axis=-2)
-            # [num_tx num_rx num_path_candidates order 3]
-            (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
             # [num_tx num_rx num_path_candidates 1]
             fields_i_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
             fields_i_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
