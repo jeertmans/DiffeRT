@@ -409,7 +409,7 @@ def export(
             primitives = _pad_and_concat(
                 primitives,
                 paths.objects[..., 1:-1],
-                fill_value=no_interaction,
+                fill_value=float(no_interaction),
             )
         # [num_tx num_rx num_paths max_num_interactions]
         inter = _pad_and_concat(
@@ -421,7 +421,7 @@ def export(
                 InteractionType.REFLECTION,
                 dtype=inter.dtype,
             ),
-            fill_value=no_interaction,
+            fill_value=float(no_interaction),
         )
         # [num_tx num_rx num_paths max_num_interactions 3]
         inter_pos = _pad_and_concat(
@@ -464,21 +464,21 @@ def export(
             fields_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
             fields_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
 
+            # Keep track of the last reflected basis for the next transformation
+            last_e_r_s = e_i_s[..., 0, :]  # Start with first incident basis (before any reflection)
+            last_e_r_p = e_i_p[..., 0, :]
+
             # Apply reflections sequentially through each interaction
             # TODO: write this without the for-loop
             for i in range(paths.order):
-                # Apply reflection coefficients at interaction i
-                fields_s = fields_s * r_s[..., i, :]
-                fields_p = fields_p * r_p[..., i, :]
-
-                # If not the last interaction, rotate to next interaction's incident basis
-                if i < paths.order - 1:
-                    # Compute rotation matrix from current reflected basis to next incident basis
+                # If not the first interaction, rotate from previous reflected basis to current incident basis
+                if i > 0:
+                    # Compute rotation matrix from previous reflected basis to current incident basis
                     R = sp_rotation_matrix(
-                        e_r_s[..., i, :],
-                        e_r_p[..., i, :],
-                        e_i_s[..., i + 1, :],
-                        e_i_p[..., i + 1, :],
+                        last_e_r_s,
+                        last_e_r_p,
+                        e_i_s[..., i, :],
+                        e_i_p[..., i, :],
                     )
                     # Stack fields into a 2D vector for rotation
                     fields_vec = jnp.stack(
@@ -490,9 +490,17 @@ def export(
                     fields_s = fields_vec[..., 0:1]
                     fields_p = fields_vec[..., 1:2]
 
+                # Apply reflection coefficients at interaction i
+                fields_s = fields_s * r_s[..., i, :]
+                fields_p = fields_p * r_p[..., i, :]
+
+                # Update last reflected basis for next iteration
+                last_e_r_s = e_r_s[..., i, :]
+                last_e_r_p = e_r_p[..., i, :]
+
             # Project back to Cartesian coordinates using last interaction's reflected basis
             # [num_tx num_rx num_path_candidates 3]
-            fields_r = fields_s * e_r_s[..., -1, :] + fields_p * e_r_p[..., -1, :]
+            fields_r = fields_s * last_e_r_s + fields_p * last_e_r_p
         else:
             # [num_tx num_rx num_path_candidates 3]
             fields_r = fields_i
