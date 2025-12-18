@@ -9,15 +9,16 @@ from threading import RLock
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
     ParamSpec,
     Protocol,
     TypeVar,
+    get_args,
     no_type_check,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
-    from typing import Literal
 
     from matplotlib.figure import Figure as MplFigure
     from mpl_toolkits.mplot3d import Axes3D
@@ -25,13 +26,13 @@ if TYPE_CHECKING:
     from vispy.scene.canvas import SceneCanvas as Canvas
     from vispy.scene.widgets.viewbox import ViewBox
 
-    BackendName = Literal["vispy", "matplotlib", "plotly"]
     T = TypeVar("T", Canvas, MplFigure, Figure)
     PlotOutput = Canvas | MplFigure | Figure
 else:
     T = TypeVar("T")
     PlotOutput = Any
 
+BackendName = Literal["vispy", "matplotlib", "plotly"]
 P = ParamSpec("P")
 
 
@@ -64,8 +65,9 @@ class _Config:
 
 # Immutables
 
-SUPPORTED_BACKENDS = ("vispy", "matplotlib", "plotly")
+SUPPORTED_BACKENDS: tuple[BackendName, ...] = get_args(BackendName)
 """The list of supported backends."""
+reveal_type(SUPPORTED_BACKENDS)
 
 # Mutables
 
