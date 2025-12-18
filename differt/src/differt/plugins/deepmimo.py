@@ -494,18 +494,18 @@ def export(
             cos_theta = jnp.sum(obj_normals * -k_i, axis=-1, keepdims=True)
             # [num_tx num_rx num_path_candidates order 1]
             r_s, r_p = reflection_coefficients(obj_n_r[..., None], cos_theta)
-            
+
             # Project initial field onto first interaction's incident basis
             # [num_tx num_rx num_path_candidates 1]
             fields_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
             fields_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
-            
+
             # Apply reflections sequentially through each interaction
             for i in range(paths.order):
                 # Apply reflection coefficients at interaction i
                 fields_s = fields_s * r_s[..., i, :]
                 fields_p = fields_p * r_p[..., i, :]
-                
+
                 # If not the last interaction, rotate to next interaction's incident basis
                 if i < paths.order - 1:
                     # Compute rotation matrix from current reflected basis to next incident basis
@@ -522,7 +522,7 @@ def export(
                     # Unstack back
                     fields_s = fields_vec[..., 0:1]
                     fields_p = fields_vec[..., 1:2]
-            
+
             # Project back to Cartesian coordinates using last interaction's reflected basis
             # [num_tx num_rx num_path_candidates 3]
             fields_r = fields_s * e_r_s[..., -1, :] + fields_p * e_r_p[..., -1, :]
