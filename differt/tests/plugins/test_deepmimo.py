@@ -222,11 +222,13 @@ def test_match_sionna_on_simple_street_canyon() -> None:
     chex.assert_trees_all_close(
         dm.phase,
         jnp.angle(a, deg=True),
-        atol=30.0,  # Allow phase differences up to 30 degrees
+        atol=0.1,  # 0.1 degree absolute tolerance
+        rtol=0.5,  # 50% relative tolerance for small phase values
     )
 
     chex.assert_trees_all_close(
         dm.power,
         10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
-        atol=5.0,  # Allow power differences up to 5 dB
+        atol=0.1,  # 0.1 dB absolute tolerance
+        rtol=0.04,  # 4% relative tolerance
     )
