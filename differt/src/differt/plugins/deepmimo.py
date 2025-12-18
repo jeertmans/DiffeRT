@@ -4,13 +4,13 @@ __all__ = ("DeepMIMO", "export")
 
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
-from typing import Any, Generic
+from typing import Any, Generic, Literal
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, ArrayLike, Bool, Float, Int
+from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped
 
 from differt.em import (
     InteractionType,
@@ -33,6 +33,41 @@ from differt.scene import TriangleScene
 from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
+
+
+def _pad_and_concat(
+    left: Shaped[Array, "num_tx num_rx num_paths_left num_interactions_left ..."],
+    right: Shaped[Array, "num_tx num_rx num_paths_right num_interactions_right ..."],
+    fill_value: float,
+) -> Shaped[
+    Array,
+    "num_tx num_rx num_paths_left+num_paths_right max(num_interactions_left, num_interactions_right) ...",
+]:
+    max_num_interactions = max(left.shape[3], right.shape[3])
+    extra_dims_pad = [(0, 0)] * (left.ndim - 4)
+    left = jnp.pad(
+        left,
+        (
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, max_num_interactions - left.shape[3]),
+            *extra_dims_pad,
+        ),
+        constant_values=fill_value,
+    )
+    right = jnp.pad(
+        right,
+        (
+            (0, 0),
+            (0, 0),
+            (0, 0),
+            (0, max_num_interactions - right.shape[3]),
+            *extra_dims_pad,
+        ),
+        constant_values=fill_value,
+    )
+    return jnp.concatenate((left, right), axis=2)
 
 
 class DeepMIMO(eqx.Module, Generic[ArrayType]):
@@ -121,7 +156,10 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         )
 
         if vertices.shape != self.inter_pos.shape:  # pragma: no cover
-            msg = f"Cannot sort based on provided paths: shape mismatch, got {vertices.shape!r} but expected {self.inter_pos.shape!r}."
+            msg = (
+                "Cannot sort based on provided paths: shape mismatch, got "
+                f"{vertices.shape!r} but expected {self.inter_pos.shape!r}."
+            )
             raise ValueError(msg)
 
         max_num_interactions = self.inter.shape[-1]
@@ -279,6 +317,7 @@ def export(
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, " "],
     include_primitives: bool = False,
+    polarization: Literal["V", "H"] | Float[ArrayLike, "3"] = "V",
 ) -> DeepMIMO[Array]:
     """
     Export a Ray Tracing simulation to the DeepMIMO format.
@@ -302,6 +341,8 @@ def export(
             If not provided, :data:`materials<differt.em._material.materials>` will be used.
         frequency: The operating frequency (in Hz).
         include_primitives: If :data:`True`, include the primitive indices in the output.
+        polarization: The antenna polarization.
+            Can be either ``"V"`` (vertical), ``"H"`` (horizontal), or a 3D unit vector.
 
     Returns:
         The exported DeepMIMO data as JAX arrays.
@@ -333,7 +374,12 @@ def export(
 
     # Fields array
     fields = jnp.zeros((num_tx, num_rx, 0, 3), dtype=complex)
-    polarization = jnp.array([0.0, 0.0, 1.0], dtype=float)
+    if polarization == "V":
+        polarization = jnp.array([0.0, 0.0, 1.0], dtype=float)
+    elif polarization == "H":
+        polarization = jnp.array([1.0, 0.0, 0.0], dtype=float)
+    else:
+        polarization = jnp.asarray(polarization)
     # Direction of departure (DoD) and direction of arrival (DoA) segments
     k_d = jnp.zeros((num_tx, num_rx, 0, 3), dtype=float)
     k_a = jnp.zeros_like(k_d)
@@ -358,112 +404,30 @@ def export(
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
 
-        max_num_interactions = max(paths.order, inter.shape[-1])
         # [num_tx num_rx num_paths max_num_interactions]
         if primitives is not None:
-            primitives = jnp.concatenate(
-                (
-                    jnp.concatenate(
-                        (
-                            primitives,
-                            jnp.full(
-                                (
-                                    *primitives.shape[:-1],
-                                    max_num_interactions - primitives.shape[-1],
-                                ),
-                                no_interaction,
-                                dtype=primitives.dtype,
-                            ),
-                        ),
-                        axis=-1,
-                    ),
-                    jnp.concatenate(
-                        (
-                            paths.objects[..., 1:-1],
-                            jnp.full(
-                                (
-                                    *paths.objects.shape[:-1],
-                                    max_num_interactions - paths.order,
-                                ),
-                                no_interaction,
-                                dtype=primitives.dtype,
-                            ),
-                        ),
-                        axis=-1,
-                    ),
-                ),
-                axis=-2,
+            primitives = _pad_and_concat(
+                primitives,
+                paths.objects[..., 1:-1],
+                fill_value=no_interaction,
             )
         # [num_tx num_rx num_paths max_num_interactions]
-        inter = jnp.concatenate(
-            (
-                jnp.concatenate(
-                    (
-                        inter,
-                        jnp.full(
-                            (*inter.shape[:-1], max_num_interactions - inter.shape[-1]),
-                            no_interaction,
-                            dtype=inter.dtype,
-                        ),
-                    ),
-                    axis=-1,
-                ),
-                jnp.concatenate(
-                    (
-                        paths.interaction_types
-                        if paths.interaction_types is not None
-                        else jnp.full_like(
-                            paths.objects[..., 1:-1],
-                            InteractionType.REFLECTION,
-                            dtype=inter.dtype,
-                        ),
-                        jnp.full(
-                            (
-                                *paths.objects.shape[:-1],
-                                max_num_interactions - paths.order,
-                            ),
-                            no_interaction,
-                            dtype=inter.dtype,
-                        ),
-                    ),
-                    axis=-1,
-                ),
+        inter = _pad_and_concat(
+            inter,
+            paths.interaction_types
+            if paths.interaction_types is not None
+            else jnp.full_like(
+                paths.objects[..., 1:-1],
+                InteractionType.REFLECTION,
+                dtype=inter.dtype,
             ),
-            axis=-2,
+            fill_value=no_interaction,
         )
         # [num_tx num_rx num_paths max_num_interactions 3]
-        inter_pos = jnp.concatenate(
-            (
-                jnp.concatenate(
-                    (
-                        inter_pos,
-                        jnp.zeros(
-                            (
-                                *inter_pos.shape[:-2],
-                                max_num_interactions - inter_pos.shape[-2],
-                                3,
-                            ),
-                            dtype=inter_pos.dtype,
-                        ),
-                    ),
-                    axis=-2,
-                ),
-                jnp.concatenate(
-                    (
-                        paths.vertices[..., 1:-1, :],
-                        jnp.zeros(
-                            (
-                                *paths.vertices.shape[:-2],
-                                max_num_interactions - paths.order,
-                                3,
-                            ),
-                            dtype=inter_pos.dtype,
-                        ),
-                    ),
-                    axis=-2,
-                ),
-            ),
-            axis=-3,
+        inter_pos = _pad_and_concat(
+            inter_pos,
+            paths.vertices[..., 1:-1, :],
+            fill_value=0.0,
         )
         # [num_tx num_rx num_path_candidates order+1 3],
         # [num_tx num_rx num_path_candidates order+1 1]
@@ -501,6 +465,7 @@ def export(
             fields_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
 
             # Apply reflections sequentially through each interaction
+            # TODO: write this without the for-loop
             for i in range(paths.order):
                 # Apply reflection coefficients at interaction i
                 fields_s = fields_s * r_s[..., i, :]
