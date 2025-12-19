@@ -2,6 +2,7 @@
 
 __all__ = ("DeepMIMO", "export")
 
+import sys
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
 from typing import Any, Generic
@@ -32,6 +33,11 @@ from differt.scene import TriangleScene
 from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
+
+if sys.version_info >= (3, 13):  # Need TypeVar with default from Python 3.13
+    from typing import TypeVar
+else:
+    from typing_extensions import TypeVar
 
 
 class DeepMIMO(eqx.Module, Generic[ArrayType]):
@@ -271,9 +277,13 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         return output
 
 
+M = TypeVar("M", Bool[Array, "..."], Float[Array, "..."], None, default=None)
+I = TypeVar("I", Int[Array, "..."], None, default=None)  # noqa: E741
+
+
 def export(
     *,
-    paths: Paths | Iterable[Paths],
+    paths: Paths[M, I] | Iterable[Paths[M, I]],
     scene: TriangleScene,
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, " "],

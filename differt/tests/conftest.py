@@ -9,9 +9,11 @@ import numpy as np
 import pytest
 
 try:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot  # noqa: ICN001
 except ImportError:
     plt = None
+else:
+    plt = matplotlib.pyplot
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

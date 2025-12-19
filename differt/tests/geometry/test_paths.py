@@ -2,19 +2,23 @@ import math
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
+from typing import Literal, TypeVar, overload
 
 import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import PRNGKeyArray
+from jaxtyping import Array, Bool, PRNGKeyArray
 
 from differt.geometry import TriangleMesh, path_lengths
 from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
 from differt.scene import TriangleScene
 
 from ..plotting.params import matplotlib, plotly, vispy
+
+B = Bool[Array, "..."]
+M = TypeVar("M", B, None)
 
 
 def test_merge_cell_ids() -> None:
@@ -30,9 +34,29 @@ def test_merge_cell_ids() -> None:
     chex.assert_trees_all_equal(got, expected)
 
 
+@overload
+def random_paths(
+    path_length: int,
+    *batch: int,
+    num_objects: int,
+    with_mask: Literal[False],
+    key: PRNGKeyArray,
+) -> Paths[None]: ...
+
+
+@overload
+def random_paths(
+    path_length: int,
+    *batch: int,
+    num_objects: int,
+    with_mask: Literal[True],
+    key: PRNGKeyArray,
+) -> Paths[B]: ...
+
+
 def random_paths(
     path_length: int, *batch: int, num_objects: int, with_mask: bool, key: PRNGKeyArray
-) -> Paths:
+) -> Paths[None] | Paths[B]:
     if with_mask:
         key_vertices, key_objects, key_mask = jax.random.split(key, 3)
         mask = jax.random.uniform(key_mask, batch) > 0.5
