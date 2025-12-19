@@ -20,10 +20,15 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
 
+### Added
+
+- Added `polarization` parameter to {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:356>).
+
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
+- Simplified {func}`deepmimo.export<differt.plugins.deepmimo.export>` to reduce redundant code (by <gh-user:jeertmans>, in <gh-pr:356>).
 
 ### Fixed
 
