@@ -56,6 +56,12 @@ repos:
     language: python
     types: [jupyter]
     additional_dependencies: [nbformat]
+  - id: ty
+    name: typecheck
+    description: Typecheck Python files with ty
+    language: system
+    entry: uv run ty check  # TODO: find pre-commit hook for this
+    pass_filenames: false
 - repo: https://github.com/flying-sheep/bibfmt
   rev: v4.3.0
   hooks:
