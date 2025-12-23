@@ -75,36 +75,27 @@ class SceneEncoder(eqx.Module):
 class StateEncoder(eqx.Module):
     """Generate embeddings for a (partial) path candidate."""
 
-    attention: eqx.nn.MultiheadAttention
+    positional_encoding: Float[Array, "order"]
 
     def __init__(
         self,
         order: int,
-        num_embeddings: int,
         *,
         key: PRNGKeyArray,
     ) -> None:
-        self.attention = eqx.nn.MultiheadAttention(
-            num_heads=order,
-            query_size=num_embeddings,
-            key=key,
-        )
+        self.positional_encoding = jr.uniform(key, (order,))
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def __call__(
-        self, partial_path_candidate: Int[Array, " order"], object_embeds: Float[Array, "num_objects num_embeddings"]
-    ) -> Float[Array, "order num_embeddings"]:
+        self, partial_path_candidate: Int[Array, " order"], objects_embeds: Float[Array, "num_objects num_embeddings"]
+    ) -> Float[Array, "num_embeddings"]:
         # [order num_embeddings]
-        query = jax.nn.one_hot(partial_path_candidate, object_embeds.shape[0]) @ object_embeds
-        # Self attention
-        # TODO: should we use masking?
-        # 1 - to ignore invalid objects
-        # 2 - to ignore path candidate entries that are not yet filled
-        # TODO: return embeddings from last candidate?
-        mask = jnp.tile(partial_path_candidate[: None] != -1, (1, query.shape[1]))
-        mask = None  # DOESNT not work as intended yet
-        return self.attention(query, query, query, mask = mask)
+        query = jax.nn.one_hot(partial_path_candidate, objects_embeds.shape[0]) @ objects_embeds
+        # [order]
+        weights = self.positional_encoding * (partial_path_candidate != -1)
+        weights = jnp.broadcast_to(weights[:, None], query.shape)
+        return jnp.average(query, axis=0, weights=weights)
 
 
 class Flow(eqx.Module):
@@ -113,6 +104,7 @@ class Flow(eqx.Module):
     scene_encoder: SceneEncoder
     state_encoder: StateEncoder
 
+    # TODO: add DeepSet to encode all objects into one features vector
     head: eqx.nn.MLP
     dropout: eqx.nn.Dropout
 
@@ -136,11 +128,10 @@ class Flow(eqx.Module):
         )
         self.state_encoder = StateEncoder(
             order=order,
-            num_embeddings=num_embeddings,
             key=state_enc_key,
         )
         self.head = eqx.nn.MLP(
-            in_size=num_embeddings * 2,
+            in_size=num_embeddings * 3,
             out_size="scalar",
             width_size=num_embeddings,
             activation=jax.nn.leaky_relu,
@@ -157,6 +148,7 @@ class Flow(eqx.Module):
         self,
         scene: TriangleScene,
         partial_path_candidate: Int[Array, " order"],
+        last_object: Int[Array, " "],
         *,
         inference: bool | None = None,
         key: PRNGKeyArray | None = None,
@@ -164,32 +156,31 @@ class Flow(eqx.Module):
         """
         Compute unnormalized probabilities (flows) for selecting the next object in the path
         given the current partial path candidate and the scene.
+
+        Args:
+            scene: The scene containing the objects and their geometry.
+            partial_path_candidate: An array representing the current partial path candidate.
+            last_object: Last object inserted in the partial path candidate.
+            inference: Whether to run in inference mode (disables dropout).
+            key: PRNG key for randomness (used in dropout), only required if not in inference mode.
         """
-        # Compute index of the last filled position in the partial path candidate
-        # e.g.: partial_path_candidate = [a b c -1 -1] -> i = 3, last_object = c
-        i = jnp.argwhere(
-            partial_path_candidate == -1, size=1, fill_value=-1
-        ).reshape(())
-        last_object = partial_path_candidate.at[i - 1].get(
-            mode="fill", fill_value=-1,
-            wrap_negative_indices=False
-        )
         # [num_objects num_embeddings]
-        object_embeds = self.scene_encoder(scene)
+        objects_embeds = self.scene_encoder(scene)
+        # TODO: True DeepSets model to encode the entire scene
+        scene_embeds = jnp.mean(objects_embeds, axis=0, where=scene.mesh.mask[:, None] if scene.mesh.mask is not None else None)
         # [num_embeddings]
-        pc_embeds = self.state_encoder(partial_path_candidate, object_embeds).at[i-1].get(mode="fill", fill_value=0.0, wrap_negative_indices=False)
-        # [num_objects num_embeddings]
-        pc_embeds = jnp.tile(pc_embeds, (object_embeds.shape[0], 1))
+        pc_embeds = self.state_encoder(partial_path_candidate, objects_embeds)
         # [num_objects]
-        flows = jax.vmap(self.head)(
-            jnp.concat((object_embeds, pc_embeds), axis=1)
-        )
+        flows = jax.vmap(
+            lambda object_embeds, pc_embeds, scene_embeds: self.head(jnp.concat((object_embeds, pc_embeds, scene_embeds), axis=0)),
+              in_axes=(0, None, None))(objects_embeds, pc_embeds, scene_embeds)
         flows = jnp.exp(flows)
 
         # Stop flow from flowing to masked objects
         mask = (jnp.ones_like(flows).astype(bool) if scene.mesh.mask is None
                 else scene.mesh.mask)
 
+        # Stop flow from flowing to same object again
         mask = mask.at[last_object].set(
             False, wrap_negative_indices=False
         )

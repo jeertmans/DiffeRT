@@ -58,10 +58,12 @@ class Model(eqx.Module):
         key: PRNGKeyArray,
     ) -> Int[Array, " order"]:
         partial_path_candidate = -jnp.ones(self.order, dtype=int)
+        last_object = jnp.array(-1)
         parent_flow_key, key = jr.split(key)
         parent_flows = self.flow(
             scene,
             partial_path_candidate,
+            last_object,
             key=parent_flow_key,
         )
 
@@ -70,10 +72,12 @@ class Model(eqx.Module):
 
             action = jr.categorical(action_key, logits=jnp.log(parent_flows))
             partial_path_candidate = partial_path_candidate.at[i].set(action)
+            last_object = action
 
             edge_flows = self.flow(
                 scene,
                 partial_path_candidate,
+                last_object,
                 inference=inference,
                 key=edge_flow_key,
             )

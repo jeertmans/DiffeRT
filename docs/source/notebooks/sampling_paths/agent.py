@@ -92,10 +92,12 @@ class Agent(eqx.Module):
             Float[Array, " "], tuple[Int[Array, " order"], Float[Array, " "]]
         ]:
             partial_path_candidate = -jnp.ones(self.order, dtype=int)
+            last_object = jnp.array(-1)
             parent_flow_key, key = jr.split(key)
             parent_flows = model.flow(
                 scene,
                 partial_path_candidate,
+                last_object,
                 key=parent_flow_key,
             )
 
@@ -108,6 +110,7 @@ class Agent(eqx.Module):
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
                 )
+                last_object = action
 
                 if i == self.order - 1:
                     path_candidate = partial_path_candidate
@@ -116,7 +119,7 @@ class Agent(eqx.Module):
                 else:
                     R = 0.0
                     edge_flows = model.flow(
-                    scene, partial_path_candidate, key=edge_flow_key
+                    scene, partial_path_candidate, last_object, key=edge_flow_key
                     )
 
                 flow_mismatch += (parent_flows[action] - edge_flows.sum() - R) ** 2
