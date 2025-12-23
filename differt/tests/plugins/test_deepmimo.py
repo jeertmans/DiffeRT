@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001
 from dataclasses import asdict
 from itertools import chain
+from typing import Literal
 
 import chex
 import equinox as eqx
@@ -88,7 +89,8 @@ def test_export(key: PRNGKeyArray) -> None:
 
 
 @pytest.mark.slow
-def test_match_sionna_on_simple_street_canyon() -> None:
+@pytest.mark.parametrize("polarization", ["V", "H"])
+def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -> None:
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
@@ -106,7 +108,7 @@ def test_match_sionna_on_simple_street_canyon() -> None:
         vertical_spacing=0.5,
         horizontal_spacing=0.5,
         pattern="iso",
-        polarization="V",
+        polarization=polarization,
     )
 
     sionna_scene.rx_array = sionna.rt.PlanarArray(
