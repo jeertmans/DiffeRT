@@ -163,7 +163,8 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
         max_num_interactions = self.inter.shape[-1]
         indices = (
-            jnp.linalg.norm(
+            jnp.linalg
+            .norm(
                 self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
                 - vertices.reshape(
                     1,
