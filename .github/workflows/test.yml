@@ -31,7 +31,7 @@ jobs:
 
     - name: Cache scenes
       id: cache-scenes
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: differt/src/differt/scene/scenes
         key: ${{ steps.cache-key.outputs.result }}-scenes
