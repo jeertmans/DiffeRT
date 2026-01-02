@@ -683,7 +683,8 @@ def viewing_frustum(
             ...     world_vertices = jnp.empty((0, 3))
             ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
             ...     for mesh in (
-            ...         TriangleMesh.box(with_top=True)
+            ...         TriangleMesh
+            ...         .box(with_top=True)
             ...         .translate(tx)
             ...         .set_face_colors(jnp.array([1.0, 0.0, 0.0]))
             ...         .iter_objects()

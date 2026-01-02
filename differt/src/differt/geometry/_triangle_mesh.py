@@ -1002,7 +1002,8 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> fig = (
-                ...     mesh.set_assume_quads()
+                ...     mesh
+                ...     .set_assume_quads()
                 ...     .set_face_colors(key=jax.random.key(1234))
                 ...     .plot(backend="plotly")
                 ... )
@@ -1256,7 +1257,8 @@ class TriangleMesh(eqx.Module):
                 >>> from differt.geometry import TriangleMesh
                 >>>
                 >>> mesh = (
-                ...     TriangleMesh.box(with_top=True)
+                ...     TriangleMesh
+                ...     .box(with_top=True)
                 ...     .set_assume_quads()
                 ...     .set_face_colors(key=jax.random.key(1234))
                 ... )
@@ -1270,7 +1272,8 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> mesh = (
-                ...     TriangleMesh.box(length=10.0, width=3.0, height=2.0)
+                ...     TriangleMesh
+                ...     .box(length=10.0, width=3.0, height=2.0)
                 ...     .set_assume_quads()
                 ...     .set_face_colors(key=jax.random.key(1234))
                 ... )
