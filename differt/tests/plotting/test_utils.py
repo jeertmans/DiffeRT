@@ -101,7 +101,7 @@ def test_register_unsupported() -> None:
 
 @pytest.mark.parametrize("backend", ["vispy", "matplotlib", "plotly"])
 def test_missing_default_backend_module(
-    backend: str,
+    backend: LiteralString,
     missing_modules: MissingModulesContextGenerator,
 ) -> None:
     with use(backend=backend):  # Change the default backend

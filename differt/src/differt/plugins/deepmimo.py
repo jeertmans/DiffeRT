@@ -127,7 +127,8 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
             max_num_interactions: int = self.inter.shape[-1]
             indices = (
-                jnp.linalg.norm(
+                jnp.linalg
+                .norm(
                     self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
                     - vertices.reshape(
                         1,
@@ -164,7 +165,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
             return jax.tree.map(sort_fn, self)
 
-        return self.jax()._sort(paths)
+        return self.jax()._sort(paths)  # noqa: SLF001
 
     def jax(self) -> "DeepMIMO[Array]":
         """

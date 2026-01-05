@@ -368,9 +368,11 @@ class Paths(eqx.Module):
         """
         batch_len = len(self.vertices.shape) - 2
         self = jax.tree.map(  # noqa: PLW0642
-            lambda arr: arr.reshape(-1, *arr.shape[batch_len:])
-            if jnp.ndim(arr) >= batch_len
-            else arr,
+            lambda arr: (
+                arr.reshape(-1, *arr.shape[batch_len:])
+                if jnp.ndim(arr) >= batch_len
+                else arr
+            ),
             self,
         )
 

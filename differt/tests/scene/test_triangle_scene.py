@@ -407,11 +407,11 @@ class TestTriangleScene:
         )
 
         with expectation:
-            got = scene.compute_paths(  # type: ignore[reportCallIssue]
+            got = scene.compute_paths(  # ty: ignore[no-matching-overload]
                 order=order,
-                chunk_size=chunk_size,  # type: ignore[reportArgumentType]
+                chunk_size=chunk_size,
                 path_candidates=path_candidates,
-                method=method,  # type: ignore[reportArgumentType]
+                method=method,
             )
 
             paths = next(got) if isinstance(got, Iterator) else got

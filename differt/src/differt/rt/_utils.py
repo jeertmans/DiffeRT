@@ -944,8 +944,9 @@ def first_triangles_hit_by_rays(
             batch_of_triangle_vertices,
             batch_of_active_triangles,
         )
+        # TODO: use *carry when ty supports starred expressions
         return reduce_fn(
-            (*carry, epsilon),
+            (carry[0], carry[1], carry[2], epsilon),
             (indices + start_index, t, center_distances, epsilon),
         )[:3]
 

@@ -378,7 +378,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
                 msg,
             )
 
-        def wrapper(impl: Callable[P, T]) -> Callable[P, T]:
+        def _wrapper_(impl: Callable[P, T]) -> Callable[P, T]:
             # ruff: noqa: DOC201
             """Actually register the backend implementation."""
 
@@ -398,9 +398,9 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
 
             registry[backend] = __wrapper__
 
-            return __wrapper__
+            return __wrapper__  # ty: ignore[invalid-return-type]
 
-        return wrapper
+        return _wrapper_
 
     @wraps(fun)
     def wrapper(
@@ -467,7 +467,7 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
         next(
             (
                 child
-                for child in canvas.central_widget.children  # type: ignore[reportAttributeAccessIssue]
+                for child in canvas.central_widget.children
                 if isinstance(child, ViewBox)
             ),
             None,

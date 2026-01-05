@@ -358,7 +358,7 @@ def setup(app: Sphinx) -> None:
     class ArrayLike(jaxtyping.Array):
         pass
 
-    jaxtyping.ArrayLike = ArrayLike
+    jaxtyping.ArrayLike = ArrayLike  # ty: ignore[invalid-assignment]
 
     from typing import TypeVar  # noqa: PLC0415
 

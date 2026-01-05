@@ -38,9 +38,11 @@ if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     SionnaScene: type | Any = Any
 
     try:
-        from sionna.rt import Scene as SionnaScene
+        import sionna.rt
     except ImportError:
-        pass
+        SionnaScene = Any
+    finally:
+        SionnaScene = sionna.rt.Scene
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
     SionnaScene = Any
@@ -732,7 +734,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:  # type: ignore[reportUndefinedVariable]
+    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:
         """
         Load a triangle scene from a Sionna scene object.
 

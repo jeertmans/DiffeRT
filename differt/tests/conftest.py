@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from functools import cache
 from pathlib import Path
-from types import ModuleType
 from typing import TYPE_CHECKING
 
 import jax
 import numpy as np
 import pytest
 
-plt: ModuleType | None = None
-
 try:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot  # noqa: ICN001
 except ImportError:
-    pass
+    plt = None
+finally:
+    plt = matplotlib.pyplot
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -89,7 +88,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
-    if "differt" in config.getoption("--jaxtyping-packages", default=""):  # type: ignore[reportOperatorIssue]
+    if "differt" in config.getoption("--jaxtyping-packages", default=""):
         return
     skip_jaxtyping = pytest.mark.skip(
         reason='need --jaxtyping-packages="differt,..." option to run'
