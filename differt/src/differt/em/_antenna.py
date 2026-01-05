@@ -362,7 +362,7 @@ class Dipole(Antenna):
         center: Float[ArrayLike, "3"] = jnp.array([0.0, 0.0, 0.0]),
         look_at: Float[ArrayLike, "3"] | None = None,
     ) -> None:
-        super().__init__(jnp.asarray(frequency), center=center)
+        super().__init__(jnp.asarray(frequency), center=jnp.asarray(center))
 
         if length is not None:
             self.length = jnp.asarray(length)
@@ -391,7 +391,7 @@ class Dipole(Antenna):
                 )
             )
 
-        self.moment = moment  # type: ignore[reportAttributeAccessIssue]
+        self.moment = moment
 
     @property
     def reference_power(self) -> Float[Array, " "]:

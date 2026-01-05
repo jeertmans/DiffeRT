@@ -23,12 +23,14 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added `polarization` parameter to {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:356>).
+- Changed the type annotation of `backend` from `str` to `LiteralString`. This may be reverted in the future is `ty` support inferring literal string from equality tests (by <gh-user:jeertmans>, in <gh-pr:292>).
 
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
 - Simplified {func}`deepmimo.export<differt.plugins.deepmimo.export>` to reduce redundant code (by <gh-user:jeertmans>, in <gh-pr:356>).
+- Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
 
 ### Fixed
 

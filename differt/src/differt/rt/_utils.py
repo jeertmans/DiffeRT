@@ -944,8 +944,9 @@ def first_triangles_hit_by_rays(
             batch_of_triangle_vertices,
             batch_of_active_triangles,
         )
+        # TODO: use *carry when ty supports starred expressions
         return reduce_fn(
-            (*carry, epsilon),
+            (carry[0], carry[1], carry[2], epsilon),
             (indices + start_index, t, center_distances, epsilon),
         )[:3]
 
@@ -963,7 +964,7 @@ def first_triangles_hit_by_rays(
         ),
     )
 
-    indices_and_t_and_center_distances = jax.lax.fori_loop(
+    indices, t, center_distances = jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
@@ -971,14 +972,19 @@ def first_triangles_hit_by_rays(
     )
 
     if rem > 0:
-        indices, t, center_distances = map_fn(
+        rem_indices, rem_t, rem_center_distances = map_fn(
             ray_origins,
             ray_directions,
             triangle_vertices[..., -rem:, :, :],
             active_triangles[..., -rem:] if active_triangles is not None else None,
         )
         return reduce_fn(
-            (*indices_and_t_and_center_distances, epsilon),
-            (indices + num_batches * batch_size, t, center_distances, epsilon),
+            (indices, t, center_distances, epsilon),
+            (
+                rem_indices + num_batches * batch_size,
+                rem_t,
+                rem_center_distances,
+                epsilon,
+            ),
         )[:2]
-    return indices_and_t_and_center_distances[:2]
+    return (indices, t)

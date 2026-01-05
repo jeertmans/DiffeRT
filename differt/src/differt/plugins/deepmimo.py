@@ -4,7 +4,7 @@ __all__ = ("DeepMIMO", "export")
 
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
-from typing import Any, Generic, Literal
+from typing import Any, Generic, Literal, TypeGuard
 
 import equinox as eqx
 import jax
@@ -147,59 +147,63 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
     def _sort(
         self,
         paths: "sionna.rt.Paths",  # type: ignore[reportUndefinedVariable]  # noqa: F821
-    ) -> "DeepMIMO[ArrayType]":
+    ) -> "DeepMIMO[Array]":
         """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # noqa: DOC201, DOC501
-        vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
-        interactions = (
-            jnp.moveaxis(paths.interactions.jax(), 0, -1).astype(self.inter.dtype) - 1
-        )
-
-        if vertices.shape != self.inter_pos.shape:  # pragma: no cover
-            msg = (
-                "Cannot sort based on provided paths: shape mismatch, got "
-                f"{vertices.shape!r} but expected {self.inter_pos.shape!r}."
+        if _is_jax_dtype(self):
+            vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
+            interactions = (
+                jnp.moveaxis(paths.interactions.jax(), 0, -1).astype(self.inter.dtype)
+                - 1
             )
-            raise ValueError(msg)
 
-        max_num_interactions = self.inter.shape[-1]
-        indices = (
-            jnp.linalg
-            .norm(
-                self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
-                - vertices.reshape(
-                    1,
-                    -1,
-                    max_num_interactions,
-                    3,
-                ),
-                axis=3,
+            if vertices.shape != self.inter_pos.shape:  # pragma: no cover
+                msg = (
+                    "Cannot sort based on provided paths: shape mismatch, got "
+                    f"{vertices.shape!r} but expected {self.inter_pos.shape!r}."
+                )
+                raise ValueError(msg)
+
+            max_num_interactions = self.inter.shape[-1]
+            indices = (
+                jnp.linalg
+                .norm(
+                    self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
+                    - vertices.reshape(
+                        1,
+                        -1,
+                        max_num_interactions,
+                        3,
+                    ),
+                    axis=3,
+                )
+                .sum(
+                    axis=2,
+                    initial=jnp.where(
+                        (
+                            self.inter.reshape(-1, 1, max_num_interactions)
+                            == interactions.reshape(1, -1, max_num_interactions)
+                        ).all(axis=-1),
+                        jnp.inf,
+                        0,
+                    ),
+                    where=self.inter.reshape(-1, 1, max_num_interactions) != -1,
+                )
+                .argmin(axis=1)
             )
-            .sum(
-                axis=2,
-                initial=jnp.where(
-                    (
-                        self.inter.reshape(-1, 1, max_num_interactions)
-                        == interactions.reshape(1, -1, max_num_interactions)
-                    ).all(axis=-1),
-                    jnp.inf,
-                    0,
-                ),
-                where=self.inter.reshape(-1, 1, max_num_interactions) != -1,
-            )
-            .argmin(axis=1)
-        )
 
-        shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+            shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
 
-        def sort_fn(x: ArrayType) -> ArrayType:
-            if x.shape[: len(shape_prefix)] != shape_prefix:
-                return x
+            def sort_fn(x: Array) -> Array:
+                if x.shape[: len(shape_prefix)] != shape_prefix:
+                    return x
 
-            y = x.reshape(-1, *x.shape[len(shape_prefix) :])
-            y = y[indices, ...]
-            return y.reshape(x.shape)  # type: ignore[reportReturnType]
+                y = x.reshape(-1, *x.shape[len(shape_prefix) :])
+                y = y[indices, ...]
+                return y.reshape(x.shape)
 
-        return jax.tree.map(sort_fn, self)
+            return jax.tree.map(sort_fn, self)
+
+        return self.jax()._sort(paths)  # noqa: SLF001
 
     def jax(self) -> "DeepMIMO[Array]":
         """
@@ -229,36 +233,41 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
             An iterator of path vertices, grouped by ascending number of interactions, from
             ``0`` to ``max_num_interactions``.
         """
-        max_num_interactions = self.inter.shape[-1]
+        # TODO: test this method
+        if _is_jax_dtype(self):
+            max_num_interactions = self.inter.shape[-1]
 
-        def it() -> Iterator[
-            Float[Array, "num_tx num_rx num_paths num_interactions 3"]
-        ]:
-            num_interactions = jnp.min(
-                jnp.broadcast_to(jnp.arange(max_num_interactions), self.inter.shape),
-                initial=max_num_interactions,
-                where=self.inter == -1,
-                axis=-1,
-            )
-
-            for num in range(max_num_interactions + 1):
-                where = (self.mask & (num_interactions == num)).reshape(-1)
-                tx_pos = jnp.broadcast_to(
-                    self.tx_pos[:, None, None, :],
-                    (self.num_tx, self.num_rx, self.num_paths, 3),
-                ).reshape(-1, 3)[where, :]
-                rx_pos = jnp.broadcast_to(
-                    self.rx_pos[None, :, None, :],
-                    (self.num_tx, self.num_rx, self.num_paths, 3),
-                ).reshape(-1, 3)[where, :]
-                inter_pos = self.inter_pos.reshape(-1, max_num_interactions, 3)[
-                    where, :num, :
-                ]
-                yield jnp.concatenate(
-                    (tx_pos[..., None, :], inter_pos, rx_pos[..., None, :]), axis=-2
+            def it() -> Iterator[
+                Float[Array, "num_tx num_rx num_paths num_interactions 3"]
+            ]:
+                num_interactions = jnp.min(
+                    jnp.broadcast_to(
+                        jnp.arange(max_num_interactions), self.inter.shape
+                    ),
+                    initial=max_num_interactions,
+                    where=self.inter == -1,
+                    axis=-1,
                 )
 
-        return SizedIterator(it(), size=max_num_interactions + 1)
+                for num in range(max_num_interactions + 1):
+                    where = (self.mask & (num_interactions == num)).reshape(-1)
+                    tx_pos = jnp.broadcast_to(
+                        self.tx_pos[:, None, None, :],
+                        (self.num_tx, self.num_rx, self.num_paths, 3),
+                    ).reshape(-1, 3)[where, :]
+                    rx_pos = jnp.broadcast_to(
+                        self.rx_pos[None, :, None, :],
+                        (self.num_tx, self.num_rx, self.num_paths, 3),
+                    ).reshape(-1, 3)[where, :]
+                    inter_pos = self.inter_pos.reshape(-1, max_num_interactions, 3)[
+                        where, :num, :
+                    ]
+                    yield jnp.concatenate(
+                        (tx_pos[..., None, :], inter_pos, rx_pos[..., None, :]), axis=-2
+                    )
+
+            return SizedIterator(it(), size=max_num_interactions + 1)
+        return self.jax().iter_paths()
 
     def plot_paths(self, **kwargs: Any) -> PlotOutput:
         """
@@ -541,3 +550,7 @@ def export(
         mask=mask,
         primitives=primitives,
     )
+
+
+def _is_jax_dtype(dm: DeepMIMO[ArrayType]) -> TypeGuard[DeepMIMO[Array]]:
+    return isinstance(dm.power, Array)

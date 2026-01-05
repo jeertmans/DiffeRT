@@ -258,7 +258,7 @@ def sp_directions(
         normal_incidence,
         perpendicular_vectors(k_i),
         e_i_s,
-    )  # type: ignore[reportTypeAssignment]
+    )
     e_i_p = normalize(jnp.cross(e_i_s, k_i))[0]
     e_r_s = e_i_s
     e_r_p = normalize(jnp.cross(e_r_s, k_r))[0]

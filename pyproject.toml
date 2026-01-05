@@ -15,6 +15,7 @@ dev = [
   {include-group = "tests"},
   "maturin-import-hook>=0.3.0",
   "pre-commit>=3.5.0",
+  "ty>=0.0.9",
 ]
 docs = [
   {include-group = "beartype"},
@@ -191,15 +192,6 @@ precision = 2
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
 
-[tool.pyright]
-include = ["differt/src/differt", "differt/tests", "differt-core/src/differt_core"]
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = false  # Incompatible with eqx.AbstractVar
-reportMissingTypeArgument = true
-reportUnnecessaryTypeIgnoreComment = true
-venv = ".venv"
-venvPath = "."
-
 [tool.pytest.ini_options]
 addopts = [
   "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
@@ -306,6 +298,12 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ty.rules]
+unused-ignore-comment = "error"
+
+[tool.ty.src]
+exclude = ["docs/source/notebooks/*.ipynb"]  # Too many issue with 'PlotOutput's.
 
 [tool.uv]
 required-version = ">=0.5.26"  # See: https://github.com/astral-sh/uv/pull/11075

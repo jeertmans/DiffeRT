@@ -35,10 +35,14 @@ from differt_core.rt import CompleteGraph, DiGraph
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 
+    SionnaScene: type | Any = Any
+
     try:
-        from sionna.rt import Scene as SionnaScene
+        import sionna.rt
     except ImportError:
         SionnaScene = Any
+    else:
+        SionnaScene = sionna.rt.Scene
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
     SionnaScene = Any
@@ -730,7 +734,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:  # type: ignore[reportUndefinedVariable]
+    def from_sionna(cls, sionna_scene: SionnaScene) -> Self:
         """
         Load a triangle scene from a Sionna scene object.
 
@@ -1221,9 +1225,9 @@ class TriangleScene(eqx.Module):
         Returns:
             The resulting plot output.
         """
-        tx_kwargs = {"labels": "tx", **(tx_kwargs or {})}
-        rx_kwargs = {"labels": "rx", **(rx_kwargs or {})}
-        mesh_kwargs = {} if mesh_kwargs is None else mesh_kwargs
+        tx_kwargs: dict[str, Any] = {"labels": "tx", **(tx_kwargs or {})}
+        rx_kwargs: dict[str, Any] = {"labels": "rx", **(rx_kwargs or {})}
+        mesh_kwargs: Mapping[str, Any] = {} if mesh_kwargs is None else mesh_kwargs
 
         with reuse(pass_all_kwargs=True, **kwargs) as result:
             if self.transmitters.size > 0:

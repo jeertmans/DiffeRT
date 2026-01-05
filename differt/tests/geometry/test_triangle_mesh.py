@@ -712,19 +712,19 @@ class TestTriangleMesh:
 
         assert two_buildings_mesh.sample(
             13, key=key, preserve=True
-        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+        ).object_bounds.shape == (2, 2)
 
         assert two_buildings_mesh.sample(
             2, key=key, preserve=True, sample_objects=True
-        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+        ).object_bounds.shape == (2, 2)
 
         assert two_buildings_mesh.sample(
             1, key=key, preserve=True, sample_objects=True
-        ).object_bounds.shape == (1, 2)  # type: ignore[reportOptionalMemberAccess]
+        ).object_bounds.shape == (1, 2)
 
         assert two_buildings_mesh.sample(
             1, key=key, preserve=True, by_masking=True, sample_objects=True
-        ).object_bounds.shape == (2, 2)  # type: ignore[reportOptionalMemberAccess]
+        ).object_bounds.shape == (2, 2)
 
         with pytest.raises(
             TypeError, match="'size' must be an integer when 'by_masking' is False"
