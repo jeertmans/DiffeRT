@@ -312,16 +312,22 @@ class TestTriangleMesh:
     )
     @pytest.mark.parametrize(
         ("method", "func_or_values"),
-        [("apply", lambda x: 1 / x), ("add", [1.0, 3.0, 6.0]), ("mul", 2.0)],
+        [
+            ("set", (0,)),
+            ("get", ()),
+            ("apply", (lambda x: 1 / x,)),
+            ("add", ([1.0, 3.0, 6.0],)),
+            ("mul", (2.0,)),
+        ],
     )
     def test_at_update(
         self,
         index: slice | Array,
         method: Literal["set", "apply", "add", "mul", "get"],
-        func_or_values: Any,
+        func_or_values: tuple[Any, ...],
         two_buildings_mesh: TriangleMesh,
     ) -> None:
-        got = getattr(two_buildings_mesh.at[index], method)(func_or_values)
+        got = getattr(two_buildings_mesh.at[index], method)(*func_or_values)
 
         if index != slice(None):
             if isinstance(index, Array) and index.dtype != jnp.bool:
@@ -330,7 +336,7 @@ class TestTriangleMesh:
             index = jnp.unique(index)
 
         vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
-            func_or_values
+            *func_or_values
         )
         if method == "get":
             expected = vertices
@@ -409,6 +415,14 @@ class TestTriangleMesh:
         [False, True],
     )
     @pytest.mark.parametrize(
+        "self_face_materials",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
+        "other_face_materials",
+        [False, True],
+    )
+    @pytest.mark.parametrize(
         "self_mask",
         [False, True],
     )
@@ -424,12 +438,13 @@ class TestTriangleMesh:
         other_assume_quads: bool,
         self_colors: bool,
         other_colors: bool,
+        self_face_materials: bool,
+        other_face_materials: bool,
         self_mask: bool,
         other_mask: bool,
         two_buildings_mesh: TriangleMesh,
         key: PRNGKeyArray,
     ) -> None:
-        # TODO: Test merging material names.
         s = (
             TriangleMesh.empty() if self_empty else two_buildings_mesh
         ).set_assume_quads(self_assume_quads)
@@ -443,6 +458,11 @@ class TestTriangleMesh:
             s = s.set_face_colors(key=key_s)  # type: ignore[reportCallIssue]
         if other_colors and not other_empty:
             o = o.set_face_colors(key=key_o)  # type: ignore[reportCallIssue]
+
+        if self_face_materials and not self_empty:
+            s = s.set_materials("material_a")
+        if other_face_materials and not other_empty:
+            o = o.set_materials("material_b")
 
         if self_mask and not self_empty:
             s = eqx.tree_at(
@@ -479,6 +499,8 @@ class TestTriangleMesh:
             assert mesh.face_colors is not None
         else:
             assert mesh.face_colors is None
+
+        # TODO: Test merging material names and indices.
 
         if (self_mask and not self_empty) or (other_mask and not other_empty):
             assert mesh.mask is not None

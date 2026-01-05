@@ -184,8 +184,8 @@ skip = "docs/source/conf.py,docs/source/references.bib,pyproject.toml,uv.lock"
 exclude_lines = [
   'pragma: no cover',
   'raise NotImplementedError',
-  'if TYPE_CHECKING:',
-  'if typing.TYPE_CHECKING:',
+  'if TYPE_CHECKING',
+  'if typing.TYPE_CHECKING',
 ]
 precision = 2
 

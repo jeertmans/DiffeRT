@@ -295,12 +295,21 @@ class TestTriangleScene:
 
     @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            "hybrid",
+        ],
+    )
     @pytest.mark.parametrize("chunk_size", [None, 1000])
     @pytest.mark.parametrize("assume_quads", [False, True])
     @pytest.mark.parametrize("mesh_mask", [False, True])
     def test_compute_paths_with_smoothing(
         self,
         order: int | None,
+        method: Literal["exhaustive", "sbr", "hybrid"],
         chunk_size: int | None,
         assume_quads: bool,
         mesh_mask: bool,
@@ -317,18 +326,27 @@ class TestTriangleScene:
                 is_leaf=lambda x: x is None,
             )
 
-        expected = scene.compute_paths(
+        expected = scene.compute_paths(  # ty: ignore[no-matching-overload]
             order=order,
             chunk_size=chunk_size,
-            method="exhaustive",
+            method=method,
         )
 
-        got = scene.compute_paths(
-            order=order,
-            chunk_size=chunk_size,
-            method="exhaustive",
-            smoothing_factor=1000.0,
-        )
+        if method != "exhaustive":
+            expectation = pytest.warns(
+                UserWarning,
+                match="Argument 'smoothing' is currently ignored when 'method' is not set to 'exhaustive'",
+            )
+        else:
+            expectation = does_not_raise()
+
+        with expectation:
+            got = scene.compute_paths(  # ty: ignore[no-matching-overload]
+                order=order,
+                method=method,
+                chunk_size=chunk_size,
+                smoothing_factor=1000.0,
+            )
 
         assert type(got) is type(expected)
 
@@ -473,9 +491,7 @@ class TestTriangleScene:
         [
             "exhaustive",
             "sbr",
-            pytest.param(
-                "hybrid", marks=pytest.mark.xfail(reason="Not yet implemented.")
-            ),
+            "hybrid",
         ],
     )
     def test_compute_paths_with_mesh_mask_matches_sub_mesh_without_mask(

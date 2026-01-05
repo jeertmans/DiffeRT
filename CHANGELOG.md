@@ -31,6 +31,7 @@ with one *slight* but **important** difference:
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
 - Simplified {func}`deepmimo.export<differt.plugins.deepmimo.export>` to reduce redundant code (by <gh-user:jeertmans>, in <gh-pr:356>).
 - Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
+- Slightly improved code coverage (by <gh-user:jeertmans>, in <gh-pr:362>).
 
 ### Fixed
 
