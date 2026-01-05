@@ -1,5 +1,6 @@
 # pyright: reportMissingTypeArgument=false
 from contextlib import nullcontext as does_not_raise
+from typing import LiteralString
 
 import numpy as np
 import pytest
@@ -23,7 +24,7 @@ from .params import matplotlib, plotly, vispy
     [vispy, matplotlib, plotly],
 )
 def test_draw_mesh(
-    backend: str,
+    backend: LiteralString,
 ) -> None:
     vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]])
     triangles = np.array([[0, 1, 2], [0, 2, 3]])
@@ -36,7 +37,7 @@ def test_draw_mesh(
     [vispy, matplotlib, plotly],
 )
 def test_draw_paths(
-    backend: str,
+    backend: LiteralString,
     rng: np.random.Generator,
 ) -> None:
     paths = rng.random(size=(10, 4, 3))
@@ -49,7 +50,7 @@ def test_draw_paths(
     [vispy, matplotlib, plotly],
 )
 def test_draw_rays(
-    backend: str,
+    backend: LiteralString,
     rng: np.random.Generator,
 ) -> None:
     ray_origins, ray_directions = rng.random(size=(2, 10, 4, 3))
@@ -63,7 +64,7 @@ def test_draw_rays(
 )
 @pytest.mark.parametrize("with_labels", [True, False])
 def test_draw_markers(
-    backend: str,
+    backend: LiteralString,
     with_labels: bool,
     rng: np.random.Generator,
 ) -> None:
@@ -92,7 +93,7 @@ def test_draw_markers(
     [True, False],
 )
 def test_draw_image(
-    backend: str,
+    backend: LiteralString,
     pass_xy: bool,
 ) -> None:
     # VisPY does not support float64 and will complain if provided
@@ -116,7 +117,7 @@ def test_draw_image(
 @pytest.mark.parametrize("fill", [False, True])
 @pytest.mark.parametrize("levels", [None, 10, np.linspace(0, 1, 21)])
 def test_draw_contour(
-    backend: str, pass_xy: bool, fill: bool, levels: int | np.ndarray | None
+    backend: LiteralString, pass_xy: bool, fill: bool, levels: int | np.ndarray | None
 ) -> None:
     # VisPY does not support float64 and will complain if provided
     x = np.linspace(0, 1, 10, dtype=np.float32)
@@ -157,7 +158,7 @@ def test_draw_contour(
     [True, False],
 )
 def test_draw_surface(
-    backend: str,
+    backend: LiteralString,
     pass_xy: bool,
     pass_colors: bool,
 ) -> None:

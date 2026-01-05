@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, LiteralString
 
 import pytest
 
@@ -224,7 +224,7 @@ def test_process_plotly_kwargs() -> None:
 
 
 @pytest.mark.parametrize("backend", [None, "vispy", "matplotlib", "plotly"])
-def test_reuse(backend: str) -> None:
+def test_reuse(backend: LiteralString | None) -> None:
     expected = {"vispy": SceneCanvas, "matplotlib": MplFigure, "plotly": Figure}[
         get_backend(backend)
     ]

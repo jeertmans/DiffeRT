@@ -979,6 +979,11 @@ def first_triangles_hit_by_rays(
         )
         return reduce_fn(
             (indices, t, center_distances, epsilon),
-            (rem_indices + num_batches * batch_size, rem_t, rem_center_distances, epsilon),
+            (
+                rem_indices + num_batches * batch_size,
+                rem_t,
+                rem_center_distances,
+                epsilon,
+            ),
         )[:2]
     return (indices, t)
