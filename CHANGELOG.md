@@ -20,10 +20,15 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
 
+### Changed
+
+- Changed the type annotation of `backend` from `str` to `LiteralString`. This may be reverted in the future is `ty` support inferring literal string from equality tests (by <gh-user:jeertmans>, in <gh-pr:292>).
+
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
+- Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
 
 ### Fixed
 
