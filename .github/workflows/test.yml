@@ -31,7 +31,7 @@ jobs:
 
     - name: Cache scenes
       id: cache-scenes
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: differt/src/differt/scene/scenes
         key: ${{ steps.cache-key.outputs.result }}-scenes
@@ -44,7 +44,7 @@ jobs:
       run: tree -L 2 differt/src/differt/scene/scenes
 
     - name: Upload scenes
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -112,7 +112,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Download scenes
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -191,7 +191,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Download scenes
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
@@ -268,7 +268,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Download scenes
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes

@@ -67,7 +67,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-core-wheels-linux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -114,7 +114,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-core-wheels-musllinux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -156,7 +156,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-core-wheels-windows-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -197,7 +197,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-core-wheels-macos-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -217,7 +217,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-core-wheels-sdist
         path: differt-core/dist
@@ -237,7 +237,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Download build wheels
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         path: differt-core/dist
         pattern: differt-core-wheels-*
@@ -271,13 +271,13 @@ jobs:
       run: uv build --package differt -o differt/dist
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-wheels-sdist
         path: differt/dist/differt-*.tar.gz
 
     - name: Upload wheels any
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: differt-wheels-any
         path: differt/dist/differt-*.whl
@@ -297,7 +297,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Download build wheels
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         path: differt/dist
         pattern: differt-wheels-*
