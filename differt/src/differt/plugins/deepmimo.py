@@ -233,6 +233,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
             An iterator of path vertices, grouped by ascending number of interactions, from
             ``0`` to ``max_num_interactions``.
         """
+        # TODO: test this method
         if _is_jax_dtype(self):
             max_num_interactions = self.inter.shape[-1]
 

@@ -12,7 +12,7 @@ try:
     import matplotlib.pyplot  # noqa: ICN001
 except ImportError:
     plt = None
-finally:
+else:
     plt = matplotlib.pyplot
 
 if TYPE_CHECKING:

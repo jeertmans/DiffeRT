@@ -41,7 +41,7 @@ if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
         import sionna.rt
     except ImportError:
         SionnaScene = Any
-    finally:
+    else:
         SionnaScene = sionna.rt.Scene
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
