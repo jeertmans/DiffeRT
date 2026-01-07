@@ -138,10 +138,6 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
 
     def _triangles_index(self, **kwargs: Any) -> _Index:
-        if self.index == slice(None):
-            # TODO: check if we can use fast path but avoid updating vertices
-            # that are not referenced by any triangle
-            return self.index  # Fast path
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
