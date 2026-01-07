@@ -304,6 +304,7 @@ class TestTriangleMesh:
         "index",
         [
             slice(None),
+            slice(0, None, 2),
             jnp.arange(24),
             jnp.array([0, 1, 2]),
             jnp.ones(24, dtype=bool),
@@ -329,10 +330,12 @@ class TestTriangleMesh:
     ) -> None:
         got = getattr(two_buildings_mesh.at[index], method)(*func_or_values)
 
-        if index != slice(None):
-            if isinstance(index, Array) and index.dtype != jnp.bool:
-                index = jnp.unique(index)
-            index = two_buildings_mesh.triangles[index, :].reshape(-1)
+        if method != "get" and isinstance(index, Array) and index.dtype != jnp.bool:
+            # This should be a no-op, because duplicate indices are dropped before updating
+            index = jnp.unique(index)
+        index = two_buildings_mesh.triangles[index, :].reshape(-1)
+        if method != "get":
+            # Duplicate indices are dropped before updating
             index = jnp.unique(index)
 
         vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(

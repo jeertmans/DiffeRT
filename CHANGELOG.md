@@ -37,6 +37,7 @@ with one *slight* but **important** difference:
 
 - Restricted `ipykernel` version to `<7` to avoid compatibility issues with `jupyter_rfb`, see <ext-gh-issue:vispy/jupyter_rfb#121> (by <gh-user:jeertmans>, in <gh-pr:347>).
 - Pinned `sphinx` to `<9` to avoid breakage with `sphinx-autodoc-typehints` and the Sphinx v9 release (by <gh-user:jeertmans>, in <gh-pr:352>).
+- Fixed `get` method when indexing mesh with {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` to **not** drop duplicate indices (by <gh-user:jeertmans>, in <gh-pr:362>).
 
 <!-- start changelog -->
 

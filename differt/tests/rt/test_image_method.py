@@ -38,7 +38,7 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
         ((10, 3), (1, 3), (1, 3), does_not_raise()),
         ((10, 3), (10, 1, 3), (10, 1, 3), does_not_raise()),
         ((10, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
-        ((10, 3), (10, 0, 3), (1, 0, 3), does_not_raise()),
+        ((0, 3), (10, 0, 3), (1, 0, 3), does_not_raise()),
         ((1, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
         ((3,), (1, 3), (1, 3), does_not_raise()),
         pytest.param(
