@@ -26,22 +26,20 @@ from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
-    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping
+    Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
 class _AtIndexingKwargs(TypedDict):
     indices_are_sorted: bool
     unique_indices: bool
-    wrap_negative_indices: NotRequired[bool]
+    wrap_negative_indices: bool
 
 
 _AT_INDEXING_KWARGS: _AtIndexingKwargs = {
     "indices_are_sorted": True,
     "unique_indices": True,
+    "wrap_negative_indices": False,
 }
-
-if jax.__version_info__ >= (0, 7, 0):
-    _AT_INDEXING_KWARGS["wrap_negative_indices"] = False
 
 
 @jax.jit
@@ -138,10 +136,6 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
 
     def _triangles_index(self, **kwargs: Any) -> _Index:
-        if self.index == slice(None):
-            # TODO: check if we can use fast path but avoid updating vertices
-            # that are not referenced by any triangle
-            return self.index  # Fast path
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
@@ -156,8 +150,9 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
         )
 
     def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
-        index = self._triangles_index(**kwargs)
-        return self.mesh.vertices.at[index, :].get(**_AT_INDEXING_KWARGS)
+        # get() is allowed to return duplicates, so we do not use _triangles_index()
+        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
+        return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
 
     def apply(
         self,
@@ -503,7 +498,7 @@ class TriangleMesh(eqx.Module):
     @property
     def at(self):  # noqa: ANN202
         """
-        Helper property for updating a subset of triangle vertices.
+        Helper property for updating or indexing a subset of triangle vertices.
 
         This ``at`` property is used to update vertices of a triangle mesh,
         based on triangles indices,
