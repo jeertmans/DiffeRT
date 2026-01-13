@@ -968,6 +968,7 @@ dev = [
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxext-opengraph" },
     { name = "treescope" },
+    { name = "ty" },
 ]
 docs = [
     { name = "beartype" },
@@ -1111,6 +1112,7 @@ dev = [
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
     { name = "treescope", specifier = ">=0.1.10" },
+    { name = "ty", specifier = ">=0.0.9" },
 ]
 docs = [
     { name = "beartype", specifier = ">=0.22.0rc0" },
