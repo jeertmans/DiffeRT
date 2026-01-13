@@ -225,7 +225,7 @@ def test_rays_intersect_triangles_random_inputs(
         assert jnp.where(
             got_hit,
             got_t > 0.0,
-            True,  # noqa: FBT003
+            True,
         ).all(), "t > 0 must be true everywhere hit is true"
 
         expected_t, expected_hit = got_t, got_hit

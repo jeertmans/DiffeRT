@@ -12,11 +12,10 @@ from jaxtyping import (
 )
 
 from differt.geometry import cartesian_to_spherical, normalize, orthogonal_basis
+from differt.rt import triangles_visible_from_vertices
 from differt.scene import (
     TriangleScene,
 )
-
-from differt.rt import triangles_visible_from_vertices
 
 
 class SceneEncoder(eqx.Module):
@@ -53,7 +52,8 @@ class SceneEncoder(eqx.Module):
         v, w = orthogonal_basis(u)
         basis = jnp.stack((v, w, u))  # tx->rx is the new 'z' direction
         triangle_vertices = (
-            scene.mesh.translate(-tx)
+            scene.mesh
+            .translate(-tx)
             .scale(1 / scale)
             .rotate(basis)
             .triangle_vertices
@@ -88,10 +88,15 @@ class StateEncoder(eqx.Module):
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
     def __call__(
-        self, partial_path_candidate: Int[Array, " order"], objects_embeds: Float[Array, "num_objects num_embeddings"]
+        self,
+        partial_path_candidate: Int[Array, " order"],
+        objects_embeds: Float[Array, "num_objects num_embeddings"],
     ) -> Float[Array, "num_embeddings"]:
         # [order num_embeddings]
-        query = jax.nn.one_hot(partial_path_candidate, objects_embeds.shape[0]) @ objects_embeds
+        query = (
+            jax.nn.one_hot(partial_path_candidate, objects_embeds.shape[0])
+            @ objects_embeds
+        )
         # [order]
         weights = self.positional_encoding * (partial_path_candidate != -1)
         weights = jnp.broadcast_to(weights[:, None], query.shape)
@@ -167,43 +172,61 @@ class Flow(eqx.Module):
         # [num_objects num_embeddings]
         objects_embeds = self.scene_encoder(scene)
         # TODO: True DeepSets model to encode the entire scene
-        scene_embeds = jnp.mean(objects_embeds, axis=0, where=scene.mesh.mask[:, None] if scene.mesh.mask is not None else None)
+        scene_embeds = jnp.mean(
+            objects_embeds,
+            axis=0,
+            where=scene.mesh.mask[:, None]
+            if scene.mesh.mask is not None
+            else None,
+        )
         # [num_embeddings]
         pc_embeds = self.state_encoder(partial_path_candidate, objects_embeds)
         # [num_objects]
         flows = jax.vmap(
-            lambda object_embeds, pc_embeds, scene_embeds: self.head(jnp.concat((object_embeds, pc_embeds, scene_embeds), axis=0)),
-              in_axes=(0, None, None))(objects_embeds, pc_embeds, scene_embeds)
+            lambda object_embeds, pc_embeds, scene_embeds: self.head(
+                jnp.concat((object_embeds, pc_embeds, scene_embeds), axis=0)
+            ),
+            in_axes=(0, None, None),
+        )(objects_embeds, pc_embeds, scene_embeds)
         flows = jnp.exp(flows)
 
         # Stop flow from flowing to masked objects
-        mask = (jnp.ones_like(flows).astype(bool) if scene.mesh.mask is None
-                else scene.mesh.mask)
+        mask = (
+            jnp.ones_like(flows).astype(bool)
+            if scene.mesh.mask is None
+            else scene.mesh.mask
+        )
 
         # Stop flow from flowing to same object again
-        mask = mask.at[last_object].set(
-            False, wrap_negative_indices=False
-        )
+        mask = mask.at[last_object].set(False, wrap_negative_indices=False)
 
         # Stop flow from flowing to unreachable objects
         object_centers = scene.mesh.triangle_vertices.mean(axis=-2)
         object_normals = scene.mesh.normals
 
-        mask &= jnp.where(last_object  == -1, triangles_visible_from_vertices(scene.transmitters, scene.mesh.triangle_vertices), True)
+        mask &= jnp.where(
+            last_object == -1,
+            triangles_visible_from_vertices(
+                scene.transmitters, scene.mesh.triangle_vertices
+            ),
+            True,
+        )
 
         flows = jnp.where(mask, flows, 0.0)
-        
+
         if self.order == 1 and False:
             tx_to_object = object_centers - scene.transmitters.reshape(3)
             rx_to_object = object_centers - scene.receivers.reshape(3)
 
-            same_side_of_objects = jnp.sign(jnp.sum(tx_to_object * object_normals, axis=-1)) == jnp.sign(jnp.sum(rx_to_object * object_normals, axis=-1))
+            same_side_of_objects = jnp.sign(
+                jnp.sum(tx_to_object * object_normals, axis=-1)
+            ) == jnp.sign(jnp.sum(rx_to_object * object_normals, axis=-1))
 
             flows = jnp.where(same_side_of_objects, flows, 0.0)
-            r = jnp.linalg.norm(tx_to_object, axis=-1) + jnp.linalg.norm(rx_to_object, axis=-1)
+            r = jnp.linalg.norm(tx_to_object, axis=-1) + jnp.linalg.norm(
+                rx_to_object, axis=-1
+            )
             flows *= jax.nn.softmax(-r, where=scene.mesh.mask)
-        else:
-            pass
         # last_object_center = jnp.where(last_object != -1, object_centers[last_object], scene.transmitters.reshape(3))
         # TODO: implement this
 

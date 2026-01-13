@@ -2,6 +2,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.random as jr
+from beartype import beartype as typechecker
 from jaxtyping import (
     Array,
     Float,
@@ -10,8 +11,6 @@ from jaxtyping import (
     PRNGKeyArray,
     jaxtyped,
 )
-
-from beartype import beartype as typechecker
 
 from differt.scene import (
     TriangleScene,

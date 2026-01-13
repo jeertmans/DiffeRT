@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import optax
+from beartype import beartype as typechecker
 from jaxtyping import (
     Array,
     Float,
@@ -13,7 +14,6 @@ from jaxtyping import (
     PRNGKeyArray,
     jaxtyped,
 )
-from beartype import beartype as typechecker
 
 from .generators import random_scene
 from .memory import Memory
@@ -36,6 +36,7 @@ class Agent(eqx.Module):
     and their rewards, which can be used to quickly compute averaged rewards and train the flow model
     on path experiences by imposing that the total flow matches the total number of valid paths.
     """
+
     # Static
     order: int = eqx.field(static=True)
     batch_size: int = eqx.field(static=True)
@@ -68,7 +69,9 @@ class Agent(eqx.Module):
         self.model = Model(
             order=order,
             num_embeddings=num_embeddings,
-            width_size=width_size if width_size is not None else 2 * num_embeddings,
+            width_size=width_size
+            if width_size is not None
+            else 2 * num_embeddings,
             depth=depth,
             dropout_rate=dropout_rate,
             key=key,
@@ -106,7 +109,9 @@ class Agent(eqx.Module):
 
             for i, key in enumerate(jr.split(key, self.order)):
                 edge_flow_key, action_key = jr.split(key)
-                action = jr.categorical(action_key, logits=jnp.log(parent_flows))
+                action = jr.categorical(
+                    action_key, logits=jnp.log(parent_flows)
+                )
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
                 )
@@ -119,13 +124,17 @@ class Agent(eqx.Module):
                 else:
                     R = 0.0
                     edge_flows = model.flow(
-                    scene, partial_path_candidate, last_object, key=edge_flow_key
+                        scene,
+                        partial_path_candidate,
+                        last_object,
+                        key=edge_flow_key,
                     )
 
-                flow_mismatch += (parent_flows[action] - edge_flows.sum() - R) ** 2
+                flow_mismatch += (
+                    parent_flows[action] - edge_flows.sum() - R
+                ) ** 2
 
                 parent_flows = edge_flows
-
 
             return flow_mismatch, (path_candidate, R)
 
@@ -191,7 +200,7 @@ class Agent(eqx.Module):
                 -jnp.ones(self.order, dtype=int),
                 key=key,
             )
-            return (num_valid_paths - parent_flows.sum())**2
+            return (num_valid_paths - parent_flows.sum()) ** 2
 
         @jaxtyped(typechecker=typechecker)
         def batch_loss(
@@ -205,9 +214,7 @@ class Agent(eqx.Module):
             batch_size=self.batch_size, key=key
         )
 
-        losses, grads = eqx.filter_value_and_grad(batch_loss)(
-            self.model, keys
-        )
+        losses, grads = eqx.filter_value_and_grad(batch_loss)(self.model, keys)
 
         updates, opt_state = self.optim.update(
             grads, self.opt_state, eqx.filter(self.model, eqx.is_array)

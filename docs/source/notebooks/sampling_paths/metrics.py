@@ -1,8 +1,8 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float, Int, jaxtyped
 from beartype import beartype as typechecker
+from jaxtyping import Array, Float, Int, jaxtyped
 
 from differt.scene import TriangleScene
 

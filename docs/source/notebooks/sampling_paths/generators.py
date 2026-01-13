@@ -132,8 +132,9 @@ def validation_scene_keys(
             yield new_key
 
     generator = filter(
-        lambda key: random_scene(key=key).compute_paths(order=order).mask.sum()
-        > 0,
+        lambda key: (
+            random_scene(key=key).compute_paths(order=order).mask.sum() > 0
+        ),
         keys(key),
     )
 
