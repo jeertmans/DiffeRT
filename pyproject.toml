@@ -51,15 +51,15 @@ tests = [
   {include-group = "beartype"},
   "differt",
   "chex>=0.1.84",
-  "pytest>=7.4.3,<8.3.5",
+  "pytest>=9.0.2",
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
   "pytest-missing-modules>=0.2.0",
   "pytest-subtests>=0.14.1",
   "pytest-xdist>=3.3.1",
-  "scipy>=1.12.0",
   "optax>=0.2.6",
+  "scipy>=1.12.0",
 ]
 tests-extended = [
   {include-group = "sionna"},
@@ -192,7 +192,7 @@ precision = 2
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
   "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
   "--numprocesses=logical",
@@ -225,6 +225,7 @@ markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "serial",
 ]
+minversion = "9.0"
 
 [tool.ruff]
 extend-include = ["*.ipynb"]
