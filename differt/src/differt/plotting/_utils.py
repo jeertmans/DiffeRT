@@ -43,7 +43,7 @@ class _Defaults:
     kwargs: dict[str, Any] = field(default_factory=dict)
 
 
-@no_type_check  # TODO: fixme, Beartype >=0.20.1 is not happy with RLock
+@no_type_check
 @dataclass(slots=True)
 class _Config:
     lock: RLock = field(default_factory=RLock)
