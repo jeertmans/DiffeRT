@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    NotRequired,
     TypedDict,
     TypeVar,
     overload,

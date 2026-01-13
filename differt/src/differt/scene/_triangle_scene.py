@@ -407,7 +407,7 @@ def _compute_paths_sbr(
         masks = jnp.where(
             (t_rxs > 0) & (t_rxs < t_hit[:, None, :]) & valid_rays[:, None, :],
             ray_distances_to_rx_vertices < max_dist,
-            False,  # noqa: FBT003
+            False,
         )
 
         # 3 - Update rays

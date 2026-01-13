@@ -273,7 +273,7 @@ preview = true
 select = ["ALL"]
 
 [tool.ruff.lint.flake8-boolean-trap]
-extend-allowed-calls = ["jax.numpy.array"]
+extend-allowed-calls = ["jax.numpy.array", "jax.numpy.where"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
