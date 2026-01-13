@@ -118,8 +118,7 @@ class Agent(eqx.Module):
                 last_object = action
 
                 if i == self.order - 1:
-                    path_candidate = partial_path_candidate
-                    R = reward(path_candidate.reshape(1, -1), scene).reshape(())
+                    R = reward(partial_path_candidate, scene)
                     edge_flows = jnp.zeros_like(parent_flows)
                 else:
                     R = 0.0
@@ -136,7 +135,7 @@ class Agent(eqx.Module):
 
                 parent_flows = edge_flows
 
-            return flow_mismatch, (path_candidate, R)
+            return flow_mismatch, (partial_path_candidate, R)
 
         @jaxtyped(typechecker=typechecker)
         def batch_loss(

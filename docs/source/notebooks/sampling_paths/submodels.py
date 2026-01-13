@@ -11,11 +11,31 @@ from jaxtyping import (
     jaxtyped,
 )
 
-from differt.geometry import cartesian_to_spherical, normalize, orthogonal_basis
+from differt.geometry import normalize, orthogonal_basis
 from differt.rt import triangles_visible_from_vertices
 from differt.scene import (
     TriangleScene,
 )
+
+
+def basis_for_canonical_frame(
+    tx: Float[Array, "3"], rx: Float[Array, "3"]
+) -> tuple[Float[Array, "3 3"], Float[Array, " "]]:
+    """
+    Compute the basis for the canonical frame where the z-axis is aligned with the vector from tx to rx.
+
+    Args:
+        tx: Transmitter position.
+        rx: Receiver position.
+
+    Returns:
+        A tuple containing:
+            - A 3x3 array representing the rotation matrix to the canonical frame.
+            - A scalar representing the scale (distance between tx and rx).
+    """
+    u, scale = normalize(rx - tx)
+    v, w = orthogonal_basis(u)
+    return jnp.stack((v, w, u)), scale
 
 
 class SceneEncoder(eqx.Module):
@@ -45,12 +65,10 @@ class SceneEncoder(eqx.Module):
         self,
         scene: TriangleScene,
     ) -> Float[Array, "num_triangles num_embeddings"]:
-        rx = scene.transmitters.reshape(3)
-        tx = scene.receivers.reshape(3)
+        rx = scene.receivers.reshape(3)
+        tx = scene.transmitters.reshape(3)
         triangle_vertices = scene.mesh.triangle_vertices
-        u, scale = normalize(rx - tx, keepdims=True)
-        v, w = orthogonal_basis(u)
-        basis = jnp.stack((v, w, u))  # tx->rx is the new 'z' direction
+        basis, scale = basis_for_canonical_frame(tx, rx)
         triangle_vertices = (
             scene.mesh
             .translate(-tx)
@@ -60,16 +78,6 @@ class SceneEncoder(eqx.Module):
         )
         xyz = triangle_vertices.reshape(-1, 3 * 3)
         return jax.vmap(self.mlp)(xyz)
-
-        rpa = cartesian_to_spherical(xyz)
-        # azimuth angle is equivariant with a rotation around the tx->rx axis
-        # so we must transform it into a equivariant feature
-        da = jnp.subtract.outer(rpa[:, 2], rpa[:, 2])
-        two_pi = 2 * jnp.pi
-        da = (da + two_pi) % two_pi
-        sda = jnp.sum(da, axis=-1)
-        rpa = rpa.at[:, 2].set(sda)
-        return jax.vmap(self.mlp)(rpa.reshape(-1, 9))
 
 
 class StateEncoder(eqx.Module):
@@ -136,7 +144,7 @@ class Flow(eqx.Module):
             key=state_enc_key,
         )
         self.head = eqx.nn.MLP(
-            in_size=num_embeddings * 3,
+            in_size=num_embeddings * 3 + 3,
             out_size="scalar",
             width_size=num_embeddings,
             activation=jax.nn.leaky_relu,
@@ -181,13 +189,37 @@ class Flow(eqx.Module):
         )
         # [num_embeddings]
         pc_embeds = self.state_encoder(partial_path_candidate, objects_embeds)
+
+        # Calculate relative vectors from last object center
+        rx = scene.receivers.reshape(3)
+        tx = scene.transmitters.reshape(3)
+        basis, scale = basis_for_canonical_frame(tx, rx)
+
+        object_centers = scene.mesh.triangle_vertices.mean(axis=-2)
+        # Transform centers to canonical frame
+        object_centers = (object_centers - tx) / scale @ basis.T
+
+        last_object_center = jnp.where(
+            last_object != -1,
+            object_centers[last_object],
+            jnp.zeros(3),  # Since we translated by tx, tx is at origin (0,0,0)
+        )
+
+        # [num_objects 3]
+        relative_vectors = object_centers - last_object_center
+
         # [num_objects]
         flows = jax.vmap(
-            lambda object_embeds, pc_embeds, scene_embeds: self.head(
-                jnp.concat((object_embeds, pc_embeds, scene_embeds), axis=0)
+            lambda object_embeds, pc_embeds, scene_embeds, relative_vec: (
+                self.head(
+                    jnp.concat(
+                        (object_embeds, pc_embeds, scene_embeds, relative_vec),
+                        axis=0,
+                    )
+                )
             ),
-            in_axes=(0, None, None),
-        )(objects_embeds, pc_embeds, scene_embeds)
+            in_axes=(0, None, None, 0),
+        )(objects_embeds, pc_embeds, scene_embeds, relative_vectors)
         flows = jnp.exp(flows)
 
         # Stop flow from flowing to masked objects
@@ -227,7 +259,5 @@ class Flow(eqx.Module):
                 rx_to_object, axis=-1
             )
             flows *= jax.nn.softmax(-r, where=scene.mesh.mask)
-        # last_object_center = jnp.where(last_object != -1, object_centers[last_object], scene.transmitters.reshape(3))
-        # TODO: implement this
 
         return self.dropout(flows, key=key, inference=inference)

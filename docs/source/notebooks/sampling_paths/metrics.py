@@ -1,5 +1,6 @@
+import math
+
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Int, jaxtyped
@@ -10,11 +11,9 @@ from differt.scene import TriangleScene
 @eqx.filter_jit
 @jaxtyped(typechecker=typechecker)
 def reward(
-    predicted_path_candidates: Int[Array, "batch order"],
+    predicted_path_candidates: Int[Array, "*batch order"],
     scene: TriangleScene,
-    *,
-    non_differentiable: bool = False,
-) -> Float[Array, " batch"]:
+) -> Float[Array, "*batch"]:
     """
     Reward predicted path candidates depending on whether it
     produces a valid path in the given scene.
@@ -22,18 +21,19 @@ def reward(
     Args:
         predicted_path_candidates: The path candidates to evaluate.
         scene: The scene on which to evaluate the path candidates.
-        non_differentiable: Whether to stop gradients.
 
     Returns:
         A reward of 0 or 1 for each path candidate.
     """
+    *batch, order = predicted_path_candidates.shape
+    p = math.prod(batch)
+    if p == 0:
+        return jnp.zeros(batch)
     r = scene.compute_paths(
-        path_candidates=predicted_path_candidates
-    ).mask.astype(jnp.float32)
-    if non_differentiable:
-        return jax.lax.stop_gradient(r)
+        path_candidates=predicted_path_candidates.reshape(p, order)
+    ).mask.astype(float)
 
-    return r
+    return r.reshape(*batch)
 
 
 @eqx.filter_jit
@@ -42,9 +42,10 @@ def accuracy(
     scene: TriangleScene,
     predicted_path_candidates: Int[Array, "num_path_candidates order"],
 ) -> Float[Array, " "]:
+    if predicted_path_candidates.shape[0] == 0:
+        return jnp.zeros(())
     paths = scene.compute_paths(path_candidates=predicted_path_candidates)
-    num_valid_paths = paths.mask.astype(jnp.float32).sum()
-    return num_valid_paths / predicted_path_candidates.shape[0]
+    return paths.mask.astype(float).mean()
 
 
 @eqx.filter_jit
@@ -53,12 +54,12 @@ def hit_rate(
     scene: TriangleScene,
     predicted_path_candidates: Int[Array, "num_path_candidates order"],
 ) -> Float[Array, " "]:
-    _, order = predicted_path_candidates.shape
+    num_path_candidates, order = predicted_path_candidates.shape
+    if num_path_candidates == 0:
+        return jnp.zeros(())
     paths = scene.compute_paths(path_candidates=predicted_path_candidates)
-    num_paths_found = (
-        paths.mask_duplicate_objects().mask.astype(jnp.float32).sum()
-    )
-    num_paths_total = (
-        scene.compute_paths(order=order).mask.astype(jnp.float32).sum()
-    )
-    return num_paths_found / num_paths_total
+    num_paths_found = paths.mask_duplicate_objects().mask.astype(float).sum()
+    num_paths_total = scene.compute_paths(order=order).mask.astype(float).sum()
+    no_valid_paths = num_paths_total == 0
+    num_paths_total = jnp.where(no_valid_paths, 1.0, num_paths_total)
+    return jnp.where(no_valid_paths, 1.0, num_paths_found / num_paths_total)
