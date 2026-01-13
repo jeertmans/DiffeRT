@@ -46,26 +46,26 @@ def test_L_i(key: PRNGKeyArray) -> None:  # noqa: N802
         ValueError,
         match="If 's_i' is provided, then 'rho_1_i', 'rho_2_i', and 'rho_e_i' must be left to 'None'",
     ):
-        _ = L_i(  # type: ignore[reportCallIsuee]
+        _ = L_i(
             s_d,
             sin_2_beta_0,
             rho_1_i=rho_1_i,
             rho_2_i=rho_2_i,
             rho_e_i=rho_e_i,
-            s_i=s_i,  # type: ignore[reportArgumentType]
+            s_i=s_i,
         )
 
     with pytest.raises(
         ValueError,
         match="If 's_i' is provided, then 'rho_1_i', 'rho_2_i', and 'rho_e_i' must be left to 'None'",
     ):
-        _ = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i, s_i=s_i)  # type: ignore[reportCallIssue]
+        _ = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i, s_i=s_i)
 
     with pytest.raises(
         ValueError,
         match="All three of 'rho_1_i', 'rho_2_i', and 'rho_e_i' must be provided, or left to 'None'",
     ):
-        _ = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i)  # type: ignore[reportCallIssue]
+        _ = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i)
 
 
 def scipy_F(x: np.ndarray) -> np.ndarray:  # noqa: N802

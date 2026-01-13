@@ -159,10 +159,13 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         frequency=sionna_scene.frequency.jax().item(0),
         include_primitives=True,
     )
+    assert isinstance(dm.power, jax.Array)
+    dm = dm.numpy()
+    assert isinstance(dm.power, np.ndarray)
 
     # Greedily sort the paths to match Sionna's order
     dm = dm._sort(sionna_paths)  # noqa: SLF001
-
+    assert isinstance(dm.power, jax.Array)  # _sort returns JAX arrays
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1
 

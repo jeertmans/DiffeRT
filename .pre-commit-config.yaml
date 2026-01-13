@@ -23,10 +23,6 @@ repos:
     types_or: [python, pyi, jupyter]
   - id: ruff-format
     types_or: [python, pyi, jupyter]
-- repo: https://github.com/RobertCraigie/pyright-python
-  rev: v1.1.407
-  hooks:
-  - id: pyright
 - repo: local
   hooks:
   - id: cargo-check
@@ -56,6 +52,12 @@ repos:
     language: python
     types: [jupyter]
     additional_dependencies: [nbformat]
+  - id: ty
+    name: typecheck
+    description: Typecheck Python files with ty
+    language: system
+    entry: uv run ty check  # TODO: find pre-commit hook for this
+    pass_filenames: false
 - repo: https://github.com/flying-sheep/bibfmt
   rev: v4.3.0
   hooks:
@@ -77,6 +79,6 @@ repos:
     - tomli
     exclude_types: [jupyter]  # GitHub action will run on Notebooks
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.9.18
+  rev: 0.9.21
   hooks:
   - id: uv-lock

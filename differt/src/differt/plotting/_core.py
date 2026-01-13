@@ -205,7 +205,7 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
-    if paths.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
+    if np.size(paths) == 0:  # pragma: no cover
         return canvas
 
     kwargs.setdefault("width", 3.0)
@@ -216,7 +216,7 @@ def _(
     connect = np.ones(paths.shape[0], dtype=bool)
     connect[path_length - 1 :: path_length] = False
 
-    view.add(LinePlot(data=paths, connect=connect, **kwargs))  # type: ignore[reportArgumentType]
+    view.add(LinePlot(data=paths, connect=connect, **kwargs))
     view.camera.set_range()
 
     return canvas
@@ -377,7 +377,7 @@ def _(
     arrows_center = body_ends + 0.5 * arrows_dir
     arrows = np.concatenate((body_ends, arrows_center), axis=-1)
 
-    view.add(Arrow(pos=pos, connect=connect, arrows=arrows, **kwargs))  # type: ignore[reportArgumentType]
+    view.add(Arrow(pos=pos, connect=connect, arrows=arrows, **kwargs))
     view.camera.set_range()
 
     return canvas
@@ -558,7 +558,7 @@ def _(
     ax.scatter(
         xs,
         ys,
-        zs=zs,  # type: ignore[reportArgumentType]
+        zs=zs,
         **kwargs,
     )
 

@@ -349,7 +349,7 @@ def image_method(
     mirror_vertices = jnp.asarray(mirror_vertices)
     mirror_normals = jnp.asarray(mirror_normals)
 
-    if mirror_vertices.shape[0] == 0:
+    if mirror_vertices.shape[-2] == 0:
         # If there are no mirrors, return empty array.
         batch = jnp.broadcast_shapes(
             from_vertices.shape[:-1],

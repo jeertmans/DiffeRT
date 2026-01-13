@@ -23,17 +23,21 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added `polarization` parameter to {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:356>).
+- Changed the type annotation of `backend` from `str` to `LiteralString`. This may be reverted in the future is `ty` support inferring literal string from equality tests (by <gh-user:jeertmans>, in <gh-pr:292>).
 
 ### Chore
 
 - Removed PyOpenGL from macOS dependencies as it is no longer needed to fix VisPy not finding DLL files (by <gh-user:jeertmans>, in <gh-pr:345>).
 - Fix anchor link to JAX's documentation (by <gh-user:jeertmans>, in <gh-pr:346>).
 - Simplified {func}`deepmimo.export<differt.plugins.deepmimo.export>` to reduce redundant code (by <gh-user:jeertmans>, in <gh-pr:356>).
+- Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
+- Slightly improved code coverage (by <gh-user:jeertmans>, in <gh-pr:362>).
 
 ### Fixed
 
 - Restricted `ipykernel` version to `<7` to avoid compatibility issues with `jupyter_rfb`, see <ext-gh-issue:vispy/jupyter_rfb#121> (by <gh-user:jeertmans>, in <gh-pr:347>).
 - Pinned `sphinx` to `<9` to avoid breakage with `sphinx-autodoc-typehints` and the Sphinx v9 release (by <gh-user:jeertmans>, in <gh-pr:352>).
+- Fixed `get` method when indexing mesh with {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` to **not** drop duplicate indices (by <gh-user:jeertmans>, in <gh-pr:362>).
 
 <!-- start changelog -->
 

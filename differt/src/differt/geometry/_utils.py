@@ -72,7 +72,7 @@ def normalize(
     """
     vectors = jnp.asarray(vectors)
     lengths = jnp.linalg.norm(vectors, axis=-1, keepdims=True)
-    lengths_no_zero: Array = jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths)  # type: ignore[reportAssignmentType]
+    lengths_no_zero: Array = jnp.where(lengths == 0.0, jnp.ones_like(lengths), lengths)
 
     return vectors / lengths_no_zero, (
         lengths if keepdims else jnp.squeeze(lengths, axis=-1)
@@ -602,7 +602,7 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,  # type: ignore[reportRedeclaration]
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
     reduce: bool = False,
 ) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]:
     r"""
@@ -683,7 +683,8 @@ def viewing_frustum(
             ...     world_vertices = jnp.empty((0, 3))
             ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
             ...     for mesh in (
-            ...         TriangleMesh.box(with_top=True)
+            ...         TriangleMesh
+            ...         .box(with_top=True)
             ...         .translate(tx)
             ...         .set_face_colors(jnp.array([1.0, 0.0, 0.0]))
             ...         .iter_objects()
