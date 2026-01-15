@@ -1,3 +1,4 @@
+# ruff: noqa: RUF067
 """
 Core package written in Rust and re-exported here.
 
