@@ -129,7 +129,7 @@ exclude = ["differt-core"]  # Add this line
 :emphasize-lines: 2
 
 [tool.uv.sources]
-differt_core = {workspace = false}  # Remove (or comment) this line
+differt_core = {workspace = true}  # Remove (or comment) this line
 ```
 
 After that, `uv` will know that it must download {mod}`differt_core` from PyPI and not look at the `differt-core` folder.
