@@ -1,6 +1,7 @@
 __all__ = (
     "BASE_SCENE",
     "Agent",
+    "Model",
     "random_scene",
     "train_dataloader",
     "validation_scene_keys",
@@ -13,3 +14,4 @@ from .generators import (
     train_dataloader,
     validation_scene_keys,
 )
+from .model import Model

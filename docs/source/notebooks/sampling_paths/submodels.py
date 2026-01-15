@@ -106,8 +106,12 @@ class StateEncoder(eqx.Module):
             @ objects_embeds
         )
         # [order]
-        weights = self.positional_encoding * (partial_path_candidate != -1)
+        weights = (
+            self.positional_encoding
+        )  # , where=partial_path_candidate != -1)
         weights = jnp.broadcast_to(weights[:, None], query.shape)
+        print(f"{query.shape=}")
+        print(f"{weights.shape=}")
         return jnp.average(query, axis=0, weights=weights)
 
 
