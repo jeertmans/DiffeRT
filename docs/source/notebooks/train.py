@@ -5,7 +5,7 @@ from pathlib import Path
 import jax.random as jr
 import matplotlib.pyplot as plt
 import optax
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from sampling_paths import Agent, Model, random_scene, validation_scene_keys
 
