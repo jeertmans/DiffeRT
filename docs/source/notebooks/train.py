@@ -39,7 +39,7 @@ def main():
     parser.add_argument(
         "--depth",
         type=int,
-        default=3,
+        default=4,
         help="The depth of the model.",
     )
     parser.add_argument(
@@ -63,7 +63,7 @@ def main():
     parser.add_argument(
         "--num-episodes",
         type=int,
-        default=10_000,
+        default=20_000,
         help="The number of episodes.",
     )
     parser.add_argument(
