@@ -336,13 +336,9 @@ def _compute_paths_sbr_spheres(
     )
 
     # Prepare active vertices mask for viewing frustum
-    # Use broadcasting: broadcast mask [num_triangles, 1] to [num_triangles, 3] for 3 vertices per triangle
-    # Using mesh.mask[..., None] which gives [num_triangles, 1], then broadcast to [num_triangles, 3]
     if mesh.mask is not None:
-        num_triangles_mask = mesh.mask.shape[0]
-        active_vertices = jnp.broadcast_to(
-            mesh.mask[..., None], (num_triangles_mask, 3)
-        ).reshape(-1)
+        # Repeat mask for each of the 3 vertices per triangle
+        active_vertices = jnp.repeat(mesh.mask, 3)
         # Concatenate with True values for rx_vertices
         rx_mask = jnp.ones((num_rx_vertices,), dtype=bool)
         active_vertices = jnp.concatenate((active_vertices, rx_mask), axis=0)
@@ -539,16 +535,19 @@ def _compute_paths_sbr_planes(
     num_tx_vertices = tx_vertices.shape[0]
     num_planes = interception_planes.shape[0]
 
-    world_vertices = triangle_vertices.reshape(-1, 3)
+    # Include both triangle vertices and plane vertices in world_vertices
+    # so that rays can aim at plane vertices too
+    world_vertices = jnp.concatenate(
+        (triangle_vertices.reshape(-1, 3), interception_planes.reshape(-1, 3)), axis=0
+    )
 
     # Prepare active vertices mask for viewing frustum
-    # Use broadcasting: broadcast mask [num_triangles, 1] to [num_triangles, 3] for 3 vertices per triangle
-    # Using mesh.mask[..., None] which gives [num_triangles, 1], then broadcast to [num_triangles, 3]
     if mesh.mask is not None:
-        num_triangles_mask = mesh.mask.shape[0]
-        active_vertices = jnp.broadcast_to(
-            mesh.mask[..., None], (num_triangles_mask, 3)
-        ).reshape(-1)
+        # Repeat mask for each of the 3 vertices per triangle
+        active_vertices = jnp.repeat(mesh.mask, 3)
+        # Add True values for plane vertices (all plane vertices are active)
+        plane_mask = jnp.ones((num_planes * 3,), dtype=bool)
+        active_vertices = jnp.concatenate((active_vertices, plane_mask), axis=0)
     else:
         active_vertices = None
 
@@ -609,7 +608,8 @@ def _compute_paths_sbr_planes(
         # 2 - Check if rays intersect with interception planes
 
         # We need to check each ray against each interception plane
-        # using rays_intersect_triangles
+        # The mask will indicate if the ray segment (from origin to triangle hit)
+        # intercepts any of the planes
 
         # Broadcast ray origins and directions for plane intersection
         # [num_tx_vertices num_planes num_rays 3]
@@ -636,13 +636,7 @@ def _compute_paths_sbr_planes(
             epsilon=epsilon,
         )
 
-        # Calculate interception coordinates
-        # [num_tx_vertices num_planes num_rays 3]
-        interception_coords = (
-            ray_origins_broadcast + t_plane[..., None] * ray_directions_broadcast
-        )
-
-        # Mask valid interceptions: hit the plane and before hitting any triangle
+        # Mask valid interceptions: hit the plane and before hitting the triangle
         # [num_tx_vertices num_planes num_rays]
         # Use small epsilon for numerical stability in t_plane comparison
         eps = jnp.finfo(t_plane.dtype).eps * 10 if epsilon is None else epsilon
@@ -655,9 +649,22 @@ def _compute_paths_sbr_planes(
             False,
         )
 
+        # Calculate interception coordinates at triangle vertices (not plane vertices)
+        # [num_tx_vertices num_rays 3]
+        # This is where the ray actually hits the triangle mesh
+        triangle_hit_coords = ray_origins + t_hit[..., None] * ray_directions
+
+        # Broadcast to match num_planes dimension
+        # [num_tx_vertices num_planes num_rays 3]
+        interception_coords = jnp.broadcast_to(
+            triangle_hit_coords[:, None, :, :],
+            (num_tx_vertices, num_planes, num_rays, 3),
+        )
+
         # Set invalid interception coordinates to zero
+        # Invalid means the ray didn't cross the plane (mask is False)
         interception_coords = jnp.where(
-            masks[..., None],
+            masks[..., None],  # Add dimension for coordinates
             interception_coords,
             jnp.zeros_like(interception_coords),
         )
