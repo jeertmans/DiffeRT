@@ -1074,6 +1074,9 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "]
+        | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> Paths: ...
 
     @overload
@@ -1093,6 +1096,9 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "]
+        | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> Paths: ...
 
     @overload
@@ -1112,6 +1118,9 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "]
+        | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> SizedIterator[Paths]: ...
 
     @overload
@@ -1131,6 +1140,9 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "]
+        | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> Iterator[Paths]: ...
 
     @overload
@@ -1150,6 +1162,9 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "]
+        | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> Paths: ...
 
     @overload
