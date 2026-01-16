@@ -78,6 +78,24 @@ def main():
         help="The discount factor for the edge-based reward.",
     )
     parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=0.9,
+        help="The initial epsilon value.",
+    )
+    parser.add_argument(
+        "--min-epsilon",
+        type=float,
+        default=0.1,
+        help="The minimum epsilon value.",
+    )
+    parser.add_argument(
+        "--delta-epsilon",
+        type=float,
+        default=1e-5,
+        help="The epsilon decay rate.",
+    )
+    parser.add_argument(
         "--plot",
         default=True,
         action=argparse.BooleanOptionalAction,
@@ -106,6 +124,9 @@ def main():
         ),
         batch_size=batch_size,
         optim=optax.adam(args.learning_rate),
+        epsilon=args.epsilon,
+        min_epsilon=args.min_epsilon,
+        delta_epsilon=args.delta_epsilon,
     )
 
     key_episodes, key_valid_samples = jr.split(key_training, 2)
