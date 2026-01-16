@@ -5,13 +5,14 @@ import jax.random as jr
 from beartype import beartype as typechecker
 from jaxtyping import (
     Array,
+    Bool,
     Float,
     Int,
     PRNGKeyArray,
     jaxtyped,
 )
 
-from differt.geometry import normalize, orthogonal_basis
+from differt.geometry import cartesian_to_spherical, normalize
 from differt.rt import triangles_visible_from_vertices
 from differt.scene import (
     TriangleScene,
@@ -19,10 +20,11 @@ from differt.scene import (
 
 
 def basis_for_canonical_frame(
-    tx: Float[Array, "3"], rx: Float[Array, "3"]
+    tx: Float[Array, "3"],
+    rx: Float[Array, "3"],
 ) -> tuple[Float[Array, "3 3"], Float[Array, " "]]:
     """
-    Compute the basis for the canonical frame where the z-axis is aligned with the vector from tx to rx.
+    Compute the basis for the canonical frame where the z-axis is aligned with the projection of the tx-rx direction on the xy-plane.
 
     Args:
         tx: Transmitter position.
@@ -33,12 +35,14 @@ def basis_for_canonical_frame(
             - A 3x3 array representing the rotation matrix to the canonical frame.
             - A scalar representing the scale (distance between tx and rx).
     """
-    u, scale = normalize(rx - tx)
-    v, w = orthogonal_basis(u)
-    return jnp.stack((v, w, u)), scale
+    w, scale = normalize(rx - tx)
+    ref_axis = jnp.array([0.0, 0.0, 1.0])
+    u, _ = normalize(jnp.cross(w, ref_axis))
+    v, _ = normalize(jnp.cross(w, u))
+    return jnp.stack((u, v, w)), scale
 
 
-class SceneEncoder(eqx.Module):
+class ObjectsEncoder(eqx.Module):
     """Generate embeddings from triangle vertices."""
 
     mlp: eqx.nn.MLP
@@ -77,21 +81,77 @@ class SceneEncoder(eqx.Module):
             .triangle_vertices
         )
         xyz = triangle_vertices.reshape(-1, 3 * 3)
+        jax.debug.print("rpa={rpa}", rpa=cartesian_to_spherical(xyz[:5]))
         return jax.vmap(self.mlp)(xyz)
+
+
+class SceneEncoder(eqx.Module):
+    """Generate scene embeddings from objects embeddings."""
+
+    attention: eqx.nn.Linear
+    rho: eqx.nn.MLP
+
+    def __init__(
+        self,
+        num_embeddings: int,
+        width_size: int,
+        depth: int,
+        *,
+        key: PRNGKeyArray,
+    ) -> None:
+        att_key, rho_key = jr.split(key)
+        self.attention = eqx.nn.Linear(
+            num_embeddings,
+            "scalar",
+            key=att_key,
+        )
+        self.rho = eqx.nn.MLP(
+            in_size=num_embeddings,
+            out_size=num_embeddings,
+            width_size=width_size,
+            depth=depth,
+            key=rho_key,
+        )
+
+    @eqx.filter_jit
+    @jaxtyped(typechecker=typechecker)
+    def __call__(
+        self,
+        objects_embeds: Float[Array, "num_objects num_embeddings"],
+        active_objects: Bool[Array, "num_objects"] | None = None,
+    ) -> Float[Array, " num_embeddings"]:
+        # [num_objects]
+        weights = jax.nn.softmax(
+            jax.vmap(self.attention)(objects_embeds), where=active_objects
+        )
+        # [num_embeddings]
+        weigthed_sum = jnp.dot(weights, objects_embeds)
+        return self.rho(weigthed_sum)
 
 
 class StateEncoder(eqx.Module):
     """Generate embeddings for a (partial) path candidate."""
 
-    positional_encoding: Float[Array, "order"]
+    linear: eqx.nn.Linear
+    cell: eqx.nn.GRUCell
 
     def __init__(
         self,
-        order: int,
+        num_embeddings: int,
         *,
         key: PRNGKeyArray,
     ) -> None:
-        self.positional_encoding = jr.uniform(key, (order,))
+        linear_key, cell_key = jr.split(key)
+        self.linear = eqx.nn.Linear(
+            num_embeddings,
+            num_embeddings,
+            key=linear_key,
+        )
+        self.cell = eqx.nn.GRUCell(
+            num_embeddings,
+            num_embeddings,
+            key=cell_key,
+        )
 
     @eqx.filter_jit
     @jaxtyped(typechecker=typechecker)
@@ -99,29 +159,30 @@ class StateEncoder(eqx.Module):
         self,
         partial_path_candidate: Int[Array, " order"],
         objects_embeds: Float[Array, "num_objects num_embeddings"],
-    ) -> Float[Array, "num_embeddings"]:
-        # [order num_embeddings]
-        query = (
-            jax.nn.one_hot(partial_path_candidate, objects_embeds.shape[0])
-            @ objects_embeds
+    ) -> Float[Array, " num_embeddings"]:
+        def scan_fn(
+            state: Float[Array, " num_embeddings"],
+            object_idx: Int[Array, ""],
+        ) -> tuple[Float[Array, " num_embeddings"], None]:
+            new_state = self.cell(objects_embeds[object_idx], state)
+            return jnp.where(object_idx != -1, new_state, state), None
+
+        init_state = jnp.zeros((self.cell.hidden_size,))
+        final_state, _ = jax.lax.scan(
+            scan_fn,
+            init_state,
+            partial_path_candidate,
         )
-        # [order]
-        weights = (
-            self.positional_encoding
-        )  # , where=partial_path_candidate != -1)
-        weights = jnp.broadcast_to(weights[:, None], query.shape)
-        print(f"{query.shape=}")
-        print(f"{weights.shape=}")
-        return jnp.average(query, axis=0, weights=weights)
+        return self.linear(final_state)
 
 
 class Flow(eqx.Module):
     order: int = eqx.field(static=True)
 
+    objects_encoder: ObjectsEncoder
     scene_encoder: SceneEncoder
     state_encoder: StateEncoder
 
-    # TODO: add DeepSet to encode all objects into one features vector
     head: eqx.nn.MLP
     dropout: eqx.nn.Dropout
 
@@ -136,7 +197,15 @@ class Flow(eqx.Module):
         inference: bool = False,
         key: PRNGKeyArray,
     ) -> None:
-        scene_enc_key, state_enc_key, head_key = jr.split(key, 3)
+        objects_enc_key, scene_enc_key, state_enc_key, head_key = jr.split(
+            key, 4
+        )
+        self.objects_encoder = ObjectsEncoder(
+            num_embeddings=num_embeddings,
+            width_size=width_size,
+            depth=depth,
+            key=objects_enc_key,
+        )
         self.scene_encoder = SceneEncoder(
             num_embeddings=num_embeddings,
             width_size=width_size,
@@ -144,14 +213,13 @@ class Flow(eqx.Module):
             key=scene_enc_key,
         )
         self.state_encoder = StateEncoder(
-            order=order,
+            num_embeddings=num_embeddings,
             key=state_enc_key,
         )
         self.head = eqx.nn.MLP(
-            in_size=num_embeddings * 3 + 3,
+            in_size=num_embeddings * 3,
             out_size="scalar",
             width_size=num_embeddings,
-            activation=jax.nn.leaky_relu,
             depth=depth,
             key=head_key,
         )
@@ -182,14 +250,10 @@ class Flow(eqx.Module):
             key: PRNG key for randomness (used in dropout), only required if not in inference mode.
         """
         # [num_objects num_embeddings]
-        objects_embeds = self.scene_encoder(scene)
-        # TODO: True DeepSets model to encode the entire scene
-        scene_embeds = jnp.mean(
-            objects_embeds,
-            axis=0,
-            where=scene.mesh.mask[:, None]
-            if scene.mesh.mask is not None
-            else None,
+        objects_embeds = self.objects_encoder(scene)
+        # [num_embeddings]
+        scene_embeds = self.scene_encoder(
+            objects_embeds, active_objects=scene.mesh.mask
         )
         # [num_embeddings]
         pc_embeds = self.state_encoder(partial_path_candidate, objects_embeds)
@@ -214,16 +278,15 @@ class Flow(eqx.Module):
 
         # [num_objects]
         flows = jax.vmap(
-            lambda object_embeds, pc_embeds, scene_embeds, relative_vec: (
-                self.head(
-                    jnp.concat(
-                        (object_embeds, pc_embeds, scene_embeds, relative_vec),
-                        axis=0,
-                    )
+            lambda object_embeds, pc_embeds, scene_embeds: self.head(
+                jnp.concat(
+                    (object_embeds, pc_embeds, scene_embeds),
+                    axis=0,
                 )
             ),
-            in_axes=(0, None, None, 0),
-        )(objects_embeds, pc_embeds, scene_embeds, relative_vectors)
+            in_axes=(0, None, None),
+        )(objects_embeds, pc_embeds, scene_embeds)
+        # Positive flows
         flows = jnp.exp(flows)
 
         # Stop flow from flowing to masked objects
