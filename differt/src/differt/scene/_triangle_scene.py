@@ -617,8 +617,10 @@ def _compute_paths_sbr_planes(
 
         # Mask valid interceptions: hit the plane and before hitting any triangle
         # [num_tx_vertices num_planes num_rays]
+        # Use small epsilon for numerical stability in t_plane comparison
+        eps = jnp.finfo(t_plane.dtype).eps * 10 if epsilon is None else epsilon
         masks = jnp.where(
-            (t_plane > 0)
+            (t_plane > eps)
             & (t_plane < t_hit[:, None, :])
             & valid_rays[:, None, :]
             & hit_plane,
@@ -675,8 +677,11 @@ def _compute_paths_sbr_planes(
     # For plane-based interception, we use the interception coordinates as the final vertex
     # instead of predefined receiver positions
 
-    # We need to select the appropriate interception coordinate for each ray
-    # For now, we'll use the last valid interception (if any)
+    # Note: interception_coords contains the interception point at each bounce order.
+    # We use the last order's interception (index -1) as the final endpoint.
+    # This represents where the ray would intersect the plane after completing all bounces.
+    # Earlier interceptions (at lower bounce orders) are captured in the masks array
+    # to allow filtering paths by when they hit the plane.
     # Shape: [num_tx_vertices num_planes num_rays order+1 3]
 
     # Assemble paths with interception coordinates as endpoints
@@ -692,7 +697,9 @@ def _compute_paths_sbr_planes(
                 vertices[:, None, :, :, :],
                 (num_tx_vertices, num_planes, num_rays, order, 3),
             ),
-            interception_coords[..., -1:, :],  # Use last order's interception
+            interception_coords[
+                ..., -1:, :
+            ],  # Last order's interception as endpoint
         ],
         axis=-2,
     )
@@ -1281,11 +1288,17 @@ class TriangleScene(eqx.Module):
             interception_planes: Specification of interception planes when
                 ``interception_method == 'plane'``.
 
-                * If a scalar value is provided, it is interpreted as the altitude (z)
-                  value for a 2-triangle plane spanning the whole mesh's bounding box
-                  at that height.
+                * If a scalar value is provided (default: ``0.0``), it is interpreted
+                  as the altitude (z) value for a 2-triangle plane spanning the whole
+                  mesh's bounding box at that height. This creates a horizontal reception
+                  plane at the specified z-coordinate.
                 * Otherwise, it should be an array of triangle vertices with shape
                   ``[num_planes, 3, 3]``, where each plane is defined by a triangle.
+
+                .. note::
+                   The default value of ``0.0`` creates a horizontal plane at z=0.
+                   If your scene is not centered around z=0, you may want to specify
+                   an appropriate altitude or use custom plane triangles.
 
                 Unused if ``interception_method != 'plane'``.
 
