@@ -12,7 +12,7 @@ from jaxtyping import (
     jaxtyped,
 )
 
-from differt.geometry import cartesian_to_spherical, normalize
+from differt.geometry import normalize
 from differt.rt import triangles_visible_from_vertices
 from differt.scene import (
     TriangleScene,
@@ -81,7 +81,6 @@ class ObjectsEncoder(eqx.Module):
             .triangle_vertices
         )
         xyz = triangle_vertices.reshape(-1, 3 * 3)
-        jax.debug.print("rpa={rpa}", rpa=cartesian_to_spherical(xyz[:5]))
         return jax.vmap(self.mlp)(xyz)
 
 

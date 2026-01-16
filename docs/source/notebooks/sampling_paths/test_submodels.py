@@ -1,4 +1,5 @@
 import chex
+import equinox as eqx
 import jax.numpy as jnp
 import jax.random as jr
 import pytest
@@ -17,13 +18,25 @@ from .submodels import Flow, ObjectsEncoder
 
 
 class TestObjectsEncoder:
+    @pytest.mark.parametrize("degenerate", [False, True])
     def test_invariance(
-        self, objects_encoder: ObjectsEncoder, key: PRNGKeyArray
+        self,
+        degenerate: bool,
+        objects_encoder: ObjectsEncoder,
+        key: PRNGKeyArray,
     ) -> None:
         scene_key, transform_key = jr.split(key, 2)
 
         # 1 - Generate random scene
         scene = random_scene(key=scene_key)
+
+        if degenerate:
+            # Set RX-TX aligned with z-axis
+            scene = eqx.tree_at(
+                lambda s: s.receivers,
+                scene,
+                scene.transmitters.at[-1].set(scene.receivers[-1]),
+            )
 
         # 2 - Compute embeddings
         e = objects_encoder(scene)
