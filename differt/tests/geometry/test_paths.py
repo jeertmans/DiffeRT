@@ -438,3 +438,158 @@ class TestSBRPaths:
 
         sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
         _ = sbr_paths.plot(backend=backend)
+
+    def test_fuse_planes_basic(self, key: PRNGKeyArray) -> None:
+        """Test basic fuse_planes functionality with simple case."""
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 4
+        num_tx = 2
+        num_planes = 3
+        num_rays = 10
+
+        # Create paths with plane dimension [num_tx, num_planes, num_rays, path_length, 3]
+        vertices = jax.random.uniform(
+            key_paths, (num_tx, num_planes, num_rays, path_length, 3)
+        )
+        objects = jax.random.randint(
+            key_paths, (num_tx, num_planes, num_rays, path_length), minval=0, maxval=5
+        )
+
+        # Create masks [num_tx, num_planes, num_rays, path_length-1]
+        # Make sure each ray has at most one plane with True mask (non-overlapping assumption)
+        masks = jnp.zeros((num_tx, num_planes, num_rays, path_length - 1), dtype=bool)
+
+        # For each ray, randomly select one plane to be True
+        for tx_idx in range(num_tx):
+            for ray_idx in range(num_rays):
+                plane_idx = jax.random.randint(
+                    jax.random.fold_in(key_masks, tx_idx * num_rays + ray_idx),
+                    (),
+                    minval=0,
+                    maxval=num_planes,
+                )
+                masks = masks.at[tx_idx, plane_idx, ray_idx, :].set(True)
+
+        sbr_paths = SBRPaths(vertices, objects, masks=masks)
+
+        # Fuse the planes
+        fused_paths = sbr_paths.fuse_planes()
+
+        # Check shapes
+        assert fused_paths.vertices.shape == (num_tx, num_rays, path_length, 3)
+        assert fused_paths.objects.shape == (num_tx, num_rays, path_length)
+        assert fused_paths.masks.shape == (num_tx, num_rays, path_length - 1)
+
+    def test_fuse_planes_no_batch(self, key: PRNGKeyArray) -> None:
+        """Test fuse_planes with minimal batch dimensions."""
+        key_paths, _key_masks = jax.random.split(key, 2)
+
+        path_length = 3
+        num_planes = 2
+        num_rays = 5
+
+        # Create paths without tx batch dimension [num_planes, num_rays, path_length, 3]
+        # Note: Need at least one batch dimension for the structure
+        vertices = jax.random.uniform(
+            key_paths, (1, num_planes, num_rays, path_length, 3)
+        )
+        objects = jax.random.randint(
+            key_paths, (1, num_planes, num_rays, path_length), minval=0, maxval=3
+        )
+
+        # Create masks where first plane is always selected
+        masks = jnp.zeros((1, num_planes, num_rays, path_length - 1), dtype=bool)
+        masks = masks.at[0, 0, :, :].set(True)
+
+        sbr_paths = SBRPaths(vertices, objects, masks=masks)
+        fused_paths = sbr_paths.fuse_planes()
+
+        assert fused_paths.vertices.shape == (1, num_rays, path_length, 3)
+        # Verify that the first plane's data is selected
+        chex.assert_trees_all_close(
+            fused_paths.vertices, vertices[0, 0, :, :, :][None, :, :, :]
+        )
+
+    def test_fuse_planes_selection_logic(self) -> None:
+        """Test that fuse_planes correctly selects the first plane with True mask."""
+        path_length = 3
+        num_tx = 1
+        num_planes = 4
+        num_rays = 3
+
+        # Manually create vertices with distinct values per plane
+        vertices = jnp.zeros((num_tx, num_planes, num_rays, path_length, 3))
+        for plane_idx in range(num_planes):
+            # Set a unique value for each plane (plane_idx + 1)
+            vertices = vertices.at[0, plane_idx, :, :, 0].set(float(plane_idx + 1))
+
+        objects = jnp.zeros(
+            (num_tx, num_planes, num_rays, path_length), dtype=jnp.int32
+        )
+
+        # Create masks where different rays select different planes
+        masks = jnp.zeros((num_tx, num_planes, num_rays, path_length - 1), dtype=bool)
+
+        # Ray 0: select plane 1 (index 1)
+        masks = masks.at[0, 1, 0, :].set(True)
+        # Ray 1: select plane 2 (index 2)
+        masks = masks.at[0, 2, 1, :].set(True)
+        # Ray 2: select plane 0 (index 0)
+        masks = masks.at[0, 0, 2, :].set(True)
+
+        sbr_paths = SBRPaths(vertices, objects, masks=masks)
+        fused_paths = sbr_paths.fuse_planes()
+
+        # Verify correct plane selection
+        # Ray 0 should have plane 1's data (value 2.0 in first coordinate)
+        assert jnp.allclose(fused_paths.vertices[0, 0, :, 0], 2.0)
+        # Ray 1 should have plane 2's data (value 3.0 in first coordinate)
+        assert jnp.allclose(fused_paths.vertices[0, 1, :, 0], 3.0)
+        # Ray 2 should have plane 0's data (value 1.0 in first coordinate)
+        assert jnp.allclose(fused_paths.vertices[0, 2, :, 0], 1.0)
+
+    def test_fuse_planes_no_interceptions(self, key: PRNGKeyArray) -> None:
+        """Test fuse_planes when some rays have no interceptions."""
+        path_length = 3
+        num_tx = 1
+        num_planes = 2
+        num_rays = 4
+
+        vertices = jax.random.uniform(
+            key, (num_tx, num_planes, num_rays, path_length, 3)
+        )
+        objects = jax.random.randint(
+            key, (num_tx, num_planes, num_rays, path_length), minval=0, maxval=3
+        )
+
+        # Create masks where some rays have no True values
+        masks = jnp.zeros((num_tx, num_planes, num_rays, path_length - 1), dtype=bool)
+        # Only rays 0 and 2 have interceptions
+        masks = masks.at[0, 0, 0, :].set(True)
+        masks = masks.at[0, 1, 2, :].set(True)
+        # Rays 1 and 3 have no interceptions (all False)
+
+        sbr_paths = SBRPaths(vertices, objects, masks=masks)
+        fused_paths = sbr_paths.fuse_planes()
+
+        # Check that rays without interceptions have False masks
+        assert jnp.all(~fused_paths.masks[0, 1, :])
+        assert jnp.all(~fused_paths.masks[0, 3, :])
+        # Rays with interceptions should have True masks
+        assert jnp.all(fused_paths.masks[0, 0, :])
+        assert jnp.all(fused_paths.masks[0, 2, :])
+
+    def test_fuse_planes_error_on_insufficient_dims(self) -> None:
+        """Test that fuse_planes raises error for insufficient dimensions."""
+        # Create paths with too few dimensions
+        vertices = jnp.ones((10, 3, 3))  # Only 3 dimensions
+        objects = jnp.zeros((10, 3), dtype=jnp.int32)
+        masks = jnp.ones((10, 2), dtype=bool)
+
+        sbr_paths = SBRPaths(vertices, objects, masks=masks)
+
+        with pytest.raises(
+            ValueError, match="vertices shape must have at least 4 dimensions"
+        ):
+            sbr_paths.fuse_planes()
