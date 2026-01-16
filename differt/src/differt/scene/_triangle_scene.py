@@ -569,7 +569,6 @@ def _compute_paths_sbr_planes(
         
         # 2 - Check if rays intersect with interception planes
         
-        # [num_tx_vertices num_planes num_rays]
         # We need to check each ray against each interception plane
         # using rays_intersect_triangles
         
@@ -584,12 +583,19 @@ def _compute_paths_sbr_planes(
             (num_tx_vertices, num_planes, num_rays, 3)
         )
         
+        # Broadcast interception planes to match ray batch dimensions
+        # [num_tx_vertices num_planes num_rays 3 3]
+        interception_planes_broadcast = jnp.broadcast_to(
+            interception_planes[None, :, None, :, :],
+            (num_tx_vertices, num_planes, num_rays, 3, 3)
+        )
+        
         # [num_tx_vertices num_planes num_rays]
         # Check intersection with each plane (triangle)
         t_plane, hit_plane = rays_intersect_triangles(
             ray_origins_broadcast,
             ray_directions_broadcast,
-            interception_planes,
+            interception_planes_broadcast,
             epsilon=epsilon,
         )
         
