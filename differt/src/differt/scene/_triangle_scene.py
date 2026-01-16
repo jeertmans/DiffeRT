@@ -312,7 +312,7 @@ def _compute_paths(
 
 
 @eqx.filter_jit
-def _compute_paths_sbr(
+def _compute_paths_sbr_spheres(
     mesh: TriangleMesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
@@ -482,6 +482,225 @@ def _compute_paths_sbr(
     return SBRPaths(
         vertices,
         objects,
+        masks=masks,
+    )
+
+
+@eqx.filter_jit
+def _compute_paths_sbr_planes(
+    mesh: TriangleMesh,
+    tx_vertices: Float[Array, "num_tx_vertices 3"],
+    interception_planes: Float[Array, "num_planes 3 3"],
+    *,
+    order: int,
+    num_rays: int,
+    epsilon: Float[ArrayLike, " "] | None,
+    batch_size: int | None,
+) -> SBRPaths:
+    """
+    Compute SBR paths with plane-based interception instead of sphere-based.
+    
+    Instead of checking if rays pass near receivers, this function detects
+    when rays intersect with specified planar surfaces and records the
+    interception coordinates.
+    """
+    # 1 - Prepare arrays
+    
+    # [num_triangles 3 3]
+    triangle_vertices = mesh.triangle_vertices
+    
+    num_tx_vertices = tx_vertices.shape[0]
+    num_planes = interception_planes.shape[0]
+    
+    world_vertices = triangle_vertices.reshape(-1, 3)
+    
+    # [num_tx_vertices 2 3]
+    # TODO: handle mesh.mask
+    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
+    
+    # [num_tx_vertices num_rays 3]
+    ray_origins = jnp.broadcast_to(
+        tx_vertices[:, None, :], (num_tx_vertices, num_rays, 3)
+    )
+    ray_directions = jax.vmap(
+        lambda frustum: fibonacci_lattice(num_rays, frustum=frustum)
+    )(frustums)
+    
+    def scan_fun(
+        ray_origins_directions_and_valids: tuple[
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_rays"],
+        ],
+        _: None,
+    ) -> tuple[
+        tuple[
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_rays"],
+        ],
+        tuple[
+            Int[Array, "num_tx_vertices num_rays"],
+            Float[Array, "num_tx_vertices num_rays 3"],
+            Bool[Array, "num_tx_vertices num_planes num_rays"],
+            Float[Array, "num_tx_vertices num_planes num_rays 3"],
+        ],
+    ]:
+        # [num_tx_vertices num_rays 3],
+        # [num_tx_vertices num_rays 3],
+        # [num_tx_vertices num_rays]
+        (
+            ray_origins,
+            ray_directions,
+            valid_rays,
+        ) = ray_origins_directions_and_valids
+        
+        # 1 - Compute next intersection with triangles
+        
+        # [num_tx_vertices num_rays]
+        triangles, t_hit = first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+            triangle_vertices,
+            active_triangles=mesh.mask,
+            epsilon=epsilon,
+            batch_size=batch_size,
+        )
+        
+        # 2 - Check if rays intersect with interception planes
+        
+        # [num_tx_vertices num_planes num_rays]
+        # We need to check each ray against each interception plane
+        # using rays_intersect_triangles
+        
+        # Broadcast ray origins and directions for plane intersection
+        # [num_tx_vertices num_planes num_rays 3]
+        ray_origins_broadcast = jnp.broadcast_to(
+            ray_origins[:, None, :, :], 
+            (num_tx_vertices, num_planes, num_rays, 3)
+        )
+        ray_directions_broadcast = jnp.broadcast_to(
+            ray_directions[:, None, :, :],
+            (num_tx_vertices, num_planes, num_rays, 3)
+        )
+        
+        # [num_tx_vertices num_planes num_rays]
+        # Check intersection with each plane (triangle)
+        t_plane, hit_plane = rays_intersect_triangles(
+            ray_origins_broadcast,
+            ray_directions_broadcast,
+            interception_planes,
+            epsilon=epsilon,
+        )
+        
+        # Calculate interception coordinates
+        # [num_tx_vertices num_planes num_rays 3]
+        interception_coords = ray_origins_broadcast + t_plane[..., None] * ray_directions_broadcast
+        
+        # Mask valid interceptions: hit the plane and before hitting any triangle
+        # [num_tx_vertices num_planes num_rays]
+        masks = jnp.where(
+            (t_plane > 0) & (t_plane < t_hit[:, None, :]) & valid_rays[:, None, :] & hit_plane,
+            True,
+            False,
+        )
+        
+        # Set invalid interception coordinates to zero
+        interception_coords = jnp.where(
+            masks[..., None],
+            interception_coords,
+            jnp.zeros_like(interception_coords),
+        )
+        
+        # 3 - Update rays
+        
+        # [num_tx_vertices num_rays 3]
+        mirror_normals = jnp.take(mesh.normals, triangles, axis=0)
+        
+        # Mark rays leaving the scene as invalid
+        inside_scene = jnp.isfinite(t_hit)
+        valid_rays &= inside_scene
+        # And avoid creating NaNs
+        t_hit = jnp.where(inside_scene, t_hit, jnp.zeros_like(t_hit))
+        
+        ray_origins += t_hit[..., None] * ray_directions
+        ray_directions = (
+            ray_directions
+            - 2.0
+            * jnp.sum(ray_directions * mirror_normals, axis=-1, keepdims=True)
+            * mirror_normals
+        )
+        
+        return (ray_origins, ray_directions, valid_rays), (
+            triangles,
+            ray_origins,
+            masks,
+            interception_coords,
+        )
+    
+    valid_rays = jnp.ones(ray_origins.shape[:-1], dtype=bool)
+    _, (path_candidates, vertices, masks, interception_coords) = jax.lax.scan(
+        scan_fun,
+        (ray_origins, ray_directions, valid_rays),
+        length=order + 1,
+    )
+    
+    path_candidates = jnp.moveaxis(path_candidates[:-1, ...], 0, -1)
+    vertices = jnp.moveaxis(vertices[:-1, ...], 0, -2)
+    masks = jnp.moveaxis(masks, 0, -1)
+    interception_coords = jnp.moveaxis(interception_coords, 0, -2)
+    
+    # 4 - Generate output paths and reshape
+    # For plane-based interception, we use the interception coordinates as the final vertex
+    # instead of predefined receiver positions
+    
+    # We need to select the appropriate interception coordinate for each ray
+    # For now, we'll use the last valid interception (if any)
+    # Shape: [num_tx_vertices num_planes num_rays order+1 3]
+    
+    # Assemble paths with interception coordinates as endpoints
+    # We'll create a separate path for each plane
+    # [num_tx_vertices num_planes num_rays order+2 3]
+    vertices_with_endpoints = jnp.concatenate([
+        jnp.broadcast_to(
+            tx_vertices[:, None, None, None, :],
+            (num_tx_vertices, num_planes, num_rays, 1, 3)
+        ),
+        jnp.broadcast_to(
+            vertices[:, None, :, :, :],
+            (num_tx_vertices, num_planes, num_rays, order, 3)
+        ),
+        interception_coords[..., -1:, :],  # Use last order's interception
+    ], axis=-2)
+    
+    object_dtype = path_candidates.dtype
+    
+    tx_objects = jnp.arange(num_tx_vertices, dtype=object_dtype)
+    plane_objects = jnp.arange(num_planes, dtype=object_dtype)
+    
+    tx_objects = jnp.broadcast_to(
+        tx_objects[:, None, None, None],
+        (num_tx_vertices, num_planes, num_rays, 1),
+    )
+    plane_objects = jnp.broadcast_to(
+        plane_objects[None, :, None, None],
+        (num_tx_vertices, num_planes, num_rays, 1),
+    )
+    path_candidates = jnp.broadcast_to(
+        path_candidates[:, None, ...],
+        (
+            num_tx_vertices,
+            num_planes,
+            num_rays,
+            order,
+        ),
+    )
+    
+    objects = jnp.concatenate((tx_objects, path_candidates, plane_objects), axis=-1)
+    
+    return SBRPaths(
+        vertices=vertices_with_endpoints,
+        objects=objects,
         masks=masks,
     )
 
@@ -887,6 +1106,8 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "] | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> SBRPaths: ...
 
     def compute_paths(
@@ -905,6 +1126,8 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        interception_method: Literal["sphere", "plane"] = "sphere",
+        interception_planes: Float[ArrayLike, " "] | Float[ArrayLike, "num_planes 3 3"] = 0.0,
     ) -> Paths | SizedIterator[Paths] | Iterator[Paths] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -1018,6 +1241,27 @@ class TriangleScene(eqx.Module):
                 For the ``'hybrid'`` method, inactive triangles are always disconnected
                 regardless of this parameter value, as the method already depends on
                 the mask.
+            interception_method: The method used for ray interception when ``method == 'sbr'``.
+
+                * If ``'sphere'``, rays passing in the vicinity of receivers are detected
+                  using a detection sphere (traditional SBR approach). See ``max_dist``
+                  parameter.
+                * If ``'plane'``, rays intersecting with specified planar surfaces are
+                  detected and their interception coordinates are recorded. This allows
+                  for post-processing interpolation of received power at any position
+                  within the reception surface without needing to specify receiver positions.
+
+                Unused if ``method != 'sbr'``.
+            interception_planes: Specification of interception planes when
+                ``interception_method == 'plane'``.
+
+                * If a scalar value is provided, it is interpreted as the altitude (z)
+                  value for a 2-triangle plane spanning the whole mesh's bounding box
+                  at that height.
+                * Otherwise, it should be an array of triangle vertices with shape
+                  ``[num_planes, 3, 3]``, where each plane is defined by a triangle.
+
+                Unused if ``interception_method != 'plane'``.
 
 
         Returns:
@@ -1060,16 +1304,52 @@ class TriangleScene(eqx.Module):
                 msg = "Argument 'order' is required when 'method == \"sbr\"'."
                 raise ValueError(msg)
 
-            return _compute_paths_sbr(
-                self.mesh,
-                self.transmitters.reshape(-1, 3),
-                self.receivers.reshape(-1, 3),
-                order=order,
-                num_rays=num_rays,
-                epsilon=epsilon,
-                max_dist=max_dist,
-                batch_size=batch_size,
-            ).reshape(*tx_batch, *rx_batch, -1)
+            if interception_method == "sphere":
+                return _compute_paths_sbr_spheres(
+                    self.mesh,
+                    self.transmitters.reshape(-1, 3),
+                    self.receivers.reshape(-1, 3),
+                    order=order,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    max_dist=max_dist,
+                    batch_size=batch_size,
+                ).reshape(*tx_batch, *rx_batch, -1)
+            else:  # interception_method == "plane"
+                # Convert interception_planes to proper format
+                interception_planes_arr = jnp.asarray(interception_planes)
+                
+                # If scalar, create a plane at that z-altitude spanning the bounding box
+                if interception_planes_arr.ndim == 0:
+                    z_altitude = interception_planes_arr
+                    (min_x, min_y, _), (max_x, max_y, _) = self.mesh.bounding_box
+                    
+                    # Create two triangles that span the bounding box at the given altitude
+                    # Triangle 1: bottom-left, bottom-right, top-right
+                    # Triangle 2: bottom-left, top-right, top-left
+                    interception_planes_arr = jnp.array([
+                        [
+                            [min_x, min_y, z_altitude],
+                            [max_x, min_y, z_altitude],
+                            [max_x, max_y, z_altitude],
+                        ],
+                        [
+                            [min_x, min_y, z_altitude],
+                            [max_x, max_y, z_altitude],
+                            [min_x, max_y, z_altitude],
+                        ],
+                    ])
+                
+                num_planes = interception_planes_arr.shape[0]
+                return _compute_paths_sbr_planes(
+                    self.mesh,
+                    self.transmitters.reshape(-1, 3),
+                    interception_planes_arr,
+                    order=order,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    batch_size=batch_size,
+                ).reshape(*tx_batch, num_planes, -1)
 
         # 0 - Constants arrays of chunks
         assume_quads = self.mesh.assume_quads
