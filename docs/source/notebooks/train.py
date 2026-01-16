@@ -117,8 +117,6 @@ def main():
     reward_fn = None
 
     num_episodes = args.num_episodes
-
-    progress_bar = tqdm(jr.split(key_episodes, num_episodes))
     print_every = args.print_every
 
     episodes = []
@@ -128,10 +126,10 @@ def main():
 
     import jax
 
-    print(jax.devices())
+    assert "CUDA" in str(jax.devices()).upper(), "No CUDA device found."
+    print(f"Training config: {args}")
 
-    print("Preparing to train...")
-
+    progress_bar = tqdm(jr.split(key_episodes, num_episodes), leave=False)
     for episode, key_episode in enumerate(progress_bar):
         scene_key, train_key, eval_key = jr.split(key_episode, 3)
 
@@ -153,6 +151,11 @@ def main():
             loss_values.append(loss_value)
             success_rates.append(100 * acc)
             hit_rates.append(100 * hit_r)
+
+    print("Training finished with final metrics:")
+    print(f"Success rate: {100 * acc:.1f}%")
+    print(f"Hit rate: {100 * hit_r:.1f}%")
+    print(f"Loss: {loss_value:.1e}")
 
     if args.plot:
         # Create results directory with timestamp
