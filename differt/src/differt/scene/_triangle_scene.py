@@ -335,9 +335,24 @@ def _compute_paths_sbr_spheres(
         (triangle_vertices.reshape(-1, 3), rx_vertices), axis=0
     )
 
+    # Prepare active vertices mask for viewing frustum
+    # Use broadcasting: broadcast mask [num_triangles, 1] to [num_triangles, 3] for 3 vertices per triangle
+    # Using mesh.mask[..., None] which gives [num_triangles, 1], then broadcast to [num_triangles, 3]
+    if mesh.mask is not None:
+        num_triangles_mask = mesh.mask.shape[0]
+        active_vertices = jnp.broadcast_to(
+            mesh.mask[..., None], (num_triangles_mask, 3)
+        ).reshape(-1)
+        # Concatenate with True values for rx_vertices
+        rx_mask = jnp.ones((num_rx_vertices,), dtype=bool)
+        active_vertices = jnp.concatenate((active_vertices, rx_mask), axis=0)
+    else:
+        active_vertices = None
+
     # [num_tx_vertices 2 3]
-    # TODO: handle mesh.mask
-    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
+    frustums = jax.vmap(
+        lambda tx: viewing_frustum(tx, world_vertices, active_vertices=active_vertices)
+    )(tx_vertices)
 
     # [num_tx_vertices num_rays 2 3]
     ray_origins = jnp.broadcast_to(
@@ -526,9 +541,21 @@ def _compute_paths_sbr_planes(
 
     world_vertices = triangle_vertices.reshape(-1, 3)
 
+    # Prepare active vertices mask for viewing frustum
+    # Use broadcasting: broadcast mask [num_triangles, 1] to [num_triangles, 3] for 3 vertices per triangle
+    # Using mesh.mask[..., None] which gives [num_triangles, 1], then broadcast to [num_triangles, 3]
+    if mesh.mask is not None:
+        num_triangles_mask = mesh.mask.shape[0]
+        active_vertices = jnp.broadcast_to(
+            mesh.mask[..., None], (num_triangles_mask, 3)
+        ).reshape(-1)
+    else:
+        active_vertices = None
+
     # [num_tx_vertices 2 3]
-    # TODO: handle mesh.mask
-    frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(tx_vertices, world_vertices)
+    frustums = jax.vmap(
+        lambda tx: viewing_frustum(tx, world_vertices, active_vertices=active_vertices)
+    )(tx_vertices)
 
     # [num_tx_vertices num_rays 3]
     ray_origins = jnp.broadcast_to(
@@ -697,9 +724,7 @@ def _compute_paths_sbr_planes(
                 vertices[:, None, :, :, :],
                 (num_tx_vertices, num_planes, num_rays, order, 3),
             ),
-            interception_coords[
-                ..., -1:, :
-            ],  # Last order's interception as endpoint
+            interception_coords[..., -1:, :],  # Last order's interception as endpoint
         ],
         axis=-2,
     )
@@ -1300,7 +1325,7 @@ class TriangleScene(eqx.Module):
                    If your scene is not centered around z=0, you may want to specify
                    an appropriate altitude or use custom plane triangles.
 
-                Unused if ``interception_method != 'plane'``.
+                Unused if ``interception_method != 'plane'`` or ``method != 'sbr'``.
 
 
         Returns:
