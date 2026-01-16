@@ -24,3 +24,11 @@ Increase model capacity (embeddings) to 512 to capture more complex geometry.
 - Parameters changed: Increased `num-embeddings` to 512.
 - Resulting Hit Rate (2nd order): 18.0%
 - Did it collapse? No.
+
+## Experiment 4 - Plan
+Increase batch size to 128 to improve gradient stability.
+
+## Experiment 4 - Results
+- Parameters changed: Increased `batch-size` to 128.
+- Resulting Hit Rate (2nd order): 18.7%
+- Did it collapse? No.
