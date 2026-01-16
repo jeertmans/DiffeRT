@@ -2,12 +2,13 @@ import argparse
 import time
 from pathlib import Path
 
+import jax
 import jax.random as jr
 import matplotlib.pyplot as plt
 import optax
 from tqdm import tqdm
 
-from sampling_paths import Agent, Model, random_scene, validation_scene_keys
+from sampling_paths import Agent, Model, random_scene, validation_scene_keys, decreasing_edge_reward
 
 
 def main():
@@ -135,8 +136,8 @@ def main():
     )
 
     # Use partial application to fix gamma
-    # reward_fn = jax.tree_util.Partial(decreasing_edge_reward, gamma=args.gamma)
-    reward_fn = None
+    reward_fn = jax.tree_util.Partial(decreasing_edge_reward, gamma=args.gamma)
+    # reward_fn = None
 
     num_episodes = args.num_episodes
     print_every = args.print_every
@@ -145,8 +146,6 @@ def main():
     loss_values = []
     success_rates = []
     hit_rates = []
-
-    import jax
 
     assert "CUDA" in str(jax.devices()).upper(), "No CUDA device found."
     print(f"Training config: {args}")
