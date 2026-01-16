@@ -20,7 +20,7 @@ def main():
     parser.add_argument(
         "--order",
         type=int,
-        default=1,
+        default=2,
         help="The order of the interaction (number of bounces).",
     )
     parser.add_argument(
@@ -62,7 +62,7 @@ def main():
     parser.add_argument(
         "--num-episodes",
         type=int,
-        default=100_000,
+        default=10_000,
         help="The number of episodes.",
     )
     parser.add_argument(
