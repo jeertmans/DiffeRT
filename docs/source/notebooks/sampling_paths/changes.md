@@ -16,3 +16,11 @@ Increase training duration to 20,000 episodes to maximize performance (Scaling P
 - Parameters changed: Increased `depth` to 4, `num-episodes` to 20,000.
 - Resulting Hit Rate (2nd order): 13.9%
 - Did it collapse? No.
+
+## Experiment 3 - Plan
+Increase model capacity (embeddings) to 512 to capture more complex geometry.
+
+## Experiment 3 - Results
+- Parameters changed: Increased `num-embeddings` to 512.
+- Resulting Hit Rate (2nd order): 18.0%
+- Did it collapse? No.

@@ -27,7 +27,7 @@ def main():
     parser.add_argument(
         "--num-embeddings",
         type=int,
-        default=256,
+        default=512,
         help="The size of the embeddings.",
     )
     parser.add_argument(
