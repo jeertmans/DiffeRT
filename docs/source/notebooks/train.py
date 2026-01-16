@@ -11,6 +11,7 @@ from sampling_paths import Agent, Model, random_scene, validation_scene_keys
 
 
 def main():
+    # dummy comment
     parser = argparse.ArgumentParser(
         prog="train",
         description="Train the agent to sample paths.",
