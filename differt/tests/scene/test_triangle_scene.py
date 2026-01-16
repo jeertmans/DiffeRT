@@ -655,10 +655,10 @@ class TestTriangleScene:
     ) -> None:
         """Test SBR method with plane-based interception using scalar altitude."""
         scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
-        
+
         # Use a z-altitude that should intersect with rays
         z_altitude = 5.0
-        
+
         paths = scene.compute_paths(
             order=order,
             method="sbr",
@@ -666,24 +666,28 @@ class TestTriangleScene:
             interception_planes=z_altitude,
             num_rays=1000,
         )
-        
+
         # Check that paths were generated
         assert paths.vertices.shape[0] > 0, "Should generate some paths"
-        
+
         # Check that the shape is correct: [num_tx, num_planes, num_rays, order+2, 3]
         num_tx = scene.transmitters.shape[0]
         num_planes = 2  # Two triangles for bounding box plane
         num_rays = 1000
         expected_shape = (num_tx, num_planes, num_rays, order + 2, 3)
-        assert paths.vertices.shape == expected_shape, f"Expected shape {expected_shape}, got {paths.vertices.shape}"
-        
+        assert paths.vertices.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {paths.vertices.shape}"
+        )
+
         # Check that interception coordinates are at the correct z-altitude
         # The last vertex should be the interception point
         masked_paths = paths.masked()
         if masked_paths.vertices.shape[0] > 0:
             interception_z = masked_paths.vertices[:, -1, 2]
             # Allow some tolerance due to numerical precision
-            chex.assert_trees_all_close(interception_z, z_altitude * jnp.ones_like(interception_z), atol=1e-3)
+            chex.assert_trees_all_close(
+                interception_z, z_altitude * jnp.ones_like(interception_z), atol=1e-3
+            )
 
     @pytest.mark.parametrize("order", [1, 2])
     def test_compute_paths_sbr_with_plane_interception_custom_planes(
@@ -693,14 +697,16 @@ class TestTriangleScene:
     ) -> None:
         """Test SBR method with plane-based interception using custom plane triangles."""
         scene = advanced_path_tracing_example_scene
-        
+
         # Define a custom interception plane (a single triangle)
-        custom_plane = jnp.array([[
-            [0.0, 0.0, 5.0],
-            [10.0, 0.0, 5.0],
-            [0.0, 10.0, 5.0],
-        ]])
-        
+        custom_plane = jnp.array([
+            [
+                [0.0, 0.0, 5.0],
+                [10.0, 0.0, 5.0],
+                [0.0, 10.0, 5.0],
+            ]
+        ])
+
         paths = scene.compute_paths(
             order=order,
             method="sbr",
@@ -708,16 +714,18 @@ class TestTriangleScene:
             interception_planes=custom_plane,
             num_rays=1000,
         )
-        
+
         # Check that paths were generated
         assert paths.vertices.shape[0] > 0, "Should generate some paths"
-        
+
         # Check that the shape is correct
         num_tx = scene.transmitters.shape[0]
         num_planes = 1
         num_rays = 1000
         expected_shape = (num_tx, num_planes, num_rays, order + 2, 3)
-        assert paths.vertices.shape == expected_shape, f"Expected shape {expected_shape}, got {paths.vertices.shape}"
+        assert paths.vertices.shape == expected_shape, (
+            f"Expected shape {expected_shape}, got {paths.vertices.shape}"
+        )
 
     @pytest.mark.parametrize("order", [1, 2])
     def test_compute_paths_sbr_sphere_vs_plane_consistency(
@@ -727,7 +735,7 @@ class TestTriangleScene:
     ) -> None:
         """Test that sphere and plane methods produce paths with consistent reflections."""
         scene = advanced_path_tracing_example_scene
-        
+
         # Run with sphere method
         paths_sphere = scene.compute_paths(
             order=order,
@@ -736,7 +744,7 @@ class TestTriangleScene:
             num_rays=1000,
             max_dist=1e-1,
         )
-        
+
         # Run with plane method
         z_altitude = 5.0
         paths_plane = scene.compute_paths(
@@ -746,12 +754,11 @@ class TestTriangleScene:
             interception_planes=z_altitude,
             num_rays=1000,
         )
-        
+
         # Both methods should generate paths
         assert paths_sphere.vertices.shape[0] > 0
         assert paths_plane.vertices.shape[0] > 0
-        
+
         # Check that both have the correct number of bounces in their paths
         assert paths_sphere.vertices.shape[-2] == order + 2
         assert paths_plane.vertices.shape[-2] == order + 2
-
