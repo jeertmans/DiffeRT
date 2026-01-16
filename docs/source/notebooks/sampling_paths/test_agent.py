@@ -12,6 +12,7 @@ class TestAgent:
     def test_train(
         self, agent: Agent, scene: TriangleScene, key: PRNGKeyArray
     ) -> None:
+        # We check that we can overfit to a single scene and learn to avoid unreachable objects
         train_key, eval_key = jr.split(key)
 
         loss = jnp.inf
