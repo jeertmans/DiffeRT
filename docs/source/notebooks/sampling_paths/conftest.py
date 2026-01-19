@@ -9,7 +9,7 @@ from differt.scene import TriangleScene
 
 from .agent import Agent
 from .model import Model
-from .submodels import Flow, ObjectsEncoder, SceneEncoder, StateEncoder
+from .submodels import Flows, ObjectsEncoder, SceneEncoder, StateEncoder
 
 
 @pytest.fixture
@@ -67,23 +67,23 @@ def model(
 
 
 @pytest.fixture
-def flow(model: Model) -> Flow:
-    return model.flow
+def flows(model: Model) -> Flows:
+    return model.flows
 
 
 @pytest.fixture
-def objects_encoder(flow: Flow) -> ObjectsEncoder:
-    return flow.objects_encoder
+def objects_encoder(model: Model) -> ObjectsEncoder:
+    return model.objects_encoder
 
 
 @pytest.fixture
-def scene_encoder(flow: Flow) -> SceneEncoder:
-    return flow.scene_encoder
+def scene_encoder(model: Model) -> SceneEncoder:
+    return model.scene_encoder
 
 
 @pytest.fixture
-def state_encoder(flow: Flow) -> StateEncoder:
-    return flow.state_encoder
+def state_encoder(model: Model) -> StateEncoder:
+    return model.state_encoder
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ def scene(key: PRNGKeyArray) -> TriangleScene:
     )
 
     # We add inactive objects to the scene
-    # to make sure the agent learns to ignore them
+    # to make sure the agent effectively ignores them
     mesh += triangle.sample(0.0, by_masking=True, key=key)
 
     return TriangleScene(

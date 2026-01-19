@@ -1666,3 +1666,61 @@ class TriangleMesh(eqx.Module):
             ),
             is_leaf=lambda x: x is None,
         )
+
+    def shuffle(
+        self,
+        preserve: bool = False,
+        *,
+        key: PRNGKeyArray,
+    ) -> Self:
+        """
+        Generate a new mesh by randomly shuffling primitives from this geometry.
+
+        Args:
+            preserve: Whether to preserve :attr:`object_bounds`, otherwise
+                it is discarded.
+
+                ... warning::
+
+                    Not implemented yet.
+
+                Setting this to :data:`True` has no effect if :attr:`object_bounds`
+                is :data:`None`.
+            key: The :func:`jax.random.key` to be used.
+
+        Returns:
+            A new random mesh.
+
+        Raises:
+            NotImplementedError: If `preserve` is :data:`True`.
+        """
+        if preserve:
+            raise NotImplementedError(
+                "Preserving object bounds is not implemented yet."
+            )
+
+        indices = jax.random.permutation(key, jnp.arange(self.num_triangles))
+        object_bounds = None
+
+        return eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.object_bounds,
+                m.mask,
+            ),
+            self,
+            (
+                self.vertices,
+                self.triangles[indices, :],
+                self.face_colors[indices, :] if self.face_colors is not None else None,
+                self.face_materials[indices]
+                if self.face_materials is not None
+                else None,
+                object_bounds,
+                self.mask[indices] if self.mask is not None else None,
+            ),
+            is_leaf=lambda x: x is None,
+        )

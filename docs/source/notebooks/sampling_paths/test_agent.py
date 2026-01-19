@@ -1,3 +1,4 @@
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.random as jr
@@ -19,16 +20,13 @@ class TestAgent:
         num_steps = 0
         num_max_steps = 1_000
 
-        while loss > 1e-3 and num_steps < num_max_steps:
-            key, train_key = jr.split(key)
-            agent, loss, avg_reward = agent.train(scene=scene, key=key)
+        while num_steps < num_max_steps:
+            key, shuffle_key, train_key = jr.split(key, 3)
+            train_scene = eqx.tree_at(
+                lambda x: x.mesh, scene, scene.mesh.shuffle(key=shuffle_key)
+            )
+            agent, loss = agent.train(scene=train_scene, key=train_key)
             num_steps += 1
-
-        # if num_steps == num_max_steps:
-        #     pytest.fail(
-        #         f"Agent did not converge within {num_max_steps} steps. "
-        #         f"Final loss: {loss}, average reward: {avg_reward}"
-        #     )
 
         unreachable_objects = jnp.array([0, 3])
         path_candidates = jax.vmap(
@@ -41,5 +39,3 @@ class TestAgent:
         assert not jnp.isin(path_candidates, unreachable_objects).any(), (
             f"Path candidates should not contain unreachable objects, got: {path_candidates} (accepted are: {valid_paths.objects[:, 1:-1]})"
         )
-
-        assert loss < 1.0

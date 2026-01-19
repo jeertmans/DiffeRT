@@ -8,11 +8,10 @@ import matplotlib.pyplot as plt
 import optax
 from tqdm import tqdm
 
-from sampling_paths import Agent, Model, random_scene, validation_scene_keys, decreasing_edge_reward
+from sampling_paths import Agent, Model, random_scene, validation_scene_keys
 
 
 def main():
-    # dummy comment
     parser = argparse.ArgumentParser(
         prog="train",
         description="Train the agent to sample paths.",
@@ -61,6 +60,12 @@ def main():
         help="The learning rate.",
     )
     parser.add_argument(
+        "--optim",
+        type=str,
+        default="optax.adam(learning_rate)",
+        help="The optimizer to use. Use Python code to define the optimizer.",
+    )
+    parser.add_argument(
         "--num-episodes",
         type=int,
         default=20_000,
@@ -71,30 +76,6 @@ def main():
         type=int,
         default=100,
         help="How often to print the status.",
-    )
-    parser.add_argument(
-        "--gamma",
-        type=float,
-        default=0.9,
-        help="The discount factor for the edge-based reward.",
-    )
-    parser.add_argument(
-        "--epsilon",
-        type=float,
-        default=0.9,
-        help="The initial epsilon value.",
-    )
-    parser.add_argument(
-        "--min-epsilon",
-        type=float,
-        default=0.1,
-        help="The minimum epsilon value.",
-    )
-    parser.add_argument(
-        "--delta-epsilon",
-        type=float,
-        default=1e-5,
-        help="The epsilon decay rate.",
     )
     parser.add_argument(
         "--plot",
@@ -124,20 +105,20 @@ def main():
             key=model_key,
         ),
         batch_size=batch_size,
-        optim=optax.adam(args.learning_rate),
-        epsilon=args.epsilon,
-        min_epsilon=args.min_epsilon,
-        delta_epsilon=args.delta_epsilon,
+        optim=eval(
+            args.optim,
+            {
+                "optax": optax,
+                "learning_rate": args.learning_rate,
+                "key": model_key,
+            },
+        ),
     )
 
     key_episodes, key_valid_samples = jr.split(key_training, 2)
     valid_keys = validation_scene_keys(
         order=order, num_scenes=100, key=key_valid_samples
     )
-
-    # Use partial application to fix gamma
-    reward_fn = jax.tree_util.Partial(decreasing_edge_reward, gamma=args.gamma)
-    # reward_fn = None
 
     num_episodes = args.num_episodes
     print_every = args.print_every
@@ -157,25 +138,23 @@ def main():
         # Train
         train_scene = random_scene(key=scene_key)
         # Pass the custom reward function
-        agent, loss_value, avg_reward = agent.train(
-            train_scene, key=train_key, reward_fn=reward_fn
-        )
+        agent, loss_value = agent.train(train_scene, key=train_key)
 
         if episode % print_every == 0:
-            acc, hit_r = agent.model.evaluate(valid_keys, key=eval_key)
+            accuracy, hit_rate = agent.evaluate(valid_keys, key=eval_key)
 
             progress_bar.set_description(
-                f"(train) avg reward: {avg_reward:.2f}, (valid.): success rate {100 * acc:.1f}%, hit rate {100 * hit_r:.1f}% | Loss: {loss_value:.1e}"
+                f"(train) loss: {loss_value:.1e}, (valid.): success rate {100 * accuracy:.1f}%, hit rate {100 * hit_rate:.1f}%"
             )
 
             episodes.append(episode)
             loss_values.append(loss_value)
-            success_rates.append(100 * acc)
-            hit_rates.append(100 * hit_r)
+            success_rates.append(100 * accuracy)
+            hit_rates.append(100 * hit_rate)
 
     print("Training finished with final metrics:")
-    print(f"Success rate: {100 * acc:.1f}%")
-    print(f"Hit rate: {100 * hit_r:.1f}%")
+    print(f"Success rate: {100 * accuracy:.1f}%")
+    print(f"Hit rate: {100 * hit_rate:.1f}%")
     print(f"Loss: {loss_value:.1e}")
 
     if args.plot:

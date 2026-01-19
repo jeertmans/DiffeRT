@@ -7,11 +7,11 @@ from jaxtyping import PRNGKeyArray
 from pytest_subtests import SubTests
 
 from .generators import random_scene
-from .metrics import accuracy, hit_rate, reward
+from .metrics import accuracy, hit_rate, reward_fn
 
 
 @pytest.mark.parametrize("order", [0, 1, 2])
-def test_reward(order: int, key: PRNGKeyArray, subtests: SubTests) -> None:
+def test_reward_fn(order: int, key: PRNGKeyArray, subtests: SubTests) -> None:
     for i, key in enumerate(jr.split(key, 20)):
         with subtests.test(i=i):
             scene = random_scene(key=key)
@@ -20,17 +20,17 @@ def test_reward(order: int, key: PRNGKeyArray, subtests: SubTests) -> None:
             path_candidates = paths.objects[:, 1:-1]
 
             # Exhaustive candidates should give hit rate of 1.0
-            got = reward(path_candidates, scene)
+            got = reward_fn(path_candidates, scene)
             chex.assert_trees_all_equal(got, paths.mask.astype(float))
 
             # Valid candidates should get reward 1.0
             valid_candidates = path_candidates[paths.mask, :]
-            got = reward(valid_candidates, scene)
+            got = reward_fn(valid_candidates, scene)
             chex.assert_trees_all_equal(got, 1.0)
 
             # Invalid candidates should get reward 0.0
             invalid_candidates = path_candidates[~paths.mask, :]
-            got = reward(invalid_candidates, scene)
+            got = reward_fn(invalid_candidates, scene)
             chex.assert_trees_all_equal(got, 0.0)
 
 

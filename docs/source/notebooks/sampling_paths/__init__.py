@@ -5,7 +5,6 @@ __all__ = (
     "random_scene",
     "train_dataloader",
     "validation_scene_keys",
-    "decreasing_edge_reward",
 )
 
 from .agent import Agent
@@ -15,5 +14,4 @@ from .generators import (
     train_dataloader,
     validation_scene_keys,
 )
-from .metrics import decreasing_edge_reward
 from .model import Model
