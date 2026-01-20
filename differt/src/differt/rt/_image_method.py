@@ -384,7 +384,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
     *,
-    smoothing_factor: Float[ArrayLike, " "],
+    smoothing_factor: Float[ArrayLike, ""],
 ) -> Float[Array, "*#batch num_mirrors"]: ...
 
 
@@ -394,7 +394,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
     *,
-    smoothing_factor: Float[ArrayLike, " "] | None = None,
+    smoothing_factor: Float[ArrayLike, ""] | None = None,
 ) -> Bool[Array, "*#batch num_mirrors"] | Float[Array, "*#batch num_mirrors"]:
     """
     Check if consecutive vertices, but skipping one every other vertex, are on the same side of a given mirror. The number of vertices ``num_vertices`` must be equal to ``num_mirrors + 2``.

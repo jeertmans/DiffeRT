@@ -260,7 +260,7 @@ def draw_rays(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     *,
-    ratio: Float[ArrayLike, " "] = 0.1,
+    ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
     """
@@ -351,7 +351,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     *,
-    ratio: Float[ArrayLike, " "] = 0.1,
+    ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> Canvas:
     from vispy.scene.visuals import Arrow  # noqa: PLC0415
@@ -388,7 +388,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Real[ArrayLike, "*batch 3"],
     *,
-    ratio: Float[ArrayLike, " "] = 0.1,
+    ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
@@ -408,7 +408,7 @@ def _(
     ray_origins: Real[ArrayLike, "*batch 3"],
     ray_directions: Float[ArrayLike, "*batch 3"],
     *,
-    ratio: Float[ArrayLike, " "] = 0.1,
+    ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> Figure:
     ray_origins = np.asarray(ray_origins)

@@ -190,7 +190,7 @@ def path_lengths(
 
 @jax.jit
 def rotation_matrix_along_x_axis(
-    angle: Float[ArrayLike, " "],
+    angle: Float[ArrayLike, ""],
 ) -> Float[Array, "3 3"]:
     """
     Return a rotation matrix to rotate coordinates along x axis.
@@ -225,7 +225,7 @@ def rotation_matrix_along_x_axis(
 
 @jax.jit
 def rotation_matrix_along_y_axis(
-    angle: Float[ArrayLike, " "],
+    angle: Float[ArrayLike, ""],
 ) -> Float[Array, "3 3"]:
     """
     Return a rotation matrix to rotate coordinates along y axis.
@@ -260,7 +260,7 @@ def rotation_matrix_along_y_axis(
 
 @jax.jit
 def rotation_matrix_along_z_axis(
-    angle: Float[ArrayLike, " "],
+    angle: Float[ArrayLike, ""],
 ) -> Float[Array, "3 3"]:
     """
     Return a rotation matrix to rotate coordinates along z axis.
@@ -295,7 +295,7 @@ def rotation_matrix_along_z_axis(
 
 @jax.jit
 def rotation_matrix_along_axis(
-    angle: Float[ArrayLike, " "],
+    angle: Float[ArrayLike, ""],
     axis: Float[ArrayLike, "3"],
 ) -> Float[Array, "3 3"]:
     """
@@ -544,8 +544,8 @@ def min_distance_between_cells(
     cell_ids = jnp.asarray(cell_ids)
 
     def scan_fun(
-        _: None, vertex_and_cell_id: tuple[Float[Array, "3"], Int[Array, " "]]
-    ) -> tuple[None, Float[Array, " "]]:
+        _: None, vertex_and_cell_id: tuple[Float[Array, "3"], Int[Array, ""]]
+    ) -> tuple[None, Float[Array, ""]]:
         vertex, cell_id = vertex_and_cell_id
         min_dist = jnp.min(
             jnp.linalg.norm(

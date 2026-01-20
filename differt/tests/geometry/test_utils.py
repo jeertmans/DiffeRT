@@ -134,7 +134,7 @@ def test_rotation_matrices(
     sign: float,
     flip_axis: bool,
     axis: tuple[float, float, float],
-    func: Callable[[Float[ArrayLike, " "]], Float[Array, "3 3"]],
+    func: Callable[[Float[ArrayLike, ""]], Float[Array, "3 3"]],
     key: PRNGKeyArray,
 ) -> None:
     angle = jax.random.uniform(key, minval=0.0, maxval=2.0 * jnp.pi)

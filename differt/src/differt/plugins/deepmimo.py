@@ -324,7 +324,7 @@ def export(
     paths: Paths | Iterable[Paths],
     scene: TriangleScene,
     radio_materials: Mapping[str, Material] | None = None,
-    frequency: Float[ArrayLike, " "],
+    frequency: Float[ArrayLike, ""],
     include_primitives: bool = False,
     polarization: Literal["V", "H"] | Float[ArrayLike, "3"] = "V",
 ) -> DeepMIMO[Array]:

@@ -78,7 +78,7 @@ class LOSModel(eqx.Module):
         self,
         triangle_vertices: Float[Array, "num_triangles 3 3"],
         path_vertices: Float[Array, "2 3"],
-    ) -> Float[Array, " "]:
+    ) -> Float[Array, ""]:
         # [num_triangles 3 num_embeds] -> [num_triangles num_embeds] -> [num_embeds]
         scene_embeds = (
             jax.vmap(jax.vmap(self.embeds))(triangle_vertices).mean(axis=1).sum(axis=0)
@@ -92,7 +92,7 @@ class LOSModel(eqx.Module):
 
 
 @eqx.filter_jit(donate="all-except-first")
-def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, " "]:
+def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
     paths = scene.compute_paths(order=0)
     f = model
 
@@ -121,7 +121,7 @@ def test_train_step(
         model: LOSModel,
         opt_state: optax.OptState,
         scene: TriangleScene,
-    ) -> tuple[LOSModel, optax.OptState, Float[Array, " "]]:
+    ) -> tuple[LOSModel, optax.OptState, Float[Array, ""]]:
         loss_value, grads = eqx.filter_value_and_grad(loss)(
             model,
             scene,
