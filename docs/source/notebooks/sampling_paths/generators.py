@@ -112,7 +112,7 @@ def validation_scene_keys(
     num_scenes: int = 100,
     progress: bool = True,
     key: PRNGKeyArray,
-) -> Key[Array, " num_scenes"]:
+) -> Key[Array, "num_scenes"]:
     """
     Return a fixed set of scene keys for validating the model.
 
@@ -125,7 +125,7 @@ def validation_scene_keys(
         A fixed set of scene keys, for which the corresponding scenes contain valid paths of the given order.
     """
 
-    def keys(key: PRNGKeyArray) -> Iterator[PRNGKeyArray]:
+    def keys_generator(key: PRNGKeyArray) -> Iterator[PRNGKeyArray]:
         old_key = key
         while True:
             old_key, new_key = jr.split(old_key)
@@ -135,7 +135,7 @@ def validation_scene_keys(
         lambda key: (
             random_scene(key=key).compute_paths(order=order).mask.sum() > 0
         ),
-        keys(key),
+        keys_generator(key),
     )
 
     if progress:

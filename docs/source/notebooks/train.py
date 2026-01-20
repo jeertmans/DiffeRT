@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sampling_paths import Agent, Model, random_scene, validation_scene_keys
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="train",
         description="Train the agent to sample paths.",
@@ -52,6 +52,24 @@ def main():
         type=float,
         default=0.05,
         help="The dropout rate.",
+    )
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=0.5,
+        help="The epsilon value for the epsilon-greedy policy.",
+    )
+    parser.add_argument(
+        "--delta-epsilon",
+        type=float,
+        default=1e-5,
+        help="The delta epsilon value for the epsilon-greedy policy.",
+    )
+    parser.add_argument(
+        "--min-epsilon",
+        type=float,
+        default=0.1,
+        help="The minimum epsilon value for the epsilon-greedy policy.",
     )
     parser.add_argument(
         "--learning-rate",
@@ -102,6 +120,7 @@ def main():
             width_size=2 * num_embeddings,
             depth=depth,
             dropout_rate=args.dropout_rate,
+            epsilon=args.epsilon,
             key=model_key,
         ),
         batch_size=batch_size,
@@ -113,6 +132,8 @@ def main():
                 "key": model_key,
             },
         ),
+        delta_epsilon=args.delta_epsilon,
+        min_epsilon=args.min_epsilon,
     )
 
     key_episodes, key_valid_samples = jr.split(key_training, 2)
@@ -137,9 +158,9 @@ def main():
 
         # Train
         train_scene = random_scene(key=scene_key)
-        # Pass the custom reward function
         agent, loss_value = agent.train(train_scene, key=train_key)
 
+        # Evaluate
         if episode % print_every == 0:
             accuracy, hit_rate = agent.evaluate(valid_keys, key=eval_key)
 

@@ -36,13 +36,11 @@ class TestFlows:
         inactive_objects = jnp.argwhere(~mask)
         for sample_key in jr.split(key, 100):
             partial_path_candidate = -jnp.ones(order, dtype=int)
-            last_object = jnp.array(-1)
             parent_flow_key, key = jr.split(sample_key)
             parent_flows = flows(
                 objects_embeds,
                 scene_embeds,
                 state_embeds,
-                last_object,
                 active_objects=scene.mesh.mask,
                 inference=inference,
                 key=parent_flow_key,
@@ -57,19 +55,17 @@ class TestFlows:
                 partial_path_candidate = partial_path_candidate.at[i].set(
                     action
                 )
-                last_object = action
-
                 edge_flows = flows(
                     objects_embeds,
                     scene_embeds,
                     state_embeds,
-                    last_object,
                     active_objects=scene.mesh.mask,
                     inference=inference,
                     key=edge_flow_key,
                 )
-                assert edge_flows[last_object] == 0, (
-                    f"Flow should be zero for last object, got: {edge_flows[last_object]}"
+                edge_flows = edge_flows.at[action].set(0.0)
+                assert edge_flows[action] == 0, (
+                    f"Flow should be zero for last object, got: {edge_flows[action]}"
                 )
                 assert (edge_flows >= 0).all(), (
                     f"Flow should be non-negative, got: {edge_flows}"

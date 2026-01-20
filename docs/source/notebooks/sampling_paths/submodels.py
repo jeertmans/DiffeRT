@@ -14,6 +14,8 @@ from jaxtyping import (
 class ObjectsEncoder(eqx.Module):
     """Generate embeddings from triangle vertices."""
 
+    out_size: int = eqx.field(static=True)
+
     mlp: eqx.nn.MLP
 
     def __init__(
@@ -25,6 +27,8 @@ class ObjectsEncoder(eqx.Module):
         *,
         key: PRNGKeyArray,
     ) -> None:
+        self.out_size = num_embeddings
+
         self.mlp = eqx.nn.MLP(
             in_size=num_vertices_per_object * 3,
             out_size=num_embeddings,
@@ -50,6 +54,8 @@ class ObjectsEncoder(eqx.Module):
 class SceneEncoder(eqx.Module):
     """Generate scene embeddings from objects embeddings."""
 
+    out_size: int = eqx.field(static=True)
+
     attention: eqx.nn.Linear
     rho: eqx.nn.MLP
 
@@ -62,6 +68,7 @@ class SceneEncoder(eqx.Module):
         key: PRNGKeyArray,
     ) -> None:
         att_key, rho_key = jr.split(key)
+        self.out_size = num_embeddings
         self.attention = eqx.nn.Linear(
             num_embeddings,
             "scalar",
@@ -95,21 +102,17 @@ class SceneEncoder(eqx.Module):
 class StateEncoder(eqx.Module):
     """Generate embeddings for a (partial) path candidate."""
 
-    linear: eqx.nn.Linear
+    out_size: int = eqx.field(static=True)
 
     def __init__(
         self,
         order: int,
         num_embeddings: int,
-        out_size: int,
         *,
-        key: PRNGKeyArray,
+        key: PRNGKeyArray | None = None,
     ) -> None:
-        self.linear = eqx.nn.Linear(
-            num_embeddings * order,
-            out_size,
-            key=key,
-        )
+        del key
+        self.out_size = order * num_embeddings
 
     def __call__(
         self,
@@ -120,10 +123,12 @@ class StateEncoder(eqx.Module):
         key: PRNGKeyArray | None = None,
     ) -> Float[Array, " out_size"]:
         del active_objects, key
-        embeds = objects_embeds.at[partial_path_candidate].get(
-            mode="fill", wrap_negative_indices=False, fill_value=0.0
+        return (
+            objects_embeds
+            .at[partial_path_candidate]
+            .get(mode="fill", wrap_negative_indices=False, fill_value=0.0)
+            .reshape(self.out_size)
         )
-        return self.linear(embeds.reshape(-1))
 
 
 class Flows(eqx.Module):
@@ -157,7 +162,6 @@ class Flows(eqx.Module):
         objects_embeds: Float[Array, "num_objects num_embeddings"],
         scene_embeds: Float[Array, "num_embeddings"],
         state_embeds: Float[Array, "num_embeddings"],
-        last_object: Int[Array, " "],
         *,
         active_objects: Bool[Array, "num_objects"] | None = None,
         inference: bool | None = None,
@@ -171,7 +175,6 @@ class Flows(eqx.Module):
             objects_embeds: Embeddings for all objects in the scene.
             scene_embeds: Embeddings for the scene.
             state_embeds: Embeddings for the current partial path candidate.
-            last_object: Last object inserted in the partial path candidate.
             active_objects: Boolean array indicating which objects are active.
             inference: Whether to run in inference mode (disables dropout).
             key: PRNG key for randomness (used in dropout), only required if not in inference mode.
@@ -186,7 +189,6 @@ class Flows(eqx.Module):
             scene_embeds,
             state_embeds,
         )
-        flows = flows.at[last_object].set(0.0, wrap_negative_indices=False)
         flows = self.dropout(flows, inference=inference, key=key)
         if active_objects is not None:
             flows = jnp.where(active_objects, flows, 0.0)

@@ -7,7 +7,6 @@ import jax.random as jr
 import optax
 from jaxtyping import (
     Array,
-    ArrayLike,
     Float,
     Int,
     Key,
@@ -26,15 +25,34 @@ else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
-def loss(
+def batch_loss(
     model: Model,
     scene: TriangleScene,
     batch_size: int,
     key: PRNGKeyArray,
-) -> Float[Array, " "]:
-    return jax.vmap(lambda key: model(scene, inference=True, key=key))(
-        jr.split(key, batch_size)
-    )[1].mean()
+) -> Float[Array, ""]:
+    _, loss_values = jax.vmap(
+        lambda key: model(scene, inference=False, key=key)
+    )(jr.split(key, batch_size))
+    return loss_values.mean()
+
+
+def decrease_epsilon(
+    delta_epsilon: float, min_epsilon: float
+) -> optax.GradientTransformation:
+    def update_fn(
+        updates: Model, state: optax.OptState, params: Model
+    ) -> tuple[Model, optax.OptState]:
+        update_epsilon = -jnp.minimum(
+            delta_epsilon, params.epsilon - min_epsilon
+        )
+        updates = eqx.tree_at(lambda m: m.epsilon, updates, update_epsilon)
+        return updates, state
+
+    return optax.GradientTransformation(
+        optax.init_empty_state,
+        update_fn,
+    )
 
 
 class Agent(eqx.Module):
@@ -54,7 +72,7 @@ class Agent(eqx.Module):
     # Updatable
     optim: optax.GradientTransformationExtraArgs
     opt_state: optax.OptState
-    steps_count: Int[Array, " "]
+    steps_count: Int[Array, ""]
 
     def __init__(
         self,
@@ -62,14 +80,17 @@ class Agent(eqx.Module):
         model: Model,
         batch_size: int = 64,
         optim: optax.GradientTransformationExtraArgs | None = None,
-        epsilon: Float[ArrayLike, ""] = 0.9,
-        delta_epsilon: Float[ArrayLike, ""] = 1e-5,
-        min_epsilon: Float[ArrayLike, ""] = 0.1,
+        delta_epsilon: float = 1e-5,
+        min_epsilon: float = 0.1,
     ) -> None:
         self.batch_size = batch_size
         self.model = model
 
-        self.optim = optax.adam(3e-5) if optim is None else optim
+        optim = optax.adam(3e-5) if optim is None else optim
+
+        self.optim = optax.chain(
+            optim, decrease_epsilon(delta_epsilon, min_epsilon)
+        )
         self.opt_state = self.optim.init(eqx.filter(self.model, eqx.is_array))
         self.steps_count = jnp.array(0)
 
@@ -79,7 +100,7 @@ class Agent(eqx.Module):
         scene: TriangleScene,
         *,
         key: PRNGKeyArray,
-    ) -> tuple[Self, Float[Array, " "]]:
+    ) -> tuple[Self, Float[Array, ""]]:
         """
         Train the model on one scene using the flow matching loss.
 
@@ -91,7 +112,7 @@ class Agent(eqx.Module):
             The updated agent and the average loss value.
         """
 
-        loss_value, grads = eqx.filter_value_and_grad(loss)(
+        loss_value, grads = eqx.filter_value_and_grad(batch_loss)(
             self.model,
             scene,
             batch_size=self.batch_size,
@@ -126,7 +147,7 @@ class Agent(eqx.Module):
         *,
         num_path_candidates: int = 10,
         key: PRNGKeyArray,
-    ) -> tuple[Float[Array, " "], Float[Array, " "]]:
+    ) -> tuple[Float[Array, ""], Float[Array, ""]]:
         """
         Evaluate the model accuracy and hit rate on a sequence of scenes.
 
@@ -142,7 +163,7 @@ class Agent(eqx.Module):
 
         def _evaluate(
             scene_key: PRNGKeyArray, key: PRNGKeyArray
-        ) -> tuple[Float[Array, " "], Float[Array, " "]]:
+        ) -> tuple[Float[Array, ""], Float[Array, ""]]:
             scene = random_scene(key=scene_key)
             path_candidates = jax.vmap(
                 lambda key: self.model(scene, inference=True, key=key)
