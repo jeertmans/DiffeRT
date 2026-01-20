@@ -158,8 +158,8 @@ def rays_intersect_triangles(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: Float[ArrayLike, " "],
+    epsilon: Float[ArrayLike, ""] | None = None,
+    smoothing_factor: Float[ArrayLike, ""],
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]: ...
 
 
@@ -169,7 +169,7 @@ def rays_intersect_triangles(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, " "] | None = None,
+    epsilon: Float[ArrayLike, ""] | None = None,
     smoothing_factor: None = None,
 ) -> tuple[Float[Array, " *batch"], Float[Array, " *batch"]]: ...
 
@@ -180,8 +180,8 @@ def rays_intersect_triangles(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: Float[ArrayLike, " "] | None = None,
+    epsilon: Float[ArrayLike, ""] | None = None,
+    smoothing_factor: Float[ArrayLike, ""] | None = None,
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"] | Float[Array, " *batch"]]:
     """
     Return whether rays intersect corresponding triangles using the Möller-Trumbore algorithm.
@@ -349,7 +349,7 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
-    hit_tol: Float[ArrayLike, " "] | None = None,
+    hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: None = None,
     batch_size: int | None = 512,
     **kwargs: Any,
@@ -363,8 +363,8 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
-    hit_tol: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: Float[ArrayLike, " "],
+    hit_tol: Float[ArrayLike, ""] | None = None,
+    smoothing_factor: Float[ArrayLike, ""],
     batch_size: int | None = 512,
     **kwargs: Any,
 ) -> Float[Array, " *batch"]: ...
@@ -377,8 +377,8 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
-    hit_tol: Float[ArrayLike, " "] | None = None,
-    smoothing_factor: Float[ArrayLike, " "] | None = None,
+    hit_tol: Float[ArrayLike, ""] | None = None,
+    smoothing_factor: Float[ArrayLike, ""] | None = None,
     batch_size: int | None = 512,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
@@ -494,7 +494,7 @@ def rays_intersect_any_triangle(
         return left | right
 
     def body_fun(
-        batch_index: Int[Array, " "],
+        batch_index: Int[Array, ""],
         intersect: Bool[Array, " *batch"] | Float[Array, " *batch"],
     ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
         start_index = batch_index * batch_size
@@ -739,7 +739,7 @@ def triangles_visible_from_vertices(
         return indices
 
     def body_fun(
-        batch_index: Int[Array, " "],
+        batch_index: Int[Array, ""],
         visible_triangles: Bool[Array, "*batch num_triangles"],
     ) -> Bool[Array, "*batch num_triangles"]:
         start_index = batch_index * batch_size
@@ -922,7 +922,7 @@ def first_triangles_hit_by_rays(
         )[:3]
 
     def body_fun(
-        batch_index: Int[Array, " "],
+        batch_index: Int[Array, ""],
         carry: tuple[
             Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
         ],

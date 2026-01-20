@@ -41,7 +41,7 @@ def poynting_vector(
 class BaseAntenna(eqx.Module):
     """An antenna class, base class for :class:`Antenna` and :class:`RadiationPattern`."""
 
-    frequency: Float[Array, " "] = eqx.field(converter=jnp.asarray)
+    frequency: Float[Array, ""] = eqx.field(converter=jnp.asarray)
     """The frequency :math:`f` at which the antenna is operating."""
     _: KW_ONLY
     center: Float[Array, "3"] = eqx.field(
@@ -53,27 +53,27 @@ class BaseAntenna(eqx.Module):
     """
 
     @property
-    def period(self) -> Float[Array, " "]:
+    def period(self) -> Float[Array, ""]:
         """The period :math:`T = 1/f`."""
         return 1 / self.frequency
 
     @property
-    def angular_frequency(self) -> Float[Array, " "]:
+    def angular_frequency(self) -> Float[Array, ""]:
         r"""The angular frequency :math:`\omega = 2 \pi f`."""
         return 2 * jnp.pi * self.frequency
 
     @property
-    def wavelength(self) -> Float[Array, " "]:
+    def wavelength(self) -> Float[Array, ""]:
         r"""The wavelength :math:`\lambda = c / f`."""
         return c * self.period
 
     @property
-    def wavenumber(self) -> Float[Array, " "]:
+    def wavenumber(self) -> Float[Array, ""]:
         r"""The wavenumber :math:`k = \omega / c`."""
         return self.angular_frequency / c
 
     @property
-    def aperture(self) -> Float[Array, " "]:
+    def aperture(self) -> Float[Array, ""]:
         r"""The aperture :math:`A` of an isotropic antenna."""
         return self.wavelength**2 / (4 * jnp.pi)
 
@@ -83,7 +83,7 @@ class Antenna(BaseAntenna):
 
     @property
     @abstractmethod
-    def reference_power(self) -> Float[Array, " "]:
+    def reference_power(self) -> Float[Array, ""]:
         r"""The reference power (W) radiated by this antenna.
 
         This is the maximal value of the Poynting vector at a distance
@@ -189,7 +189,7 @@ class Antenna(BaseAntenna):
     def directive_gain(
         self,
         num_points: int = int(1e2),
-    ) -> Float[Array, " "]:
+    ) -> Float[Array, ""]:
         """
         Compute an estimate of the antenna directive gain.
 
@@ -213,8 +213,8 @@ class Antenna(BaseAntenna):
     def plot_radiation_pattern(
         self,
         num_points: int = int(1e2),
-        distance: Float[ArrayLike, " "] = 1.0,
-        num_wavelengths: Float[ArrayLike, " "] | None = None,
+        distance: Float[ArrayLike, ""] = 1.0,
+        num_wavelengths: Float[ArrayLike, ""] | None = None,
         **kwargs: Any,
     ) -> PlotOutput:
         """
@@ -345,20 +345,20 @@ class Dipole(Antenna):
             >>> fig  # doctest: +SKIP
     """
 
-    length: Float[Array, " "] = eqx.field(converter=jnp.asarray)
+    length: Float[Array, ""] = eqx.field(converter=jnp.asarray)
     """Dipole length (in meter)."""
     moment: Float[Array, "3"] = eqx.field(converter=jnp.asarray)
     """Dipole moment (in Coulomb-meter)."""
 
     def __init__(
         self,
-        frequency: Float[ArrayLike, " "],
-        num_wavelengths: Float[ArrayLike, " "] = 0.5,
+        frequency: Float[ArrayLike, ""],
+        num_wavelengths: Float[ArrayLike, ""] = 0.5,
         *,
-        length: Float[ArrayLike, " "] | None = None,
+        length: Float[ArrayLike, ""] | None = None,
         moment: Float[ArrayLike, "3"] | None = jnp.array([0.0, 0.0, 1.0]),
-        current: Float[ArrayLike, " "] | None = 1.0,
-        charge: Float[ArrayLike, " "] | None = None,
+        current: Float[ArrayLike, ""] | None = 1.0,
+        charge: Float[ArrayLike, ""] | None = None,
         center: Float[ArrayLike, "3"] = jnp.array([0.0, 0.0, 0.0]),
         look_at: Float[ArrayLike, "3"] | None = None,
     ) -> None:
@@ -394,7 +394,7 @@ class Dipole(Antenna):
         self.moment = moment
 
     @property
-    def reference_power(self) -> Float[Array, " "]:
+    def reference_power(self) -> Float[Array, ""]:
         p_0 = jnp.linalg.norm(self.moment)
 
         # Equivalent to
@@ -475,7 +475,7 @@ class Dipole(Antenna):
     def directive_gain(  # noqa: PLR6301
         self,
         num_points: int = int(1e2),  # noqa: ARG002
-    ) -> Float[Array, " "]:
+    ) -> Float[Array, ""]:
         return jnp.array(1.5)
 
 
@@ -513,7 +513,7 @@ class ShortDipole(Dipole):
     def directive_gain(
         self,
         num_points: int = int(1e2),
-    ) -> Float[Array, " "]:
+    ) -> Float[Array, ""]:
         # Bypass Dipole's specialized implementation
         return Antenna.directive_gain(self, num_points=num_points)
 
@@ -585,7 +585,7 @@ class RadiationPattern(BaseAntenna):
     def directive_gain(
         self,
         num_points: int = int(1e2),
-    ) -> Float[Array, " "]:
+    ) -> Float[Array, ""]:
         """
         Compute an estimate of the antenna directive gain.
 
@@ -609,8 +609,8 @@ class RadiationPattern(BaseAntenna):
     def plot_radiation_pattern(
         self,
         num_points: int = int(1e2),
-        distance: Float[ArrayLike, " "] = 1.0,
-        num_wavelengths: Float[ArrayLike, " "] | None = None,
+        distance: Float[ArrayLike, ""] = 1.0,
+        num_wavelengths: Float[ArrayLike, ""] | None = None,
         **kwargs: Any,
     ) -> PlotOutput:
         """

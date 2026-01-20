@@ -55,11 +55,11 @@ def _compute_paths(
     rx_vertices: Float[Array, "num_rx_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
     *,
-    epsilon: Float[ArrayLike, " "] | None,
-    hit_tol: Float[ArrayLike, " "] | None,
-    min_len: Float[ArrayLike, " "] | None,
-    smoothing_factor: Float[ArrayLike, " "] | None,
-    confidence_threshold: Float[ArrayLike, " "] = 0.5,
+    epsilon: Float[ArrayLike, ""] | None,
+    hit_tol: Float[ArrayLike, ""] | None,
+    min_len: Float[ArrayLike, ""] | None,
+    smoothing_factor: Float[ArrayLike, ""] | None,
+    confidence_threshold: Float[ArrayLike, ""] = 0.5,
     batch_size: int | None,
 ) -> Paths:
     if min_len is None:
@@ -319,8 +319,8 @@ def _compute_paths_sbr(
     *,
     order: int,
     num_rays: int,
-    epsilon: Float[ArrayLike, " "] | None,
-    max_dist: Float[ArrayLike, " "],
+    epsilon: Float[ArrayLike, ""] | None,
+    max_dist: Float[ArrayLike, ""],
     batch_size: int | None,
 ) -> SBRPaths:
     # 1 - Prepare arrays
@@ -527,7 +527,7 @@ class TriangleScene(eqx.Module):
         return eqx.tree_at(lambda s: s.mesh, self, self.mesh.set_assume_quads(flag))
 
     def with_transmitters_grid(
-        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
+        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, ""] = 1.5
     ) -> Self:
         """
         Return a new instance of this scene with a 2D grid of transmitters placed at a fixed height.
@@ -561,7 +561,7 @@ class TriangleScene(eqx.Module):
         )
 
     def with_receivers_grid(
-        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, " "] = 1.5
+        self, m: int = 50, n: int | None = 50, *, height: Float[ArrayLike, ""] = 1.5
     ) -> Self:
         """
         Return a new instance of this scene with a 2D grid of receivers placed at a fixed height.
@@ -618,7 +618,7 @@ class TriangleScene(eqx.Module):
         )
 
     @eqx.filter_jit
-    def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
+    def scale(self, scale_factor: Float[ArrayLike, ""]) -> Self:
         """
         Return a new scene by applying a scale factor to all the objects in the scene.
 
@@ -784,12 +784,12 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
@@ -803,12 +803,12 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
@@ -822,12 +822,12 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> SizedIterator[Paths]: ...
@@ -841,12 +841,12 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> Iterator[Paths]: ...
@@ -860,12 +860,12 @@ class TriangleScene(eqx.Module):
         chunk_size: int,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"],
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> Paths: ...
@@ -879,12 +879,12 @@ class TriangleScene(eqx.Module):
         chunk_size: None = None,
         num_rays: int = int(1e6),
         path_candidates: None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
+        epsilon: Float[ArrayLike, ""] | None = None,
         hit_tol: None = None,
         min_len: None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
         smoothing_factor: None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> SBRPaths: ...
@@ -897,12 +897,12 @@ class TriangleScene(eqx.Module):
         chunk_size: int | None = None,
         num_rays: int = int(1e6),
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
-        epsilon: Float[ArrayLike, " "] | None = None,
-        hit_tol: Float[ArrayLike, " "] | None = None,
-        min_len: Float[ArrayLike, " "] | None = None,
-        max_dist: Float[ArrayLike, " "] = 1e-3,
-        smoothing_factor: Float[ArrayLike, " "] | None = None,
-        confidence_threshold: Float[ArrayLike, " "] = 0.5,
+        epsilon: Float[ArrayLike, ""] | None = None,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+        min_len: Float[ArrayLike, ""] | None = None,
+        max_dist: Float[ArrayLike, ""] = 1e-3,
+        smoothing_factor: Float[ArrayLike, ""] | None = None,
+        confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
     ) -> Paths | SizedIterator[Paths] | Iterator[Paths] | SBRPaths:

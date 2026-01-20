@@ -24,7 +24,7 @@ def _cell_ids(
 ) -> Int[Array, " batch"]:
     def scan_fun(
         indices: Int[Array, " batch"],
-        row_and_index: tuple[Shaped[Array, " n"], Int[Array, " "]],
+        row_and_index: tuple[Shaped[Array, " n"], Int[Array, ""]],
     ) -> tuple[Int[Array, " batch"], None]:
         row, index = row_and_index
         indices = jnp.where((array == row).all(axis=-1), index, indices)
@@ -115,7 +115,7 @@ class Paths(eqx.Module):
 
     The confidence value is between 0 and 1.
     """
-    confidence_threshold: Float[ArrayLike, " "] = 0.5
+    confidence_threshold: Float[ArrayLike, ""] = 0.5
     """A threshold used to decide, e.g., when plotting, whether a given path is valid or not.
 
     A path is considered valid if its confidence is greater than or equal to this threshold.
@@ -311,7 +311,7 @@ class Paths(eqx.Module):
         return self.path_length - 2
 
     @property
-    def num_valid_paths(self) -> int | Int[Array, " "]:
+    def num_valid_paths(self) -> int | Int[Array, ""]:
         """The number of paths kept by :attr:`mask`.
 
         If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
@@ -520,7 +520,7 @@ class Paths(eqx.Module):
         self,
         fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
         axis: None = None,
-    ) -> Num[Array, " "]: ...
+    ) -> Num[Array, ""]: ...
 
     @overload
     def reduce(
@@ -533,7 +533,7 @@ class Paths(eqx.Module):
         self,
         fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
         axis: int | Sequence[int] | None = None,
-    ) -> Num[Array, " "] | Num[Array, " *reduced_batch"]:
+    ) -> Num[Array, ""] | Num[Array, " *reduced_batch"]:
         """Apply a function on all path vertices and accumulate the result into a scalar value (or an array if ``axis`` is provided).
 
         Args:

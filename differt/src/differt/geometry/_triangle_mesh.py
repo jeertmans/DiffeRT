@@ -103,7 +103,7 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
-_Index = slice | Int[ArrayLike, " "] | Int[Array, " n"] | Bool[Array, " num_triangles"]
+_Index = slice | Int[ArrayLike, ""] | Int[Array, " n"] | Bool[Array, " num_triangles"]
 _T = TypeVar("_T", bound="TriangleMesh")
 
 
@@ -672,7 +672,7 @@ class TriangleMesh(eqx.Module):
             (jnp.asarray(rotation_matrix) @ self.vertices.T).T,
         )
 
-    def scale(self, scale_factor: Float[ArrayLike, " "]) -> Self:
+    def scale(self, scale_factor: Float[ArrayLike, ""]) -> Self:
         """
         Return a new mesh by applying a scale factor to all triangle coordinates.
 
@@ -1116,7 +1116,7 @@ class TriangleMesh(eqx.Module):
         return mesh.set_face_materials(face_materials)
 
     def set_face_materials(
-        self, materials: Int[ArrayLike, " "] | Int[ArrayLike, "#num_triangles"]
+        self, materials: Int[ArrayLike, ""] | Int[ArrayLike, "#num_triangles"]
     ) -> Self:
         """
         Return a new instance of this mesh, with new face materials.
@@ -1151,8 +1151,8 @@ class TriangleMesh(eqx.Module):
         vertex_c: Float[ArrayLike, "3"],
         *,
         normal: None = None,
-        side_length: Float[ArrayLike, " "] = 1.0,
-        rotate: Float[ArrayLike, " "] | None = None,
+        side_length: Float[ArrayLike, ""] = 1.0,
+        rotate: Float[ArrayLike, ""] | None = None,
     ) -> Self: ...
 
     @overload
@@ -1164,8 +1164,8 @@ class TriangleMesh(eqx.Module):
         vertex_c: None = None,
         *,
         normal: Float[ArrayLike, "3"],
-        side_length: Float[ArrayLike, " "] = 1.0,
-        rotate: Float[ArrayLike, " "] | None = None,
+        side_length: Float[ArrayLike, ""] = 1.0,
+        rotate: Float[ArrayLike, ""] | None = None,
     ) -> Self: ...
 
     @classmethod
@@ -1176,8 +1176,8 @@ class TriangleMesh(eqx.Module):
         vertex_c: Float[ArrayLike, "3"] | None = None,
         *,
         normal: Float[ArrayLike, "3"] | None = None,
-        side_length: Float[ArrayLike, " "] = 1.0,
-        rotate: Float[ArrayLike, " "] | None = None,
+        side_length: Float[ArrayLike, ""] = 1.0,
+        rotate: Float[ArrayLike, ""] | None = None,
     ) -> Self:
         """
         Create a plane mesh, made of two triangles.
@@ -1250,9 +1250,9 @@ class TriangleMesh(eqx.Module):
     @classmethod
     def box(
         cls,
-        length: Float[ArrayLike, " "] = 1.0,
-        width: Float[ArrayLike, " "] = 1.0,
-        height: Float[ArrayLike, " "] = 1.0,
+        length: Float[ArrayLike, ""] = 1.0,
+        width: Float[ArrayLike, ""] = 1.0,
+        height: Float[ArrayLike, ""] = 1.0,
         *,
         with_top: bool = False,
         with_bottom: bool = True,
@@ -1510,7 +1510,7 @@ class TriangleMesh(eqx.Module):
 
     def sample(
         self,
-        size: int | Float[ArrayLike, " "],
+        size: int | Float[ArrayLike, ""],
         replace: bool = False,
         preserve: bool = False,
         *,

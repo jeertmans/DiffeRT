@@ -79,11 +79,11 @@ class Material(eqx.Module):
         cls,
         name: str,
         *itu_properties: tuple[
-            Float[ArrayLike, " "],
-            Float[ArrayLike, " "],
-            Float[ArrayLike, " "],
-            Float[ArrayLike, " "],
-            tuple[Float[ArrayLike, " "], Float[ArrayLike, " "]] | None,
+            Float[ArrayLike, ""],
+            Float[ArrayLike, ""],
+            Float[ArrayLike, ""],
+            Float[ArrayLike, ""],
+            tuple[Float[ArrayLike, ""], Float[ArrayLike, ""]] | None,
         ],
     ) -> Self:
         r"""
@@ -133,10 +133,10 @@ class Material(eqx.Module):
         @partial(jax.jit, inline=True, static_argnums=(1, 2, 3, 4))
         def callback(
             f: Float[ArrayLike, " *batch"],
-            a: Float[ArrayLike, " "],
-            b: Float[ArrayLike, " "],
-            c: Float[ArrayLike, " "],
-            d: Float[ArrayLike, " "],
+            a: Float[ArrayLike, ""],
+            b: Float[ArrayLike, ""],
+            c: Float[ArrayLike, ""],
+            d: Float[ArrayLike, ""],
         ) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]]:
             f_ghz = jnp.asarray(f) / 1e9
 
