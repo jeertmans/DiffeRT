@@ -131,7 +131,7 @@ def main():
     assert "CUDA" in str(jax.devices()).upper(), "No CUDA device found."
     print(f"Training config: {args}")
 
-    progress_bar = tqdm(jr.split(key_episodes, num_episodes), leave=False)
+    progress_bar = tqdm(jr.split(key_episodes, num_episodes))
     for episode, key_episode in enumerate(progress_bar):
         scene_key, train_key, eval_key = jr.split(key_episode, 3)
 

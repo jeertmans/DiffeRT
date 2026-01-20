@@ -890,7 +890,7 @@ requires-dist = [
     { name = "ipympl", marker = "extra == 'all'", specifier = ">=0.9.4" },
     { name = "ipympl", marker = "extra == 'jupyter'", specifier = ">=0.9.4" },
     { name = "jax", specifier = ">=0.7.2" },
-    { name = "jaxtyping", specifier = ">=0.3.2" },
+    { name = "jaxtyping", git = "https://github.com/patrick-kidger/jaxtyping.git?rev=9be85233d60c8c08167e24704b2af7b017478e2e" },
     { name = "jupyter-rfb", marker = "extra == 'all'", specifier = ">=0.4.2" },
     { name = "jupyter-rfb", marker = "extra == 'jupyter'", specifier = ">=0.4.2" },
     { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.8.1" },
@@ -2202,14 +2202,10 @@ wheels = [
 
 [[package]]
 name = "jaxtyping"
-version = "0.3.2"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.5"
+source = { git = "https://github.com/patrick-kidger/jaxtyping.git?rev=9be85233d60c8c08167e24704b2af7b017478e2e#9be85233d60c8c08167e24704b2af7b017478e2e" }
 dependencies = [
     { name = "wadler-lindig" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/88/a8/416bd7ea110ec6b68e8868b0f99c985c735adcf7badc491d3c343937260a/jaxtyping-0.3.2.tar.gz", hash = "sha256:f30483fac4b42e915db8ad2414a85c3b63284aa7d3c100b96b59f755cf4a86ad", size = 44989, upload-time = "2025-04-23T09:48:16.907Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/b9/281e10e2d967ea5e481683eaec99f55ac5a61085ee60551c36942ef32bef/jaxtyping-0.3.2-py3-none-any.whl", hash = "sha256:6a020fd276226ddb5ac4f5725323843dd65e3c7e85c64fd62431e5f738c74e04", size = 55409, upload-time = "2025-04-23T09:48:15.924Z" },
 ]
 
 [[package]]

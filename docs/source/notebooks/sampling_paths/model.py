@@ -15,6 +15,7 @@ from differt.scene import (
     TriangleScene,
 )
 
+from .metrics import reward_fn
 from .submodels import Flows, ObjectsEncoder, SceneEncoder, StateEncoder
 from .utils import geometric_transformation, unpack_scene
 
@@ -28,6 +29,7 @@ class Model(eqx.Module):
     flows: Flows
 
     inference: bool
+    epsilon: Float[Array, ""]
 
     def __init__(
         self,
@@ -38,6 +40,7 @@ class Model(eqx.Module):
         depth: int,
         num_vertices_per_object: int = 3,
         dropout_rate: float = 0.05,
+        epsilon: Float[ArrayLike, ""] = 0.9,
         inference: bool = False,
         key: PRNGKeyArray,
     ) -> None:
@@ -88,7 +91,7 @@ class Model(eqx.Module):
         *,
         inference: Literal[False],
         key: PRNGKeyArray,
-    ) -> tuple[Int[Array, " order"], Float[Array, "num_objects order"]]: ...
+    ) -> tuple[Int[Array, " order"], Float[Array, " "]]: ...
 
     def __call__(
         self,
@@ -96,10 +99,7 @@ class Model(eqx.Module):
         *,
         inference: bool | None = None,
         key: PRNGKeyArray,
-    ) -> (
-        Int[Array, " order"]
-        | tuple[Int[Array, " order"], Float[Array, "num_objects order"]]
-    ):
+    ) -> Int[Array, " order"] | tuple[Int[Array, " order"], Float[Array, " "]]:
         # [num_objects 3 3]
         xyz = geometric_transformation(*unpack_scene(scene))
         # [num_objects num_embeddings]
@@ -120,50 +120,55 @@ class Model(eqx.Module):
         )
 
         last_object = jnp.array(-1)
-        parent_flow_key, key = jr.split(key)
-        parent_flows = self.flows(
+        edge_flows_key, key = jr.split(key)
+        edge_flows = self.flows(
             objects_embeds,
             scene_embeds,
             state_embeds,
             last_object,
             active_objects=scene.mesh.mask,
             inference=inference,
-            key=parent_flow_key,
+            key=edge_flows_key,
         )
 
-        flows = []
+        loss_value = jnp.array(0.0)
 
         # For-loop is fine here because it will be unrolled at compile time
         for i, key in enumerate(jr.split(key, self.order)):
-            flows.append(parent_flows)
-            edge_flow_key, action_key = jr.split(key)
+            sample_key, edge_flows_key = jr.split(key)
 
-            last_object = jr.categorical(
-                action_key, logits=jnp.log(parent_flows)
-            )
+            last_object = jr.categorical(sample_key, logits=jnp.log(edge_flows))
+            parent_flow = edge_flows[last_object]
             partial_path_candidate = partial_path_candidate.at[i].set(
                 last_object
             )
             state_embeds = self.state_encoder(
-                partial_path_candidate, objects_embeds
-            )
-
-            edge_flows = self.flows(
+                partial_path_candidate,
                 objects_embeds,
-                scene_embeds,
-                state_embeds,
-                last_object,
                 active_objects=scene.mesh.mask,
-                inference=inference,
-                key=edge_flow_key,
             )
 
-            parent_flows = edge_flows
+            if i == self.order - 1:
+                reward = reward_fn(partial_path_candidate, scene)
+                edge_flows = jnp.zeros_like(edge_flows)
+            else:
+                reward = 0.0
+                edge_flows = self.flows(
+                    objects_embeds,
+                    scene_embeds,
+                    state_embeds,
+                    last_object,
+                    active_objects=scene.mesh.mask,
+                    inference=inference,
+                    key=edge_flows_key,
+                )
+
+            loss_value += (parent_flow - edge_flows.sum() - reward) ** 2
 
         if inference or self.inference:
             return partial_path_candidate
 
-        return partial_path_candidate, jnp.stack(flows, axis=-1)
+        return partial_path_candidate, loss_value
 
         # [num_embeddings]
         state_embeds = self.state_encoder(

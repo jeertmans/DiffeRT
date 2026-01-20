@@ -195,7 +195,7 @@ omit = ["**/*/conftest.py"]
 
 [tool.pytest.ini_options]
 addopts = [
-  #"--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
+  # "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
   "--numprocesses=logical",
   "--cov-report=xml",
   "--cov=differt/src/differt",
@@ -312,6 +312,7 @@ required-version = ">=0.5.26"  # See: https://github.com/astral-sh/uv/pull/11075
 
 [tool.uv.sources]
 differt = {workspace = true}
+jaxtyping = {git = "https://github.com/patrick-kidger/jaxtyping.git", rev = "9be85233d60c8c08167e24704b2af7b017478e2e"}
 
 [tool.uv.workspace]
 members = ["differt", "differt-core"]

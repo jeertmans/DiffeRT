@@ -22,7 +22,7 @@ def key(seed: int) -> PRNGKeyArray:
     return jax.random.key(seed)
 
 
-@pytest.fixture(params=[1, 2])
+@pytest.fixture(params=[1, 2, 3])
 def order(request: pytest.FixtureRequest) -> int:
     return request.param
 

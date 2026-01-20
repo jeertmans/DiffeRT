@@ -17,7 +17,7 @@ from jaxtyping import (
 from differt.scene import TriangleScene
 
 from .generators import random_scene
-from .metrics import accuracy, hit_rate, reward_fn
+from .metrics import accuracy, hit_rate
 from .model import Model
 
 if TYPE_CHECKING:
@@ -26,33 +26,15 @@ else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
-def flow_matching_loss(
-    model: Model,
-    scene: TriangleScene,
-    key: PRNGKeyArray,
-) -> Float[Array, " "]:
-    """
-    Compute the flow matching loss for a given model and scene.
-    """
-    path_candidate, flows = model(scene, inference=False, key=key)
-    parent_flows = jnp.take(flows, path_candidate, axis=0)
-    sum_edge_flows = flows.sum(axis=0)
-    sum_edge_flows = jnp.roll(sum_edge_flows, -1)
-    sum_edge_flows = sum_edge_flows.at[-1].set(reward_fn(path_candidate, scene))
-    flows_mismatch = (parent_flows - sum_edge_flows) ** 2
-    return flows_mismatch.sum()
-
-
 def loss(
     model: Model,
     scene: TriangleScene,
     batch_size: int,
     key: PRNGKeyArray,
 ) -> Float[Array, " "]:
-    loss_values = jax.vmap(flow_matching_loss, in_axes=(None, None, 0))(
-        model, scene, jr.split(key, batch_size)
-    )
-    return loss_values.mean()
+    return jax.vmap(lambda key: model(scene, inference=True, key=key))(
+        jr.split(key, batch_size)
+    )[1].mean()
 
 
 class Agent(eqx.Module):

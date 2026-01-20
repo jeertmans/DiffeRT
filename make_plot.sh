@@ -1,6 +1,4 @@
-uv run python docs/source/notebooks/train.py --order 1 --batch-size 32 --num-embeddings 64 || true
-uv run python docs/source/notebooks/train.py --order 1 --batch-size 64 --num-embeddings 128 || true
-uv run python docs/source/notebooks/train.py --order 2 --batch-size 32 --num-embeddings 64 || true
-uv run python docs/source/notebooks/train.py --order 2 --batch-size 64 --num-embeddings 128 || true
-uv run python docs/source/notebooks/train.py --order 2 --batch-size 128 --num-embeddings 256 || true
-uv run python docs/source/notebooks/train.py --order 2 --batch-size 128 --num-embeddings 512 || true
+uv run python docs/source/notebooks/train.py --optim="optax.chain(optax.add_noise(0.01,0.55,key=key),optax.adam(learning_rate))" --order 2 --batch-size 64 --num-embeddings 128 --learning-rate 0.001 --num-episodes 100000 || true
+uv run python docs/source/notebooks/train.py --optim="optax.chain(optax.add_noise(0.01,0.55,key=key),optax.adam(learning_rate))" --order 2 --batch-size 64 --num-embeddings 128 --learning-rate 0.01 --num-episodes 100000 || true
+uv run python docs/source/notebooks/train.py --optim="optax.chain(optax.add_noise(0.01,0.55,key=key),optax.adam(learning_rate))" --order 2 --batch-size 128 --num-embeddings 256 --learning-rate 0.0001 --num-episodes 100000 || true
+uv run python docs/source/notebooks/train.py --optim="optax.chain(optax.add_noise(0.01,0.55,key=key),optax.adam(learning_rate))" --order 2 --batch-size 128 --num-embeddings 256 --learning-rate 0.0001 --num-episodes 100000 || true
