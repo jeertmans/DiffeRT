@@ -91,12 +91,19 @@ class SceneEncoder(eqx.Module):
     ) -> Float[Array, " num_embeddings"]:
         del key
         # [num_objects]
-        weights = jax.nn.softmax(
-            jax.vmap(self.attention)(objects_embeds), where=active_objects
-        )
+        # weights = jax.nn.softmax(
+        #    jax.vmap(self.attention)(objects_embeds), where=active_objects
+        # )
         # [num_embeddings]
-        weigthed_sum = jnp.dot(weights, objects_embeds)
-        return self.rho(weigthed_sum)
+        # weigthed_sum = jnp.dot(weights, objects_embeds)
+        return self.rho(
+            objects_embeds.mean(
+                axis=0,
+                where=active_objects[:, None]
+                if active_objects is not None
+                else None,
+            )
+        )
 
 
 class StateEncoder(eqx.Module):
@@ -152,6 +159,7 @@ class Flows(eqx.Module):
             out_size="scalar",
             width_size=width_size,
             depth=depth,
+            activation=jax.nn.leaky_relu,
             final_activation=jnp.exp,
             key=key,
         )

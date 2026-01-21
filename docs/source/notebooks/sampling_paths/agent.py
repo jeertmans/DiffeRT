@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import equinox as eqx
@@ -16,6 +18,7 @@ from jaxtyping import (
 from differt.scene import TriangleScene
 
 from .generators import random_scene
+from .memory import Memory
 from .metrics import accuracy, hit_rate
 from .model import Model
 
@@ -27,14 +30,65 @@ else:
 
 def batch_loss(
     model: Model,
-    scene: TriangleScene,
-    batch_size: int,
-    key: PRNGKeyArray,
-) -> Float[Array, ""]:
-    _, loss_values = jax.vmap(
-        lambda key: model(scene, inference=False, key=key)
-    )(jr.split(key, batch_size))
-    return loss_values.mean()
+    scene_key: PRNGKeyArray,
+    keys: Key[Array, " batch_size"],
+    *,
+    scene_fn: Callable[[PRNGKeyArray], TriangleScene],
+    debug: bool = False,
+) -> tuple[
+    Float[Array, ""],
+    tuple[Int[Array, "batch_size order"], Float[Array, " batch_size"]],
+]:
+    if debug:
+        path_candidates, loss_values, rewards = jax.lax.map(
+            lambda key: model(
+                scene_fn(key=scene_key), inference=False, key=key
+            ),
+            keys,
+        )
+    else:
+        path_candidates, loss_values, rewards = jax.vmap(
+            lambda key: model(scene_fn(key=scene_key), inference=False, key=key)
+        )(keys)
+
+    return loss_values.mean(), (path_candidates, rewards)
+
+
+@jax.debug_nans(False)
+@jax.debug_infs(False)
+def replay_loss(
+    model: Model,
+    scene_keys: Key[Array, " batch_size"],
+    path_candidates: Int[Array, " batch_size order"],
+    rewards: Float[Array, " batch_size"],
+    *,
+    scene_fn: Callable[[PRNGKeyArray], TriangleScene],
+    debug: bool = False,
+) -> tuple[
+    Float[Array, ""],
+    tuple[Int[Array, "batch_size order"], Float[Array, " batch_size"]],
+]:
+    if debug:
+        _, loss_values, _ = jax.lax.map(
+            lambda scene_key, path_candidate: model(
+                scene_fn(key=scene_key),
+                replay=path_candidate,
+                inference=False,
+                key=jr.key(0),
+            ),
+            scene_keys,
+            path_candidates,
+        )
+    else:
+        _, loss_values, _ = jax.vmap(
+            lambda scene_key, path_candidate: model(
+                scene_fn(key=scene_key),
+                replay=path_candidate,
+                inference=False,
+                key=jr.key(0),
+            )
+        )(scene_keys, path_candidates)
+    return jnp.sum(loss_values * rewards)
 
 
 def decrease_epsilon(
@@ -65,6 +119,8 @@ class Agent(eqx.Module):
 
     # Static
     batch_size: int = eqx.field(static=True)
+    # Static but can be changed
+    scene_fn: Callable[[PRNGKeyArray], TriangleScene]
 
     # Trainable
     model: Model
@@ -73,6 +129,9 @@ class Agent(eqx.Module):
     optim: optax.GradientTransformationExtraArgs
     opt_state: optax.OptState
     steps_count: Int[Array, ""]
+    memory: Memory
+
+    debug: bool
 
     def __init__(
         self,
@@ -82,22 +141,46 @@ class Agent(eqx.Module):
         optim: optax.GradientTransformationExtraArgs | None = None,
         delta_epsilon: float = 1e-5,
         min_epsilon: float = 0.1,
+        memory_size: int = 10_000,
+        scene_fn: Callable[[PRNGKeyArray], TriangleScene] = random_scene,
     ) -> None:
         self.batch_size = batch_size
+        self.scene_fn = scene_fn
+
         self.model = model
 
         optim = optax.adam(3e-5) if optim is None else optim
-
         self.optim = optax.chain(
             optim, decrease_epsilon(delta_epsilon, min_epsilon)
         )
         self.opt_state = self.optim.init(eqx.filter(self.model, eqx.is_array))
         self.steps_count = jnp.array(0)
+        self.memory = Memory(
+            memory_size, order=model.order, key_dtype=jr.key(0).dtype
+        )
+
+        self.debug = model.debug
+
+    def set_debug_mode(self, debug: bool) -> Self:
+        """
+        Set the debug mode of the model.
+
+        Args:
+            debug: Whether to enable debug mode.
+
+        Returns:
+            The updated agent with the debug mode set.
+        """
+        return eqx.tree_at(
+            lambda agent: (agent.debug, agent.model.debug),
+            self,
+            (debug, debug),
+        )
 
     @eqx.filter_jit
     def train(
         self,
-        scene: TriangleScene,
+        scene_key: PRNGKeyArray,
         *,
         key: PRNGKeyArray,
     ) -> tuple[Self, Float[Array, ""]]:
@@ -105,23 +188,59 @@ class Agent(eqx.Module):
         Train the model on one scene using the flow matching loss.
 
         Args:
-            scene: The scene to train on.
+            scene_key: The key to generate the scene to train on.
             key: The key to use for training.
 
         Returns:
             The updated agent and the average loss value.
         """
+        keys = jr.split(key, self.batch_size)
 
-        loss_value, grads = eqx.filter_value_and_grad(batch_loss)(
-            self.model,
-            scene,
-            batch_size=self.batch_size,
-            key=key,
+        (loss_value, (path_candidates, rewards)), grads = (
+            eqx.filter_value_and_grad(
+                partial(batch_loss, scene_fn=self.scene_fn, debug=self.debug),
+                has_aux=True,
+            )(
+                self.model,
+                scene_key,
+                keys,
+            )
+        )
+
+        memory = self.memory.add_successful_experiences(
+            scene_keys=jnp.full(
+                (self.batch_size,), scene_key, dtype=scene_key.dtype
+            ),
+            path_candidates=path_candidates,
+            rewards=rewards,
         )
 
         updates, opt_state = self.optim.update(
             grads, self.opt_state, eqx.filter(self.model, eqx.is_array)
         )
+
+        model = eqx.apply_updates(self.model, updates)
+
+        # Replay from memory
+
+        scene_keys, path_candidates, rewards = memory.sample_experiences(
+            self.batch_size, key=key
+        )
+
+        grads = eqx.filter_grad(
+            partial(replay_loss, scene_fn=self.scene_fn, debug=self.debug)
+        )(
+            model,
+            scene_keys,
+            path_candidates,
+            rewards,
+        )
+
+        updates, opt_state = self.optim.update(
+            grads, opt_state, eqx.filter(model, eqx.is_array)
+        )
+
+        model = eqx.apply_updates(model, updates)
 
         return (
             eqx.tree_at(
@@ -129,13 +248,10 @@ class Agent(eqx.Module):
                     agent.model,
                     agent.opt_state,
                     agent.steps_count,
+                    agent.memory,
                 ),
                 self,
-                (
-                    eqx.apply_updates(self.model, updates),
-                    opt_state,
-                    self.steps_count + 1,
-                ),
+                (model, opt_state, self.steps_count + 1, memory),
             ),
             loss_value,
         )
@@ -164,7 +280,7 @@ class Agent(eqx.Module):
         def _evaluate(
             scene_key: PRNGKeyArray, key: PRNGKeyArray
         ) -> tuple[Float[Array, ""], Float[Array, ""]]:
-            scene = random_scene(key=scene_key)
+            scene = self.scene_fn(key=scene_key)
             path_candidates = jax.vmap(
                 lambda key: self.model(scene, inference=True, key=key)
             )(jr.split(key, num_path_candidates))

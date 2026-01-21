@@ -21,6 +21,16 @@ from .submodels import Flows, ObjectsEncoder, SceneEncoder, StateEncoder
 from .utils import geometric_transformation, unpack_scene
 
 
+def scan(f, init, xs):
+    carry = init
+    ys = []
+    for x in zip(*xs):
+        carry, y = f(carry, x)
+        if y is not None:
+            ys.append(y)
+    return carry, jnp.stack(ys) if ys else None
+
+
 class Model(eqx.Module):
     order: int = eqx.field(static=True)
 
@@ -29,8 +39,10 @@ class Model(eqx.Module):
     state_encoder: StateEncoder
     flows: Flows
 
-    inference: bool
     epsilon: Float[Array, ""]
+
+    inference: bool
+    debug: bool
 
     def __init__(
         self,
@@ -43,11 +55,10 @@ class Model(eqx.Module):
         dropout_rate: float = 0.05,
         epsilon: Float[ArrayLike, ""] = 0.5,
         inference: bool = False,
+        debug: bool = False,
         key: PRNGKeyArray,
     ) -> None:
         self.order = order
-        self.inference = inference
-        self.epsilon = jnp.asarray(epsilon)
 
         self.objects_encoder = ObjectsEncoder(
             num_embeddings=num_embeddings,
@@ -78,6 +89,11 @@ class Model(eqx.Module):
             key=key,
         )
 
+        self.epsilon = jnp.asarray(epsilon)
+
+        self.inference = inference
+        self.debug = debug
+
     @overload
     def __call__(
         self,
@@ -94,24 +110,28 @@ class Model(eqx.Module):
         *,
         inference: Literal[False],
         key: PRNGKeyArray,
-    ) -> tuple[Int[Array, " order"], Float[Array, ""]]: ...
+    ) -> tuple[Int[Array, " order"], Float[Array, ""], Float[Array, ""]]: ...
 
     def __call__(
         self,
         scene: TriangleScene,
         *,
+        replay: Int[Array, " order"] | None = None,
         inference: bool | None = None,
         key: PRNGKeyArray,
-    ) -> Int[Array, " order"] | tuple[Int[Array, " order"], Float[Array, ""]]:
+    ) -> (
+        Int[Array, " order"]
+        | tuple[Int[Array, " order"], Float[Array, ""], Float[Array, ""]]
+    ):
         inference = self.inference if inference is None else inference
 
         # [num_objects 3 3]
         xyz = geometric_transformation(*unpack_scene(scene))
+        num_objects = xyz.shape[0]
         # [num_objects num_embeddings]
         objects_embeds = self.objects_encoder(
             xyz, active_objects=scene.mesh.mask
         )
-        num_objects, num_embeddings = objects_embeds.shape
         # [num_embeddings]
         scene_embeds = self.scene_encoder(
             objects_embeds, active_objects=scene.mesh.mask
@@ -129,26 +149,45 @@ class Model(eqx.Module):
                 Int[Array, "order"],
                 Float[Array, ""],
                 Float[Array, "num_objects"],
+                Int[Array, ""],
             ],
-            None,
+            Float[Array, ""],
         ]:
 
-            partial_path_candidate, loss_value, edge_flows = carry
+            partial_path_candidate, loss_value, edge_flows, previous_object = (
+                carry
+            )
             i, key = x
 
             next_object_key, next_edge_flows_key = jr.split(key)
 
             # Sample next object
-            policy = edge_flows / edge_flows.sum()
-            if not inference:
+            flow_policy = edge_flows
+            if not inference:  # During training, we use uniform policy with probability epsilon
                 epsilon_greedy_key, next_object_key = jr.split(next_object_key)
-                policy = jnp.where(
-                    jr.uniform(epsilon_greedy_key) < self.epsilon,
-                    (edge_flows > 0),
-                    policy,
+                uniform_policy = (
+                    jnp.where(scene.mesh.mask, 1.0, 0.0)
+                    if scene.mesh.mask is not None
+                    else jnp.ones_like(flow_policy)
                 )
+                uniform_policy = uniform_policy.at[previous_object].set(
+                    0.0, wrap_negative_indices=False
+                )
+                choose_uniform_policy = jr.bernoulli(
+                    epsilon_greedy_key, self.epsilon
+                ) | (edge_flows.sum() == 0.0)
+                policy = jnp.where(
+                    choose_uniform_policy,
+                    uniform_policy,
+                    flow_policy,
+                )
+            else:
+                policy = flow_policy
 
-            next_object = jr.choice(next_object_key, num_objects, p=policy)
+            if replay is not None:
+                next_object = replay[i]
+            else:
+                next_object = jr.choice(next_object_key, num_objects, p=policy)
 
             # Update state variables
             partial_path_candidate = partial_path_candidate.at[i].set(
@@ -184,6 +223,20 @@ class Model(eqx.Module):
                 .at[next_object]
                 .set(0.0),
             )
+            if self.debug:
+                jax.debug.print(
+                    "(Scan:i={i}):"
+                    "\n\tPartial path candidate: {partial_path_candidate}"
+                    "\n\tEdge flows: {edge_flows} (sum={sum})"
+                    "\n\tParent flows: {parent_}"
+                    "\n\tReward: {reward}",
+                    i=i,
+                    partial_path_candidate=partial_path_candidate,
+                    edge_flows=edge_flows,
+                    sum=edge_flows.sum(),
+                    parent_=parent_flow,
+                    reward=reward,
+                )
 
             loss_value += (parent_flow - edge_flows.sum() - reward) ** 2
 
@@ -191,7 +244,8 @@ class Model(eqx.Module):
                 partial_path_candidate,
                 loss_value,
                 edge_flows,
-            ), None
+                next_object,
+            ), reward
 
         init_edge_flows_key, scan_key = jr.split(key)
 
@@ -207,12 +261,13 @@ class Model(eqx.Module):
             key=init_edge_flows_key,
         )
 
-        (path_candidate, loss_value, _), _ = jax.lax.scan(
+        (path_candidate, loss_value, _, _), rewards = scan(
             scan_fn,
             (
                 init_path_candidate,
                 init_loss_value,
                 init_edge_flows,
+                jnp.array(-1),
             ),
             (jnp.arange(self.order), jr.split(scan_key, self.order)),
         )
@@ -220,7 +275,7 @@ class Model(eqx.Module):
         if inference:
             return path_candidate
 
-        return path_candidate, loss_value
+        return path_candidate, loss_value, rewards[-1]
 
         raise ValueError("Should never reach here")
 

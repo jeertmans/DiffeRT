@@ -1667,6 +1667,7 @@ class TriangleMesh(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
+    @eqx.filter_jit
     def shuffle(
         self,
         preserve: bool = False,

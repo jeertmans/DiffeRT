@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import optax
 from tqdm import tqdm
 
-from sampling_paths import Agent, Model, random_scene, validation_scene_keys
+from sampling_paths import Agent, Model, validation_scene_keys
 
 
 def main() -> None:
@@ -157,8 +157,7 @@ def main() -> None:
         scene_key, train_key, eval_key = jr.split(key_episode, 3)
 
         # Train
-        train_scene = random_scene(key=scene_key)
-        agent, loss_value = agent.train(train_scene, key=train_key)
+        agent, loss_value = agent.train(scene_key, key=train_key)
 
         # Evaluate
         if episode % print_every == 0:

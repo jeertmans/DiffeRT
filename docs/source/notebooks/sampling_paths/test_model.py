@@ -14,7 +14,7 @@ class TestModel:
         mask = scene.mesh.mask
         if mask is None:
             mask = jnp.array([], dtype=bool)
-        inactive_objects = jnp.argwhere(mask == False)
+        inactive_objects = jnp.argwhere(~mask)
         for sample_key in jr.split(key, 100):
             path_candidate = model(scene, inference=True, key=sample_key)
             # model should never generate a path that contains the same object twice in a row
