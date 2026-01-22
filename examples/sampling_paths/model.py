@@ -21,16 +21,6 @@ from .submodels import Flows, ObjectsEncoder, SceneEncoder, StateEncoder
 from .utils import geometric_transformation, unpack_scene
 
 
-def scan(f, init, xs):
-    carry = init
-    ys = []
-    for x in zip(*xs):
-        carry, y = f(carry, x)
-        if y is not None:
-            ys.append(y)
-    return carry, jnp.stack(ys) if ys else None
-
-
 class Model(eqx.Module):
     order: int = eqx.field(static=True)
 
@@ -256,7 +246,7 @@ class Model(eqx.Module):
             key=init_edge_flows_key,
         )
 
-        (path_candidate, loss_value, _, _), rewards = scan(
+        (path_candidate, loss_value, _, _), rewards = jax.lax.scan(
             scan_fn,
             (
                 init_path_candidate,

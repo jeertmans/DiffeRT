@@ -90,13 +90,13 @@ def main() -> None:
     parser.add_argument(
         "--num-episodes",
         type=int,
-        default=1_000,
+        default=100_000,
         help="The number of episodes.",
     )
     parser.add_argument(
         "--evaluate-every",
         type=int,
-        default=1_000,
+        default=100,
         help="How often to evaluate (and save) the metrics.",
     )
     parser.add_argument(
