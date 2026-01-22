@@ -14,8 +14,7 @@ from differt.utils import (
     sample_points_in_bounding_box,
 )
 
-from .generators import random_scene
-from .utils import geometric_transformation, unpack_scene
+from .utils import geometric_transformation, random_scene, unpack_scene
 
 
 @pytest.mark.parametrize("degenerate", [False, True])

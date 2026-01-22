@@ -293,6 +293,25 @@ class TestTriangleScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
 
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_path_candidates_matches_exhaustive(self, order: int, assume_quads: bool, simple_street_canyon_scene: TriangleScene) -> None:
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
+        expected = scene.compute_paths(order=order)
+        path_candidates = expected.objects[:, 1:-1]
+        got = scene.compute_paths(path_candidates=path_candidates)
+        chex.assert_trees_all_equal(got.masked_vertices, expected.masked_vertices)
+
+        # Also check if passing a single path candidate works
+        path_candidates = expected.masked().objects[:, 1:-1]
+
+        for path_candidate in path_candidates:
+            got = scene.compute_paths(
+                path_candidates=path_candidate[None, :],
+            )
+            assert got.mask is not None and got.mask.size == 1
+            chex.assert_trees_all_equal(got.mask.squeeze(), True, custom_message=f"Path candidate should be valid: {path_candidate}")
+
     @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize(

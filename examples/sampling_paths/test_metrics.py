@@ -6,8 +6,8 @@ import pytest
 from jaxtyping import PRNGKeyArray
 from pytest_subtests import SubTests
 
-from .generators import random_scene
 from .metrics import accuracy, hit_rate, reward_fn
+from .utils import random_scene
 
 
 @pytest.mark.parametrize("order", [0, 1, 2])

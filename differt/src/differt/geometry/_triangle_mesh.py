@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
     TypedDict,
     TypeVar,
     overload,
@@ -1667,13 +1668,32 @@ class TriangleMesh(eqx.Module):
             is_leaf=lambda x: x is None,
         )
 
+    @overload
+    def shuffle(
+        self,
+        preserve: bool = False,
+        *,
+        return_indices: Literal[True],
+        key: PRNGKeyArray,
+    ) -> tuple[Self, Int[ArrayLike, " num_triangles"]]: ...
+
+    @overload
+    def shuffle(
+        self,
+        preserve: bool = False,
+        *,
+        return_indices: Literal[False] = False,
+        key: PRNGKeyArray,
+    ) -> Self: ...
+
     @eqx.filter_jit
     def shuffle(
         self,
         preserve: bool = False,
         *,
+        return_indices: bool = False,
         key: PRNGKeyArray,
-    ) -> Self:
+    ) -> Self | tuple[Self, Int[ArrayLike, " num_triangles"]]:
         """
         Generate a new mesh by randomly shuffling primitives from this geometry.
 
@@ -1687,6 +1707,7 @@ class TriangleMesh(eqx.Module):
 
                 Setting this to :data:`True` has no effect if :attr:`object_bounds`
                 is :data:`None`.
+            return_indices: Whether to return the indices used for shuffling.
             key: The :func:`jax.random.key` to be used.
 
         Returns:
@@ -1700,10 +1721,15 @@ class TriangleMesh(eqx.Module):
                 "Preserving object bounds is not implemented yet."
             )
 
-        indices = jax.random.permutation(key, jnp.arange(self.num_triangles))
+        indices = jax.random.permutation(key, jnp.arange(self.num_primitives))
+
+        if self.assume_quads:
+            indices *= 2
+            indices = jnp.stack((indices, indices + 1), axis=-1).reshape(-1)
+
         object_bounds = None
 
-        return eqx.tree_at(
+        mesh = eqx.tree_at(
             lambda m: (
                 m.vertices,
                 m.triangles,
@@ -1725,3 +1751,7 @@ class TriangleMesh(eqx.Module):
             ),
             is_leaf=lambda x: x is None,
         )
+
+        if return_indices:
+            return mesh, indices
+        return mesh

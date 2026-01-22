@@ -16,10 +16,10 @@ from jaxtyping import (
 
 from differt.scene import TriangleScene
 
-from .generators import random_scene
 from .metrics import accuracy, hit_rate
 from .model import Model
 from .replay_buffer import ReplayBuffer
+from .utils import random_scene
 
 if TYPE_CHECKING:
     from typing import Self
@@ -111,7 +111,7 @@ def decrease_epsilon(
 
     return optax.GradientTransformation(
         optax.init_empty_state,
-        update_fn,
+        update_fn,  # type: ignore[invalid-type-argument]
     )
 
 
@@ -249,6 +249,8 @@ class Agent(eqx.Module):
             )
 
             model = eqx.apply_updates(model, updates)
+        else:
+            replay_buffer = None
 
         return (
             eqx.tree_at(
@@ -260,6 +262,7 @@ class Agent(eqx.Module):
                 ),
                 self,
                 (model, opt_state, self.steps_count + 1, replay_buffer),
+                is_leaf=lambda x: x is None,
             ),
             loss_value,
         )
