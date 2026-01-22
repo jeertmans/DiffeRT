@@ -42,7 +42,6 @@ class Model(eqx.Module):
     epsilon: Float[Array, ""]
 
     inference: bool
-    debug: bool
 
     def __init__(
         self,
@@ -55,7 +54,6 @@ class Model(eqx.Module):
         dropout_rate: float = 0.05,
         epsilon: Float[ArrayLike, ""] = 0.5,
         inference: bool = False,
-        debug: bool = False,
         key: PRNGKeyArray,
     ) -> None:
         self.order = order
@@ -92,7 +90,6 @@ class Model(eqx.Module):
         self.epsilon = jnp.asarray(epsilon)
 
         self.inference = inference
-        self.debug = debug
 
     @overload
     def __call__(
@@ -235,20 +232,6 @@ class Model(eqx.Module):
                 .at[next_object]
                 .set(0.0),
             )
-            if self.debug:
-                jax.debug.print(
-                    "(Scan:i={i}):"
-                    "\n\tPartial path candidate: {partial_path_candidate}"
-                    "\n\tEdge flows: {edge_flows} (sum={sum})"
-                    "\n\tParent flows: {parent_}"
-                    "\n\tReward: {reward}",
-                    i=i,
-                    partial_path_candidate=partial_path_candidate,
-                    edge_flows=edge_flows,
-                    sum=edge_flows.sum(),
-                    parent_=parent_flow,
-                    reward=reward,
-                )
 
             loss_value += (parent_flow - edge_flows.sum() - reward) ** 2
 

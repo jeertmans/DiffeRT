@@ -37,20 +37,13 @@ def batch_loss(
     keys: Key[Array, " batch_size"],
     *,
     scene_fn: SceneFn,
-    debug: bool = False,
 ) -> tuple[
     Float[Array, ""],
     tuple[Int[Array, "batch_size order"], Float[Array, " batch_size"]],
 ]:
-    if debug:
-        path_candidates, loss_values, rewards = jax.lax.map(
-            lambda key: model(scene_fn(key=scene_key), inference=False, key=key),
-            keys,
-        )
-    else:
-        path_candidates, loss_values, rewards = jax.vmap(
-            lambda key: model(scene_fn(key=scene_key), inference=False, key=key)
-        )(keys)
+    path_candidates, loss_values, rewards = jax.vmap(
+        lambda key: model(scene_fn(key=scene_key), inference=False, key=key)
+    )(keys)
 
     return loss_values.mean(), (path_candidates, rewards)
 
@@ -61,30 +54,21 @@ def replay_loss(
     model: Model,
     scene_keys: Key[Array, " batch_size"],
     path_candidates: Int[Array, " batch_size order"],
-    rewards: Float[Array, " batch_size"],
     *,
     scene_fn: SceneFn,
-    debug: bool = False,
 ) -> Float[Array, ""]:
-    if debug:
-        _, loss_values, _ = jax.lax.map(
-            lambda scene_key, path_candidate: model(
-                scene_fn(key=scene_key),
-                replay=path_candidate,
-                inference=False,
-                key=jr.key(0),
-            ),
-            (scene_keys, path_candidates),
+    # N.B.: we don't use the rewards from the replay buffer:
+    # while they should equal the ones obtained by the model,
+    # we observe that sometime a false 'successful' reward is stored (??).
+
+    _, loss_values, rewards = jax.vmap(
+        lambda scene_key, path_candidate: model(
+            scene_fn(key=scene_key),
+            replay=path_candidate,
+            inference=False,
+            key=jr.key(0),
         )
-    else:
-        _, loss_values, _ = jax.vmap(
-            lambda scene_key, path_candidate: model(
-                scene_fn(key=scene_key),
-                replay=path_candidate,
-                inference=False,
-                key=jr.key(0),
-            )
-        )(scene_keys, path_candidates)
+    )(scene_keys, path_candidates)
     return jnp.sum(loss_values * rewards)
 
 
@@ -128,7 +112,6 @@ class Agent(eqx.Module):
     batch_size: int = eqx.field(static=True)
     # Static but can be changed
     scene_fn: SceneFn
-    debug: bool
     # Learned
     model: Model
     # Training
@@ -151,7 +134,6 @@ class Agent(eqx.Module):
     ) -> None:
         self.batch_size = batch_size
         self.scene_fn = scene_fn
-        self.debug = model.debug
 
         self.model = model
 
@@ -167,22 +149,6 @@ class Agent(eqx.Module):
             )
             if replay_buffer_capacity is not None
             else None
-        )
-
-    def set_debug_mode(self, debug: bool) -> Self:
-        """
-        Set the debug mode of the model.
-
-        Args:
-            debug: Whether to enable debug mode.
-
-        Returns:
-            The updated agent with the debug mode set.
-        """
-        return eqx.tree_at(
-            lambda agent: (agent.debug, agent.model.debug),
-            self,
-            (debug, debug),
         )
 
     @eqx.filter_jit
@@ -207,7 +173,7 @@ class Agent(eqx.Module):
         # 1st train step: flow matching
 
         (loss_value, (path_candidates, rewards)), grads = eqx.filter_value_and_grad(
-            partial(batch_loss, scene_fn=self.scene_fn, debug=self.debug),
+            partial(batch_loss, scene_fn=self.scene_fn),
             has_aux=True,
         )(
             self.model,
@@ -231,17 +197,14 @@ class Agent(eqx.Module):
                 rewards=rewards,
             )
 
-            scene_keys, path_candidates, rewards = replay_buffer.sample(
+            scene_keys, path_candidates, _ = replay_buffer.sample(
                 self.batch_size, key=key
             )
 
-            grads = eqx.filter_grad(
-                partial(replay_loss, scene_fn=self.scene_fn, debug=self.debug)
-            )(
+            grads = eqx.filter_grad(partial(replay_loss, scene_fn=self.scene_fn))(
                 model,
                 scene_keys,
                 path_candidates,
-                rewards,
             )
 
             updates, opt_state = self.optim.update(
