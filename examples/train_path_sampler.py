@@ -172,6 +172,7 @@ def main() -> None:
     loss_values = []
     success_rates = []
     hit_rates = []
+    fill_rates = []
 
     logging.basicConfig(
         level=logging.INFO,
@@ -202,15 +203,21 @@ def main() -> None:
 
             progress_bar.set_description(
                 f"(train) loss: {loss_value:.1e}, "
-                f"(valid.): success rate {100 * accuracy:.1f}%, "
-                f"hit rate {100 * hit_rate:.1f}%, "
-                f"buffer filled: {agent.replay_buffer.fill_ratio:.2%}"
+                f"(valid.): success rate {accuracy:.2%}%, "
+                f"hit rate {hit_rate:.2%}%"
+                + (
+                    f"| buffer filled: {agent.replay_buffer.fill_ratio:.2%}"
+                    if agent.replay_buffer is not None
+                    else ""
+                )
             )
 
             episodes.append(episode)
             loss_values.append(loss_value)
             success_rates.append(100 * accuracy)
             hit_rates.append(100 * hit_rate)
+            if agent.replay_buffer is not None:
+                fill_rates.append(100 * agent.replay_buffer.fill_ratio)
 
     logger.info("Training finished with final metrics:")
     logger.info(f"- Success rate: {100 * accuracy:.1f}%")
@@ -232,7 +239,8 @@ def main() -> None:
         jnp.save(results_dir / "loss_values.npy", jnp.array(loss_values))
         jnp.save(results_dir / "success_rates.npy", jnp.array(success_rates))
         jnp.save(results_dir / "hit_rates.npy", jnp.array(hit_rates))
-
+        if len(fill_rates) > 0:
+            jnp.save(results_dir / "fill_rates.npy", jnp.array(fill_rates))
         plt.figure()
         plt.title(f"Train losses (K = {args.order})")
         plt.semilogy(episodes, loss_values)
@@ -250,6 +258,14 @@ def main() -> None:
         ax2.set_ylabel("Hit rate (%)")
         ax2.plot(episodes, hit_rates, "k--", label="Hit Rate")
         plt.savefig(results_dir / "metrics.png")
+
+        if len(fill_rates) > 0:
+            plt.figure()
+            plt.title(f"Replay buffer fill ratio (K = {args.order})")
+            plt.plot(episodes, fill_rates, label="Fill Ratio")
+            plt.xlabel("Episodes")
+            plt.ylabel("Fill Ratio (%)")
+            plt.savefig(results_dir / "fill_ratio.png")
 
 
 if __name__ == "__main__":
