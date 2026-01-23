@@ -1,4 +1,4 @@
-# ruff: noqa: D
+# ruff: noqa: D100, D103, D200, INP001
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -299,9 +299,7 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 def fix_reference(
     app: Sphinx, env: BuildEnvironment, node: pending_xref, contnode: nodes.TextElement
 ) -> nodes.reference | None:
-    """
-    Fix some intersphinx references that are broken.
-    """
+    """Fix some intersphinx references that are broken."""
     if node["refdomain"] == "py":
         if node["reftarget"].startswith(
             "equinox"

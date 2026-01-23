@@ -311,7 +311,8 @@ class TestTriangleScene:
             got = scene.compute_paths(
                 path_candidates=path_candidate[None, :],
             )
-            assert got.mask is not None and got.mask.size == 1
+            assert got.mask is not None
+            assert got.mask.size == 1
             chex.assert_trees_all_equal(
                 got.mask.squeeze(),
                 True,

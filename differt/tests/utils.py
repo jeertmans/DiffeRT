@@ -18,9 +18,12 @@ def random_inputs(
 
     This is useful for generating random test arrays.
 
-    :param arg_names:
-        Sequence of argument names that should be transformed into random
-        arrays.
+    Args:
+        sampler: The function used to sample the random arrays.
+        seed: The random seed to use.
+
+    Returns:
+        A decorator that wraps a function to replace specified arguments with random arrays.
     """
 
     def wrapper(fun: Callable[..., Any]) -> Callable[..., Any]:

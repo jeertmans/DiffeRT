@@ -293,7 +293,7 @@ preview = true
 select = ["ALL"]
 
 [tool.ruff.lint.flake8-boolean-trap]
-extend-allowed-calls = ["equinox.tree_at", "jax.debug_infs", "jax.debug_nans", "jax.numpy.array", "jax.numpy.where"]
+extend-allowed-calls = ["chex.assert_trees_all_equal", "chex.assert_trees_all_close", "equinox.tree_at", "jax.debug_infs", "jax.debug_nans", "jax.numpy.array", "jax.numpy.where"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
@@ -305,12 +305,11 @@ extend-ignore-names = ["T"]
 "**.ipynb" = [
   "B018",
   "N806",
-  "PLR2004",  # TODO: remove this
-  "PLW2901",  # TODO: remove this
+  "PLR2004",
   "RUF027",
   "T201",
 ]
-"**/{conftest.py,test_*.py,*.ipynb}" = ["D", "DOC", "S101", "PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
+"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "S101", "PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
 "scripts/*" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]
