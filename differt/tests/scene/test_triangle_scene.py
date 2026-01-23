@@ -295,7 +295,9 @@ class TestTriangleScene:
 
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_path_candidates_matches_exhaustive(self, order: int, assume_quads: bool, simple_street_canyon_scene: TriangleScene) -> None:
+    def test_compute_paths_with_path_candidates_matches_exhaustive(
+        self, order: int, assume_quads: bool, simple_street_canyon_scene: TriangleScene
+    ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
         expected = scene.compute_paths(order=order)
         path_candidates = expected.objects[:, 1:-1]
@@ -310,7 +312,11 @@ class TestTriangleScene:
                 path_candidates=path_candidate[None, :],
             )
             assert got.mask is not None and got.mask.size == 1
-            chex.assert_trees_all_equal(got.mask.squeeze(), True, custom_message=f"Path candidate should be valid: {path_candidate}")
+            chex.assert_trees_all_equal(
+                got.mask.squeeze(),
+                True,
+                custom_message=f"Path candidate should be valid: {path_candidate}",
+            )
 
     @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
@@ -345,7 +351,7 @@ class TestTriangleScene:
                 is_leaf=lambda x: x is None,
             )
 
-        expected = scene.compute_paths(  # ty: ignore[no-matching-overload]
+        expected = scene.compute_paths(  # type: ignore[no-matching-overload]
             order=order,
             chunk_size=chunk_size,
             method=method,
@@ -360,7 +366,7 @@ class TestTriangleScene:
             expectation = does_not_raise()
 
         with expectation:
-            got = scene.compute_paths(  # ty: ignore[no-matching-overload]
+            got = scene.compute_paths(  # type: ignore[no-matching-overload]
                 order=order,
                 method=method,
                 chunk_size=chunk_size,
@@ -444,7 +450,7 @@ class TestTriangleScene:
         )
 
         with expectation:
-            got = scene.compute_paths(  # ty: ignore[no-matching-overload]
+            got = scene.compute_paths(  # type: ignore[no-matching-overload]
                 order=order,
                 chunk_size=chunk_size,
                 path_candidates=path_candidates,

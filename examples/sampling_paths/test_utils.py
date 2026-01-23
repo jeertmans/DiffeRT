@@ -1,3 +1,4 @@
+# ruff: noqa: N806
 import chex
 import equinox as eqx
 import jax.numpy as jnp

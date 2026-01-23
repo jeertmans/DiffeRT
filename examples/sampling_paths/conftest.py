@@ -46,6 +46,7 @@ def depth() -> int:
 def dropout_rate() -> float:
     return 0.0
 
+
 @pytest.fixture
 def epsilon() -> float:
     return 0.1
@@ -101,12 +102,14 @@ def batch_size() -> int:
 def optim() -> optax.GradientTransformationExtraArgs:
     return optax.adam(3e-4)
 
+
 @pytest.fixture
 def delta_epsilon() -> float:
     return 0.0
 
+
 @pytest.fixture
-def min_epsilon(epsilon) -> float:
+def min_epsilon(epsilon: float) -> float:
     return epsilon
 
 

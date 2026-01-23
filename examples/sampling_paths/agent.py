@@ -8,10 +8,12 @@ import jax.random as jr
 import optax
 from jaxtyping import (
     Array,
+    ArrayLike,
     Float,
     Int,
     Key,
     PRNGKeyArray,
+    PyTree,
 )
 
 from differt.scene import TriangleScene
@@ -72,6 +74,28 @@ def replay_loss(
     return jnp.sum(loss_values * rewards)
 
 
+def combine_grads(
+    grads_new: PyTree, grads_replay: PyTree, alpha: Float[Array, ""]
+) -> PyTree:
+    """
+    Combine gradients from new experiences and replayed experiences using a weighting factor alpha.
+
+    Args:
+        grads_new: Gradients from new experiences.
+        grads_replay: Gradients from replayed experiences.
+        alpha: Weighting factor for the replay gradients.
+
+    Returns:
+        Combined gradients.
+    """
+    return jax.tree.map(
+        lambda g1, g2: (1 - alpha) * g1 + alpha * g2,
+        grads_new,
+        grads_replay,
+        is_leaf=lambda x: x is None,
+    )
+
+
 def decrease_epsilon(
     delta_epsilon: float, min_epsilon: float
 ) -> optax.GradientTransformation:
@@ -120,6 +144,14 @@ class Agent(eqx.Module):
     steps_count: Int[Array, ""]
     replay_buffer: ReplayBuffer | None
     """Optional replay buffer to store successful experiences and use them for training."""
+    alpha: Float[Array, ""]
+    """
+    Weighting factor for the replay loss function.
+
+    A value of 0.5 means that the replay loss and the new experience loss are weighted equally.
+    A value of 0.0 means that only the new experience loss is used.
+    A value of 1.0 means that only the replay loss is used.
+    """
 
     def __init__(
         self,
@@ -130,6 +162,8 @@ class Agent(eqx.Module):
         delta_epsilon: float = 1e-5,
         min_epsilon: float = 0.1,
         replay_buffer_capacity: int | None = 10_000,
+        replay_with_replacement: bool = False,
+        alpha: Float[ArrayLike, ""] = 0.5,
         scene_fn: SceneFn = random_scene,
     ) -> None:
         self.batch_size = batch_size
@@ -145,11 +179,13 @@ class Agent(eqx.Module):
             ReplayBuffer(
                 replay_buffer_capacity,
                 order=model.order,
+                sample_with_replacement=replay_with_replacement,
                 scene_key_dtype=jr.key(0).dtype,
             )
             if replay_buffer_capacity is not None
             else None
         )
+        self.alpha = jnp.asarray(alpha)
 
     @eqx.filter_jit
     def train(
@@ -170,9 +206,9 @@ class Agent(eqx.Module):
         """
         keys = jr.split(key, self.batch_size)
 
-        # 1st train step: flow matching
+        # 1 - Generate new experiences
 
-        (loss_value, (path_candidates, rewards)), grads = eqx.filter_value_and_grad(
+        (loss_value, (path_candidates, rewards)), new_grads = eqx.filter_value_and_grad(
             partial(batch_loss, scene_fn=self.scene_fn),
             has_aux=True,
         )(
@@ -181,13 +217,7 @@ class Agent(eqx.Module):
             keys,
         )
 
-        updates, opt_state = self.optim.update(
-            grads, self.opt_state, eqx.filter(self.model, eqx.is_array)
-        )
-
-        model = eqx.apply_updates(self.model, updates)
-
-        # 2nd train step (optional): flow matching on successful experiences from replay buffer
+        # 2 (optional) - Replay past successful experiences from replay buffer
         if self.replay_buffer is not None:
             replay_buffer = self.replay_buffer.add(
                 scene_keys=jnp.full(
@@ -197,23 +227,34 @@ class Agent(eqx.Module):
                 rewards=rewards,
             )
 
+            alpha = jnp.where(
+                replay_buffer.is_ready_to_sample(batch_size=self.batch_size),
+                self.alpha,
+                0.0,
+            )
+
             scene_keys, path_candidates, _ = replay_buffer.sample(
                 self.batch_size, key=key
             )
 
-            grads = eqx.filter_grad(partial(replay_loss, scene_fn=self.scene_fn))(
-                model,
+            replay_grads = eqx.filter_grad(
+                partial(replay_loss, scene_fn=self.scene_fn)
+            )(
+                self.model,
                 scene_keys,
                 path_candidates,
             )
 
-            updates, opt_state = self.optim.update(
-                grads, opt_state, eqx.filter(model, eqx.is_array)
-            )
-
-            model = eqx.apply_updates(model, updates)
+            grads = combine_grads(new_grads, replay_grads, alpha)
         else:
             replay_buffer = None
+            grads = new_grads
+
+        updates, opt_state = self.optim.update(
+            grads, self.opt_state, eqx.filter(self.model, eqx.is_array)
+        )
+
+        model = eqx.apply_updates(self.model, updates)
 
         return (
             eqx.tree_at(
@@ -264,6 +305,8 @@ class Agent(eqx.Module):
         keys = jr.split(key, num_scenes)
 
         # N.B.: jax.lax.map is used instead of jax.vmap to reduce memory usage (caused by exhaustive method in hit_rate)
-        accuracies, hit_rates = jax.lax.map(lambda xs: evaluate_on_one_scene(*xs), (scene_keys, keys))
+        accuracies, hit_rates = jax.lax.map(
+            lambda xs: evaluate_on_one_scene(*xs), (scene_keys, keys)
+        )
 
         return accuracies.mean(), jnp.nanmean(hit_rates)

@@ -94,7 +94,7 @@ def _compute_paths(
 
     if mesh.mask is not None:
         # For a ray to be active, it must hit triangles that are not masked out (i.e, inactive).
-        # [num_path_candidates]  # noqa: ERA001
+        # [num_path_candidates]
         active_rays = jnp.take(mesh.mask, path_candidates, axis=0).all(axis=-1)
     else:
         active_rays = None

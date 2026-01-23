@@ -255,7 +255,7 @@ def diffraction_coefficients(
     Raises:
         NotImplementedError: The function is not yet implemented.
     """
-    # ruff: noqa: ERA001, F821, F841
+    # ruff: noqa: F821, F841
     raise NotImplementedError
 
     # Ensure input vectors are normalized

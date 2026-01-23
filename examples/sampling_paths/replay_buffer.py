@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import jax.random as jr
 from jaxtyping import (
     Array,
+    Bool,
     Float,
     Int,
     Key,
@@ -22,6 +23,8 @@ class ReplayBuffer(eqx.Module):
 
     capacity: int = eqx.field(static=True)
     """Maximum number of experiences to store in the buffer."""
+    sample_with_replacement: bool = eqx.field(static=True)
+    """Whether to sample with replacement from the buffer."""
 
     scene_keys: Key[Array, " capacity"]
     """Keys to re-generate the scenes."""
@@ -32,8 +35,15 @@ class ReplayBuffer(eqx.Module):
     counter: Int[Array, " "]
     """Counter to keep track of the number of stored experiences."""
 
-    def __init__(self, capacity: int, order: int, scene_key_dtype: jnp.dtype) -> None:
+    def __init__(
+        self,
+        capacity: int,
+        order: int,
+        sample_with_replacement: bool,
+        scene_key_dtype: jnp.dtype,
+    ) -> None:
         self.capacity = capacity
+        self.sample_with_replacement = sample_with_replacement
 
         self.scene_keys = jnp.empty((capacity,), dtype=scene_key_dtype)
         self.path_candidates = -jnp.ones((capacity, order), dtype=int)
@@ -45,6 +55,20 @@ class ReplayBuffer(eqx.Module):
     def fill_ratio(self) -> Float[Array, ""]:
         """Return the fill ratio of the buffer."""
         return jnp.minimum(self.counter, self.capacity) / self.capacity
+
+    def is_ready_to_sample(self, *, batch_size: int) -> Bool[Array, ""]:
+        """
+        Check if the buffer has enough successful experiences to sample a batch.
+
+        Args:
+            batch_size: Number of experiences to sample.
+
+        Returns:
+            Whether the buffer has enough successful experiences to sample the batch.
+        """
+        if self.sample_with_replacement:
+            return self.counter > 0
+        return jnp.minimum(self.counter, self.capacity) >= batch_size
 
     @eqx.filter_jit
     def add(
@@ -114,7 +138,9 @@ class ReplayBuffer(eqx.Module):
         indices = jnp.arange(self.capacity)
         p = self.rewards > 0.0
         p = jnp.where(indices >= self.counter, 0.0, p)
-        indices = jr.choice(key, indices, (batch_size,), replace=False, p=p)
+        indices = jr.choice(
+            key, indices, (batch_size,), replace=self.sample_with_replacement, p=p
+        )
         return (
             self.scene_keys[indices],
             self.path_candidates[indices],

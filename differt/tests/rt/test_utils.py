@@ -570,5 +570,5 @@ def test_first_triangles_hit_by_rays(
         expected_indices = jnp.where(expected_t == jnp.inf, -1, expected_indices)
 
     # TODO: fixme, we need to fix the index if two or more triangles are hit at the same t
-    # chex.assert_trees_all_equal(got_indices, expected_indices)  # noqa: ERA001
+    # chex.assert_trees_all_equal(got_indices, expected_indices)
     chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5)

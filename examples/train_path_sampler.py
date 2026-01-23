@@ -10,10 +10,11 @@ import jax.numpy as jnp
 import jax.random as jr
 import matplotlib.pyplot as plt
 import optax
+from tqdm import tqdm
+
 from sampling_paths.agent import Agent
 from sampling_paths.model import Model
 from sampling_paths.utils import validation_scene_keys
-from tqdm import tqdm
 
 
 def main() -> None:
@@ -125,6 +126,18 @@ def main() -> None:
         help="The capacity of the replay buffer.",
     )
     parser.add_argument(
+        "--replay-buffer-replacement",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Whether to sample from the replay buffer with replacement.",
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.5,
+        help="Weighting factor for the replay loss function.",
+    )
+    parser.add_argument(
         "-v",
         "--verbosity",
         default="info",
@@ -155,7 +168,7 @@ def main() -> None:
             key=model_key,
         ),
         batch_size=args.batch_size,
-        optim=eval(
+        optim=eval(  # noqa: S307
             args.optim,
             {
                 "optax": optax,
@@ -166,6 +179,8 @@ def main() -> None:
         delta_epsilon=args.delta_epsilon,
         min_epsilon=args.min_epsilon,
         replay_buffer_capacity=args.replay_buffer_capacity,
+        replay_with_replacement=args.replay_with_replacement,
+        alpha=args.alpha,
     )
 
     episodes = []
@@ -183,7 +198,7 @@ def main() -> None:
     logger.setLevel(args.verbosity.upper())
 
     if "CUDA" not in str(jax.devices()).upper():
-        logger.warning(f"No CUDA device found, using {jax.devices() = }")
+        logger.warning("No CUDA device found, using %s", jax.devices())
 
     key_episodes, key_valid_samples = jr.split(key_training, 2)
     valid_keys = validation_scene_keys(
@@ -220,9 +235,9 @@ def main() -> None:
                 fill_rates.append(100 * agent.replay_buffer.fill_ratio)
 
     logger.info("Training finished with final metrics:")
-    logger.info(f"- Success rate: {100 * accuracy:.1f}%")
-    logger.info(f"- Hit rate: {100 * hit_rate:.1f}%")
-    logger.info(f"- Loss: {loss_value:.1e}")
+    logger.info("- Success rate: %.1%", accuracy)
+    logger.info("- Hit rate: %.1%", hit_rate)
+    logger.info("- Loss: %.1e", loss_value)
 
     if args.save:
         # Create results directory with timestamp
@@ -232,7 +247,7 @@ def main() -> None:
         )
         results_dir.mkdir(parents=True)
 
-        with Path(results_dir / "config.json").open("w") as f:
+        with Path(results_dir / "config.json").open("w", encoding="utf-8") as f:
             json.dump(vars(args), f, indent=2)
 
         eqx.tree_serialise_leaves(results_dir / "model.eqx", agent.model)

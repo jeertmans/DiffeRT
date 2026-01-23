@@ -1,3 +1,5 @@
+from contextlib import nullcontext as does_not_raise
+
 import chex
 import jax.numpy as jnp
 import jax.random as jr
@@ -8,9 +10,19 @@ from .replay_buffer import ReplayBuffer
 
 
 class TestReplayBuffer:
-    def test_add_and_sample(self, order: int, key: PRNGKeyArray) -> None:
+    @pytest.mark.parametrize("sample_with_replacement", [False, True])
+    def test_add_and_sample(
+        self, sample_with_replacement: bool, order: int, key: PRNGKeyArray
+    ) -> None:
         scene_key, sample_key = jr.split(key)
-        buf = ReplayBuffer(capacity=10, order=order, scene_key_dtype=scene_key.dtype)
+        buf = ReplayBuffer(
+            capacity=10,
+            order=order,
+            sample_with_replacement=sample_with_replacement,
+            scene_key_dtype=scene_key.dtype,
+        )
+
+        assert not buf.is_ready_to_sample(batch_size=1)
 
         # 1 - Add 4 experiences, 2 successful
 
@@ -30,12 +42,22 @@ class TestReplayBuffer:
         chex.assert_trees_all_equal(buf.path_candidates[:2], path_candidates[idx])
         chex.assert_trees_all_equal(buf.rewards[:2], 1.0)
 
+        assert buf.is_ready_to_sample(batch_size=2)
         _, _, sampled_rewards = buf.sample(batch_size=2, key=sample_key)
 
         chex.assert_trees_all_equal(sampled_rewards, 1.0)
 
+        if sample_with_replacement:
+            assert buf.is_ready_to_sample(batch_size=10)
+        else:
+            assert not buf.is_ready_to_sample(batch_size=10)
         _, _, sampled_rewards = buf.sample(batch_size=10, key=sample_key)
-        with pytest.raises(AssertionError):
+        expectation = (
+            does_not_raise()
+            if sample_with_replacement
+            else pytest.raises(AssertionError)
+        )
+        with expectation:
             # Not enough successful experiences
 
             chex.assert_trees_all_equal(sampled_rewards, 1.0)
@@ -58,12 +80,22 @@ class TestReplayBuffer:
         chex.assert_trees_all_equal(buf.path_candidates[2:4], path_candidates[idx])
         chex.assert_trees_all_equal(buf.rewards[2:4], 1.0)
 
+        assert buf.is_ready_to_sample(batch_size=4)
         _, _, sampled_rewards = buf.sample(batch_size=4, key=sample_key)
 
         chex.assert_trees_all_equal(sampled_rewards, 1.0)
 
+        if sample_with_replacement:
+            assert buf.is_ready_to_sample(batch_size=10)
+        else:
+            assert not buf.is_ready_to_sample(batch_size=10)
         _, _, sampled_rewards = buf.sample(batch_size=10, key=sample_key)
-        with pytest.raises(AssertionError):
+        expectation = (
+            does_not_raise()
+            if sample_with_replacement
+            else pytest.raises(AssertionError)
+        )
+        with expectation:
             # Not enough successful experiences
 
             chex.assert_trees_all_equal(sampled_rewards, 1.0)
@@ -87,6 +119,13 @@ class TestReplayBuffer:
         chex.assert_trees_all_equal(buf.path_candidates[idx], path_candidates)
         chex.assert_trees_all_equal(buf.rewards, 1.0)
 
+        assert buf.is_ready_to_sample(batch_size=10)
         _, _, sampled_rewards = buf.sample(batch_size=10, key=sample_key)
 
         chex.assert_trees_all_equal(sampled_rewards, 1.0)
+
+        if sample_with_replacement:
+            assert buf.is_ready_to_sample(batch_size=20)
+        else:
+            # Can't sample more than capacity without replacement
+            assert not buf.is_ready_to_sample(batch_size=20)

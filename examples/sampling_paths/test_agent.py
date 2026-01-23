@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 import equinox as eqx
 import jax
 import jax.numpy as jnp
@@ -13,6 +15,7 @@ from .agent import Agent
 class TestAgent:
     @pytest.mark.parametrize("degenerate", [False, True])
     @jax.debug_infs(True)
+    @pytest.mark.slow
     def test_train(
         self,
         degenerate: bool,
@@ -24,7 +27,7 @@ class TestAgent:
         train_key, eval_key = jr.split(key)
 
         loss = jnp.inf
-        num_episodes = {1: 15_000, 2: 15_000, 3: 15_000}[agent.model.order]
+        num_episodes = {1: 15_000, 2: 30_000, 3: 15_000}[agent.model.order]
 
         if degenerate:
             # Make the scene degenerate by masking all triangles
@@ -43,9 +46,13 @@ class TestAgent:
 
         agent = eqx.tree_at(lambda a: a.scene_fn, agent, random_scene)
 
-        for _ in range(num_episodes):
-            key, scene_key, train_key = jr.split(key, 3)
-            agent, loss = agent.train(scene_key=scene_key, key=train_key)
+        # Degenerate scenes will produce NaNs in SceneEncoder (mean)
+        train_context = jax.debug_nans(False) if degenerate else nullcontext()
+
+        with train_context:
+            for _ in range(num_episodes):
+                key, scene_key, train_key = jr.split(key, 3)
+                agent, loss = agent.train(scene_key=scene_key, key=train_key)
 
         if degenerate:
             return  # Can't sample valid paths in degenerate scene

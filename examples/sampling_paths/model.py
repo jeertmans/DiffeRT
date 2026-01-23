@@ -139,7 +139,7 @@ class Model(eqx.Module):
 
         def scan_fn(
             carry: tuple[
-                Int[Array, "order"],
+                Int[Array, " order"],
                 Float[Array, ""],
                 Float[Array, "num_objects"],
                 Int[Array, ""],
@@ -147,7 +147,7 @@ class Model(eqx.Module):
             x: tuple[Int[Array, ""], PRNGKeyArray],
         ) -> tuple[
             tuple[
-                Int[Array, "order"],
+                Int[Array, " order"],
                 Float[Array, ""],
                 Float[Array, "num_objects"],
                 Int[Array, ""],

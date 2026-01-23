@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace

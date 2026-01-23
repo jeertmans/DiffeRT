@@ -116,7 +116,7 @@ class StateEncoder(eqx.Module):
         order: int,
         num_embeddings: int,
         *,
-        key: PRNGKeyArray | None = None,
+        key: PRNGKeyArray,
     ) -> None:
         self.out_size = order * num_embeddings
 
@@ -131,7 +131,7 @@ class StateEncoder(eqx.Module):
         partial_path_candidate: Int[Array, " order"],
         objects_embeds: Float[Array, "num_objects num_embeddings"],
         *,
-        active_objects: Bool[Array, "num_objects"] | None = None,
+        active_objects: Bool[Array, " num_objects"] | None = None,
         key: PRNGKeyArray | None = None,
     ) -> Float[Array, " out_size"]:
         del active_objects, key
@@ -181,8 +181,7 @@ class Flows(eqx.Module):
         key: PRNGKeyArray | None = None,
     ) -> Float[Array, " num_objects"]:
         """
-        Compute unnormalized probabilities (flows) for selecting the next object in the path
-        given the current partial path candidate and the scene.
+        Compute unnormalized probabilities (flows) for selecting the next object in the path given the current partial path candidate and the scene.
 
         Args:
             objects_embeds: Embeddings for all objects in the scene.

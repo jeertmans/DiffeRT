@@ -69,11 +69,10 @@ def random_scene(
         ),
     )
     # Assumption: the floor is the only object that is made of 2 triangles
-    object_bounds = BASE_SCENE.mesh.object_bounds
-    assert object_bounds is not None
+    object_bounds: Array = BASE_SCENE.mesh.object_bounds  # type: ignore[invalid-assignment]
     is_floor = object_bounds[:, 0] + 2 == object_bounds[:, 1]
     floor_index = object_bounds[jnp.argwhere(is_floor, size=1, fill_value=-1)[0], 0]
-    scene = eqx.tree_at(
+    return eqx.tree_at(
         lambda s: s.mesh.mask,
         scene,
         jax.lax.dynamic_update_slice(
@@ -83,7 +82,6 @@ def random_scene(
             allow_negative_indices=False,
         ),
     )
-    return scene
 
 
 def train_dataloader(*, key: PRNGKeyArray) -> Iterator[TriangleScene]:
@@ -107,7 +105,7 @@ def validation_scene_keys(
     num_scenes: int = 100,
     progress: bool = True,
     key: PRNGKeyArray,
-) -> Key[Array, "num_scenes"]:
+) -> Key[Array, " num_scenes"]:
     """
     Return a fixed set of scene keys for validating the model.
 
@@ -169,10 +167,9 @@ def geometric_transformation(
     rx: Float[Array, "3"],
 ) -> Float[Array, "num_objects num_vertices_per_object 3"]:
     """
-    Apply the geometric transformation to the vertices of the triangles such that the output is invariant to:
-    - Translation
-    - Rotation (along the z-axis)
-    - Scale
+    Apply the geometric transformation to the input vertices.
+
+    Output vertices are invariant to translation, rotation (along the z-axis), and scaling.
 
     Args:
         xyz: Array of object vertices.
@@ -185,8 +182,7 @@ def geometric_transformation(
     basis, scale = basis_for_canonical_frame(tx, rx)
     xyz = xyz - tx
     xyz = xyz / scale
-    xyz = xyz @ basis.T
-    return xyz
+    return xyz @ basis.T
 
 
 def unpack_scene(

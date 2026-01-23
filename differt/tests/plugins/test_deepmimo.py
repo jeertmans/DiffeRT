@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001
 from dataclasses import asdict
 from itertools import chain
 from typing import Literal
