@@ -251,7 +251,7 @@ class Agent(eqx.Module):
             The average accuracy and average hit rate.
         """
 
-        def _evaluate(
+        def evaluate_on_one_scene(
             scene_key: PRNGKeyArray, key: PRNGKeyArray
         ) -> tuple[Float[Array, ""], Float[Array, ""]]:
             scene = self.scene_fn(key=scene_key)
@@ -263,6 +263,7 @@ class Agent(eqx.Module):
         num_scenes = scene_keys.shape[0]
         keys = jr.split(key, num_scenes)
 
-        accuracies, hit_rates = jax.vmap(_evaluate)(scene_keys, keys)
+        # N.B.: jax.lax.map is used instead of jax.vmap to reduce memory usage (caused by exhaustive method in hit_rate)
+        accuracies, hit_rates = jax.lax.map(lambda xs: evaluate_on_one_scene(*xs), (scene_keys, keys))
 
         return accuracies.mean(), jnp.nanmean(hit_rates)

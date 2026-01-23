@@ -4,15 +4,16 @@ import logging
 import time
 from pathlib import Path
 
+import equinox as eqx
 import jax
+import jax.numpy as jnp
 import jax.random as jr
 import matplotlib.pyplot as plt
 import optax
-from tqdm import tqdm
-
 from sampling_paths.agent import Agent
 from sampling_paths.model import Model
 from sampling_paths.utils import validation_scene_keys
+from tqdm import tqdm
 
 
 def main() -> None:
@@ -24,7 +25,7 @@ def main() -> None:
     parser.add_argument(
         "--order",
         type=int,
-        default=1,
+        default=2,
         help="The order of the interaction (number of bounces).",
     )
     parser.add_argument(
@@ -54,19 +55,19 @@ def main() -> None:
     parser.add_argument(
         "--dropout-rate",
         type=float,
-        default=0.05,
+        default=0.0,
         help="The dropout rate.",
     )
     parser.add_argument(
         "--epsilon",
         type=float,
-        default=0.5,
+        default=0.1,
         help="The epsilon value for the epsilon-greedy policy.",
     )
     parser.add_argument(
         "--delta-epsilon",
         type=float,
-        default=1e-5,
+        default=0.0,
         help="The delta epsilon value for the epsilon-greedy policy.",
     )
     parser.add_argument(
@@ -90,7 +91,7 @@ def main() -> None:
     parser.add_argument(
         "--num-episodes",
         type=int,
-        default=100_000,
+        default=300_000,
         help="The number of episodes.",
     )
     parser.add_argument(
@@ -100,10 +101,10 @@ def main() -> None:
         help="How often to evaluate (and save) the metrics.",
     )
     parser.add_argument(
-        "--plot",
+        "--save",
         default=True,
         action=argparse.BooleanOptionalAction,
-        help="Whether to plot the results.",
+        help="Whether to save the results.",
     )
     parser.add_argument(
         "--exploratory-policy",
@@ -173,7 +174,10 @@ def main() -> None:
     hit_rates = []
 
     logging.basicConfig(
-    level=logging.INFO, format="[%(levelname)-8s:%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        level=logging.INFO,
+        format="[%(levelname)-8s:%(asctime)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     logger = logging.getLogger(__name__)
     logger.setLevel(args.verbosity.upper())
 
@@ -210,32 +214,39 @@ def main() -> None:
     logger.info(f"- Hit rate: {100 * hit_rate:.1f}%")
     logger.info(f"- Loss: {loss_value:.1e}")
 
-    if args.plot:
+    if args.save:
         # Create results directory with timestamp
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        results_dir = Path(f"results_o{args.order}_n{args.num_embeddings}_d{args.depth}_{timestamp}")
+        results_dir = Path(
+            f"results_o{args.order}_n{args.num_embeddings}_d{args.depth}_{timestamp}"
+        )
         results_dir.mkdir(parents=True)
 
-        with open(results_dir / "config.json", "w") as f:
+        with Path(results_dir / "config.json").open("w") as f:
             json.dump(vars(args), f, indent=2)
+
+        eqx.tree_serialise_leaves(results_dir / "model.eqx", agent.model)
+        jnp.save(results_dir / "loss_values.npy", jnp.array(loss_values))
+        jnp.save(results_dir / "success_rates.npy", jnp.array(success_rates))
+        jnp.save(results_dir / "hit_rates.npy", jnp.array(hit_rates))
 
         plt.figure()
         plt.title(f"Train losses (K = {args.order})")
         plt.semilogy(episodes, loss_values)
         plt.xlabel("Episodes")
         plt.ylabel("Loss")
-        plt.savefig(results_dir / f"losses.png")
+        plt.savefig(results_dir / "losses.png")
 
         plt.figure()
         plt.title(f"Train accuracy and hit rate (K = {args.order})")
-        fig, ax1 = plt.subplots()
+        _, ax1 = plt.subplots()
         ax1.set_xlabel("Train steps")
         ax1.set_ylabel("Accuracy (%)")
         ax1.plot(episodes, success_rates, label="Accuracy")
         ax2 = ax1.twinx()
         ax2.set_ylabel("Hit rate (%)")
         ax2.plot(episodes, hit_rates, "k--", label="Hit Rate")
-        plt.savefig(results_dir / f"metrics.png")
+        plt.savefig(results_dir / "metrics.png")
 
 
 if __name__ == "__main__":

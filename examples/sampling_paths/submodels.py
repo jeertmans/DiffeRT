@@ -109,6 +109,8 @@ class StateEncoder(eqx.Module):
 
     out_size: int = eqx.field(static=True)
 
+    linear: eqx.nn.Linear
+
     def __init__(
         self,
         order: int,
@@ -116,8 +118,13 @@ class StateEncoder(eqx.Module):
         *,
         key: PRNGKeyArray | None = None,
     ) -> None:
-        del key
         self.out_size = order * num_embeddings
+
+        self.linear = eqx.nn.Linear(
+            in_features=self.out_size,
+            out_features=self.out_size,
+            key=key,
+        )
 
     def __call__(
         self,
@@ -128,7 +135,7 @@ class StateEncoder(eqx.Module):
         key: PRNGKeyArray | None = None,
     ) -> Float[Array, " out_size"]:
         del active_objects, key
-        return (
+        return self.linear(
             objects_embeds
             .at[partial_path_candidate]
             .get(mode="fill", wrap_negative_indices=False, fill_value=0.0)
