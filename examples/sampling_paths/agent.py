@@ -89,7 +89,7 @@ def combine_grads(
         Combined gradients.
     """
     return jax.tree.map(
-        lambda g1, g2: (1 - alpha) * g1 + alpha * g2,
+        lambda g1, g2: (1 - alpha) * g1 + alpha * g2 if g1 is not None else g2,
         grads_new,
         grads_replay,
         is_leaf=lambda x: x is None,
