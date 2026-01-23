@@ -24,7 +24,7 @@ class TestAgent:
         train_key, eval_key = jr.split(key)
 
         loss = jnp.inf
-        num_episodes = {1: 3000, 2: 15_000, 3: 15_000}[agent.model.order]
+        num_episodes = {1: 15_000, 2: 15_000, 3: 15_000}[agent.model.order]
 
         if degenerate:
             # Make the scene degenerate by masking all triangles

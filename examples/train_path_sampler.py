@@ -201,7 +201,10 @@ def main() -> None:
             accuracy, hit_rate = agent.evaluate(valid_keys, key=eval_key)
 
             progress_bar.set_description(
-                f"(train) loss: {loss_value:.1e}, (valid.): success rate {100 * accuracy:.1f}%, hit rate {100 * hit_rate:.1f}%"
+                f"(train) loss: {loss_value:.1e}, "
+                f"(valid.): success rate {100 * accuracy:.1f}%, "
+                f"hit rate {100 * hit_rate:.1f}%, "
+                f"buffer filled: {agent.replay_buffer.fill_ratio:.2%}"
             )
 
             episodes.append(episode)

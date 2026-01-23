@@ -39,12 +39,16 @@ def width_size(num_embeddings: int) -> int:
 
 @pytest.fixture
 def depth() -> int:
-    return 3
+    return 2
 
 
 @pytest.fixture
 def dropout_rate() -> float:
-    return 0.05
+    return 0.0
+
+@pytest.fixture
+def epsilon() -> float:
+    return 0.1
 
 
 @pytest.fixture
@@ -54,6 +58,7 @@ def model(
     width_size: int,
     depth: int,
     dropout_rate: float,
+    epsilon: float,
     key: PRNGKeyArray,
 ) -> Model:
     return Model(
@@ -62,6 +67,7 @@ def model(
         width_size=width_size,
         depth=depth,
         dropout_rate=dropout_rate,
+        epsilon=epsilon,
         key=key,
     )
 
@@ -95,17 +101,29 @@ def batch_size() -> int:
 def optim() -> optax.GradientTransformationExtraArgs:
     return optax.adam(3e-4)
 
+@pytest.fixture
+def delta_epsilon() -> float:
+    return 0.0
+
+@pytest.fixture
+def min_epsilon(epsilon) -> float:
+    return epsilon
+
 
 @pytest.fixture
 def agent(
     model: Model,
     batch_size: int,
     optim: optax.GradientTransformationExtraArgs,
+    delta_epsilon: float,
+    min_epsilon: float,
 ) -> Agent:
     return Agent(
         model=model,
         batch_size=batch_size,
         optim=optim,
+        delta_epsilon=delta_epsilon,
+        min_epsilon=min_epsilon,
     )
 
 

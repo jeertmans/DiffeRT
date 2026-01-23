@@ -41,6 +41,11 @@ class ReplayBuffer(eqx.Module):
 
         self.counter = jnp.array(0)
 
+    @property
+    def fill_ratio(self) -> Float[Array, ""]:
+        """Return the fill ratio of the buffer."""
+        return jnp.minimum(self.counter, self.capacity) / self.capacity
+
     @eqx.filter_jit
     def add(
         self,
