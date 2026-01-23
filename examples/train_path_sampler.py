@@ -1,3 +1,4 @@
+# ruff: noqa: G004
 import argparse
 import json
 import logging
@@ -235,9 +236,9 @@ def main() -> None:
                 fill_rates.append(100 * agent.replay_buffer.fill_ratio)
 
     logger.info("Training finished with final metrics:")
-    logger.info("- Success rate: %.1%", accuracy)
-    logger.info("- Hit rate: %.1%", hit_rate)
-    logger.info("- Loss: %.1e", loss_value)
+    logger.info(f"- Loss: {loss_value:.1e}")
+    logger.info(f"- Success rate: {accuracy:.1%}")
+    logger.info(f"- Hit rate: {hit_rate:.1%}")
 
     if args.save:
         # Create results directory with timestamp
