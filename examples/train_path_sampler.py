@@ -126,7 +126,7 @@ def main() -> None:
         help="The capacity of the replay buffer.",
     )
     parser.add_argument(
-        "--replay-buffer-replacement",
+        "--replay-with-replacement",
         default=False,
         action=argparse.BooleanOptionalAction,
         help="Whether to sample from the replay buffer with replacement.",
