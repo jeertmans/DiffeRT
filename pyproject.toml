@@ -42,6 +42,7 @@ example-sampling-paths = [
   "equinox>=0.13.1",
   "jax>=0.7.2",
   "jaxtyping>=0.3.5",
+  "matplotlib>=3.10.6",
   "tqdm>=4.67.1",
 ]
 examples = [

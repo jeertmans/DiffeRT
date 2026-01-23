@@ -202,11 +202,11 @@ def main() -> None:
             accuracy, hit_rate = agent.evaluate(valid_keys, key=eval_key)
 
             progress_bar.set_description(
-                f"(train) loss: {loss_value:.1e}, "
-                f"(valid.): success rate {accuracy:.2%}%, "
-                f"hit rate {hit_rate:.2%}%"
+                f"loss: {loss_value:.1e}, "
+                f"success rate: {accuracy:.2%}, "
+                f"hit rate: {hit_rate:.2%}"
                 + (
-                    f"| buffer filled: {agent.replay_buffer.fill_ratio:.2%}"
+                    f", buffer filled: {agent.replay_buffer.fill_ratio:.2%}"
                     if agent.replay_buffer is not None
                     else ""
                 )
