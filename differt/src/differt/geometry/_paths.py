@@ -638,3 +638,142 @@ class SBRPaths(Paths):
                 self.get_paths(order).plot()
 
         return output
+
+    def fuse_planes(self) -> Self:
+        """
+        Fuse multiple interception planes into a single plane dimension.
+
+        This method reduces the size of vertices from ``[..., num_planes, num_rays, ...]``
+        to ``[..., num_rays, ...]`` by keeping, for each ray, the first interception
+        vertex where the mask is True across all planes.
+
+        This method assumes that:
+
+        1. The ``SBRPaths`` was generated using the ``plane`` interception method.
+        2. The planes are non-overlapping (i.e., a single ray can only hit one plane
+           at maximum).
+
+        Returns:
+            A new ``SBRPaths`` instance with fused plane dimensions.
+
+        Raises:
+            ValueError: If the paths do not have a planes dimension (i.e., if the
+                shape does not include a ``num_planes`` dimension after the batch
+                dimensions).
+
+        Examples:
+            >>> # Assuming paths have shape [num_tx, num_planes, num_rays, path_length, 3]
+            >>> fused_paths = paths.fuse_planes()
+            >>> # Result has shape [num_tx, num_rays, path_length, 3]
+        """
+        # The vertices shape is expected to be [..., num_planes, num_rays, path_length, 3]
+        # We need to identify which dimension is num_planes
+        # Based on the implementation, for plane-based SBR:
+        # - tx_batch dimensions first
+        # - then num_planes
+        # - then num_rays
+        # - then path_length
+        # - then 3 (coordinates)
+
+        # Get the shape
+        vertices_shape = self.vertices.shape
+        if len(vertices_shape) < 4:
+            msg = (
+                "Cannot fuse planes: vertices shape must have at least 4 dimensions "
+                f"[..., num_planes, num_rays, path_length, 3], but got shape {vertices_shape}"
+            )
+            raise ValueError(msg)
+
+        # The masks shape is [..., num_planes, num_rays, path_length-1]
+        # We want to find, for each ray, the first plane where ANY mask is True
+
+        # Find the first plane index where mask is True for each ray
+        # Shape: [..., num_planes, num_rays]
+        # Check if any of the path orders have a True mask
+        any_mask_true = jnp.any(self.masks, axis=-1)
+
+        # For each ray, find the first plane with a True mask
+        # We'll use argmax which returns the first True index (or 0 if all False)
+        # Shape: [..., num_rays]
+        first_plane_idx = jnp.argmax(any_mask_true, axis=-2)
+
+        # Check if there's actually a valid interception for each ray
+        # Shape: [..., num_rays]
+        has_interception = jnp.any(any_mask_true, axis=-2)
+
+        # Now we need to gather the vertices and objects from the selected plane
+        # Create indices for gathering along the num_planes axis
+
+        # For vertices: [..., num_planes, num_rays, path_length, 3]
+        # first_plane_idx: [..., num_rays]
+        # We need to expand to: [..., 1, num_rays, 1, 1] then broadcast
+
+        # Get number of batch dimensions
+        num_batch_dims = len(vertices_shape) - 4
+
+        # Expand first_plane_idx by adding axis for num_planes, path_length, and coords
+        # Start: [..., num_rays]
+        # Add axis at -3 for num_planes (becomes [..., 1, num_rays])
+        gather_idx_vertices = jnp.expand_dims(first_plane_idx, axis=-2)
+        # Add axis at -1 for path_length (becomes [..., 1, num_rays, 1])
+        gather_idx_vertices = jnp.expand_dims(gather_idx_vertices, axis=-1)
+        # Add axis at -1 for coords (becomes [..., 1, num_rays, 1, 1])
+        gather_idx_vertices = jnp.expand_dims(gather_idx_vertices, axis=-1)
+
+        # Broadcast to match vertices shape
+        target_shape = (
+            vertices_shape[:num_batch_dims]
+            + (1,)
+            + vertices_shape[num_batch_dims + 1 :]
+        )
+        gather_idx_vertices = jnp.broadcast_to(gather_idx_vertices, target_shape)
+
+        # Use take_along_axis for the num_planes dimension (axis=num_batch_dims)
+        fused_vertices = jnp.take_along_axis(
+            self.vertices, gather_idx_vertices, axis=num_batch_dims
+        ).squeeze(axis=num_batch_dims)
+
+        # Similarly for objects: [..., num_planes, num_rays, path_length]
+        gather_idx_objects = jnp.expand_dims(
+            first_plane_idx, axis=-2
+        )  # [..., 1, num_rays]
+        gather_idx_objects = jnp.expand_dims(
+            gather_idx_objects, axis=-1
+        )  # [..., 1, num_rays, 1]
+        objects_target_shape = (
+            self.objects.shape[:num_batch_dims]
+            + (1,)
+            + self.objects.shape[num_batch_dims + 1 :]
+        )
+        gather_idx_objects = jnp.broadcast_to(gather_idx_objects, objects_target_shape)
+
+        fused_objects = jnp.take_along_axis(
+            self.objects, gather_idx_objects, axis=num_batch_dims
+        ).squeeze(axis=num_batch_dims)
+
+        # For masks: [..., num_planes, num_rays, path_length-1]
+        gather_idx_masks = jnp.expand_dims(
+            first_plane_idx, axis=-2
+        )  # [..., 1, num_rays]
+        gather_idx_masks = jnp.expand_dims(
+            gather_idx_masks, axis=-1
+        )  # [..., 1, num_rays, 1]
+        masks_target_shape = (
+            self.masks.shape[:num_batch_dims]
+            + (1,)
+            + self.masks.shape[num_batch_dims + 1 :]
+        )
+        gather_idx_masks = jnp.broadcast_to(gather_idx_masks, masks_target_shape)
+
+        fused_masks = jnp.take_along_axis(
+            self.masks, gather_idx_masks, axis=num_batch_dims
+        ).squeeze(axis=num_batch_dims)
+
+        # Set invalid rays (no interception) to have False masks
+        fused_masks = jnp.where(has_interception[..., None], fused_masks, False)
+
+        return SBRPaths(
+            vertices=fused_vertices,
+            objects=fused_objects,
+            masks=fused_masks,
+        )
