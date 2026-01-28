@@ -398,7 +398,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
 
             registry[backend] = __wrapper__
 
-            return __wrapper__  # ty: ignore[invalid-return-type]
+            return __wrapper__  # type: ignore[invalid-return-type]
 
         return _wrapper_
 

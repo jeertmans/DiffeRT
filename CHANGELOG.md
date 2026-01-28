@@ -24,6 +24,7 @@ with one *slight* but **important** difference:
 
 - Added `polarization` parameter to {func}`deepmimo.export<differt.plugins.deepmimo.export>` (by <gh-user:jeertmans>, in <gh-pr:356>).
 - Changed the type annotation of `backend` from `str` to `LiteralString`. This may be reverted in the future is `ty` support inferring literal string from equality tests (by <gh-user:jeertmans>, in <gh-pr:292>).
+- Added the {meth}`TriangleMesh.shuffle<differt.geometry.TriangleMesh.shuffle>` method to easily test set-like properties of machine learning models (by <gh-user:jeertmans>, in <gh-pr:220>).
 
 ### Chore
 
