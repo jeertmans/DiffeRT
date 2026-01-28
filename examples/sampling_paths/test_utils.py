@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import pytest
 from jaxtyping import PRNGKeyArray
+from pytest_subtests import SubTests
 
 from differt.geometry import (
     rotation_matrix_along_x_axis,
@@ -16,6 +17,29 @@ from differt.utils import (
 )
 
 from .utils import geometric_transformation, random_scene, unpack_scene
+
+
+def test_geometric_transformation_tx_rx_projection(
+    key: PRNGKeyArray,
+    subtests: SubTests,
+) -> None:
+
+    for i, sub_key in enumerate(jr.split(key, 10)):
+        with subtests.test(i=i):
+            tx, rx = jr.normal(sub_key, (2, 3))
+            xyz = jnp.stack([tx, rx], axis=0)
+
+            xyz_transformed = geometric_transformation(xyz, tx, rx)
+            chex.assert_trees_all_close(
+                xyz_transformed[0, :],
+                jnp.array([0.0, 0.0, 0.0]),
+                atol=1e-7,
+            )
+            chex.assert_trees_all_close(
+                xyz_transformed[1, :],
+                jnp.array([0.0, 0.0, 1.0]),
+                atol=1e-7,
+            )
 
 
 @pytest.mark.parametrize("degenerate", [False, True])

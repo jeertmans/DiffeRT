@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from typing import Any
 
 import equinox as eqx
 import jax
@@ -29,6 +30,12 @@ def random_scene(
     *,
     min_fill_factor: float = 0.5,
     max_fill_factor: float = 1.0,
+    tx_z_min: float = 2.0,
+    tx_z_max: float = 50.0,
+    rx_z_min: float = 1.0,
+    rx_z_max: float = 2.0,
+    sample_in_canyon: bool = True,
+    include_floor: bool = True,
     key: PRNGKeyArray,
 ) -> TriangleScene:
     """
@@ -39,6 +46,12 @@ def random_scene(
     Args:
         min_fill_factor: The minimum fill factor to be used.
         max_fill_factor: The maximum fill factor to be used.
+        tx_z_min: Minimum height of the transmitter.
+        tx_z_max: Maximum height of the transmitter.
+        rx_z_min: Minimum height of the receiver.
+        rx_z_max: Maximum height of the receiver.
+        sample_in_canyon: Whether to sample the TX and RX positions within the canyon area.
+        include_floor: Whether to always include the floor in the scene.
         key: The random key to be used.
 
     Returns:
@@ -46,11 +59,16 @@ def random_scene(
     """
     key_tx, key_rx, key_fill_factor, key_sample_triangles = jr.split(key, 4)
 
-    bounding_box = BASE_SCENE.mesh.bounding_box.at[:, :2].apply(
-        lambda xy: jnp.clip(xy, -5.0, 5.0)
+    bounding_box = BASE_SCENE.mesh.bounding_box
+
+    if sample_in_canyon:
+        bounding_box = bounding_box.at[:, :2].apply(lambda xy: jnp.clip(xy, -5.0, 5.0))
+    rx_bounding_box = bounding_box.at[:, 2].apply(
+        lambda z: jnp.clip(z, rx_z_min, rx_z_max)
     )
-    rx_bounding_box = bounding_box.at[:, 2].apply(lambda z: jnp.clip(z, 1.0, 2.0))
-    tx_bounding_box = bounding_box.at[:, 2].apply(lambda z: jnp.clip(z, 2.0, 50.0))
+    tx_bounding_box = bounding_box.at[:, 2].apply(
+        lambda z: jnp.clip(z, tx_z_min, tx_z_max)
+    )
     fill_factor = jr.uniform(
         key_fill_factor, (), minval=min_fill_factor, maxval=max_fill_factor
     )
@@ -68,6 +86,8 @@ def random_scene(
             ),
         ),
     )
+    if not include_floor:
+        return scene
     # Assumption: the floor is the only object that is made of 2 triangles
     object_bounds: Array = BASE_SCENE.mesh.object_bounds  # type: ignore[invalid-assignment]
     is_floor = object_bounds[:, 0] + 2 == object_bounds[:, 1]
@@ -84,19 +104,20 @@ def random_scene(
     )
 
 
-def train_dataloader(*, key: PRNGKeyArray) -> Iterator[TriangleScene]:
+def train_dataloader(*, key: PRNGKeyArray, **kwargs: Any) -> Iterator[TriangleScene]:
     """
     Return an (infinite) iterator over random scenes for training the model.
 
     Args:
         key: The random key to be used.
+        kwargs: Additional arguments to be passed to `random_scene`.
 
     Yields:
         An infinite number of random scenes.
     """
     while True:
         key, key_to_use = jr.split(key, 2)
-        yield random_scene(key=key_to_use)
+        yield random_scene(key=key_to_use, **kwargs)
 
 
 def validation_scene_keys(
