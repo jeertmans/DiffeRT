@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -2502,7 +2502,7 @@ wheels = [
 
 [[package]]
 name = "keras"
-version = "3.11.3"
+version = "3.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
@@ -2514,9 +2514,9 @@ dependencies = [
     { name = "packaging" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/89/646425fe9a46f9053430e1271f817c36041c6f33469950a3caafc3d2591e/keras-3.11.3.tar.gz", hash = "sha256:efda616835c31b7d916d72303ef9adec1257320bc9fd4b2b0138840fc65fb5b7", size = 1065906, upload-time = "2025-08-21T22:08:57.643Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/79/721253a7b1618487a901f08c913af7cf4f60caab764ef06bfc9702280b50/keras-3.13.1.tar.gz", hash = "sha256:670c726dfc9c357fe7ae5ef1c15d8f61ee7fbb40ae9a091a458ec6444a772480", size = 1154466, upload-time = "2026-01-14T18:58:26.809Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/5b/4c778cc921ce4b864b238f63f8e3ff6e954ab19b80c9fa680593ad8093d4/keras-3.11.3-py3-none-any.whl", hash = "sha256:f484f050e05ee400455b05ec8c36ed35edc34de94256b6073f56cfe68f65491f", size = 1408438, upload-time = "2025-08-21T22:08:55.858Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/e5/8b40bada1f33f25deca7bad0e8c7ca6752f2b09e8018e2fc4693858dd662/keras-3.13.1-py3-none-any.whl", hash = "sha256:6593be2e9d057921cd0413b4552c05fe1df73ea4bb03a4f3ec94532077b3e508", size = 1512409, upload-time = "2026-01-14T18:58:24.769Z" },
 ]
 
 [[package]]
