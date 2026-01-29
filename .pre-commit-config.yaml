@@ -45,6 +45,13 @@ repos:
     language: system
     types: [rust]
     pass_filenames: false
+  - id: sync-sampling-paths-tutorial
+    name: sync sampling-paths tutorial
+    description: Sync sampling paths tutorial notebook
+    entry: python scripts/sync_sampling_paths_tutorial.py
+    language: python
+    pass_filenames: false
+    additional_dependencies: [requests]
   - id: nbsetup
     name: nbsetup
     description: Add install preamble to Jupyter Notebooks

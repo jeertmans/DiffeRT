@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001
 import typing
 from collections.abc import Callable, Iterator, Sized
 from functools import cache

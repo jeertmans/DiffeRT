@@ -17,7 +17,7 @@ classifiers = [
 dependencies = [
   "chex>=0.1.86",
   "differt-core==0.6.2",
-  "equinox>=0.13.1",
+  "equinox>=0.13.4",
   "filelock>=3.15.4",
   "fpt-jax==0.1.0",
   "jax>=0.8.1",
