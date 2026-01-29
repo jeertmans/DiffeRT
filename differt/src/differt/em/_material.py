@@ -130,7 +130,7 @@ class Material(eqx.Module):
 
         aliases = ("itu_" + name.lower().replace(" ", "_"),)
 
-        @partial(jax.jit, inline=True, static_argnums=(1, 2, 3, 4))
+        @jax.jit(inline=True, static_argnums=(1, 2, 3, 4))
         def callback(
             f: Float[ArrayLike, " *batch"],
             a: Float[ArrayLike, ""],

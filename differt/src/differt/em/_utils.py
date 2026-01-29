@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any
 
 import jax
@@ -343,7 +342,7 @@ def transition_matrices(
     raise NotImplementedError
 
 
-@partial(jax.jit, static_argnames=("dB",))
+@jax.jit(static_argnames=("dB",))
 def fspl(
     d: Float[ArrayLike, " *#batch"],
     f: Float[ArrayLike, " *#batch"],

@@ -184,7 +184,7 @@ def test_fibonacci_lattice(
     expected_dtype: jnp.dtype,
     expectation: AbstractContextManager[Exception],
 ) -> None:
-    with jax.experimental.enable_x64(expected_dtype == jnp.float64), expectation:  # type: ignore[reportAttributeAccessIssue]
+    with jax.enable_x64(expected_dtype == jnp.float64), expectation:
         got = fibonacci_lattice(n, dtype=dtype)
 
         normalized, lengths = normalize(got)
