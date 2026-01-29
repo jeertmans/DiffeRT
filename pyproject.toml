@@ -23,6 +23,7 @@ docs = [
   "differt[all]",
   "myst-nb>=0.17.2",
   "pillow>=10.1.0",
+  "plotly<6",
   "sphinx>=8.1.3,<9",
   "sphinx-autodoc-typehints>=1.23",
   "sphinx-book-theme>=1.1.3",
@@ -33,7 +34,6 @@ docs = [
   "sphinxcontrib-apidoc>=0.4.0",
   "sphinxcontrib-bibtex>=2.6.0",
   "sphinx-plotly-directive>=0.1.3",
-  "treescope>=0.1.10",
 ]
 profiling = [
   "tensorboard-plugin-profile>=2.20.1",
@@ -189,7 +189,7 @@ omit = ["**/*/conftest.py"]
 
 [tool.pytest.ini_options]
 addopts = [
-  # "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
+  "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
   "--numprocesses=logical",
   "--cov-report=xml",
   "--cov=differt/src/differt",
