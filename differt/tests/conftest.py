@@ -88,7 +88,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
-    if "differt" in config.getoption("--jaxtyping-packages", default=""):
+    if (option := config.getoption("--jaxtyping-packages")) and "differt" in option:
         return
     skip_jaxtyping = pytest.mark.skip(
         reason='need --jaxtyping-packages="differt,..." option to run'
