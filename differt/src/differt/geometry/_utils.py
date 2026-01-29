@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Literal, no_type_check, overload
 
 import equinox as eqx
@@ -33,7 +32,7 @@ def normalize(
 ): ...
 
 
-@partial(jax.jit, static_argnames=("keepdims",), inline=True)
+@jax.jit(static_argnames=("keepdims",), inline=True)
 def normalize(
     vectors: Float[ArrayLike, "*batch 3"],
     keepdims: bool = False,
@@ -79,7 +78,7 @@ def normalize(
     )
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def perpendicular_vectors(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*batch 3"]:
     """
     Generate a vector perpendicular to the input vectors.
@@ -115,7 +114,7 @@ def perpendicular_vectors(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*bat
     return normalize(w)[0]
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def orthogonal_basis(
     u: Float[ArrayLike, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
@@ -153,7 +152,7 @@ def orthogonal_basis(
     return v, w
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def path_lengths(
     paths: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, " *batch"]:

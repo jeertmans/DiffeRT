@@ -1,6 +1,5 @@
 # ruff: noqa: N802, N806
 # type: ignore  # noqa: PGH003
-from functools import partial
 from typing import Any, Literal, overload
 
 import equinox as eqx
@@ -12,18 +11,18 @@ from jaxtyping import Array, Complex, Float
 # TODO: use ArrayLike instead of Array as inputs
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def _cot(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
     return 1 / jnp.tan(x)
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def _sign(x: Float[Array, " *batch"]) -> Float[Array, " *batch"]:
     ones = jnp.ones_like(x)
     return jnp.where(x >= 0, ones, -ones)
 
 
-@partial(jax.jit, inline=True, static_argnames=("mode"))
+@jax.jit(inline=True, static_argnames=("mode"))
 def _N(
     beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
 ) -> Float[Array, " *batch"]:
@@ -32,7 +31,7 @@ def _N(
     return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
 
 
-@partial(jax.jit, inline=True, static_argnames=("mode"))
+@jax.jit(inline=True, static_argnames=("mode"))
 def _a(
     beta: Float[Array, " *#batch"], n: Float[Array, " *#batch"], mode: Literal["+", "-"]
 ) -> Float[Array, " *batch"]:
