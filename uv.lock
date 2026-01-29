@@ -1050,6 +1050,7 @@ dev = [
     { name = "myst-nb" },
     { name = "optax" },
     { name = "pillow" },
+    { name = "plotly" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
@@ -1071,7 +1072,6 @@ dev = [
     { name = "sphinxcontrib-apidoc" },
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxext-opengraph" },
-    { name = "treescope" },
     { name = "ty" },
 ]
 docs = [
@@ -1079,6 +1079,7 @@ docs = [
     { name = "differt", extra = ["all"] },
     { name = "myst-nb" },
     { name = "pillow" },
+    { name = "plotly" },
     { name = "sionna-rt", marker = "python_full_version < '3.14' and sys_platform == 'linux'" },
     { name = "sphinx" },
     { name = "sphinx-autodoc-typehints" },
@@ -1090,7 +1091,6 @@ docs = [
     { name = "sphinxcontrib-apidoc" },
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxext-opengraph" },
-    { name = "treescope" },
 ]
 profiling = [
     { name = "tensorboard-plugin-profile" },
@@ -1188,6 +1188,7 @@ dev = [
     { name = "myst-nb", specifier = ">=0.17.2" },
     { name = "optax", specifier = ">=0.2.6" },
     { name = "pillow", specifier = ">=10.1.0" },
+    { name = "plotly", specifier = "<6" },
     { name = "pre-commit", specifier = ">=3.5.0" },
     { name = "pytest", specifier = ">=7.4.3,<8.3.5" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
@@ -1209,7 +1210,6 @@ dev = [
     { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
-    { name = "treescope", specifier = ">=0.1.10" },
     { name = "ty", specifier = ">=0.0.9" },
 ]
 docs = [
@@ -1217,6 +1217,7 @@ docs = [
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "myst-nb", specifier = ">=0.17.2" },
     { name = "pillow", specifier = ">=10.1.0" },
+    { name = "plotly", specifier = "<6" },
     { name = "sionna-rt", marker = "python_full_version < '3.14' and sys_platform == 'linux'", specifier = "==1.1.0" },
     { name = "sphinx", specifier = ">=8.1.3,<9" },
     { name = "sphinx-autodoc-typehints", specifier = ">=1.23" },
@@ -1228,7 +1229,6 @@ docs = [
     { name = "sphinxcontrib-apidoc", specifier = ">=0.4.0" },
     { name = "sphinxcontrib-bibtex", specifier = ">=2.6.0" },
     { name = "sphinxext-opengraph", specifier = ">=0.9.0" },
-    { name = "treescope", specifier = ">=0.1.10" },
 ]
 profiling = [
     { name = "tensorboard-plugin-profile", specifier = ">=2.20.1" },
@@ -5693,18 +5693,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d6/8d/37d686f52dfbccc47b857751531ffdec262b0f35158dd3b306030dafdb83/traittypes-0.2.3.tar.gz", hash = "sha256:212feed38d566d772648768b78d3347c148ef23915b91c02078188e631316c86", size = 16003, upload-time = "2025-10-22T11:06:09.952Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/c0/fdf9d3ee103ce66a55f0532835ad5e154226c5222423c6636ba049dc42fc/traittypes-0.2.3-py2.py3-none-any.whl", hash = "sha256:49016082ce740d6556d9bb4672ee2d899cd14f9365f17cbb79d5d96b47096d4e", size = 8130, upload-time = "2025-10-22T11:06:08.824Z" },
-]
-
-[[package]]
-name = "treescope"
-version = "0.1.10"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/2a/d13d3c38862632742d2fe2f7ae307c431db06538fd05ca03020d207b5dcc/treescope-0.1.10.tar.gz", hash = "sha256:20f74656f34ab2d8716715013e8163a0da79bdc2554c16d5023172c50d27ea95", size = 138870, upload-time = "2025-08-08T05:43:48.048Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/2b/36e984399089c026a6499ac8f7401d38487cf0183839a4aa78140d373771/treescope-0.1.10-py3-none-any.whl", hash = "sha256:dde52f5314f4c29d22157a6fe4d3bd103f9cae02791c9e672eefa32c9aa1da51", size = 182255, upload-time = "2025-08-08T05:43:46.673Z" },
 ]
 
 [[package]]
