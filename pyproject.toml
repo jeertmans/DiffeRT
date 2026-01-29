@@ -7,7 +7,7 @@ bump = [
 ]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
-  "jax[cuda]>=0.7.2",
+  "jax[cuda]>=0.8.1",
 ]
 dev = [
   {include-group = "codspeed"},
@@ -21,6 +21,7 @@ docs = [
   {include-group = "beartype"},
   {include-group = "sionna"},
   "differt[all]",
+  "jax==0.8.1",  # TODO: 0.8.2 introduced metaclass for jax.Array, breaking some references in the docs
   "myst-nb>=0.17.2",
   "pillow>=10.1.0",
   "plotly<6",

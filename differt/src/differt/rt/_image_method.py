@@ -1,4 +1,3 @@
-from functools import partial
 from typing import overload
 
 import chex
@@ -9,7 +8,7 @@ from jaxtyping import Array, ArrayLike, Bool, Float
 from differt.utils import smoothing_function
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def image_of_vertices_with_respect_to_mirrors(
     vertices: Float[ArrayLike, "*#batch 3"],
     mirror_vertices: Float[ArrayLike, "*#batch 3"],
@@ -80,7 +79,7 @@ def image_of_vertices_with_respect_to_mirrors(
     )
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def intersection_of_rays_with_planes(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],

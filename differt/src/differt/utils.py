@@ -1,13 +1,11 @@
 """General purpose utilities."""
 
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Num, PRNGKeyArray
 
 
-@partial(jax.jit, static_argnames=("shape",))
+@jax.jit(static_argnames=("shape",))
 def sample_points_in_bounding_box(
     bounding_box: Float[ArrayLike, "2 3"],
     shape: tuple[int, ...] = (),
@@ -69,7 +67,7 @@ def safe_divide(
     return jnp.where(zero_div, jnp.zeros(shape, dtype=dtype), num / den)
 
 
-@partial(jax.jit, inline=True)
+@jax.jit(inline=True)
 def smoothing_function(
     x: Float[ArrayLike, " *#batch"],
     /,
