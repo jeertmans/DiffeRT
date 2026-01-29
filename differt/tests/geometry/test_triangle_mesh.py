@@ -590,7 +590,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError, match="You must specify one of 'colors' or `key`, not both"
         ):
-            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[reportCallIssue]
+            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[no-matching-overload]
 
     def test_set_face_materials(
         self,

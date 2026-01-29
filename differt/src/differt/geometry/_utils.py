@@ -20,18 +20,6 @@ def normalize(
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]: ...
 
 
-# Workaround currently needed,
-# see: https://github.com/microsoft/pyright/issues/9149
-@overload
-def normalize(
-    vectors: Float[ArrayLike, "*batch 3"],
-    keepdims: bool,
-) -> (
-    tuple[Float[Array, "*batch 3"], Float[Array, " *batch"]]
-    | tuple[Float[Array, "*batch 3"], Float[Array, " *batch 1"]]
-): ...
-
-
 @jax.jit(static_argnames=("keepdims",), inline=True)
 def normalize(
     vectors: Float[ArrayLike, "*batch 3"],
@@ -357,16 +345,16 @@ def rotation_matrix_along_axis(
 @overload
 def fibonacci_lattice(
     n: int,
-    dtype: DTypeLike | None = None,
+    dtype: DTypeLike | None = ...,
     *,
-    frustum: None = None,
+    frustum: None = ...,
 ) -> Float[Array, "{n} 3"]: ...
 
 
 @overload
 def fibonacci_lattice(
     n: int,
-    dtype: None = None,
+    dtype: None = ...,
     *,
     frustum: Float[ArrayLike, "2 2"] | Float[ArrayLike, "2 3"],
 ) -> Float[Array, "{n} 3"]: ...
@@ -571,7 +559,7 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = ...,
     reduce: Literal[False] = False,
 ) -> Float[Array, "*batch 2 3"]: ...
 
@@ -581,19 +569,9 @@ def viewing_frustum(
     viewing_vertex: Float[ArrayLike, "*#batch 3"],
     world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     *,
-    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
+    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = ...,
     reduce: Literal[True] = True,
 ) -> Float[Array, "2 3"]: ...
-
-
-@overload
-def viewing_frustum(
-    viewing_vertex: Float[ArrayLike, "*#batch 3"],
-    world_vertices: Float[ArrayLike, "*#batch num_vertices 3"],
-    *,
-    active_vertices: Bool[ArrayLike, "*#batch num_vertices"] | None = None,
-    reduce: bool,
-) -> Float[Array, "*batch 2 3"] | Float[Array, "2 3"]: ...
 
 
 @eqx.filter_jit
@@ -607,7 +585,7 @@ def viewing_frustum(
     r"""
     Compute the viewing frustum as seen by one viewer.
 
-    The frustum is a region, espressed in spherical coordinates,
+    The frustum is a region, expressed in spherical coordinates,
     see :ref:`spherical-coordinates`,
     that fully contains the world vertices.
 
