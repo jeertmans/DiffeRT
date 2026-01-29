@@ -913,7 +913,7 @@ class TriangleMesh(eqx.Module):
         self,
         colors: Float[ArrayLike, "#num_triangles 3"] | Float[ArrayLike, "3"],
         *,
-        key: None = None,
+        key: None = ...,
     ) -> Self: ...
 
     @overload
@@ -1149,9 +1149,9 @@ class TriangleMesh(eqx.Module):
         vertex_b: Float[ArrayLike, "3"],
         vertex_c: Float[ArrayLike, "3"],
         *,
-        normal: None = None,
-        side_length: Float[ArrayLike, ""] = 1.0,
-        rotate: Float[ArrayLike, ""] | None = None,
+        normal: None = ...,
+        side_length: Float[ArrayLike, ""] = ...,
+        rotate: Float[ArrayLike, ""] | None = ...,
     ) -> Self: ...
 
     @overload
@@ -1159,12 +1159,12 @@ class TriangleMesh(eqx.Module):
     def plane(
         cls,
         vertex_a: Float[ArrayLike, "3"],
-        vertex_b: None = None,
-        vertex_c: None = None,
+        vertex_b: None = ...,
+        vertex_c: None = ...,
         *,
         normal: Float[ArrayLike, "3"],
-        side_length: Float[ArrayLike, ""] = 1.0,
-        rotate: Float[ArrayLike, ""] | None = None,
+        side_length: Float[ArrayLike, ""] = ...,
+        rotate: Float[ArrayLike, ""] | None = ...,
     ) -> Self: ...
 
     @classmethod

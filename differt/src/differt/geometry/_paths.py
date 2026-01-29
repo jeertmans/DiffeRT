@@ -519,7 +519,7 @@ class Paths(eqx.Module):
     def reduce(
         self,
         fun: Callable[[Num[Array, "*batch path_length 3"]], Num[Array, " *batch"]],
-        axis: None = None,
+        axis: None = ...,
     ) -> Num[Array, ""]: ...
 
     @overload
