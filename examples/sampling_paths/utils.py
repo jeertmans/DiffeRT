@@ -183,10 +183,10 @@ def basis_for_canonical_frame(
 
 
 def geometric_transformation(
-    xyz: Float[Array, "num_objects num_vertices_per_object 3"],
+    xyz: Float[Array, "*batch 3"],
     tx: Float[Array, "3"],
     rx: Float[Array, "3"],
-) -> Float[Array, "num_objects num_vertices_per_object 3"]:
+) -> Float[Array, "*batch 3"]:
     """
     Apply the geometric transformation to the input vertices.
 
