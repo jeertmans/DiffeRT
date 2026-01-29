@@ -32,6 +32,7 @@ with one *slight* but **important** difference:
 - Simplified {func}`deepmimo.export<differt.plugins.deepmimo.export>` to reduce redundant code (by <gh-user:jeertmans>, in <gh-pr:356>).
 - Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
 - Slightly improved code coverage (by <gh-user:jeertmans>, in <gh-pr:362>).
+- Bumped minimum required JAX version to [`0.8.1`](https://docs.jax.dev/en/latest/changelog.html#jax-0-8-1-november-18-2025) to use new {func}`jax.jit` syntax as the use of {func}`functools.partial` now raises errors from `ty`, see <ext-gh-issue:jax-ml/jax#34697> (by <gh-user:jeertmans>, in <gh-pr:370>).
 
 ### Fixed
 

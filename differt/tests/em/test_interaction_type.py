@@ -1,5 +1,5 @@
 import chex
-import jax.experimental
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import DTypeLike
@@ -10,7 +10,7 @@ from differt.em._interaction_type import InteractionType
 class TestInteractionType:
     @pytest.mark.parametrize("dtype", [jnp.int32, jnp.int64])
     def test_array(self, dtype: DTypeLike) -> None:
-        with jax.experimental.enable_x64(dtype == jnp.int64):
+        with jax.enable_x64(dtype == jnp.int64):
             arr = jnp.array(list(InteractionType), dtype=dtype)
             assert arr.dtype == dtype
 

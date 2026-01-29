@@ -1,6 +1,5 @@
 import chex
 import jax
-import jax.experimental
 import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
@@ -21,7 +20,7 @@ from differt.em._fresnel import (
         ("Glass", 2.511971),
     ],
 )
-@jax.experimental.enable_x64()
+@jax.enable_x64()
 def test_refractive_indices(mat_name: str, expected: float) -> None:
     frequency = 1e9  # Hz
     mat = materials[mat_name]
