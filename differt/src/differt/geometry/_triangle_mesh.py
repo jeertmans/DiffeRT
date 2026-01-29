@@ -885,7 +885,7 @@ class TriangleMesh(eqx.Module):
     @overload
     def set_face_colors(
         self,
-        colors: ...,
+        colors: None,
         *,
         key: PRNGKeyArray,
     ) -> Self: ...
