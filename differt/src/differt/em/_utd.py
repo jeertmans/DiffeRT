@@ -43,10 +43,10 @@ def _a(
 def L_i(
     s_d: Float[Array, " *#batch"],
     sin_2_beta_0: Float[Array, " *#batch"],
-    rho_1_i: None = None,
-    rho_2_i: None = None,
-    rho_e_i: None = None,
-    s_i: None = None,
+    rho_1_i: None = ...,
+    rho_2_i: None = ...,
+    rho_e_i: None = ...,
+    s_i: None = ...,
 ) -> Float[Array, " *batch"]: ...
 
 
@@ -54,10 +54,10 @@ def L_i(
 def L_i(
     s_d: Float[Array, " *#batch"],
     sin_2_beta_0: Float[Array, " *#batch"],
-    rho_1_i: None = None,
-    rho_2_i: None = None,
-    rho_e_i: None = None,
-    s_i: Float[Array, " *#batch"] | None = None,
+    rho_1_i: None = ...,
+    rho_2_i: None = ...,
+    rho_e_i: None = ...,
+    s_i: Float[Array, " *#batch"] | None = ...,
 ) -> Float[Array, " *batch"]: ...
 
 
@@ -68,7 +68,7 @@ def L_i(
     rho_1_i: Float[Array, " *#batch"],
     rho_2_i: Float[Array, " *#batch"],
     rho_e_i: Float[Array, " *#batch"],
-    s_i: None = None,
+    s_i: None = ...,
 ) -> Float[Array, " *batch"]: ...
 
 

@@ -373,7 +373,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
     *,
-    smoothing_factor: None = None,
+    smoothing_factor: None = ...,
 ) -> Bool[Array, "*#batch num_mirrors"]: ...
 
 

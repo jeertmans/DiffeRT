@@ -158,7 +158,7 @@ def rays_intersect_triangles(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, ""] | None = None,
+    epsilon: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: Float[ArrayLike, ""],
 ) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]: ...
 
@@ -169,8 +169,8 @@ def rays_intersect_triangles(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     *,
-    epsilon: Float[ArrayLike, ""] | None = None,
-    smoothing_factor: None = None,
+    epsilon: Float[ArrayLike, ""] | None = ...,
+    smoothing_factor: None = ...,
 ) -> tuple[Float[Array, " *batch"], Float[Array, " *batch"]]: ...
 
 
@@ -347,11 +347,11 @@ def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
-    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = ...,
     *,
-    hit_tol: Float[ArrayLike, ""] | None = None,
-    smoothing_factor: None = None,
-    batch_size: int | None = 512,
+    hit_tol: Float[ArrayLike, ""] | None = ...,
+    smoothing_factor: None = ...,
+    batch_size: int | None = ...,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"]: ...
 
@@ -361,11 +361,11 @@ def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
-    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = ...,
     *,
-    hit_tol: Float[ArrayLike, ""] | None = None,
+    hit_tol: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: Float[ArrayLike, ""],
-    batch_size: int | None = 512,
+    batch_size: int | None = ...,
     **kwargs: Any,
 ) -> Float[Array, " *batch"]: ...
 
