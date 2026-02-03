@@ -5,10 +5,10 @@ from pathlib import Path
 
 import requests
 
-
-def main() -> None:
+if __name__ == "__main__":
     response = requests.get(
-        "https://raw.githubusercontent.com/jeertmans/sampling-paths/main/tutorial.ipynb"
+        "https://raw.githubusercontent.com/jeertmans/sampling-paths/main/tutorial.ipynb",
+        timeout=60,
     )
     response.raise_for_status()
 
@@ -29,7 +29,3 @@ def main() -> None:
         Path(target_file).write_bytes(response.content)
     if file_changed:
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
