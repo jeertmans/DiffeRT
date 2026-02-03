@@ -223,9 +223,6 @@ markers = [
 ]
 minversion = "9.0"
 
-[tool.ruff]
-extend-include = ["*.ipynb"]
-
 [tool.ruff.format]
 docstring-code-format = true
 preview = true

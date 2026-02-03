@@ -2,4 +2,4 @@ extend = "../../../pyproject.toml"
 line-length = 80
 
 [lint]
-isort = {known-first-party = ["differt", "differt_core", "sampling_paths"]}
+isort = {known-first-party = []}
