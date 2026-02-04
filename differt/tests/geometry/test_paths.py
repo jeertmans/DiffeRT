@@ -8,7 +8,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import PRNGKeyArray
+from jaxtyping import Array, Bool, PRNGKeyArray
 
 from differt.geometry import TriangleMesh, path_lengths
 from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
@@ -32,7 +32,7 @@ def test_merge_cell_ids() -> None:
 
 def random_paths(
     path_length: int, *batch: int, num_objects: int, with_mask: bool, key: PRNGKeyArray
-) -> Paths:
+) -> Paths[Bool[Array, "*batch"] | None]:
     if with_mask:
         key_vertices, key_objects, key_mask = jax.random.split(key, 3)
         mask = jax.random.uniform(key_mask, batch) > 0.5
@@ -60,15 +60,12 @@ class TestPaths:
 
         assert paths.mask is not None
 
-        with pytest.warns(
-            UserWarning, match="Setting both 'mask' and 'confidence' arguments"
-        ):
-            paths = Paths(
-                paths.vertices,
-                paths.objects,
-                mask=paths.mask,
-                confidence=paths.mask.astype(float),
-            )
+        paths = random_paths(
+            path_length, *batch, num_objects=6, with_mask=False, key=key
+        )
+        assert paths.shape == batch
+
+        assert paths.mask is None
 
     @pytest.mark.parametrize("with_mask", [False, True])
     @pytest.mark.parametrize(
@@ -154,7 +151,7 @@ class TestPaths:
         chex.assert_trees_all_equal(got.num_valid_paths, 3)
 
         paths = eqx.tree_at(
-            lambda p: p.confidence,
+            lambda p: p.mask,
             paths,
             jnp.ones_like(mask, dtype=float),
             is_leaf=lambda x: x is None,
@@ -207,7 +204,7 @@ class TestPaths:
         chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
         paths = eqx.tree_at(
-            lambda p: p.confidence,
+            lambda p: p.mask,
             paths,
             jnp.ones((path_candidates.shape[0], 2, 3, 4, 1), dtype=float),
             is_leaf=lambda x: x is None,
@@ -285,7 +282,7 @@ class TestPaths:
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
         with pytest.raises(
             ValueError,
-            match=r"Cannot create multipath cells from non-existing mask \(or confidence matrix\)!",
+            match=r"Cannot create multipath cells from non-existing mask!",
         ):
             _ = random_paths(
                 6, 3, 2, num_objects=20, with_mask=False, key=key

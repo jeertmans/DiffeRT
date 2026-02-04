@@ -34,12 +34,17 @@ with one *slight* but **important** difference:
 - Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
 - Slightly improved code coverage (by <gh-user:jeertmans>, in <gh-pr:362>).
 - Bumped minimum required JAX version to [`0.8.1`](https://docs.jax.dev/en/latest/changelog.html#jax-0-8-1-november-18-2025) to use new {func}`jax.jit` syntax as the use of {func}`functools.partial` now raises errors from `ty`, see <ext-gh-issue:jax-ml/jax#34697> (by <gh-user:jeertmans>, in <gh-pr:370>).
+- Added a generic type variable for {attr}`mask<differt.geometry.Paths.mask>` (by <gh-user:jeertmans>, in <gh-pr:349>).
 
 ### Fixed
 
 - Restricted `ipykernel` version to `<7` to avoid compatibility issues with `jupyter_rfb`, see <ext-gh-issue:vispy/jupyter_rfb#121> (by <gh-user:jeertmans>, in <gh-pr:347>).
 - Pinned `sphinx` to `<9` to avoid breakage with `sphinx-autodoc-typehints` and the Sphinx v9 release (by <gh-user:jeertmans>, in <gh-pr:352>).
 - Fixed `get` method when indexing mesh with {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` to **not** drop duplicate indices (by <gh-user:jeertmans>, in <gh-pr:362>).
+
+### Removed
+
+- Removed `confidence` attribute in {class}`Paths<differt.geometry.Paths>` as it is now replaced by {attr}`mask<differt.geometry.Paths.mask>`, possibly holding floating point values. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:349>).
 
 <!-- start changelog -->
 
@@ -210,7 +215,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added support for {attr}`confidence<differt.geometry.Paths.confidence>` attribute in {attr}`Paths.mask_duplicate_objects<differt.geometry.Paths.mask_duplicate_objects>` (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Added support for `confidence` attribute in {attr}`Paths.mask_duplicate_objects<differt.geometry.Paths.mask_duplicate_objects>` (by <gh-user:jeertmans>, in <gh-pr:272>).
 - Added the {attr}`Paths.shape<differt.geometry.Paths.shape>` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
   The following equality should always hold: `paths.reshape(*batch).shape = batch`.
 - Added the {mod}`differt.plugins` package and {mod}`differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).

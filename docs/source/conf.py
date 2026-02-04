@@ -72,6 +72,7 @@ nitpick_ignore = (
     ("py:class", "differt.utils.TypeVarTuple"),
     ("py:class", "jax._src.typing.SupportsDType"),
     ("py:class", "ndarray"),  # From ArrayLike
+    ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
     ("py:obj", "__main__.ArrayType"),

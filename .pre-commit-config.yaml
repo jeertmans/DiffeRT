@@ -86,6 +86,6 @@ repos:
     - tomli
     exclude_types: [jupyter]  # GitHub action will run on Notebooks
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.9.26
+  rev: 0.9.28
   hooks:
   - id: uv-lock

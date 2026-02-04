@@ -380,6 +380,8 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
                 msg,
             )
 
+        # TODO: fixme when https://github.com/astral-sh/ty/issues/2507 is closed
+        @no_type_check
         def _wrapper_(impl: Callable[P, T]) -> Callable[P, T]:
             # ruff: noqa: DOC201
             """Actually register the backend implementation."""
@@ -400,7 +402,7 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
 
             registry[backend] = __wrapper__
 
-            return __wrapper__  # type: ignore[invalid-return-type]
+            return __wrapper__
 
         return _wrapper_
 
