@@ -825,3 +825,141 @@ class TestTriangleMesh:
             .num_triangles
             == 10
         )
+
+    @pytest.mark.parametrize(
+        ("with_colors", "with_materials", "with_mask", "assume_quads"),
+        [
+            (False, False, False, False),
+            (True, False, False, False),
+            (False, True, False, False),
+            (False, False, True, False),
+            (True, True, False, False),
+            (True, False, True, False),
+            (False, True, True, False),
+            (True, True, True, False),
+            (False, False, False, True),
+            (True, False, False, True),
+        ],
+    )
+    def test_shuffle_with_configurations(
+        self,
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+        with_colors: bool,
+        with_materials: bool,
+        with_mask: bool,
+        assume_quads: bool,
+    ) -> None:
+        # Test shuffling with various mesh configurations
+        key_color, key_shuffle = jax.random.split(key)
+        mesh = two_buildings_mesh
+
+        if assume_quads:
+            mesh = mesh.set_assume_quads()
+
+        if with_colors:
+            mesh = mesh.set_face_colors(key=key_color)
+
+        if with_materials:
+            mesh = mesh.set_materials("concrete")
+
+        if with_mask:
+            mesh = eqx.tree_at(
+                lambda m: m.mask,
+                mesh,
+                jnp.ones(mesh.num_triangles, dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
+
+        shuffled_mesh, indices = mesh.shuffle(return_indices=True, key=key_shuffle)
+
+        # Verify mesh structure is preserved
+        assert shuffled_mesh.num_triangles == mesh.num_triangles
+        assert shuffled_mesh.assume_quads == mesh.assume_quads
+
+        # Indices should be a permutation of triangle indices
+        assert indices.shape == (mesh.num_triangles,)
+        assert jnp.all(jnp.unique(indices) == jnp.arange(mesh.num_triangles))
+
+        # Triangles should be reordered by indices
+        expected_triangles = mesh.triangles[indices, :]
+        chex.assert_trees_all_equal(shuffled_mesh.triangles, expected_triangles)
+
+        # Face colors should be reordered if present
+        if mesh.face_colors is not None:
+            expected_colors = mesh.face_colors[indices, :]
+            chex.assert_trees_all_close(shuffled_mesh.face_colors, expected_colors)
+
+        # Face materials should be reordered if present
+        if mesh.face_materials is not None:
+            expected_materials = mesh.face_materials[indices]
+            chex.assert_trees_all_equal(
+                shuffled_mesh.face_materials, expected_materials
+            )
+
+        # Mask should be reordered if present
+        if mesh.mask is not None:
+            expected_mask = mesh.mask[indices]
+            chex.assert_trees_all_equal(shuffled_mesh.mask, expected_mask)
+
+    def test_shuffle_basic(
+        self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray
+    ) -> None:
+        # Test basic shuffling of triangles
+        shuffled_mesh = two_buildings_mesh.shuffle(key=key)
+
+        # Mesh should have same number of triangles
+        assert shuffled_mesh.num_triangles == two_buildings_mesh.num_triangles
+
+        # Vertices and triangles should be different after shuffling (with high probability)
+        assert not jnp.array_equal(
+            shuffled_mesh.triangles, two_buildings_mesh.triangles
+        )
+
+        # All vertices should still be present
+        chex.assert_equal_shape(
+            (shuffled_mesh.vertices, two_buildings_mesh.vertices),
+        )
+
+    def test_shuffle_empty_mesh(self, key: PRNGKeyArray) -> None:
+        # Test shuffling an empty mesh
+        empty_mesh = TriangleMesh.empty()
+        shuffled_mesh = empty_mesh.shuffle(key=key)
+
+        assert shuffled_mesh.is_empty
+        assert shuffled_mesh.num_triangles == 0
+
+    @pytest.mark.parametrize(
+        ("has_object_bounds", "preserve"),
+        [
+            (True, False),
+            (True, True),
+            (False, True),
+        ],
+    )
+    def test_shuffle_object_bounds(
+        self,
+        two_buildings_mesh: TriangleMesh,
+        key: PRNGKeyArray,
+        has_object_bounds: bool,
+        preserve: bool,
+    ) -> None:
+        # Test shuffling with object_bounds handling
+        if has_object_bounds:
+            mesh = eqx.tree_at(
+                lambda m: m.object_bounds,
+                two_buildings_mesh,
+                jnp.array([[0, 12], [12, 24]]),
+                is_leaf=lambda x: x is None,
+            )
+        else:
+            mesh = two_buildings_mesh
+
+        if preserve:
+            # preserve=True always raises NotImplementedError
+            with pytest.raises(NotImplementedError, match="Preserving object bounds"):
+                mesh.shuffle(preserve=True, key=key)
+        else:
+            # Without preserve, object_bounds should be removed
+            shuffled_mesh = mesh.shuffle(key=key)
+            assert shuffled_mesh.object_bounds is None
