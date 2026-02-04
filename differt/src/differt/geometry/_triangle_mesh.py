@@ -1659,7 +1659,7 @@ class TriangleMesh(eqx.Module):
     @overload
     def shuffle(
         self,
-        preserve: bool = False,
+        preserve: bool = ...,
         *,
         return_indices: Literal[True],
         key: PRNGKeyArray,
@@ -1668,9 +1668,9 @@ class TriangleMesh(eqx.Module):
     @overload
     def shuffle(
         self,
-        preserve: bool = False,
+        preserve: bool = ...,
         *,
-        return_indices: Literal[False] = False,
+        return_indices: Literal[False] = ...,
         key: PRNGKeyArray,
     ) -> Self: ...
 
