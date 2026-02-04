@@ -1689,8 +1689,8 @@ class TriangleMesh(eqx.Module):
             preserve: Whether to preserve :attr:`object_bounds`, otherwise
                 it is discarded.
 
-                ... warning::
-
+                .. warning::
+                
                     Not implemented yet.
 
                 Setting this to :data:`True` has no effect if :attr:`object_bounds`
