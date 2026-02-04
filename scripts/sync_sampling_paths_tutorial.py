@@ -7,7 +7,7 @@ import requests
 
 if __name__ == "__main__":
     response = requests.get(
-        "https://raw.githubusercontent.com/jeertmans/sampling-paths/main/tutorial.ipynb",
+        "https://raw.githubusercontent.com/jeertmans/sampling-paths/main/notebooks/tutorial.ipynb",
         timeout=60,
     )
     response.raise_for_status()

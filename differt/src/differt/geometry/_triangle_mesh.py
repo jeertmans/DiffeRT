@@ -1705,9 +1705,8 @@ class TriangleMesh(eqx.Module):
             NotImplementedError: If `preserve` is :data:`True`.
         """
         if preserve:
-            raise NotImplementedError(
-                "Preserving object bounds is not implemented yet."
-            )
+            msg = "Preserving object bounds is not implemented yet."
+            raise NotImplementedError(msg)
 
         indices = jax.random.permutation(key, jnp.arange(self.num_primitives))
 

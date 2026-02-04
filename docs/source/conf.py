@@ -1,4 +1,4 @@
-# ruff: noqa: D100, D103, D200, INP001
+# ruff: noqa: D100, D103, D200, DOC201, INP001
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
