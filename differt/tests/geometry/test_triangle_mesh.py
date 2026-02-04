@@ -458,9 +458,9 @@ class TestTriangleMesh:
         key_s, key_o = jax.random.split(key)
 
         if self_colors and not self_empty:
-            s = s.set_face_colors(key=key_s)  # type: ignore[reportCallIssue]
+            s = s.set_face_colors(key=key_s)
         if other_colors and not other_empty:
-            o = o.set_face_colors(key=key_o)  # type: ignore[reportCallIssue]
+            o = o.set_face_colors(key=key_o)
 
         if self_face_materials and not self_empty:
             s = s.set_materials("material_a")
