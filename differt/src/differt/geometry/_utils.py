@@ -444,7 +444,7 @@ def assemble_paths(
 def assemble_paths(
     from_vertices: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#batch 3"],
-    to_vertices: None = None,
+    to_vertices: None = ...,
 ) -> Float[Array, "*batch 2 3"]: ...
 
 

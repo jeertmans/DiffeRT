@@ -34,13 +34,13 @@ def test_ray_casting() -> None:
     o3d_mesh = o3d_mesh.compute_triangle_normals()
 
     mesh = TriangleMesh(
-        vertices=o3d_mesh.vertex.positions.numpy(),
-        triangles=o3d_mesh.triangle.indices.numpy(),
+        vertices=jnp.asarray(o3d_mesh.vertex.positions.numpy()),
+        triangles=jnp.asarray(o3d_mesh.triangle.indices.numpy()),
     )
 
     chex.assert_trees_all_close(
         mesh.bounding_box,
-        jnp.stack(
+        np.stack(
             [
                 o3d_mesh.get_min_bound().numpy(),
                 o3d_mesh.get_max_bound().numpy(),

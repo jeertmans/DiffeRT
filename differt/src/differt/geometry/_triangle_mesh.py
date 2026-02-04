@@ -187,22 +187,18 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 class TriangleMesh(eqx.Module):
     """A simple geometry made of triangles."""
 
-    vertices: Float[Array, "num_vertices 3"] = eqx.field(converter=jnp.asarray)
+    vertices: Float[Array, "num_vertices 3"]
     """The array of triangle vertices."""
-    triangles: Int[Array, "num_triangles 3"] = eqx.field(converter=jnp.asarray)
+    triangles: Int[Array, "num_triangles 3"]
     """The array of triangle indices."""
-    face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
-    )
+    face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(default=None)
     """The array of face colors.
 
     The array contains the face colors, as RGB triplets,
     with a black color used as defaults (if some faces have a color).
     This attribute is :data:`None` if all face colors are unset.
     """
-    face_materials: Int[Array, " num_triangles"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
-    )
+    face_materials: Int[Array, " num_triangles"] | None = eqx.field(default=None)
     """The array of face materials.
 
     The array contains the material indices,
@@ -210,13 +206,9 @@ class TriangleMesh(eqx.Module):
     To obtain the name of the material, see :attr:`material_names`.
     This attribute is :data:`None` if all face materials are unset.
     """
-    material_names: tuple[str, ...] = eqx.field(
-        converter=tuple, default_factory=tuple, static=True
-    )
+    material_names: tuple[str, ...] = eqx.field(default_factory=tuple, static=True)
     """The list of material names (must be unique)."""
-    object_bounds: Int[Array, "num_primitives 2"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
-    )
+    object_bounds: Int[Array, "num_primitives 2"] | None = eqx.field(default=None)
     """The array of object indices.
 
     If the present mesh contains multiple objects, usually as a result of appending
@@ -236,9 +228,7 @@ class TriangleMesh(eqx.Module):
     :attr:`num_triangles` is even, but each two consecutive
     triangles are assumed to represent a quadrilateral surface.
     """
-    mask: Bool[Array, " num_triangles"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
-    )
+    mask: Bool[Array, " num_triangles"] | None = eqx.field(default=None)
     """An optional mask to indicate which triangles are active.
 
     Using a mask allows to represent multiple sub-meshes of a single mesh, without changing

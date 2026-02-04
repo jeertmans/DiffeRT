@@ -525,12 +525,10 @@ class TriangleScene(eqx.Module):
     """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
-        converter=jnp.asarray,
         default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of transmitter vertices."""
     receivers: Float[Array, "*receivers_batch 3"] = eqx.field(
-        converter=jnp.asarray,
         default_factory=lambda: jnp.empty((0, 3)),
     )
     """The array of receiver vertices."""
@@ -757,7 +755,7 @@ class TriangleScene(eqx.Module):
             mesh += (
                 TriangleMesh(
                     vertices=shape.vertex_positions_buffer().jax().reshape(-1, 3),
-                    triangles=shape.faces_buffer().jax().reshape(-1, 3),
+                    triangles=shape.faces_buffer().jax().astype(int).reshape(-1, 3),
                 )
                 .set_face_colors(jnp.asarray(rm.color))
                 .set_materials(f"itu_{rm.itu_type}")

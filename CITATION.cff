@@ -3,7 +3,7 @@ title: >-
   DiffeRT: A
   Differentiable Ray Tracing Toolbox for Radio Propagation
   Simulations
-message: 'If you use this software, please cite us.'
+message: 'If you use this software, please cite us using our conference article presented at ICMLCN 2025.'
 type: software
 authors:
   - family-names: Eertmans
@@ -24,3 +24,25 @@ keywords:
   - Modeling
 license: MIT
 version: v0.6.2
+preferred-citation:
+  authors:
+  - family-names: Eertmans
+    given-names: Jérome
+    orcid: "https://orcid.org/0000-0002-5579-5360"
+  - family-names: Oestges
+    given-names: Claude
+    orcid: "https://orcid.org/0000-0002-0902-4565"
+  - family-names: Jacques
+    given-names: Laurent
+    orcid: "https://orcid.org/0000-0002-6261-0328"
+  date-published: 2025-09-03
+  doi: 10.1109/ICMLCN64995.2025.11139997
+  journal: Journal of Open Source Software
+  publisher:
+    name: IEEE
+  title: "Demonstrating DiffeRT: An Open-Source Library for Optimizing Radio Networks with Differentiable Ray Tracing"
+  type: conference-paper
+  conference:
+    name: "International Conference on Machine Learning for Communication and Networking (ICMLCN)"
+  collection-title: "2025 IEEE International Conference on Machine Learning for Communication and Networking (ICMLCN)"
+  url: "https://ieeexplore.ieee.org/document/11139997"
