@@ -77,11 +77,26 @@ for a detailed step-by-step procedure.
 
 <!-- start citing -->
 
-If you use this software, please cite it as:
+If you use this software, please cite it as (**preferred**):
 
 ```bibtex
-@software{Eertmans_Differentiable_Ray_Tracing,
-  title   = {{DiffeRT: A Differentiable Ray Tracing Toolbox for Radio Propagation Simulations}},
+@inproceedings{Eertmans_DiffeRT_ICMLCN_2025,
+  title     = {Demonstrating {DiffeRT}: An Open-Source Library for Optimizing Radio Networks with Differentiable Ray Tracing},
+  author    = {Eertmans, Jérome and Oestges, Claude and Jacques, Laurent},
+  year      = 2025,
+  booktitle = {2025 IEEE International Conference on Machine Learning for Communication and Networking (ICMLCN)},
+  volume    = {},
+  number    = {},
+  pages     = {1--2},
+  doi       = {10.1109/ICMLCN64995.2025.11139997}
+}
+```
+
+or:
+
+```bibtex
+@software{Eertmans_DiffeRT_GitHub,
+  title   = {{DiffeRT}: A Differentiable Ray Tracing Toolbox for Radio Propagation Simulations},
   author  = {Eertmans, Jérome},
   url     = {https://github.com/jeertmans/DiffeRT},
   license = {MIT},

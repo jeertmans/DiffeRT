@@ -92,18 +92,16 @@ class Paths(eqx.Module, Generic[_M]):
     see :attr:`mask` for further details.
     """
 
-    vertices: Float[Array, "*batch path_length 3"] = eqx.field(converter=jnp.asarray)
+    vertices: Float[Array, "*batch path_length 3"]
     """The array of path vertices."""
-    objects: Int[Array, "*batch path_length"] = eqx.field(converter=jnp.asarray)
+    objects: Int[Array, "*batch path_length"]
     """The array of object indices.
 
     To every path vertex corresponds one object (e.g., a triangle).
     A placeholder value of ``-1`` can be used in specific cases,
     like for transmitter and receiver positions.
     """
-    mask: _M = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
-    )
+    mask: _M = eqx.field(default=None)
     """An optional mask to indicate which paths are valid and should be used.
 
     The mask is kept separately to :attr:`vertices` so that we can keep information about
@@ -115,7 +113,7 @@ class Paths(eqx.Module, Generic[_M]):
     are considered valid.
     """
     interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
-        converter=lambda x: jnp.asarray(x) if x is not None else None, default=None
+        default=None
     )
     """An optional array to indicate the type of each interaction.
 
@@ -565,7 +563,7 @@ class SBRPaths(Paths[Float[Array, "*batch"]]):
     """
 
     _: KW_ONLY
-    masks: Bool[Array, " *batch path_length-1"] = eqx.field(converter=jnp.asarray)
+    masks: Bool[Array, " *batch path_length-1"]
     """An array of masks.
 
     Extends :attr:`mask`, with one mask for each path order.
