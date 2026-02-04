@@ -100,7 +100,7 @@ or:
   author  = {Eertmans, Jérome},
   url     = {https://github.com/jeertmans/DiffeRT},
   license = {MIT},
-  version = {v0.6.2}
+  version = {v0.7.0}
 }
 ```
 

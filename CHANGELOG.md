@@ -18,7 +18,11 @@ with one *slight* but **important** difference:
 
 <!-- end changelog-preamble -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...HEAD)
+
+<!-- start changelog -->
+
+## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
 ### Added
 
@@ -46,8 +50,6 @@ with one *slight* but **important** difference:
 
 - Removed `confidence` attribute in {class}`Paths<differt.geometry.Paths>` as it is now replaced by {attr}`mask<differt.geometry.Paths.mask>`, possibly holding floating point values. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:349>).
 - Removed `jnp.asarray` field converters from all classes, as it would lead to confusing type hints mismatches between the annotations and the actual types accepted by the classes' `__init__` method. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:383>).
-
-<!-- start changelog -->
 
 ## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
 

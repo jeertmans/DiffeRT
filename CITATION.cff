@@ -23,7 +23,7 @@ keywords:
   - Radio Propagation
   - Modeling
 license: MIT
-version: v0.6.2
+version: v0.7.0
 preferred-citation:
   authors:
   - family-names: Eertmans
