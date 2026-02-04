@@ -60,11 +60,8 @@ jobs:
       with:
         components: rustfmt
 
-    - name: Install dependencies
-      run: uv sync
-
     - name: Run pre-commit hooks
-      run: uv run pre-commit run --all-files
+      run: uv run --locked pre-commit run --all-files
 
     - name: Apply fixes when present
       uses: pre-commit-ci/lite-action@v1.1.0

@@ -235,7 +235,7 @@ jobs:
       uses: CodSpeedHQ/action@v4
       with:
         mode: instrumentation
-        run: uv run --group=codspeed pytest differt/tests/benchmarks --jaxtyping-packages="" --codspeed
+        run: uv run --group=codspeed pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
     runs-on: ubuntu-latest

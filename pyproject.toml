@@ -36,11 +36,6 @@ docs = [
   "sphinxcontrib-bibtex>=2.6.0",
   "sphinx-plotly-directive>=0.1.3",
 ]
-icmlcn2025 = [
-  # For ICMLCN2025 tag
-  "differt[all]",
-  "e3x>=1.0.2",
-]
 profiling = [
   "tensorboard-plugin-profile>=2.20.1",
   "tensorflow>=2.19.0",
@@ -228,9 +223,6 @@ markers = [
 ]
 minversion = "9.0"
 
-[tool.ruff]
-extend-include = ["*.ipynb"]
-
 [tool.ruff.format]
 docstring-code-format = true
 preview = true
@@ -251,6 +243,7 @@ extend-ignore = [
   "E114",  # indentation-with-invalid-multiple-comments, conflicts with formatter
   "E117",  # over-indented, conflicts with formatter
   "E501",  # line-too-long, conflicts with formatter
+  "ERA001",  # commented-out-code
   "F722",  # forward-annotation-syntax-error
   "FA100",  # future-rewritable-type-annotation
   "FBT001",  # boolean-type-hint-positional-argument
@@ -275,7 +268,7 @@ preview = true
 select = ["ALL"]
 
 [tool.ruff.lint.flake8-boolean-trap]
-extend-allowed-calls = ["jax.numpy.array", "jax.numpy.where"]
+extend-allowed-calls = ["chex.assert_trees_all_equal", "chex.assert_trees_all_close", "equinox.tree_at", "jax.debug_infs", "jax.debug_nans", "jax.numpy.array", "jax.numpy.where"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
@@ -286,16 +279,12 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = [
   "B018",
-  "ERA001",  # TODO: remove commented code in notebook
   "N806",
-  "PLR2004",  # TODO: remove this
-  "PLW2901",  # TODO: remove this
+  "PLR2004",
   "RUF027",
   "T201",
 ]
-"**/tests/*" = ["PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
-"**/{docs,tests}/*" = ["D", "DOC", "S101"]
-"differt/src/differt/conftest.py" = ["D", "DOC"]
+"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "S101", "PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
 "scripts/*" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]

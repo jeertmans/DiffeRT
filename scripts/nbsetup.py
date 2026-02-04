@@ -13,19 +13,20 @@ CELL = nbf.NotebookNode(
     id="0",
     metadata={"tags": [TAG, "remove-cell", "skip-execution"]},
     outputs=[],
-    source=[
-        "# Run this cell to install DiffeRT and its dependencies, e.g., on Google Colab\n",
-        "\n",
-        "try:\n",
-        "    import differt  # noqa: F401\n",
-        "except ImportError:\n",
-        "    import sys  # noqa: F401\n",
-        "\n",
-        "    !{sys.executable} -m pip install differt[all]",
-    ],
+    source=(
+        "# Run this cell to install DiffeRT and its dependencies, e.g., on Google Colab\n"
+        "\n"
+        "try:\n"
+        "    import differt  # noqa: F401\n"
+        "except ImportError:\n"
+        "    import sys  # noqa: F401\n"
+        "\n"
+        "    !{sys.executable} -m pip install differt[all]"
+    ),
 )
 
 if __name__ == "__main__":
+    files_changed = False
     for ipath in sys.argv[1:]:
         ntbk = nbf.read(ipath, nbf.NO_CONVERT)
 
@@ -41,8 +42,13 @@ if __name__ == "__main__":
                 continue  # Skip this cell, we don't want to overwrite it
 
             for field, value in CELL.items():
-                cell[field] = value
+                if field not in cell or cell[field] != value:
+                    cell[field] = value
+                    files_changed = True
         else:
             cells.insert(0, CELL)
+            files_changed = True
 
         nbf.write(ntbk, ipath)
+    if files_changed:
+        sys.exit(1)

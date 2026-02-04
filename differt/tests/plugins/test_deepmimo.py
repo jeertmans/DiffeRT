@@ -1,4 +1,3 @@
-# ruff: noqa: ERA001
 from dataclasses import asdict
 from itertools import chain
 from typing import Literal
@@ -176,7 +175,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
 
     chex.assert_trees_all_equal(
         dm.mask,
-        True,  # All paths are valid in this case  # noqa: FBT003
+        True,  # All paths are valid in this case
     )
 
     chex.assert_trees_all_close(

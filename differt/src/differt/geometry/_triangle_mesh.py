@@ -1,5 +1,3 @@
-# ruff: noqa: ERA001
-
 import typing
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
@@ -7,6 +5,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
     TypedDict,
     TypeVar,
     overload,
@@ -344,6 +343,15 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0]
 
     @property
+    def num_active_triangles(self) -> int | Int[Array, " "]:
+        """
+        The number of active triangles.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        """
+        return jnp.sum(self.mask) if self.mask is not None else self.num_triangles
+
+    @property
     def num_quads(self) -> int:
         """The number of quadrilaterals.
 
@@ -357,6 +365,21 @@ class TriangleMesh(eqx.Module):
         return self.triangles.shape[0] // 2
 
     @property
+    def num_active_quads(self) -> int | Int[Array, " "]:
+        """The number of active quadrilaterals.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+
+        Raises:
+            ValueError: If :attr:`assume_quads` is :data:`False`.
+        """
+        if not self.assume_quads:
+            msg = "Cannot access the number of active quadrilaterals if 'assume_quads' is set to 'False'."
+            raise ValueError(msg)
+
+        return jnp.sum(self.mask[::2]) if self.mask is not None else self.num_quads
+
+    @property
     def num_primitives(self) -> int:
         """The number of primitives.
 
@@ -364,6 +387,17 @@ class TriangleMesh(eqx.Module):
         else :attr:`num_triangles`.
         """
         return self.num_quads if self.assume_quads else self.num_triangles
+
+    @property
+    def num_active_primitives(self) -> int | Int[Array, " "]:
+        """The number of active primitives.
+
+        This is a convenient alias to :attr:`num_active_quads` if :attr:`assume_quads` is :data:`True`
+        else :attr:`num_active_triangles`.
+
+        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        """
+        return self.num_active_quads if self.assume_quads else self.num_active_triangles
 
     @property
     def triangle_vertices(self) -> Float[Array, "num_triangles 3 3"]:
@@ -875,7 +909,7 @@ class TriangleMesh(eqx.Module):
     @overload
     def set_face_colors(
         self,
-        colors: None,
+        colors: None = ...,
         *,
         key: PRNGKeyArray,
     ) -> Self: ...
@@ -1621,3 +1655,90 @@ class TriangleMesh(eqx.Module):
             ),
             is_leaf=lambda x: x is None,
         )
+
+    @overload
+    def shuffle(
+        self,
+        preserve: bool = ...,
+        *,
+        return_indices: Literal[True],
+        key: PRNGKeyArray,
+    ) -> tuple[Self, Int[ArrayLike, " num_triangles"]]: ...
+
+    @overload
+    def shuffle(
+        self,
+        preserve: bool = ...,
+        *,
+        return_indices: Literal[False] = ...,
+        key: PRNGKeyArray,
+    ) -> Self: ...
+
+    @eqx.filter_jit
+    def shuffle(
+        self,
+        preserve: bool = False,
+        *,
+        return_indices: bool = False,
+        key: PRNGKeyArray,
+    ) -> Self | tuple[Self, Int[ArrayLike, " num_triangles"]]:
+        """
+        Generate a new mesh by randomly shuffling primitives from this geometry.
+
+        Args:
+            preserve: Whether to preserve :attr:`object_bounds`, otherwise
+                it is discarded.
+
+                .. warning::
+                
+                    Not implemented yet.
+
+                Setting this to :data:`True` has no effect if :attr:`object_bounds`
+                is :data:`None`.
+            return_indices: Whether to return the indices used for shuffling.
+            key: The :func:`jax.random.key` to be used.
+
+        Returns:
+            A new random mesh.
+
+        Raises:
+            NotImplementedError: If `preserve` is :data:`True`.
+        """
+        if preserve:
+            msg = "Preserving object bounds is not implemented yet."
+            raise NotImplementedError(msg)
+
+        indices = jax.random.permutation(key, jnp.arange(self.num_primitives))
+
+        if self.assume_quads:
+            indices *= 2
+            indices = jnp.stack((indices, indices + 1), axis=-1).reshape(-1)
+
+        object_bounds = None
+
+        mesh = eqx.tree_at(
+            lambda m: (
+                m.vertices,
+                m.triangles,
+                m.face_colors,
+                m.face_materials,
+                m.object_bounds,
+                m.mask,
+            ),
+            self,
+            (
+                self.vertices,
+                self.triangles[indices, :],
+                self.face_colors[indices, :] if self.face_colors is not None else None,
+                self.face_materials[indices]
+                if self.face_materials is not None
+                else None,
+                object_bounds,
+                self.mask[indices] if self.mask is not None else None,
+            ),
+            is_leaf=lambda x: x is None,
+        )
+
+        if return_indices:
+            return mesh, indices
+        return mesh
