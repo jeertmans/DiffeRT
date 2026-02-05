@@ -1690,7 +1690,7 @@ class TriangleMesh(eqx.Module):
                 it is discarded.
 
                 .. warning::
-                
+
                     Not implemented yet.
 
                 Setting this to :data:`True` has no effect if :attr:`object_bounds`
