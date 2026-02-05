@@ -3,9 +3,19 @@ name: Test code
 
 on:
   pull_request:
+    paths:
+    - '**/pyproject.toml'
+    - '**/Cargo.toml'
+    - uv.lock
+    - differt/**/.py
+    - differt-core/**/*.{py,rs}
   push:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   QT_QPA_PLATFORM: offscreen
