@@ -20,6 +20,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...HEAD)
 
+### Added
+
+- Added {func}`set_backend<differt.plotting.set_backend>` function to easily switch between different plotting backends, without using the more verbose {func}`set_defaults<differt.plotting.set_defaults>` function (by <gh-user:jeertmans>, in <gh-pr:387>).
+
 <!-- start changelog -->
 
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)

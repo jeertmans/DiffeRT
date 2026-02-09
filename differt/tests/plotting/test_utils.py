@@ -12,6 +12,7 @@ from differt.plotting import (
     process_plotly_kwargs,
     process_vispy_kwargs,
     reuse,
+    set_backend,
     set_defaults,
     update_defaults,
     use,
@@ -151,6 +152,21 @@ def test_missing_backend_module(
 def test_return_type(backend: str, rtype: type) -> None:
     ret = my_plot(backend=backend)
     assert isinstance(ret, rtype), f"{ret!r} is not of type {rtype}"
+
+def test_get_backend() -> None:
+    set_defaults()  # Clear defaults
+    assert get_backend(None) == "vispy"
+    assert get_backend("vispy") == "vispy"
+    assert get_backend("matplotlib") == "matplotlib"
+    assert get_backend("plotly") == "plotly"
+
+def test_set_backend() -> None:
+    set_defaults()  # Clear defaults
+    assert get_backend(None) == "vispy"
+    set_backend("matplotlib")
+    assert get_backend(None) == "matplotlib"
+    set_backend("plotly")
+    assert get_backend(None) == "plotly"
 
 
 def test_process_vispy_kwargs() -> None:

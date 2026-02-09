@@ -184,6 +184,29 @@ def set_defaults(backend: LiteralString | None = None, **kwargs: Any) -> Backend
     return backend
 
 
+def set_backend(backend: LiteralString) -> None:
+    """
+    Set default backend for future plotting utilities.
+
+    Args:
+        backend: The name of the backend to be passed to
+            :func:`get_backend`.
+
+    Examples:
+        The following example shows how to set the default plotting backend.
+
+        >>> import differt.plotting as dplt
+        >>>
+        >>> dplt.set_backend("matplotlib")  # We can change the default backend
+        >>> dplt.get_backend()  # So that now it defaults to 'matplotlib'
+        'matplotlib'
+        >>> dplt.set_backend("vispy")  # Reset to 'vispy'
+        >>> dplt.get_backend()
+        'vispy'
+    """
+    set_defaults(backend=backend)
+
+
 def update_defaults(backend: LiteralString | None = None, **kwargs: Any) -> BackendName:
     """
     Update default backend and keyword arguments for future plotting utilities.
