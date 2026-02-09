@@ -14,6 +14,7 @@ of plotting functions, either permanently or inside a given scope.
    :toctree: _autosummary
 
    reuse
+   set_backend
    set_defaults
    update_defaults
    use
