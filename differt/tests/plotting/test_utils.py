@@ -153,12 +153,14 @@ def test_return_type(backend: str, rtype: type) -> None:
     ret = my_plot(backend=backend)
     assert isinstance(ret, rtype), f"{ret!r} is not of type {rtype}"
 
+
 def test_get_backend() -> None:
     set_defaults()  # Clear defaults
     assert get_backend(None) == "vispy"
     assert get_backend("vispy") == "vispy"
     assert get_backend("matplotlib") == "matplotlib"
     assert get_backend("plotly") == "plotly"
+
 
 def test_set_backend() -> None:
     set_defaults()  # Clear defaults
