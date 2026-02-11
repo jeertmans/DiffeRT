@@ -158,9 +158,9 @@ search = '''
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
-replace = '''## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_version}...HEAD)
+replace = '''<!-- start changelog -->
 
-<!-- start changelog -->
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_version}...HEAD)
 
 ## [{new_version}]'''
 search = '''## [v{new_version}]'''
