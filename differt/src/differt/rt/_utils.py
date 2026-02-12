@@ -488,6 +488,7 @@ def rays_intersect_any_triangle(
 
     # Determinant: a = dot(edge_1, h)
     # [..., num_triangles]
+    # Using einsum for efficient dot product computation
     a = jnp.einsum("...i,...i->...", edge_1, h)
 
     # Check for parallel rays (avoid division by zero)
@@ -502,11 +503,12 @@ def rays_intersect_any_triangle(
     f = 1.0 / a_safe
     ray_origins_expanded = ray_origins[..., None, :]  # [..., 1, 3]
     s = ray_origins_expanded - vertex_0  # [..., num_triangles, 3]
+    # Dot product: s . h
     u = f * jnp.einsum("...i,...i->...", s, h)
 
     if smoothing_factor is not None:
         hit_u = jnp.minimum(
-            smoothing_function(u - 0.0, smoothing_factor),
+            smoothing_function(u, smoothing_factor),
             smoothing_function(1.0 - u, smoothing_factor),
         )
     else:
@@ -515,17 +517,19 @@ def rays_intersect_any_triangle(
     # Compute v parameter
     # q = s x edge_1
     q = jnp.cross(s, edge_1, axis=-1)
+    # Dot product: ray_dirs . q
     v = f * jnp.einsum("...i,...i->...", ray_dirs_expanded, q)
 
     if smoothing_factor is not None:
         hit_v = jnp.minimum(
-            smoothing_function(v - 0.0, smoothing_factor),
+            smoothing_function(v, smoothing_factor),
             smoothing_function(1.0 - (u + v), smoothing_factor),
         )
     else:
         hit_v = (v >= 0.0) & (u + v <= 1.0)
 
     # Compute t parameter
+    # Dot product: edge_2 . q
     t = f * jnp.einsum("...i,...i->...", edge_2, q)
 
     if smoothing_factor is not None:
