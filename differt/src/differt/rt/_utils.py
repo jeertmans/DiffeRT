@@ -378,7 +378,7 @@ def rays_intersect_any_triangle(
     *,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
-    batch_size: int | None = 512,
+    batch_size: int | None = 512,  # noqa: ARG001 - deprecated parameter, kept for backwards compatibility
     **kwargs: Any,
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """
@@ -477,22 +477,22 @@ def rays_intersect_any_triangle(
     edge_2 = vertex_2 - vertex_0
 
     # Broadcast ray_directions to [..., num_triangles, 3] for cross product
-    # Use einsum to compute cross product: ray_directions × edge_2
+    # Use einsum to compute cross product: ray_directions x edge_2
     # h[..., i] = sum_j,k epsilon_ijk * ray_directions[..., j] * edge_2[..., k]
     # For efficiency, we use the explicit cross product formula
     ray_dirs_expanded = ray_directions[..., None, :]  # [..., 1, 3]
-    
-    # Cross product: h = ray_directions × edge_2
+
+    # Cross product: h = ray_directions x edge_2
     # [..., num_triangles, 3]
     h = jnp.cross(ray_dirs_expanded, edge_2, axis=-1)
 
     # Determinant: a = dot(edge_1, h)
     # [..., num_triangles]
     a = jnp.einsum("...i,...i->...", edge_1, h)
-    
+
     # Check for parallel rays (avoid division by zero)
     a_safe = jnp.where(a == 0.0, jnp.inf, a)
-    
+
     if smoothing_factor is not None:
         hit_a = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
     else:
@@ -513,7 +513,7 @@ def rays_intersect_any_triangle(
         hit_u = (u >= 0.0) & (u <= 1.0)
 
     # Compute v parameter
-    # q = s × edge_1
+    # q = s x edge_1
     q = jnp.cross(s, edge_1, axis=-1)
     v = f * jnp.einsum("...i,...i->...", ray_dirs_expanded, q)
 
@@ -539,12 +539,11 @@ def rays_intersect_any_triangle(
         # Reduce over triangles: sum and clip to [0, 1]
         result = hit_combined.sum(axis=-1, where=active_triangles)
         return result.clip(max=1.0)
-    else:
-        # Combine all boolean conditions
-        hit_t = t > epsilon
-        hit_combined = hit_a & hit_u & hit_v & hit_t & (t < hit_threshold)
-        # Reduce over triangles: any triangle hit?
-        return hit_combined.any(axis=-1, where=active_triangles)
+    # Combine all boolean conditions
+    hit_t = t > epsilon
+    hit_combined = hit_a & hit_u & hit_v & hit_t & (t < hit_threshold)
+    # Reduce over triangles: any triangle hit?
+    return hit_combined.any(axis=-1, where=active_triangles)
 
 
 @eqx.filter_jit
