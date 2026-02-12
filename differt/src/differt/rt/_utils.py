@@ -391,6 +391,10 @@ def rays_intersect_any_triangle(
     A triangle is considered to be intersected if
     ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
 
+    This implementation uses a memory-efficient vectorized approach that avoids
+    materializing the full ``(num_rays, num_triangles)`` matrix by immediately
+    reducing over the triangle dimension after each computation step.
+
     Args:
         ray_origins: An array of origin vertices.
         ray_directions: An array of ray direction. The ray ends
@@ -414,15 +418,10 @@ def rays_intersect_any_triangle(
             between 0 (:data:`False`) and 1 (:data:`True`).
 
             For more details, refer to :ref:`smoothing`.
-        batch_size: The number of triangles to process in a single batch.
-            This allows to make a trade-off between memory usage and performance.
-
-            The batch size is automatically adjusted to be the minimum of the number of triangles
-            and the specified batch size.
-
-            If :data:`None`, the batch size is set to the number of triangles.
-        kwargs: Keyword arguments passed to
-            :func:`rays_intersect_triangles`.
+        batch_size: This parameter is deprecated and ignored. The function now uses a
+            fully vectorized approach without batching.
+        kwargs: Keyword arguments. The 'epsilon' parameter is supported and controls
+            the tolerance for intersection detection.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
@@ -437,11 +436,12 @@ def rays_intersect_any_triangle(
 
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
-    num_triangles = triangle_vertices.shape[-3]
-    if batch_size is None:
-        batch_size = num_triangles
-    batch_size = max(min(batch_size, num_triangles), 1)
-    num_batches, rem = divmod(num_triangles, batch_size)
+    # Get epsilon from kwargs or use default
+    epsilon = kwargs.get("epsilon")
+    if epsilon is None:
+        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
+        epsilon = 10 * jnp.finfo(dtype).eps
+    epsilon = jnp.asarray(epsilon)
 
     if active_triangles is not None:
         active_triangles = jnp.asarray(active_triangles)
@@ -454,6 +454,7 @@ def rays_intersect_any_triangle(
         active_triangles.shape[:-1] if active_triangles is not None else (),
     )
 
+    num_triangles = triangle_vertices.shape[-3]
     if num_triangles == 0:
         # If there are no triangles, there are no intersections
         return (
@@ -465,84 +466,85 @@ def rays_intersect_any_triangle(
             else jnp.zeros(batch, dtype=bool)
         )
 
-    def map_fn(
-        ray_origins: Float[Array, "*#batch 3"],
-        ray_directions: Float[Array, "*#batch 3"],
-        triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
-        active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        t, hit = rays_intersect_triangles(
-            ray_origins[..., None, :],
-            ray_directions[..., None, :],
-            triangle_vertices,
-            smoothing_factor=smoothing_factor,
-            **kwargs,
-        )
-        if smoothing_factor is not None:
-            return jnp.minimum(
-                hit, smoothing_function(hit_threshold - t, smoothing_factor)
-            ).sum(axis=-1, where=active_triangles)
-        return ((t < hit_threshold) & hit).any(axis=-1, where=active_triangles)
+    # Inline Möller-Trumbore algorithm with immediate reduction
+    # Shape: [..., num_triangles, 3]
+    vertex_0 = triangle_vertices[..., 0, :]
+    vertex_1 = triangle_vertices[..., 1, :]
+    vertex_2 = triangle_vertices[..., 2, :]
 
-    def reduce_fn(
-        left: Bool[Array, " *batch"] | Float[Array, " *batch"],
-        right: Bool[Array, " *batch"] | Float[Array, " *batch"],
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        if smoothing_factor is not None:
-            return (left + right).clip(max=1.0)
-        return left | right
+    # [..., num_triangles, 3]
+    edge_1 = vertex_1 - vertex_0
+    edge_2 = vertex_2 - vertex_0
 
-    def body_fun(
-        batch_index: Int[Array, ""],
-        intersect: Bool[Array, " *batch"] | Float[Array, " *batch"],
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        start_index = batch_index * batch_size
-        batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
-        )
-        batch_of_active_triangles = (
-            jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
-            )
-            if active_triangles is not None
-            else None
-        )
-        return reduce_fn(
-            intersect,
-            map_fn(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
-                triangle_vertices=batch_of_triangle_vertices,
-                active_triangles=batch_of_active_triangles,
-            ),
-        )
+    # Broadcast ray_directions to [..., num_triangles, 3] for cross product
+    # Use einsum to compute cross product: ray_directions × edge_2
+    # h[..., i] = sum_j,k epsilon_ijk * ray_directions[..., j] * edge_2[..., k]
+    # For efficiency, we use the explicit cross product formula
+    ray_dirs_expanded = ray_directions[..., None, :]  # [..., 1, 3]
+    
+    # Cross product: h = ray_directions × edge_2
+    # [..., num_triangles, 3]
+    h = jnp.cross(ray_dirs_expanded, edge_2, axis=-1)
 
-    init_val = (
-        jnp.zeros(batch)
-        if smoothing_factor is not None
-        else jnp.zeros(batch, dtype=jnp.bool)
-    )
+    # Determinant: a = dot(edge_1, h)
+    # [..., num_triangles]
+    a = jnp.einsum("...i,...i->...", edge_1, h)
+    
+    # Check for parallel rays (avoid division by zero)
+    a_safe = jnp.where(a == 0.0, jnp.inf, a)
+    
+    if smoothing_factor is not None:
+        hit_a = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
+    else:
+        hit_a = jnp.abs(a) > epsilon
 
-    intersect = jax.lax.fori_loop(
-        0,
-        num_batches,
-        body_fun,
-        init_val=init_val,
-    )
+    # Compute u parameter
+    f = 1.0 / a_safe
+    ray_origins_expanded = ray_origins[..., None, :]  # [..., 1, 3]
+    s = ray_origins_expanded - vertex_0  # [..., num_triangles, 3]
+    u = f * jnp.einsum("...i,...i->...", s, h)
 
-    if rem > 0:
-        return reduce_fn(
-            intersect,
-            map_fn(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
-                triangle_vertices=triangle_vertices[..., -rem:, :, :],
-                active_triangles=active_triangles[..., -rem:]
-                if active_triangles is not None
-                else None,
-            ),
+    if smoothing_factor is not None:
+        hit_u = jnp.minimum(
+            smoothing_function(u - 0.0, smoothing_factor),
+            smoothing_function(1.0 - u, smoothing_factor),
         )
-    return intersect
+    else:
+        hit_u = (u >= 0.0) & (u <= 1.0)
+
+    # Compute v parameter
+    # q = s × edge_1
+    q = jnp.cross(s, edge_1, axis=-1)
+    v = f * jnp.einsum("...i,...i->...", ray_dirs_expanded, q)
+
+    if smoothing_factor is not None:
+        hit_v = jnp.minimum(
+            smoothing_function(v - 0.0, smoothing_factor),
+            smoothing_function(1.0 - (u + v), smoothing_factor),
+        )
+    else:
+        hit_v = (v >= 0.0) & (u + v <= 1.0)
+
+    # Compute t parameter
+    t = f * jnp.einsum("...i,...i->...", edge_2, q)
+
+    if smoothing_factor is not None:
+        hit_t = smoothing_function(t - epsilon, smoothing_factor)
+        hit_distance = smoothing_function(hit_threshold - t, smoothing_factor)
+        # Combine all conditions
+        hit_combined = jnp.minimum(
+            jnp.minimum(jnp.minimum(hit_a, hit_u), jnp.minimum(hit_v, hit_t)),
+            hit_distance,
+        )
+        # Reduce over triangles: sum and clip to [0, 1]
+        result = hit_combined.sum(axis=-1, where=active_triangles)
+        return result.clip(max=1.0)
+    else:
+        # Combine all boolean conditions
+        hit_t = t > epsilon
+        hit_combined = hit_a & hit_u & hit_v & hit_t & (t < hit_threshold)
+        # Reduce over triangles: any triangle hit?
+        return hit_combined.any(axis=-1, where=active_triangles)
 
 
 @eqx.filter_jit
