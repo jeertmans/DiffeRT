@@ -370,16 +370,201 @@ def rays_intersect_any_triangle(
 
 
 @eqx.filter_jit
+def _ray_intersect_any_triangle(
+    ray_origin: Float[ArrayLike, "3"],
+    ray_direction: Float[ArrayLike, "3"],
+    triangle_vertices: Float[ArrayLike, "m 3 3"],  # noqa: F821
+    active_triangles: Bool[ArrayLike, "m"] | None = None,  # noqa: F821
+    *,
+    epsilon: Float[ArrayLike, ""] | None = None,
+    hit_tol: Float[ArrayLike, ""] | None = None,
+    smoothing_factor: Float[ArrayLike, ""] | None = None,
+) -> Bool[Array, ""] | Float[Array, ""]:
+    """
+    Check if a single ray intersects any of the provided triangles.
+
+    Uses jax.lax.reduce to avoid materializing the full (num_triangles,) boolean array,
+    instead performing a parallel reduction over triangles.
+
+    Args:
+        ray_origin: A single ray origin point (3,).
+        ray_direction: A single ray direction vector (3,).
+        triangle_vertices: Triangle vertices (num_triangles, 3, 3).
+        active_triangles: Optional mask for active triangles (num_triangles,).
+        epsilon: Tolerance for intersection detection.
+        hit_tol: Tolerance for hit threshold.
+        smoothing_factor: If set, use smoothed conditions.
+
+    Returns:
+        A scalar boolean (or float if smoothing) indicating if the ray hits any triangle.
+    """
+    ray_origin = jnp.asarray(ray_origin)
+    ray_direction = jnp.asarray(ray_direction)
+    triangle_vertices = jnp.asarray(triangle_vertices)
+
+    if epsilon is None:
+        dtype = jnp.result_type(ray_origin, ray_direction, triangle_vertices)
+        epsilon = 10 * jnp.finfo(dtype).eps
+    epsilon = jnp.asarray(epsilon)
+
+    if hit_tol is None:
+        dtype = jnp.result_type(ray_origin, ray_direction, triangle_vertices)
+        hit_tol = 10.0 * jnp.finfo(dtype).eps
+    hit_threshold = 1.0 - jnp.asarray(hit_tol)
+
+    num_triangles = triangle_vertices.shape[0]
+    if num_triangles == 0:
+        return jnp.array(0.0 if smoothing_factor is not None else False)
+
+    # Pre-compute triangle properties (num_triangles, 3)
+    v0 = triangle_vertices[:, 0, :]
+    v1 = triangle_vertices[:, 1, :]
+    v2 = triangle_vertices[:, 2, :]
+
+    edge1 = v1 - v0
+    edge2 = v2 - v0
+
+    # Triangle normal (unnormalized)
+    tri_normal = jnp.cross(edge1, edge2)
+
+    # Helper functions to split and stack vectors
+    def split_vec(arr: Array) -> tuple[Array, Array, Array]:
+        """Split (M, 3) array into tuple of 3 (M,) arrays."""
+        return (arr[:, 0], arr[:, 1], arr[:, 2])
+
+    def stack_vec(c0: Array, c1: Array, c2: Array) -> Array:
+        """Stack 3 scalars into (3,) array."""
+        return jnp.array([c0, c1, c2])
+
+    # Split triangle vectors into scalar arrays for jax.lax.reduce
+    dummy_bool = jnp.zeros((num_triangles,), dtype=bool)
+    op_v0 = split_vec(v0)
+    op_e1 = split_vec(edge1)
+    op_e2 = split_vec(edge2)
+    op_n = split_vec(tri_normal)
+
+    # Broadcast ray data to (num_triangles, 3) and split
+    r_o_b = jnp.broadcast_to(ray_origin, (num_triangles, 3))
+    r_d_b = jnp.broadcast_to(ray_direction, (num_triangles, 3))
+    op_ro = split_vec(r_o_b)
+    op_rd = split_vec(r_d_b)
+
+    # Handle active_triangles
+    if active_triangles is not None:
+        active_triangles = jnp.asarray(active_triangles)
+        op_active = (active_triangles,)
+    else:
+        op_active = (jnp.ones((num_triangles,), dtype=bool),)
+
+    # All operands: dummy + 3*4 + 3*2 + 1 = 20 arrays of shape (num_triangles,)
+    all_operands = (
+        (dummy_bool,) + op_v0 + op_e1 + op_e2 + op_n + op_ro + op_rd + op_active
+    )
+
+    # Initial values: 1 bool/float + 19 dummy floats
+    if smoothing_factor is not None:
+        init_vals = (jnp.array(0.0),) + (jnp.array(0.0),) * 19
+    else:
+        init_vals = (jnp.array(False),) + (jnp.array(0.0),) * 19
+
+    def reduce_body(acc_seq, input_seq):
+        """Reduction body: check single triangle and accumulate hit."""
+        acc_hit = acc_seq[0]
+
+        # Reconstruct vectors from scalar inputs
+        # Input map:
+        # 0: dummy
+        # 1-3: v0
+        # 4-6: e1
+        # 7-9: e2
+        # 10-12: n
+        # 13-15: ro
+        # 16-18: rd
+        # 19: active
+        tv0 = stack_vec(input_seq[1], input_seq[2], input_seq[3])
+        te1 = stack_vec(input_seq[4], input_seq[5], input_seq[6])
+        te2 = stack_vec(input_seq[7], input_seq[8], input_seq[9])
+        tn = stack_vec(input_seq[10], input_seq[11], input_seq[12])
+        tr_o = stack_vec(input_seq[13], input_seq[14], input_seq[15])
+        tr_d = stack_vec(input_seq[16], input_seq[17], input_seq[18])
+        t_active = input_seq[19]
+
+        # Möller-Trumbore intersection test
+        h = jnp.cross(tr_d, te2)
+        a = jnp.dot(te1, h)
+
+        # Check for parallel rays
+        a_safe = jnp.where(a == 0.0, jnp.inf, a)
+
+        if smoothing_factor is not None:
+            hit_a = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
+        else:
+            hit_a = jnp.abs(a) > epsilon
+
+        f = 1.0 / a_safe
+        s = tr_o - tv0
+        u = f * jnp.dot(s, h)
+
+        if smoothing_factor is not None:
+            hit_u = jnp.minimum(
+                smoothing_function(u, smoothing_factor),
+                smoothing_function(1.0 - u, smoothing_factor),
+            )
+        else:
+            hit_u = (u >= 0.0) & (u <= 1.0)
+
+        q = jnp.cross(s, te1)
+        v = f * jnp.dot(tr_d, q)
+
+        if smoothing_factor is not None:
+            hit_v = jnp.minimum(
+                smoothing_function(v, smoothing_factor),
+                smoothing_function(1.0 - (u + v), smoothing_factor),
+            )
+        else:
+            hit_v = (v >= 0.0) & (u + v <= 1.0)
+
+        t = f * jnp.dot(te2, q)
+
+        if smoothing_factor is not None:
+            hit_t = smoothing_function(t - epsilon, smoothing_factor)
+            hit_distance = smoothing_function(hit_threshold - t, smoothing_factor)
+            hit = jnp.minimum(
+                jnp.minimum(jnp.minimum(hit_a, hit_u), jnp.minimum(hit_v, hit_t)),
+                hit_distance,
+            )
+            # Apply active mask
+            hit = jnp.where(t_active, hit, 0.0)
+            # Accumulate with sum and clip
+            new_acc_hit = (acc_hit + hit).clip(max=1.0)
+        else:
+            hit_t = t > epsilon
+            hit = hit_a & hit_u & hit_v & hit_t & (t < hit_threshold)
+            # Apply active mask
+            hit = jnp.where(t_active, hit, False)
+            # Accumulate with OR
+            new_acc_hit = acc_hit | hit
+
+        # Return updated accumulator (first element) and unchanged dummies
+        return (new_acc_hit,) + acc_seq[1:]
+
+    # Reduce over dimension 0 (triangles)
+    result_seq = jax.lax.reduce(all_operands, init_vals, reduce_body, (0,))
+
+    # Return the first result (hit boolean or float)
+    return result_seq[0]
+
+
+@eqx.filter_jit
 def rays_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     *,
+    epsilon: Float[ArrayLike, ""] | None = None,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
-    batch_size: int | None = 512,  # noqa: ARG001 - deprecated parameter, kept for backwards compatibility
-    **kwargs: Any,
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
@@ -391,9 +576,9 @@ def rays_intersect_any_triangle(
     A triangle is considered to be intersected if
     ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
 
-    This implementation uses a memory-efficient vectorized approach that avoids
-    materializing the full ``(num_rays, num_triangles)`` matrix by immediately
-    reducing over the triangle dimension after each computation step.
+    This implementation uses jax.lax.reduce to avoid materializing the full
+    ``(num_rays, num_triangles)`` interaction matrix, performing a parallel reduction
+    over triangles for each ray.
 
     Args:
         ray_origins: An array of origin vertices.
@@ -404,6 +589,8 @@ def rays_intersect_any_triangle(
             which triangles are active, i.e., should be considered for intersection.
 
             If not specified, all triangles are considered active.
+        epsilon: Tolerance for intersection detection. If not specified,
+            defaults to ten times the epsilon value of the floating point dtype.
         hit_tol: The tolerance applied to check if a ray hits another object or not,
             before it reaches the expected position, i.e., the 'interaction' object.
 
@@ -418,136 +605,49 @@ def rays_intersect_any_triangle(
             between 0 (:data:`False`) and 1 (:data:`True`).
 
             For more details, refer to :ref:`smoothing`.
-        batch_size: This parameter is deprecated and ignored. The function now uses a
-            fully vectorized approach without batching.
-        kwargs: Keyword arguments. The 'epsilon' parameter is supported and controls
-            the tolerance for intersection detection.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
+
+    Examples:
+        >>> import jax.numpy as jnp
+        >>> from differt.rt import rays_intersect_any_triangle
+        >>> ray_origins = jnp.array([[0.0, 0.0, 0.0]])
+        >>> ray_directions = jnp.array([[0.0, 0.0, 1.0]])
+        >>> triangle_vertices = jnp.array([
+        ...     [[0.0, 0.0, 0.5], [1.0, 0.0, 0.5], [0.0, 1.0, 0.5]]
+        ... ])
+        >>> hits = rays_intersect_any_triangle(
+        ...     ray_origins, ray_directions, triangle_vertices
+        ... )
+        >>> hits
+        Array([ True], dtype=bool)
     """
-    ray_origins = jnp.asarray(ray_origins)
-    ray_directions = jnp.asarray(ray_directions)
-    triangle_vertices = jnp.asarray(triangle_vertices)
+    from functools import partial
 
-    if hit_tol is None:
-        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol = 10.0 * jnp.finfo(dtype).eps
-
-    hit_threshold = 1.0 - jnp.asarray(hit_tol)
-
-    # Get epsilon from kwargs or use default
-    epsilon = kwargs.get("epsilon")
-    if epsilon is None:
-        dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        epsilon = 10 * jnp.finfo(dtype).eps
-    epsilon = jnp.asarray(epsilon)
-
-    if active_triangles is not None:
-        active_triangles = jnp.asarray(active_triangles)
-
-    # Combine the batch dimensions
-    batch = jnp.broadcast_shapes(
-        ray_origins.shape[:-1],
-        ray_directions.shape[:-1],
-        triangle_vertices.shape[:-3],
-        active_triangles.shape[:-1] if active_triangles is not None else (),
+    # Prepare scalar arguments for partial application
+    _ray_intersect_fn = partial(
+        _ray_intersect_any_triangle,
+        epsilon=epsilon,
+        hit_tol=hit_tol,
+        smoothing_factor=smoothing_factor,
     )
 
-    num_triangles = triangle_vertices.shape[-3]
-    if num_triangles == 0:
-        # If there are no triangles, there are no intersections
-        return (
-            jnp.zeros(
-                batch,
-                dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-            )
-            if smoothing_factor is not None
-            else jnp.zeros(batch, dtype=bool)
+    # Vectorize over ray_origins, ray_directions, triangle_vertices, and active_triangles
+    # Use signature to specify which axes to vectorize over
+    if active_triangles is not None:
+        vectorized_fn = jnp.vectorize(
+            _ray_intersect_fn,
+            signature="(3),(3),(m,3,3),(m)->()",
         )
-
-    # Inline Möller-Trumbore algorithm with immediate reduction
-    # Shape: [..., num_triangles, 3]
-    vertex_0 = triangle_vertices[..., 0, :]
-    vertex_1 = triangle_vertices[..., 1, :]
-    vertex_2 = triangle_vertices[..., 2, :]
-
-    # [..., num_triangles, 3]
-    edge_1 = vertex_1 - vertex_0
-    edge_2 = vertex_2 - vertex_0
-
-    # Broadcast ray_directions to [..., num_triangles, 3] for cross product
-    # Use einsum to compute cross product: ray_directions x edge_2
-    # h[..., i] = sum_j,k epsilon_ijk * ray_directions[..., j] * edge_2[..., k]
-    # For efficiency, we use the explicit cross product formula
-    ray_dirs_expanded = ray_directions[..., None, :]  # [..., 1, 3]
-
-    # Cross product: h = ray_directions x edge_2
-    # [..., num_triangles, 3]
-    h = jnp.cross(ray_dirs_expanded, edge_2, axis=-1)
-
-    # Determinant: a = dot(edge_1, h)
-    # [..., num_triangles]
-    # Using einsum for efficient dot product computation
-    a = jnp.einsum("...i,...i->...", edge_1, h)
-
-    # Check for parallel rays (avoid division by zero)
-    a_safe = jnp.where(a == 0.0, jnp.inf, a)
-
-    if smoothing_factor is not None:
-        hit_a = smoothing_function(jnp.abs(a) - epsilon, smoothing_factor)
-    else:
-        hit_a = jnp.abs(a) > epsilon
-
-    # Compute u parameter
-    f = 1.0 / a_safe
-    ray_origins_expanded = ray_origins[..., None, :]  # [..., 1, 3]
-    s = ray_origins_expanded - vertex_0  # [..., num_triangles, 3]
-    # Dot product: s . h
-    u = f * jnp.einsum("...i,...i->...", s, h)
-
-    if smoothing_factor is not None:
-        hit_u = jnp.minimum(
-            smoothing_function(u, smoothing_factor),
-            smoothing_function(1.0 - u, smoothing_factor),
+        return vectorized_fn(
+            ray_origins, ray_directions, triangle_vertices, active_triangles
         )
-    else:
-        hit_u = (u >= 0.0) & (u <= 1.0)
-
-    # Compute v parameter
-    # q = s x edge_1
-    q = jnp.cross(s, edge_1, axis=-1)
-    # Dot product: ray_dirs . q
-    v = f * jnp.einsum("...i,...i->...", ray_dirs_expanded, q)
-
-    if smoothing_factor is not None:
-        hit_v = jnp.minimum(
-            smoothing_function(v, smoothing_factor),
-            smoothing_function(1.0 - (u + v), smoothing_factor),
-        )
-    else:
-        hit_v = (v >= 0.0) & (u + v <= 1.0)
-
-    # Compute t parameter
-    # Dot product: edge_2 . q
-    t = f * jnp.einsum("...i,...i->...", edge_2, q)
-
-    if smoothing_factor is not None:
-        hit_t = smoothing_function(t - epsilon, smoothing_factor)
-        hit_distance = smoothing_function(hit_threshold - t, smoothing_factor)
-        # Combine all conditions
-        hit_combined = jnp.minimum(
-            jnp.minimum(jnp.minimum(hit_a, hit_u), jnp.minimum(hit_v, hit_t)),
-            hit_distance,
-        )
-        # Reduce over triangles: sum and clip to [0, 1]
-        result = hit_combined.sum(axis=-1, where=active_triangles)
-        return result.clip(max=1.0)
-    # Combine all boolean conditions
-    hit_t = t > epsilon
-    hit_combined = hit_a & hit_u & hit_v & hit_t & (t < hit_threshold)
-    # Reduce over triangles: any triangle hit?
-    return hit_combined.any(axis=-1, where=active_triangles)
+    vectorized_fn = jnp.vectorize(
+        _ray_intersect_fn,
+        signature="(3),(3),(m,3,3)->()",
+    )
+    return vectorized_fn(ray_origins, ray_directions, triangle_vertices, None)
 
 
 @eqx.filter_jit
