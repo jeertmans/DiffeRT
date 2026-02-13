@@ -1,4 +1,5 @@
 import sys
+import time
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -572,3 +573,57 @@ def test_first_triangles_hit_by_rays(
     # TODO: fixme, we need to fix the index if two or more triangles are hit at the same t
     # chex.assert_trees_all_equal(got_indices, expected_indices)
     chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5)
+
+
+def test_rays_intersect_any_triangle_oom_stress() -> None:
+    """
+    Test that rays_intersect_any_triangle can handle very large inputs without OOM.
+
+    This test uses broadcast_to to create large virtual arrays without allocating
+    the full memory, then verifies the implementation doesn't materialize the full
+    (num_rays, num_triangles) interaction matrix.
+    """
+    print("\n--- Running OOM Stress Test (100K Rays x 100K Triangles) ---")
+    print("Note: This test effectively requests 10 Billion interaction checks.")
+    print(
+        "Without proper reduction (using reduce instead of materialized arrays), "
+        "this would cause OOM."
+    )
+
+    # Use 100,000 rays and triangles (10 billion pairwise checks)
+    N = 100_000
+    M = 100_000
+
+    # Create small actual arrays and broadcast them to test the logic's memory limit
+    # without running out of RAM just creating the inputs.
+    ray_o = jnp.zeros((1, 3))
+    ray_d = jnp.array([[0.0, 0.0, 1.0]])
+    tri = jnp.array([[[0.0, 0.0, 5.0], [1.0, 0.0, 5.0], [0.0, 1.0, 5.0]]])
+
+    big_rays_o = jnp.broadcast_to(ray_o, (N, 3))
+    big_rays_d = jnp.broadcast_to(ray_d, (N, 3))
+    big_tris = jnp.broadcast_to(tri, (M, 3, 3))
+
+    print(f"Input shapes virtualized: Rays {big_rays_o.shape}, Tris {big_tris.shape}")
+
+    # Test that naive vmap would fail or be very slow
+    # (We skip this to avoid actually OOM-ing the test runner)
+    print("Skipping naive vmap test to avoid actual OOM...")
+
+    # Test our implementation should work
+    try:
+        start = time.time()
+        # Compile and run
+        res = rays_intersect_any_triangle(big_rays_o, big_rays_d, big_tris)
+        res.block_until_ready()
+        elapsed = time.time() - start
+        print(f"SUCCESS: Computed 10B interactions in {elapsed:.2f}s")
+        print(f"Result shape: {res.shape}")
+        assert res.shape == (N,)
+        # All rays should hit since they all point up and triangle is at z=5
+        # But because t=5 > 1.0 (hit_tol threshold), they won't register as hits
+        print(f"Number of hits: {jnp.sum(res)}")
+    except Exception as e:
+        pytest.fail(
+            f"FAILURE: Test crashed with memory or other error. Error: {e}"
+        )
