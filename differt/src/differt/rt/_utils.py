@@ -1,6 +1,6 @@
 import typing
 from collections.abc import Callable, Iterator, Sized
-from functools import cache
+from functools import cache, partial
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import equinox as eqx
@@ -373,7 +373,7 @@ def rays_intersect_any_triangle(
 def _ray_intersect_any_triangle(
     ray_origin: Float[ArrayLike, "3"],
     ray_direction: Float[ArrayLike, "3"],
-    triangle_vertices: Float[ArrayLike, "m 3 3"],  # noqa: F821
+    triangle_vertices: Float[ArrayLike, "m 3 3"],
     active_triangles: Bool[ArrayLike, "m"] | None = None,  # noqa: F821
     *,
     epsilon: Float[ArrayLike, ""] | None = None,
@@ -456,7 +456,8 @@ def _ray_intersect_any_triangle(
     else:
         op_active = (jnp.ones((num_triangles,), dtype=bool),)
 
-    # All operands: dummy + 3*4 + 3*2 + 1 = 20 arrays of shape (num_triangles,)
+    # All operands: 20 arrays of shape (num_triangles,)
+    # Breakdown: 1 (dummy) + 3 (v0) + 3 (e1) + 3 (e2) + 3 (n) + 3 (ro) + 3 (rd) + 1 (active)
     all_operands = (
         (dummy_bool,) + op_v0 + op_e1 + op_e2 + op_n + op_ro + op_rd + op_active
     )
@@ -529,10 +530,12 @@ def _ray_intersect_any_triangle(
         if smoothing_factor is not None:
             hit_t = smoothing_function(t - epsilon, smoothing_factor)
             hit_distance = smoothing_function(hit_threshold - t, smoothing_factor)
-            hit = jnp.minimum(
-                jnp.minimum(jnp.minimum(hit_a, hit_u), jnp.minimum(hit_v, hit_t)),
-                hit_distance,
-            )
+            # Combine all conditions using minimum
+            hit = hit_a
+            hit = jnp.minimum(hit, hit_u)
+            hit = jnp.minimum(hit, hit_v)
+            hit = jnp.minimum(hit, hit_t)
+            hit = jnp.minimum(hit, hit_distance)
             # Apply active mask
             hit = jnp.where(t_active, hit, 0.0)
             # Accumulate with sum and clip
@@ -623,8 +626,6 @@ def rays_intersect_any_triangle(
         >>> hits
         Array([ True], dtype=bool)
     """
-    from functools import partial
-
     # Prepare scalar arguments for partial application
     _ray_intersect_fn = partial(
         _ray_intersect_any_triangle,

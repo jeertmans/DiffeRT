@@ -1,4 +1,5 @@
 import sys
+import time
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
 
@@ -582,10 +583,6 @@ def test_rays_intersect_any_triangle_oom_stress() -> None:
     the full memory, then verifies the implementation doesn't materialize the full
     (num_rays, num_triangles) interaction matrix.
     """
-    import time
-
-    import jax
-
     print("\n--- Running OOM Stress Test (100K Rays x 100K Triangles) ---")
     print("Note: This test effectively requests 10 Billion interaction checks.")
     print(
@@ -624,7 +621,7 @@ def test_rays_intersect_any_triangle_oom_stress() -> None:
         print(f"Result shape: {res.shape}")
         assert res.shape == (N,)
         # All rays should hit since they all point up and triangle is at z=5
-        # But because t=5 > 1.0 (hit_threshold), they won't register as hits
+        # But because t=5 > 1.0 (hit_tol threshold), they won't register as hits
         print(f"Number of hits: {jnp.sum(res)}")
     except Exception as e:
         pytest.fail(
