@@ -348,10 +348,10 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = ...,
     *,
+    epsilon: Float[ArrayLike, ""] | None = ...,
     hit_tol: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: None = ...,
     batch_size: int | None = ...,
-    **kwargs: Any,
 ) -> Bool[Array, " *batch"]: ...
 
 
@@ -362,10 +362,10 @@ def rays_intersect_any_triangle(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = ...,
     *,
+    epsilon: Float[ArrayLike, ""] | None = ...,
     hit_tol: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: Float[ArrayLike, ""],
     batch_size: int | None = ...,
-    **kwargs: Any,
 ) -> Float[Array, " *batch"]: ...
 
 
@@ -568,6 +568,7 @@ def rays_intersect_any_triangle(
     epsilon: Float[ArrayLike, ""] | None = None,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
+    batch_size: int | None = None,  # noqa: ARG001 - deprecated, kept for backward compatibility
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """
     Return whether rays intersect any of the triangles using the Möller-Trumbore algorithm.
@@ -608,6 +609,9 @@ def rays_intersect_any_triangle(
             between 0 (:data:`False`) and 1 (:data:`True`).
 
             For more details, refer to :ref:`smoothing`.
+        batch_size: Deprecated. This parameter is no longer used and is kept only for
+            backward compatibility. The new implementation processes all triangles
+            using jax.lax.reduce without batching.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
