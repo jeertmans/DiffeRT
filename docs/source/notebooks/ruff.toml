@@ -2,4 +2,7 @@ extend = "../../../pyproject.toml"
 line-length = 80
 
 [lint]
+extend-ignore = [
+  "PTH123",
+]
 isort = {known-first-party = []}
