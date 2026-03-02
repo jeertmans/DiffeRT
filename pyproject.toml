@@ -259,6 +259,7 @@ extend-ignore = [
   "Q001",  # bad-quotes-multiline-string, conflicts with formatter
   "Q002",  # bad-quotes-docstring, conflicts with formatter
   "Q003",  # avoidable-escaped-quote, conflicts with formatter
+  "RUF069",  # float-equality-comparison
   "TD002",  # missing-todo-author, I am currently the only author
   "TD003",  # missing-todo-link
   "W191",  # tab-indentation, conflicts with formatter
