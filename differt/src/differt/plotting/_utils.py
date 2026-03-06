@@ -482,11 +482,12 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     Returns:
         The view on which contents are displayed.
     """
+    from vispy.scene.cameras.turntable import TurntableCamera  # noqa: PLC0415
     from vispy.scene.widgets.viewbox import ViewBox  # noqa: PLC0415
 
     def default_view() -> ViewBox:
         view = canvas.central_widget.add_view()
-        view.camera = "turntable"
+        view.camera = TurntableCamera()
         view.camera.depth_value = 1e3
         return view
 
