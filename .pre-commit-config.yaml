@@ -16,7 +16,7 @@ repos:
     args: [--autofix, --trailing-commas]
     exclude: Cargo.lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.15.4
+  rev: v0.15.6
   hooks:
   - id: ruff-check
     args: [--fix]
@@ -79,13 +79,13 @@ repos:
     args:
     - --keep-output
 - repo: https://github.com/codespell-project/codespell
-  rev: v2.4.1
+  rev: v2.4.2
   hooks:
   - id: codespell
     additional_dependencies:
     - tomli
     exclude_types: [jupyter]  # GitHub action will run on Notebooks
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.10.7
+  rev: 0.10.10
   hooks:
   - id: uv-lock
