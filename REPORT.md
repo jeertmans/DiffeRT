@@ -80,7 +80,7 @@ When `r_near` exceeds the scene bounding box diagonal, the system automatically 
 - **`TriangleScene.build_bvh()`:** Convenience method on the scene class.
 - **`TriangleScene.compute_paths(bvh=...)`:** When `method="hybrid"`, the BVH accelerates the visibility estimation step.
 
-### Tests: 11 Rust + 27 Python
+### Tests: 11 Rust + 29 Python
 
 **Rust unit tests:**
 - BVH construction (single triangle, cube, empty, random)
@@ -130,54 +130,67 @@ The soft mode speedup is modest (2-3x) because the JAX soft intersection on cand
 | Suite | Passed | Failed | Notes |
 |-------|--------|--------|-------|
 | Full DiffeRT (`pytest differt/tests/`) | 1,508 | 9 | All failures are pre-existing vispy headless rendering |
-| BVH tests (`differt/tests/accel/`) | 27 | 0 | |
+| BVH tests (`differt/tests/accel/`) | 29 | 0 | |
 | RT tests (`differt/tests/rt/`) | 204 | 0 | |
 | Rust tests (`cargo test -- accel`) | 11 | 0 | |
 | Non-vispy (`-k "not vispy"`) | 1,689 | 1 | 1 failure is a plotting test, not BVH-related |
 
 **Zero regressions from BVH changes.**
 
+## Completed phases
+
+### Phase 2: XLA FFI integration (done)
+
+BVH queries now work inside `jax.jit` and `jax.lax.scan` via XLA FFI:
+
+- **Rust:** `accel/ffi.rs` with cxx bridge, FFI entry points, PyCapsule exports
+- **C++:** `ffi.cc` + `ffi.h` with `XLA_FFI_DEFINE_HANDLER_SYMBOL` handlers
+- **Build:** `build.rs` queries JAX for XLA headers, compiles C++ via cxx-build
+- **Python:** `_ffi.py` with `jax.ffi.register_ffi_target` + `ffi_call` wrappers
+- **Feature flag:** `xla-ffi` in Cargo.toml (optional dependency on cxx + cxx-build)
+
+### Phase 3: full `compute_paths` integration (done)
+
+All three `compute_paths` methods use BVH when `bvh=` is provided:
+
+- **exhaustive:** BVH FFI replaces blocking check inside `@eqx.filter_jit`
+- **sbr:** BVH FFI replaces `first_triangles_hit_by_rays` inside `lax.scan`
+- **hybrid:** BVH for visibility estimation (PyO3) + blocking check (FFI)
+
+Hard mode only. Soft mode (smoothing_factor set) falls back to brute force for the blocking check.
+
 ## What is not done yet
-
-### Phase 2: XLA FFI integration (foundation laid)
-
-The current implementation calls Rust via PyO3 (outside JIT). This means:
-- BVH queries cannot run inside `jax.lax.scan` (needed for BVH-accelerated SBR)
-- Each query requires a Python-to-Rust roundtrip
-
-**Done:** Global BVH registry (`Mutex<HashMap<u64, Arc<Bvh>>>`) with `register()`/`unregister()` methods. XLA FFI handlers will look up pre-built BVHs by integer ID.
-
-**Remaining:** Following the `extending-jax` pattern:
-- `build.rs` querying JAX for XLA headers
-- C++ FFI shim via `cxx` (calls Rust `nearest_hit`/`get_candidates` via the registry)
-- `XLA_FFI_DEFINE_HANDLER_SYMBOL` in `ffi.cc`
-- `PyCapsule` export and `jax.ffi.register_ffi_target`
-- `jax.ffi.ffi_call` wrapper with `vmap_method="broadcast_all"`
-
-### Phase 3: full `compute_paths` integration (partially done)
-
-The BVH now accelerates the hybrid method's visibility estimation via `compute_paths(method="hybrid", bvh=bvh)`. The exhaustive blocking check and SBR bounce loop remain JAX-only because `_compute_paths` is JIT-compiled and PyO3 calls cannot run inside JIT. Full integration requires XLA FFI (Phase 2).
 
 ### Phase 4: GPU BVH
 
 The Rust BVH runs on CPU. A GPU implementation (via CUDA/OptiX or a Rust GPU crate) would further accelerate large-scale ray tracing. The JAX FFI supports `platform="gpu"` targets.
 
+### Soft mode with FFI
+
+The soft (differentiable) blocking check still uses brute force inside JIT. The `get_candidates` FFI is available but not yet wired into the soft path of `_compute_paths`.
+
 ## Files changed
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `differt-core/src/accel/bvh.rs` | +915 | Rust BVH: construction, traversal, queries, tests |
-| `differt-core/src/accel/mod.rs` | +10 | Module declaration |
+| `differt-core/src/accel/bvh.rs` | +1010 | Rust BVH: construction, traversal, queries, registry, tests |
+| `differt-core/src/accel/ffi.rs` | +135 | XLA FFI bridge: cxx bridge, FFI entry points, PyCapsules |
+| `differt-core/src/accel/mod.rs` | +12 | Module declarations |
+| `differt-core/src/ffi.cc` | +95 | C++ XLA FFI handlers |
+| `differt-core/include/ffi.h` | +16 | C++ handler declarations |
+| `differt-core/build.rs` | +45 | Build script: find JAX headers, compile C++ via cxx-build |
+| `differt-core/Cargo.toml` | +5 | xla-ffi feature, cxx + cxx-build deps |
 | `differt-core/src/lib.rs` | +2 | Register accel module |
 | `differt-core/python/differt_core/accel/__init__.py` | +5 | Python stub |
 | `differt-core/python/differt_core/accel/_bvh.py` | +5 | Python re-export |
-| `differt/src/differt/accel/__init__.py` | +25 | Package exports |
-| `differt/src/differt/accel/_bvh.py` | +169 | TriangleBvh wrapper |
+| `differt/src/differt/accel/__init__.py` | +27 | Package exports |
+| `differt/src/differt/accel/_bvh.py` | +195 | TriangleBvh wrapper + register/unregister |
 | `differt/src/differt/accel/_accelerated.py` | +376 | Drop-in accelerated functions + visibility |
-| `differt/src/differt/scene/_triangle_scene.py` | +35 | `build_bvh()` method, `compute_paths(bvh=)` |
+| `differt/src/differt/accel/_ffi.py` | +135 | JAX FFI wrappers: ffi_nearest_hit, ffi_get_candidates |
+| `differt/src/differt/scene/_triangle_scene.py` | +80 | build_bvh(), compute_paths(bvh=), BVH in all methods |
 | `differt/tests/accel/__init__.py` | +0 | Test package |
-| `differt/tests/accel/test_bvh.py` | +420 | 27 Python tests |
-| **Total** | **+1,869** | |
+| `differt/tests/accel/test_bvh.py` | +480 | 29 Python tests |
+| **Total** | **~2,600** | |
 
 ## Usage example
 
@@ -206,6 +219,8 @@ blocked = bvh_rays_intersect_any_triangle(
 )
 # Gradients flow through JAX autodiff on the reduced candidate set
 
-# BVH-accelerated hybrid path computation (14x faster visibility estimation)
-paths = scene.compute_paths(order=1, method="hybrid", bvh=bvh)
+# BVH-accelerated path computation (all methods)
+paths = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)  # BVH blocking check
+paths = scene.compute_paths(order=1, method="hybrid", bvh=bvh)      # BVH visibility + blocking
+paths = scene.compute_paths(order=2, method="sbr", bvh=bvh)         # BVH in lax.scan bounce loop
 ```
