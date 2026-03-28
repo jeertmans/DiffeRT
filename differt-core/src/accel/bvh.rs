@@ -403,6 +403,9 @@ impl Bvh {
 
     /// Find the nearest triangle hit by a ray. Returns (triangle_index, t) or (-1, inf).
     pub(crate) fn nearest_hit(&self, origin: Vec3, direction: Vec3) -> (i32, f32) {
+        if self.tri_verts.is_empty() {
+            return (-1, f32::INFINITY);
+        }
         let inv_dir = Vec3::new(1.0 / direction.x, 1.0 / direction.y, 1.0 / direction.z);
         let mut stack = Vec::with_capacity(64);
         stack.push(0usize);
@@ -447,6 +450,9 @@ impl Bvh {
         expansion: f32,
         max_candidates: usize,
     ) -> (Vec<i32>, u32) {
+        if self.tri_verts.is_empty() {
+            return (Vec::new(), 0);
+        }
         let inv_dir = Vec3::new(1.0 / direction.x, 1.0 / direction.y, 1.0 / direction.z);
         let mut stack = Vec::with_capacity(64);
         stack.push(0usize);
@@ -548,6 +554,14 @@ pub(crate) fn registry_get(id: u64) -> Option<std::sync::Arc<Bvh>> {
 struct TriangleBvh {
     inner: std::sync::Arc<Bvh>,
     registry_id: Option<u64>,
+}
+
+impl Drop for TriangleBvh {
+    fn drop(&mut self) {
+        if let Some(id) = self.registry_id.take() {
+            registry_remove(id);
+        }
+    }
 }
 
 #[pymethods]
@@ -973,6 +987,26 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_nearest_hit_empty_bvh() {
+        let bvh = Bvh::new(&[]);
+        let origin = Vec3::new(0.0, 0.0, 1.0);
+        let dir = Vec3::new(0.0, 0.0, -1.0);
+        let (idx, t) = bvh.nearest_hit(origin, dir);
+        assert_eq!(idx, -1);
+        assert!(t.is_infinite());
+    }
+
+    #[test]
+    fn test_get_candidates_empty_bvh() {
+        let bvh = Bvh::new(&[]);
+        let origin = Vec3::new(0.0, 0.0, 1.0);
+        let dir = Vec3::new(0.0, 0.0, -1.0);
+        let (candidates, count) = bvh.get_candidates(origin, dir, 1.0, 256);
+        assert!(candidates.is_empty());
+        assert_eq!(count, 0);
     }
 
     #[test]

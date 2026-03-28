@@ -467,9 +467,18 @@ class TestComputePathsBvh:
         paths_bf = scene.compute_paths(
             order=1, method="sbr", num_rays=1000
         )
-        # Both should produce SBRPaths
+        # Both should produce SBRPaths with same shape and mostly matching data.
+        # Small differences are expected due to different Moller-Trumbore epsilon
+        # (BVH uses 1e-8, brute-force uses ~1.2e-6 for f32).
         assert type(paths_bvh).__name__ == "SBRPaths"
         assert type(paths_bf).__name__ == "SBRPaths"
+        assert paths_bvh.vertices.shape == paths_bf.vertices.shape
+        assert paths_bvh.objects.shape == paths_bf.objects.shape
+        # Most object indices should agree (allow small fraction to differ)
+        objs_bvh = np.asarray(paths_bvh.objects)
+        objs_bf = np.asarray(paths_bf.objects)
+        match_frac = np.mean(objs_bvh == objs_bf)
+        assert match_frac > 0.95, f"Object indices match only {match_frac:.1%}"
 
     def test_exhaustive_matches_without_bvh(self):
         """Exhaustive with BVH produces same results as without."""
