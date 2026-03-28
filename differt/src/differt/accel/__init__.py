@@ -16,10 +16,12 @@ __all__ = (
     "TriangleBvh",
     "bvh_first_triangles_hit_by_rays",
     "bvh_rays_intersect_any_triangle",
+    "bvh_triangles_visible_from_vertices",
 )
 
 from differt.accel._accelerated import (
     bvh_first_triangles_hit_by_rays,
     bvh_rays_intersect_any_triangle,
+    bvh_triangles_visible_from_vertices,
 )
 from differt.accel._bvh import TriangleBvh

@@ -13,6 +13,7 @@ from __future__ import annotations
 __all__ = (
     "bvh_first_triangles_hit_by_rays",
     "bvh_rays_intersect_any_triangle",
+    "bvh_triangles_visible_from_vertices",
 )
 
 from typing import Any
@@ -219,6 +220,117 @@ def bvh_rays_intersect_any_triangle(
     result = jnp.sum(soft_hit * mask, axis=-1).clip(max=1.0)
 
     return result
+
+
+def bvh_triangles_visible_from_vertices(
+    vertices: Float[ArrayLike, "*#batch 3"],
+    triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
+    active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
+    num_rays: int = int(1e6),
+    *,
+    bvh: TriangleBvh | None = None,
+    **kwargs: Any,
+) -> Bool[Array, "*batch num_triangles"]:
+    """BVH-accelerated version of :func:`~differt.rt.triangles_visible_from_vertices`.
+
+    Uses BVH nearest-hit for O(log N) per ray instead of O(N), avoiding JAX's
+    O(rays * triangles) memory allocation.
+
+    Args:
+        vertices: An array of vertices, used as origins of the rays.
+        triangle_vertices: An array of triangle vertices.
+        active_triangles: An optional boolean mask for active triangles.
+        num_rays: The number of rays to launch per vertex.
+        bvh: Pre-built BVH acceleration structure.
+        kwargs: Additional keyword arguments (for API compatibility).
+
+    Returns:
+        For each triangle, whether it is visible from any of the rays.
+    """
+    if bvh is None:
+        from differt.rt._utils import triangles_visible_from_vertices
+
+        return triangles_visible_from_vertices(
+            vertices,
+            triangle_vertices,
+            active_triangles,
+            num_rays=num_rays,
+            **kwargs,
+        )
+
+    vertices_jnp = jnp.asarray(vertices)
+    triangle_vertices_jnp = jnp.asarray(triangle_vertices)
+    num_triangles = triangle_vertices_jnp.shape[-3]
+
+    # Compute viewing frustum and generate fibonacci lattice directions
+    from differt.geometry import fibonacci_lattice, viewing_frustum
+
+    triangle_centers = triangle_vertices_jnp.mean(axis=-2, keepdims=True)
+    world_vertices = jnp.concat(
+        (triangle_vertices_jnp, triangle_centers), axis=-2
+    ).reshape(*triangle_vertices_jnp.shape[:-3], -1, 3)
+
+    if active_triangles is not None:
+        active_jnp = jnp.asarray(active_triangles)
+        active_vertices = jnp.repeat(active_jnp, 4, axis=-1)
+    else:
+        active_vertices = None
+
+    ray_origins = vertices_jnp
+
+    frustum = viewing_frustum(
+        ray_origins,
+        world_vertices,
+        active_vertices=active_vertices,
+    )
+
+    ray_directions = jnp.vectorize(
+        lambda n, frustum: fibonacci_lattice(n, frustum=frustum),
+        excluded={0},
+        signature="(2,3)->(n,3)",
+    )(num_rays, frustum)
+
+    # Flatten batch dims for BVH queries
+    batch_shape = ray_origins.shape[:-1]
+    flat_origins = np.asarray(ray_origins).reshape(-1, 3)
+    flat_dirs = np.asarray(ray_directions).reshape(-1, num_rays, 3)
+    num_vertices = flat_origins.shape[0]
+
+    # Tile origins and flatten: each origin gets num_rays copies
+    # Shape: (num_vertices * num_rays, 3)
+    all_origins = np.repeat(flat_origins, num_rays, axis=0)
+    all_dirs = flat_dirs.reshape(-1, 3)
+
+    # Ensure contiguous for Rust
+    all_origins = np.ascontiguousarray(all_origins)
+    all_dirs = np.ascontiguousarray(all_dirs)
+
+    # Single BVH call for all rays
+    hit_indices, _ = bvh.nearest_hit(all_origins, all_dirs)
+
+    # Reshape to (num_vertices, num_rays)
+    hit_indices = hit_indices.reshape(num_vertices, num_rays)
+
+    # Build visibility mask
+    visible = np.zeros((*batch_shape, num_triangles), dtype=bool)
+    flat_visible = visible.reshape(num_vertices, num_triangles)
+
+    active_np = None
+    if active_triangles is not None:
+        active_np = np.asarray(active_triangles)
+        if active_np.ndim > 1:
+            active_np = active_np.reshape(-1)
+
+    for i in range(num_vertices):
+        valid = hit_indices[i] >= 0
+        valid_indices = hit_indices[i][valid]
+        if active_np is not None:
+            active_mask = active_np[valid_indices]
+            valid_indices = valid_indices[active_mask]
+        unique_hits = np.unique(valid_indices)
+        flat_visible[i, unique_hits] = True
+
+    return jnp.asarray(visible)
 
 
 def bvh_first_triangles_hit_by_rays(

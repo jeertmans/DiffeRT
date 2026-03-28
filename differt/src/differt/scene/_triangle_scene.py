@@ -1050,6 +1050,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        bvh: Any = None,
     ) -> Paths[_M] | SizedIterator[Paths[_M]] | Iterator[Paths[_M]] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -1163,6 +1164,13 @@ class TriangleScene(eqx.Module):
                 For the ``'hybrid'`` method, inactive triangles are always disconnected
                 regardless of this parameter value, as the method already depends on
                 the mask.
+            bvh: An optional BVH acceleration structure from :meth:`build_bvh`.
+
+                When provided with the ``'hybrid'`` method, the BVH accelerates
+                the visibility estimation from O(rays * triangles) to O(rays * log(triangles)).
+
+                For ``'exhaustive'`` and ``'sbr'`` methods, the BVH is not yet used
+                (pending XLA FFI integration).
 
 
         Returns:
@@ -1232,23 +1240,44 @@ class TriangleScene(eqx.Module):
                 msg = "Argument 'order' is required when 'method == \"hybrid\"'."
                 raise ValueError(msg)
 
-            triangles_visible_from_tx = triangles_visible_from_vertices(
-                tx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
-                num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
-            ).any(axis=0)  # reduce on all transmitters
+            if bvh is not None:
+                from differt.accel._accelerated import (
+                    bvh_triangles_visible_from_vertices,
+                )
 
-            triangles_visible_from_rx = triangles_visible_from_vertices(
-                rx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
-                num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
-            ).any(axis=0)  # reduce on all receivers
+                triangles_visible_from_tx = bvh_triangles_visible_from_vertices(
+                    tx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    bvh=bvh,
+                ).any(axis=0)  # reduce on all transmitters
+
+                triangles_visible_from_rx = bvh_triangles_visible_from_vertices(
+                    rx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    bvh=bvh,
+                ).any(axis=0)  # reduce on all receivers
+            else:
+                triangles_visible_from_tx = triangles_visible_from_vertices(
+                    tx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    batch_size=batch_size,
+                ).any(axis=0)  # reduce on all transmitters
+
+                triangles_visible_from_rx = triangles_visible_from_vertices(
+                    rx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    batch_size=batch_size,
+                ).any(axis=0)  # reduce on all receivers
 
             if assume_quads:
                 triangles_visible_from_tx = triangles_visible_from_tx.reshape(

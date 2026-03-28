@@ -68,7 +68,7 @@ When `r_near` exceeds the scene bounding box diagonal, the system automatically 
 - **Moller-Trumbore:** Full implementation in Rust for the hard-boolean nearest-hit path.
 - **PyO3 bindings:** `TriangleBvh` class exposed via `differt_core.accel.bvh`.
 
-### Python: `differt/src/differt/accel/` (476 lines)
+### Python: `differt/src/differt/accel/` (570 lines)
 
 - **`TriangleBvh`:** Wraps Rust BVH with batch dimension handling and NumPy/JAX conversion.
 - **`bvh_rays_intersect_any_triangle`:** Drop-in for `differt.rt.rays_intersect_any_triangle` with optional `bvh=` parameter.
@@ -76,9 +76,11 @@ When `r_near` exceeds the scene bounding box diagonal, the system automatically 
   - Soft mode: BVH candidates -> JAX soft intersection on reduced set
   - Automatic fallback when candidates overflow or expansion is too large
 - **`bvh_first_triangles_hit_by_rays`:** Drop-in for `differt.rt.first_triangles_hit_by_rays`.
+- **`bvh_triangles_visible_from_vertices`:** BVH-accelerated visibility estimation, 14x faster on Munich (38K triangles).
 - **`TriangleScene.build_bvh()`:** Convenience method on the scene class.
+- **`TriangleScene.compute_paths(bvh=...)`:** When `method="hybrid"`, the BVH accelerates the visibility estimation step.
 
-### Tests: 11 Rust + 20 Python
+### Tests: 11 Rust + 27 Python
 
 **Rust unit tests:**
 - BVH construction (single triangle, cube, empty, random)
@@ -92,6 +94,8 @@ When `r_near` exceeds the scene bounding box diagonal, the system automatically 
 - `TestNearestHit`: single triangle, miss, cube multi-ray, random scene 100 rays, fallback
 - `TestAnyIntersection`: hard mode hit/miss, soft mode at alpha=1/10/100, random scene, fallback
 - `TestExpansionRadius`: positive, monotonic decrease, scaling, zero smoothing
+- `TestVisibility`: single triangle, cube, brute-force comparison, fallback, multiple origins
+- `TestComputePathsBvh`: hybrid method with BVH, exhaustive ignores BVH
 
 ## Performance
 
@@ -126,7 +130,7 @@ The soft mode speedup is modest (2-3x) because the JAX soft intersection on cand
 | Suite | Passed | Failed | Notes |
 |-------|--------|--------|-------|
 | Full DiffeRT (`pytest differt/tests/`) | 1,508 | 9 | All failures are pre-existing vispy headless rendering |
-| BVH tests (`differt/tests/accel/`) | 20 | 0 | |
+| BVH tests (`differt/tests/accel/`) | 27 | 0 | |
 | RT tests (`differt/tests/rt/`) | 204 | 0 | |
 | Rust tests (`cargo test -- accel`) | 11 | 0 | |
 | Non-vispy (`-k "not vispy"`) | 1,689 | 1 | 1 failure is a plotting test, not BVH-related |
@@ -146,9 +150,9 @@ Moving to XLA FFI (using the `extending-jax` pattern) would allow BVH queries in
 - C++ FFI shim via `cxx`
 - `PyCapsule` export and `jax.ffi.register_ffi_target`
 
-### Phase 3: full `compute_paths` integration
+### Phase 3: full `compute_paths` integration (partially done)
 
-Currently the BVH is available via standalone functions. Wiring it into `TriangleScene.compute_paths` (exhaustive blocking check, hybrid visibility, SBR bounce loop) is a follow-up.
+The BVH now accelerates the hybrid method's visibility estimation via `compute_paths(method="hybrid", bvh=bvh)`. The exhaustive blocking check and SBR bounce loop remain JAX-only because `_compute_paths` is JIT-compiled and PyO3 calls cannot run inside JIT. Full integration requires XLA FFI (Phase 2).
 
 ### Phase 4: GPU BVH
 
@@ -165,11 +169,11 @@ The Rust BVH runs on CPU. A GPU implementation (via CUDA/OptiX or a Rust GPU cra
 | `differt-core/python/differt_core/accel/_bvh.py` | +5 | Python re-export |
 | `differt/src/differt/accel/__init__.py` | +25 | Package exports |
 | `differt/src/differt/accel/_bvh.py` | +169 | TriangleBvh wrapper |
-| `differt/src/differt/accel/_accelerated.py` | +282 | Drop-in accelerated functions |
-| `differt/src/differt/scene/_triangle_scene.py` | +17 | `build_bvh()` method |
+| `differt/src/differt/accel/_accelerated.py` | +376 | Drop-in accelerated functions + visibility |
+| `differt/src/differt/scene/_triangle_scene.py` | +35 | `build_bvh()` method, `compute_paths(bvh=)` |
 | `differt/tests/accel/__init__.py` | +0 | Test package |
-| `differt/tests/accel/test_bvh.py` | +325 | 20 Python tests |
-| **Total** | **+1,755** | |
+| `differt/tests/accel/test_bvh.py` | +420 | 27 Python tests |
+| **Total** | **+1,869** | |
 
 ## Usage example
 
@@ -197,4 +201,7 @@ blocked = bvh_rays_intersect_any_triangle(
     bvh=bvh,
 )
 # Gradients flow through JAX autodiff on the reduced candidate set
+
+# BVH-accelerated hybrid path computation (14x faster visibility estimation)
+paths = scene.compute_paths(order=1, method="hybrid", bvh=bvh)
 ```

@@ -12,6 +12,7 @@ from differt.accel import TriangleBvh
 from differt.accel._accelerated import (
     bvh_first_triangles_hit_by_rays,
     bvh_rays_intersect_any_triangle,
+    bvh_triangles_visible_from_vertices,
 )
 from differt.accel._bvh import compute_expansion_radius
 from differt.rt._utils import (
@@ -323,3 +324,122 @@ class TestExpansionRadius:
     def test_zero_smoothing(self):
         r = compute_expansion_radius(0.0, 1.0, 1e-7)
         assert r == float("inf")
+
+
+# ---------------------------------------------------------------------------
+# Visibility: BVH vs brute force
+# ---------------------------------------------------------------------------
+
+
+class TestVisibility:
+    def test_single_triangle_visible(self, single_triangle):
+        bvh = TriangleBvh(single_triangle)
+        origin = jnp.array([0.3, 0.3, 1.0])
+
+        bvh_vis = bvh_triangles_visible_from_vertices(
+            origin, single_triangle, bvh=bvh, num_rays=1000
+        )
+        assert bool(bvh_vis[0])  # triangle is visible from above
+
+    def test_cube_all_visible(self, cube_scene):
+        bvh = TriangleBvh(cube_scene)
+        origin = jnp.array([0.5, 0.5, 2.0])  # above the cube
+
+        bvh_vis = bvh_triangles_visible_from_vertices(
+            origin, cube_scene, bvh=bvh, num_rays=10000
+        )
+        # From above, the top face triangles should be visible
+        assert int(bvh_vis.sum()) >= 2  # at least the top face
+
+    def test_matches_brute_force(self, cube_scene):
+        from differt.rt import triangles_visible_from_vertices
+
+        bvh = TriangleBvh(cube_scene)
+        origin = jnp.array([0.5, 0.5, 2.0])
+
+        bvh_vis = bvh_triangles_visible_from_vertices(
+            origin, cube_scene, bvh=bvh, num_rays=10000
+        )
+        bf_vis = triangles_visible_from_vertices(
+            origin, cube_scene, num_rays=10000
+        )
+
+        # Both should see approximately the same set (statistical)
+        bvh_count = int(bvh_vis.sum())
+        bf_count = int(bf_vis.sum())
+        assert abs(bvh_count - bf_count) <= 2  # allow small difference
+
+    def test_fallback_without_bvh(self, single_triangle):
+        origin = jnp.array([0.3, 0.3, 1.0])
+        vis = bvh_triangles_visible_from_vertices(
+            origin, single_triangle, bvh=None, num_rays=1000
+        )
+        assert bool(vis[0])
+
+    def test_multiple_origins(self, cube_scene):
+        bvh = TriangleBvh(cube_scene)
+        origins = jnp.array([
+            [0.5, 0.5, 2.0],  # above
+            [0.5, 0.5, -1.0],  # below
+        ])
+
+        bvh_vis = bvh_triangles_visible_from_vertices(
+            origins, cube_scene, bvh=bvh, num_rays=10000
+        )
+        assert bvh_vis.shape == (2, 12)
+        assert int(bvh_vis[0].sum()) >= 2  # top visible
+        assert int(bvh_vis[1].sum()) >= 2  # bottom visible
+
+
+# ---------------------------------------------------------------------------
+# compute_paths integration
+# ---------------------------------------------------------------------------
+
+
+class TestComputePathsBvh:
+    def test_hybrid_with_bvh(self):
+        from differt.scene import TriangleScene
+        import equinox as eqx
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
+        )
+        scene = eqx.tree_at(
+            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
+        )
+        bvh = scene.build_bvh()
+
+        paths_bvh = scene.compute_paths(order=1, method="hybrid", bvh=bvh)
+        paths_bf = scene.compute_paths(order=1, method="hybrid")
+
+        # Both should find the same valid paths
+        assert paths_bvh.mask.shape == paths_bf.mask.shape
+        np.testing.assert_array_equal(
+            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
+        )
+
+    def test_exhaustive_ignores_bvh(self):
+        from differt.scene import TriangleScene
+        import equinox as eqx
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
+        )
+        scene = eqx.tree_at(
+            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
+        )
+        bvh = scene.build_bvh()
+
+        # BVH parameter should be accepted but not change results for exhaustive
+        paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
+        paths_bf = scene.compute_paths(order=1, method="exhaustive")
+
+        np.testing.assert_array_equal(
+            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
+        )
