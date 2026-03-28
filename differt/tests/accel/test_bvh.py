@@ -421,7 +421,8 @@ class TestComputePathsBvh:
             np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
         )
 
-    def test_exhaustive_ignores_bvh(self):
+    def test_exhaustive_with_bvh_ffi(self):
+        """Exhaustive method uses BVH FFI for blocking check."""
         from differt.scene import TriangleScene
         import equinox as eqx
 
@@ -436,7 +437,56 @@ class TestComputePathsBvh:
         )
         bvh = scene.build_bvh()
 
-        # BVH parameter should be accepted but not change results for exhaustive
+        # BVH should give same results as brute force for hard mode
+        paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
+        paths_bf = scene.compute_paths(order=1, method="exhaustive")
+
+        np.testing.assert_array_equal(
+            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
+        )
+
+    def test_sbr_with_bvh_ffi(self):
+        """SBR method uses BVH FFI in the bounce loop."""
+        from differt.scene import TriangleScene
+        import equinox as eqx
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/box/box.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 2.0]])
+        )
+        scene = eqx.tree_at(
+            lambda s: s.receivers, scene, jnp.array([[0.5, 0.5, -1.0]])
+        )
+        bvh = scene.build_bvh()
+
+        paths_bvh = scene.compute_paths(
+            order=1, method="sbr", bvh=bvh, num_rays=1000
+        )
+        paths_bf = scene.compute_paths(
+            order=1, method="sbr", num_rays=1000
+        )
+        # Both should produce SBRPaths
+        assert type(paths_bvh).__name__ == "SBRPaths"
+        assert type(paths_bf).__name__ == "SBRPaths"
+
+    def test_exhaustive_matches_without_bvh(self):
+        """Exhaustive with BVH produces same results as without."""
+        from differt.scene import TriangleScene
+        import equinox as eqx
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
+        )
+        scene = eqx.tree_at(
+            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
+        )
+        bvh = scene.build_bvh()
+
         paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
         paths_bf = scene.compute_paths(order=1, method="exhaustive")
 

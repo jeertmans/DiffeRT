@@ -98,6 +98,7 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, ""] | None,
     confidence_threshold: Float[ArrayLike, ""],
     batch_size: int | None,
+    bvh_id: int | None = None,
 ) -> Paths[_M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, rx_vertices)
@@ -249,7 +250,30 @@ def _compute_paths(
     # 3.3 - Identify paths that are blocked by other objects
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
-    if smoothing_factor is not None:
+    if bvh_id is not None and smoothing_factor is None:
+        # BVH-accelerated blocking check (hard mode only, via XLA FFI)
+        from differt.accel._ffi import ffi_nearest_hit
+
+        _batch_shape = ray_origins.shape[:-1]  # [..., order+1]
+        _flat_origins = ray_origins.reshape(-1, 3)
+        _flat_dirs = ray_directions.reshape(-1, 3)
+        _hit_idx, _hit_t = ffi_nearest_hit(
+            _flat_origins, _flat_dirs, bvh_id=bvh_id
+        )
+        # A ray is blocked if it hits something with t < 1 - hit_tol
+        _hit_tol_val = hit_tol if hit_tol is not None else 10.0 * jnp.finfo(
+            jnp.result_type(ray_origins, ray_directions)
+        ).eps
+        _blocked_flat = (_hit_idx >= 0) & (_hit_t < (1.0 - _hit_tol_val))
+        # Apply active_triangles mask
+        if mesh.mask is not None:
+            _safe_idx = jnp.maximum(_hit_idx, 0)
+            _active = mesh.mask[_safe_idx]
+            _blocked_flat = _blocked_flat & _active
+        blocked = _blocked_flat.reshape(_batch_shape).any(
+            axis=-1
+        )  # Reduce on 'order'
+    elif smoothing_factor is not None:
         blocked = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
@@ -356,6 +380,7 @@ def _compute_paths_sbr(
     epsilon: Float[ArrayLike, ""] | None,
     max_dist: Float[ArrayLike, ""],
     batch_size: int | None,
+    bvh_id: int | None = None,
 ) -> SBRPaths:
     # TODO: type annotations for SBRPaths with mask dtype
     # 1 - Prepare arrays
@@ -413,14 +438,30 @@ def _compute_paths_sbr(
         # 1 - Compute next intersection with triangles
 
         # [num_tx_vertices num_rays]
-        triangles, t_hit = first_triangles_hit_by_rays(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            active_triangles=mesh.mask,
-            epsilon=epsilon,
-            batch_size=batch_size,
-        )
+        if bvh_id is not None:
+            from differt.accel._ffi import ffi_nearest_hit
+
+            _sbr_shape = ray_origins.shape[:-1]
+            _flat_o = ray_origins.reshape(-1, 3)
+            _flat_d = ray_directions.reshape(-1, 3)
+            _idx, _t = ffi_nearest_hit(_flat_o, _flat_d, bvh_id=bvh_id)
+            triangles = _idx.reshape(_sbr_shape)
+            t_hit = _t.reshape(_sbr_shape)
+            # Apply active_triangles mask
+            if mesh.mask is not None:
+                _safe = jnp.maximum(triangles, 0)
+                _inactive = (triangles >= 0) & ~mesh.mask[_safe]
+                triangles = jnp.where(_inactive, -1, triangles)
+                t_hit = jnp.where(_inactive, jnp.inf, t_hit)
+        else:
+            triangles, t_hit = first_triangles_hit_by_rays(
+                ray_origins,
+                ray_directions,
+                triangle_vertices,
+                active_triangles=mesh.mask,
+                epsilon=epsilon,
+                batch_size=batch_size,
+            )
 
         # 2 - Check if the rays pass near RX
 
@@ -1166,11 +1207,14 @@ class TriangleScene(eqx.Module):
                 the mask.
             bvh: An optional BVH acceleration structure from :meth:`build_bvh`.
 
-                When provided with the ``'hybrid'`` method, the BVH accelerates
-                the visibility estimation from O(rays * triangles) to O(rays * log(triangles)).
+                When provided, the BVH accelerates intersection queries:
 
-                For ``'exhaustive'`` and ``'sbr'`` methods, the BVH is not yet used
-                (pending XLA FFI integration).
+                * ``'exhaustive'``: BVH replaces the blocking check
+                  (hard mode only, via XLA FFI inside JIT).
+                * ``'hybrid'``: BVH accelerates both the visibility estimation
+                  and the blocking check.
+                * ``'sbr'``: BVH replaces ``first_triangles_hit_by_rays`` in the
+                  bounce loop (via XLA FFI inside ``lax.scan``).
 
 
         Returns:
@@ -1209,6 +1253,14 @@ class TriangleScene(eqx.Module):
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
 
+        # Extract BVH registry ID for FFI (if available)
+        _bvh_id = None
+        if bvh is not None:
+            try:
+                _bvh_id = bvh.register()
+            except (AttributeError, TypeError):
+                pass
+
         if method == "sbr":
             if order is None:
                 msg = "Argument 'order' is required when 'method == \"sbr\"'."
@@ -1223,6 +1275,7 @@ class TriangleScene(eqx.Module):
                 epsilon=epsilon,
                 max_dist=max_dist,
                 batch_size=batch_size,
+                bvh_id=_bvh_id,
             ).reshape(*tx_batch, *rx_batch, -1)
 
         # 0 - Constants arrays of chunks
@@ -1338,6 +1391,7 @@ class TriangleScene(eqx.Module):
                     smoothing_factor=smoothing_factor,
                     confidence_threshold=confidence_threshold,
                     batch_size=batch_size,
+                    bvh_id=_bvh_id,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -1375,6 +1429,7 @@ class TriangleScene(eqx.Module):
             smoothing_factor=smoothing_factor,
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
+            bvh_id=_bvh_id,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

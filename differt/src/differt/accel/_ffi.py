@@ -55,7 +55,7 @@ def ffi_nearest_hit(
     ray_directions: Float[Array, "num_rays 3"],
     *,
     bvh_id: int,
-) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+):
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
     Args:
@@ -95,7 +95,7 @@ def ffi_get_candidates(
     bvh_id: int,
     expansion: float = 0.0,
     max_candidates: int = 256,
-) -> tuple[Int[Array, "num_rays max_candidates"], Int[Array, " num_rays"]]:
+):
     """BVH candidate selection via XLA FFI. Works inside ``jax.jit``.
 
     Args:
