@@ -139,16 +139,20 @@ The soft mode speedup is modest (2-3x) because the JAX soft intersection on cand
 
 ## What is not done yet
 
-### Phase 2: XLA FFI integration
+### Phase 2: XLA FFI integration (foundation laid)
 
 The current implementation calls Rust via PyO3 (outside JIT). This means:
 - BVH queries cannot run inside `jax.lax.scan` (needed for BVH-accelerated SBR)
 - Each query requires a Python-to-Rust roundtrip
 
-Moving to XLA FFI (using the `extending-jax` pattern) would allow BVH queries inside JIT-compiled functions. This requires:
+**Done:** Global BVH registry (`Mutex<HashMap<u64, Arc<Bvh>>>`) with `register()`/`unregister()` methods. XLA FFI handlers will look up pre-built BVHs by integer ID.
+
+**Remaining:** Following the `extending-jax` pattern:
 - `build.rs` querying JAX for XLA headers
-- C++ FFI shim via `cxx`
+- C++ FFI shim via `cxx` (calls Rust `nearest_hit`/`get_candidates` via the registry)
+- `XLA_FFI_DEFINE_HANDLER_SYMBOL` in `ffi.cc`
 - `PyCapsule` export and `jax.ffi.register_ffi_target`
+- `jax.ffi.ffi_call` wrapper with `vmap_method="broadcast_all"`
 
 ### Phase 3: full `compute_paths` integration (partially done)
 
