@@ -5,6 +5,10 @@
 //! - Candidate selection: find all triangles whose expanded bounding boxes
 //!   intersect each ray (for differentiable mode)
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+
 use numpy::{PyArray1, PyArray2, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 
@@ -483,6 +487,47 @@ impl Bvh {
 // PyO3 wrapper
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Global BVH registry for XLA FFI
+// ---------------------------------------------------------------------------
+
+/// Global registry mapping integer IDs to BVH instances.
+/// XLA FFI handlers receive the ID as an attribute and look up the BVH here.
+static BVH_REGISTRY: Mutex<Option<HashMap<u64, std::sync::Arc<Bvh>>>> = Mutex::new(None);
+static BVH_NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
+fn registry_init() -> HashMap<u64, std::sync::Arc<Bvh>> {
+    HashMap::new()
+}
+
+/// Register a BVH and return its ID.
+fn registry_insert(bvh: std::sync::Arc<Bvh>) -> u64 {
+    let id = BVH_NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let mut guard = BVH_REGISTRY.lock().unwrap();
+    let map = guard.get_or_insert_with(registry_init);
+    map.insert(id, bvh);
+    id
+}
+
+/// Remove a BVH from the registry.
+fn registry_remove(id: u64) {
+    let mut guard = BVH_REGISTRY.lock().unwrap();
+    if let Some(map) = guard.as_mut() {
+        map.remove(&id);
+    }
+}
+
+/// Look up a BVH by ID. Returns None if not found.
+#[allow(dead_code)]
+pub(crate) fn registry_get(id: u64) -> Option<std::sync::Arc<Bvh>> {
+    let guard = BVH_REGISTRY.lock().unwrap();
+    guard.as_ref().and_then(|map| map.get(&id).cloned())
+}
+
+// ---------------------------------------------------------------------------
+// PyO3 wrapper
+// ---------------------------------------------------------------------------
+
 /// BVH acceleration structure for triangle meshes.
 ///
 /// Builds a Bounding Volume Hierarchy using the Surface Area Heuristic (SAH)
@@ -501,7 +546,8 @@ impl Bvh {
 ///     1
 #[pyclass]
 struct TriangleBvh {
-    inner: Bvh,
+    inner: std::sync::Arc<Bvh>,
+    registry_id: Option<u64>,
 }
 
 #[pymethods]
@@ -547,7 +593,8 @@ impl TriangleBvh {
         }
 
         Ok(Self {
-            inner: Bvh::new(&flat_tris),
+            inner: std::sync::Arc::new(Bvh::new(&flat_tris)),
+            registry_id: None,
         })
     }
 
@@ -561,6 +608,36 @@ impl TriangleBvh {
     #[getter]
     fn num_nodes(&self) -> u32 {
         self.inner.nodes_used
+    }
+
+    /// Register this BVH in the global registry for XLA FFI access.
+    ///
+    /// Returns:
+    ///     The integer ID that XLA FFI handlers use to look up this BVH.
+    ///
+    /// Examples:
+    ///     >>> import numpy as np
+    ///     >>> from differt_core.accel.bvh import TriangleBvh
+    ///     >>> verts = np.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32)
+    ///     >>> bvh = TriangleBvh(verts)
+    ///     >>> bvh_id = bvh.register()
+    ///     >>> bvh_id > 0
+    ///     True
+    ///     >>> bvh.unregister()
+    fn register(&mut self) -> u64 {
+        if let Some(id) = self.registry_id {
+            return id;
+        }
+        let id = registry_insert(self.inner.clone());
+        self.registry_id = Some(id);
+        id
+    }
+
+    /// Remove this BVH from the global registry.
+    fn unregister(&mut self) {
+        if let Some(id) = self.registry_id.take() {
+            registry_remove(id);
+        }
     }
 
     /// Find the nearest triangle hit by each ray.

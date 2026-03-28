@@ -88,6 +88,28 @@ class TriangleBvh:
             return idx.reshape(orig_shape), t.reshape(orig_shape)
         return self._inner.nearest_hit(origins, dirs)
 
+    def register(self) -> int:
+        """Register this BVH for XLA FFI access.
+
+        Returns:
+            Integer ID for use with JAX FFI handlers.
+
+        Example:
+            >>> import jax.numpy as jnp
+            >>> from differt.accel import TriangleBvh
+            >>> verts = jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
+            >>> bvh = TriangleBvh(verts)
+            >>> bvh_id = bvh.register()
+            >>> bvh_id > 0
+            True
+            >>> bvh.unregister()
+        """
+        return self._inner.register()
+
+    def unregister(self) -> None:
+        """Remove this BVH from the global registry."""
+        self._inner.unregister()
+
     def get_candidates(
         self,
         ray_origins: ArrayLike,
