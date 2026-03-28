@@ -258,18 +258,14 @@ def _compute_paths(
         _flat_origins = ray_origins.reshape(-1, 3)
         _flat_dirs = ray_directions.reshape(-1, 3)
         _hit_idx, _hit_t = ffi_nearest_hit(
-            _flat_origins, _flat_dirs, bvh_id=bvh_id
+            _flat_origins, _flat_dirs, bvh_id=bvh_id,
+            active_mask=mesh.mask,
         )
         # A ray is blocked if it hits something with t < 1 - hit_tol
         _hit_tol_val = hit_tol if hit_tol is not None else 10.0 * jnp.finfo(
             jnp.result_type(ray_origins, ray_directions)
         ).eps
         _blocked_flat = (_hit_idx >= 0) & (_hit_t < (1.0 - _hit_tol_val))
-        # Apply active_triangles mask
-        if mesh.mask is not None:
-            _safe_idx = jnp.maximum(_hit_idx, 0)
-            _active = mesh.mask[_safe_idx]
-            _blocked_flat = _blocked_flat & _active
         blocked = _blocked_flat.reshape(_batch_shape).any(
             axis=-1
         )  # Reduce on 'order'
@@ -444,15 +440,12 @@ def _compute_paths_sbr(
             _sbr_shape = ray_origins.shape[:-1]
             _flat_o = ray_origins.reshape(-1, 3)
             _flat_d = ray_directions.reshape(-1, 3)
-            _idx, _t = ffi_nearest_hit(_flat_o, _flat_d, bvh_id=bvh_id)
+            _idx, _t = ffi_nearest_hit(
+                _flat_o, _flat_d, bvh_id=bvh_id,
+                active_mask=mesh.mask,
+            )
             triangles = _idx.reshape(_sbr_shape)
             t_hit = _t.reshape(_sbr_shape)
-            # Apply active_triangles mask
-            if mesh.mask is not None:
-                _safe = jnp.maximum(triangles, 0)
-                _inactive = (triangles >= 0) & ~mesh.mask[_safe]
-                triangles = jnp.where(_inactive, -1, triangles)
-                t_hit = jnp.where(_inactive, jnp.inf, t_hit)
         else:
             triangles, t_hit = first_triangles_hit_by_rays(
                 ray_origins,

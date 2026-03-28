@@ -95,19 +95,19 @@ def bvh_rays_intersect_any_triangle(
 
     if smoothing_factor is None:
         # Hard mode: use BVH nearest-hit as an "any" check.
-        # A ray intersects some triangle iff nearest_hit returns a valid index.
+        # Pass active_triangles mask directly to Rust BVH so it skips
+        # inactive triangles and finds the nearest *active* hit.
         flat_origins = np.asarray(ray_origins_jnp).reshape(-1, 3)
         flat_dirs = np.asarray(ray_directions_jnp).reshape(-1, 3)
-        hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs)
+        mask_np = None
+        if active_triangles is not None:
+            mask_np = np.ascontiguousarray(
+                np.asarray(active_triangles).flatten()
+            )
+        hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs, mask_np)
 
         # Apply hit_threshold: only count hits with t < hit_threshold
         any_hit = (hit_indices >= 0) & (hit_t < float(hit_threshold))
-
-        # Apply active_triangles filter
-        if active_triangles is not None:
-            active = np.asarray(active_triangles).flatten()
-            safe_idx = np.maximum(hit_indices, 0)
-            any_hit = any_hit & active[safe_idx]
 
         return jnp.asarray(any_hit.reshape(batch_shape))
 
@@ -370,20 +370,13 @@ def bvh_first_triangles_hit_by_rays(
 
     flat_origins = np.asarray(ray_origins_jnp).reshape(-1, 3)
     flat_dirs = np.asarray(ray_directions_jnp).reshape(-1, 3)
-    hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs)
 
-    # Apply active_triangles filter: if the nearest hit is an inactive triangle,
-    # mark it as a miss. A more complete implementation would re-query
-    # excluding inactive triangles.
+    # Pass active_triangles mask directly to Rust BVH so it skips inactive
+    # triangles during traversal and finds the nearest *active* hit.
+    mask_np = None
     if active_triangles is not None:
-        active = np.asarray(active_triangles)
-        if active.ndim > 1:
-            active = active.flatten()
-        has_hit = hit_indices >= 0
-        safe_idx = np.maximum(hit_indices, 0)
-        inactive_hit = has_hit & ~active[safe_idx]
-        hit_indices[inactive_hit] = -1
-        hit_t[inactive_hit] = float("inf")
+        mask_np = np.ascontiguousarray(np.asarray(active_triangles).flatten())
+    hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs, mask_np)
 
     return (
         jnp.asarray(hit_indices.reshape(batch_shape)),

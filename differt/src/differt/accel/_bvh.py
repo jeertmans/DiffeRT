@@ -55,12 +55,16 @@ class TriangleBvh:
         self,
         ray_origins: ArrayLike,
         ray_directions: ArrayLike,
+        active_mask: ArrayLike | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Find the nearest triangle hit by each ray.
+        """Find the nearest active triangle hit by each ray.
 
         Args:
             ray_origins: Ray origins with shape ``(num_rays, 3)``.
             ray_directions: Ray directions with shape ``(num_rays, 3)``.
+            active_mask: Optional boolean mask with shape ``(num_triangles,)``.
+                When provided, only triangles where the mask is ``True`` are
+                considered during traversal.
 
         Returns:
             A tuple ``(hit_indices, hit_t)`` where ``hit_indices`` has
@@ -80,13 +84,16 @@ class TriangleBvh:
         """
         origins = np.asarray(ray_origins, dtype=np.float32)
         dirs = np.asarray(ray_directions, dtype=np.float32)
+        mask = None
+        if active_mask is not None:
+            mask = np.ascontiguousarray(np.asarray(active_mask).flatten())
         if origins.ndim > 2:
             orig_shape = origins.shape[:-1]
             origins = origins.reshape(-1, 3)
             dirs = dirs.reshape(-1, 3)
-            idx, t = self._inner.nearest_hit(origins, dirs)
+            idx, t = self._inner.nearest_hit(origins, dirs, mask)
             return idx.reshape(orig_shape), t.reshape(orig_shape)
-        return self._inner.nearest_hit(origins, dirs)
+        return self._inner.nearest_hit(origins, dirs, mask)
 
     def register(self) -> int:
         """Register this BVH for XLA FFI access.

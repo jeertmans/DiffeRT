@@ -55,6 +55,7 @@ def ffi_nearest_hit(
     ray_directions: Float[Array, "num_rays 3"],
     *,
     bvh_id: int,
+    active_mask: Array | None = None,
 ):
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
@@ -62,6 +63,10 @@ def ffi_nearest_hit(
         ray_origins: Ray origins with shape ``(num_rays, 3)``.
         ray_directions: Ray directions with shape ``(num_rays, 3)``.
         bvh_id: Registry ID from ``bvh.register()``.
+        active_mask: Optional boolean mask with shape ``(num_triangles,)``.
+            When provided, only triangles where the mask is ``True`` are
+            considered during traversal, correctly finding the nearest
+            *active* hit.
 
     Returns:
         A tuple ``(hit_indices, hit_t)`` with triangle index (``-1`` for miss)
@@ -81,9 +86,16 @@ def ffi_nearest_hit(
         vmap_method="broadcast_all",
     )
 
+    # Pass active_mask as a PRED buffer; empty array means no mask
+    if active_mask is None:
+        mask_buf = jnp.empty((0,), dtype=jnp.bool_)
+    else:
+        mask_buf = active_mask.astype(jnp.bool_)
+
     return call(
         ray_origins.astype(jnp.float32),
         ray_directions.astype(jnp.float32),
+        mask_buf,
         bvh_id=np.uint64(bvh_id),
     )
 

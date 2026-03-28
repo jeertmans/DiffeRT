@@ -13,6 +13,7 @@ namespace ffi = xla::ffi;
 ffi::Error BvhNearestHitImpl(uint64_t bvh_id,
                               ffi::Buffer<ffi::F32> origins,
                               ffi::Buffer<ffi::F32> directions,
+                              ffi::Buffer<ffi::PRED> active_mask,
                               ffi::ResultBuffer<ffi::S32> hit_indices,
                               ffi::ResultBuffer<ffi::F32> hit_t) {
   auto origins_dims = origins.dimensions();
@@ -29,6 +30,15 @@ ffi::Error BvhNearestHitImpl(uint64_t bvh_id,
 
   int64_t num_rays = origins_dims[0];
 
+  // Active mask: shape [num_triangles] or [0] (empty means all active)
+  auto mask_dims = active_mask.dimensions();
+  size_t mask_len = 1;
+  for (size_t i = 0; i < mask_dims.size(); ++i) {
+    mask_len *= static_cast<size_t>(mask_dims[i]);
+  }
+  rust::Slice<const uint8_t> mask_slice{
+      reinterpret_cast<const uint8_t *>(active_mask.typed_data()), mask_len};
+
   rust::Slice<const float> origins_slice{origins.typed_data(),
                                          static_cast<size_t>(num_rays * 3)};
   rust::Slice<const float> dirs_slice{directions.typed_data(),
@@ -38,8 +48,8 @@ ffi::Error BvhNearestHitImpl(uint64_t bvh_id,
   rust::Slice<float> t_slice{(*hit_t).typed_data(),
                               static_cast<size_t>(num_rays)};
 
-  bvh_nearest_hit_ffi(bvh_id, origins_slice, dirs_slice, indices_slice,
-                       t_slice);
+  bvh_nearest_hit_ffi(bvh_id, origins_slice, dirs_slice, mask_slice,
+                       indices_slice, t_slice);
   return ffi::Error::Success();
 }
 
@@ -47,10 +57,11 @@ XLA_FFI_DEFINE_HANDLER_SYMBOL(
     BvhNearestHit, BvhNearestHitImpl,
     ffi::Ffi::Bind()
         .Attr<uint64_t>("bvh_id")
-        .Arg<ffi::Buffer<ffi::F32>>()  // ray_origins
-        .Arg<ffi::Buffer<ffi::F32>>()  // ray_directions
-        .Ret<ffi::Buffer<ffi::S32>>()  // hit_indices
-        .Ret<ffi::Buffer<ffi::F32>>()); // hit_t
+        .Arg<ffi::Buffer<ffi::F32>>()   // ray_origins
+        .Arg<ffi::Buffer<ffi::F32>>()   // ray_directions
+        .Arg<ffi::Buffer<ffi::PRED>>()  // active_mask
+        .Ret<ffi::Buffer<ffi::S32>>()   // hit_indices
+        .Ret<ffi::Buffer<ffi::F32>>());  // hit_t
 
 // --- BvhGetCandidates ---
 

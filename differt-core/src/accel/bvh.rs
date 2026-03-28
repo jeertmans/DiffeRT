@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use numpy::{PyArray1, PyArray2, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 
 // ---------------------------------------------------------------------------
@@ -401,8 +401,17 @@ impl Bvh {
         self.subdivide(left_child + 1);
     }
 
-    /// Find the nearest triangle hit by a ray. Returns (triangle_index, t) or (-1, inf).
-    pub(crate) fn nearest_hit(&self, origin: Vec3, direction: Vec3) -> (i32, f32) {
+    /// Find the nearest active triangle hit by a ray. Returns (triangle_index, t) or (-1, inf).
+    ///
+    /// When `active_mask` is provided, only triangles where `active_mask[i]` is true
+    /// are considered. This correctly finds the nearest *active* hit, skipping any
+    /// inactive triangles that may be closer.
+    pub(crate) fn nearest_hit(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        active_mask: Option<&[bool]>,
+    ) -> (i32, f32) {
         if self.tri_verts.is_empty() {
             return (-1, f32::INFINITY);
         }
@@ -425,6 +434,11 @@ impl Bvh {
                 let count = node.count as usize;
                 for i in first..first + count {
                     let ti = self.tri_indices[i] as usize;
+                    if let Some(mask) = active_mask {
+                        if !mask[ti] {
+                            continue;
+                        }
+                    }
                     let [v0, v1, v2] = self.tri_verts[ti];
                     let (t, hit) = ray_triangle_intersect(origin, direction, v0, v1, v2);
                     if hit && t < best_t {
@@ -677,11 +691,39 @@ impl TriangleBvh {
     ///     0
     ///     >>> float(t[0])
     ///     1.0
+    /// Find the nearest triangle hit by each ray.
+    ///
+    /// Args:
+    ///     ray_origins: Ray origins with shape ``(num_rays, 3)``.
+    ///     ray_directions: Ray directions with shape ``(num_rays, 3)``.
+    ///     active_mask: Optional boolean mask with shape ``(num_triangles,)``.
+    ///         When provided, only triangles where the mask is ``True`` are
+    ///         considered during traversal.
+    ///
+    /// Returns:
+    ///     A tuple ``(hit_indices, hit_t)`` where ``hit_indices`` has shape
+    ///     ``(num_rays,)`` with the triangle index (``-1`` if no hit) and
+    ///     ``hit_t`` has shape ``(num_rays,)`` with the parametric distance.
+    ///
+    /// Examples:
+    ///     >>> import numpy as np
+    ///     >>> from differt_core.accel.bvh import TriangleBvh
+    ///     >>> verts = np.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32)
+    ///     >>> bvh = TriangleBvh(verts)
+    ///     >>> origins = np.array([[0.1, 0.1, 1.0]], dtype=np.float32)
+    ///     >>> dirs = np.array([[0, 0, -1]], dtype=np.float32)
+    ///     >>> idx, t = bvh.nearest_hit(origins, dirs)
+    ///     >>> int(idx[0])
+    ///     0
+    ///     >>> float(t[0])
+    ///     1.0
+    #[pyo3(signature = (ray_origins, ray_directions, active_mask=None))]
     fn nearest_hit<'py>(
         &self,
         py: Python<'py>,
         ray_origins: PyReadonlyArray2<f32>,
         ray_directions: PyReadonlyArray2<f32>,
+        active_mask: Option<PyReadonlyArray1<bool>>,
     ) -> PyResult<(Bound<'py, PyArray1<i32>>, Bound<'py, PyArray1<f32>>)> {
         let origins = ray_origins.as_slice().map_err(|e| {
             pyo3::exceptions::PyValueError::new_err(format!("ray_origins must be contiguous: {e}"))
@@ -692,6 +734,19 @@ impl TriangleBvh {
             ))
         })?;
 
+        let mask_vec: Option<Vec<bool>> = match &active_mask {
+            Some(m) => {
+                let s: &[bool] = m.as_slice().map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!(
+                        "active_mask must be contiguous: {e}"
+                    ))
+                })?;
+                Some(s.to_vec())
+            }
+            None => None,
+        };
+        let mask_slice: Option<&[bool]> = mask_vec.as_deref();
+
         let num_rays = ray_origins.shape()[0];
         let mut hit_indices = vec![-1i32; num_rays];
         let mut hit_t = vec![f32::INFINITY; num_rays];
@@ -699,7 +754,7 @@ impl TriangleBvh {
         for i in 0..num_rays {
             let origin = Vec3::from_slice(&origins[i * 3..(i + 1) * 3]);
             let dir = Vec3::from_slice(&dirs[i * 3..(i + 1) * 3]);
-            let (idx, t) = self.inner.nearest_hit(origin, dir);
+            let (idx, t) = self.inner.nearest_hit(origin, dir, mask_slice);
             hit_indices[i] = idx;
             hit_t[i] = t;
         }
@@ -863,7 +918,7 @@ mod tests {
         // Ray pointing down at (0.1, 0.1)
         let origin = Vec3::new(0.1, 0.1, 1.0);
         let dir = Vec3::new(0.0, 0.0, -1.0);
-        let (idx, t) = bvh.nearest_hit(origin, dir);
+        let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert_eq!(idx, 0);
         assert!((t - 1.0).abs() < 1e-5);
     }
@@ -874,7 +929,7 @@ mod tests {
         // Ray pointing away
         let origin = Vec3::new(0.1, 0.1, 1.0);
         let dir = Vec3::new(0.0, 0.0, 1.0);
-        let (idx, _t) = bvh.nearest_hit(origin, dir);
+        let (idx, _t) = bvh.nearest_hit(origin, dir, None);
         assert_eq!(idx, -1);
     }
 
@@ -884,7 +939,7 @@ mod tests {
         // Ray from outside hitting front face
         let origin = Vec3::new(0.5, 0.5, 2.0);
         let dir = Vec3::new(0.0, 0.0, -1.0);
-        let (idx, t) = bvh.nearest_hit(origin, dir);
+        let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert!(idx >= 0, "Should hit a front-face triangle");
         assert!((t - 1.0).abs() < 1e-5, "Distance to front face should be 1.0");
     }
@@ -895,7 +950,7 @@ mod tests {
         // Ray going through both front and back faces -- should hit front (closer)
         let origin = Vec3::new(0.5, 0.5, 2.0);
         let dir = Vec3::new(0.0, 0.0, -1.0);
-        let (idx, t) = bvh.nearest_hit(origin, dir);
+        let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert!(idx >= 0);
         assert!((t - 1.0).abs() < 1e-5, "Should hit front face at t=1, got t={t}");
     }
@@ -957,7 +1012,7 @@ mod tests {
         ];
 
         for (origin, dir) in &rays {
-            let (bvh_idx, bvh_t) = bvh.nearest_hit(*origin, *dir);
+            let (bvh_idx, bvh_t) = bvh.nearest_hit(*origin, *dir, None);
 
             // Brute force
             let mut bf_idx = -1i32;
@@ -994,7 +1049,7 @@ mod tests {
         let bvh = Bvh::new(&[]);
         let origin = Vec3::new(0.0, 0.0, 1.0);
         let dir = Vec3::new(0.0, 0.0, -1.0);
-        let (idx, t) = bvh.nearest_hit(origin, dir);
+        let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert_eq!(idx, -1);
         assert!(t.is_infinite());
     }
@@ -1007,6 +1062,37 @@ mod tests {
         let (candidates, count) = bvh.get_candidates(origin, dir, 1.0, 256);
         assert!(candidates.is_empty());
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_nearest_hit_active_mask() {
+        // Two triangles stacked: tri 0 at z=0, tri 1 at z=-1
+        let tris = vec![
+            // Triangle 0: at z=0
+            [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            // Triangle 1: at z=-1 (behind tri 0 from above)
+            [0.0, 0.0, -1.0, 1.0, 0.0, -1.0, 0.0, 1.0, -1.0],
+        ];
+        let bvh = Bvh::new(&tris);
+
+        let origin = Vec3::new(0.1, 0.1, 2.0);
+        let dir = Vec3::new(0.0, 0.0, -1.0);
+
+        // No mask: hits tri 0 (nearest)
+        let (idx, t) = bvh.nearest_hit(origin, dir, None);
+        assert_eq!(idx, 0);
+        assert!((t - 2.0).abs() < 1e-5);
+
+        // Mask out tri 0: should find tri 1 instead
+        let mask = vec![false, true];
+        let (idx, t) = bvh.nearest_hit(origin, dir, Some(&mask));
+        assert_eq!(idx, 1);
+        assert!((t - 3.0).abs() < 1e-5);
+
+        // Mask out both: no hit
+        let mask = vec![false, false];
+        let (idx, _t) = bvh.nearest_hit(origin, dir, Some(&mask));
+        assert_eq!(idx, -1);
     }
 
     #[test]

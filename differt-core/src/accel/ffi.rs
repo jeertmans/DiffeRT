@@ -13,6 +13,7 @@ mod ffi_bridge {
             bvh_id: u64,
             origins: &[f32],
             directions: &[f32],
+            active_mask: &[u8],
             hit_indices: &mut [i32],
             hit_t: &mut [f32],
         );
@@ -40,10 +41,14 @@ mod ffi_bridge {
 }
 
 /// FFI entry point for nearest-hit queries, called from C++ XLA handler.
+///
+/// `active_mask` is a byte slice of length `num_triangles` (0 = inactive, nonzero = active).
+/// An empty slice means no mask (all triangles active).
 fn bvh_nearest_hit_ffi(
     bvh_id: u64,
     origins: &[f32],
     directions: &[f32],
+    active_mask: &[u8],
     hit_indices: &mut [i32],
     hit_t: &mut [f32],
 ) {
@@ -56,11 +61,20 @@ fn bvh_nearest_hit_ffi(
         }
     };
 
+    // Convert u8 mask to bool slice (empty = no mask)
+    let mask_bools: Vec<bool>;
+    let mask_opt = if active_mask.is_empty() {
+        None
+    } else {
+        mask_bools = active_mask.iter().map(|&b| b != 0).collect();
+        Some(mask_bools.as_slice())
+    };
+
     let num_rays = hit_indices.len();
     for i in 0..num_rays {
         let origin = Vec3::from_slice(&origins[i * 3..(i + 1) * 3]);
         let dir = Vec3::from_slice(&directions[i * 3..(i + 1) * 3]);
-        let (idx, t) = bvh.nearest_hit(origin, dir);
+        let (idx, t) = bvh.nearest_hit(origin, dir, mask_opt);
         hit_indices[i] = idx;
         hit_t[i] = t;
     }
