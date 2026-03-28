@@ -876,6 +876,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -895,6 +896,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -914,6 +916,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -933,6 +936,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -952,6 +956,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> SizedIterator[Paths[_F]]: ...
 
     @overload
@@ -971,6 +976,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> SizedIterator[Paths[_B]]: ...
 
     @overload
@@ -990,6 +996,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Iterator[Paths[_F]]: ...
 
     @overload
@@ -1009,6 +1016,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Iterator[Paths[_B]]: ...
 
     @overload
@@ -1028,6 +1036,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -1047,6 +1056,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -1066,6 +1076,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: Any = ...,
     ) -> SBRPaths: ...
 
     def compute_paths(
