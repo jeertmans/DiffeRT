@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
-struct Vec3 {
+pub(crate) struct Vec3 {
     x: f32,
     y: f32,
     z: f32,
@@ -28,7 +28,7 @@ impl Vec3 {
         Self { x, y, z }
     }
 
-    fn from_slice(s: &[f32]) -> Self {
+    pub(crate) fn from_slice(s: &[f32]) -> Self {
         Self {
             x: s[0],
             y: s[1],
@@ -206,7 +206,7 @@ impl BvhNode {
 const NUM_SAH_BINS: usize = 12;
 const MAX_LEAF_SIZE: u32 = 4;
 
-struct Bvh {
+pub(crate) struct Bvh {
     nodes: Vec<BvhNode>,
     tri_indices: Vec<u32>,
     /// Triangle vertices: [num_triangles, 3 vertices, 3 coords] flattened
@@ -402,7 +402,7 @@ impl Bvh {
     }
 
     /// Find the nearest triangle hit by a ray. Returns (triangle_index, t) or (-1, inf).
-    fn nearest_hit(&self, origin: Vec3, direction: Vec3) -> (i32, f32) {
+    pub(crate) fn nearest_hit(&self, origin: Vec3, direction: Vec3) -> (i32, f32) {
         let inv_dir = Vec3::new(1.0 / direction.x, 1.0 / direction.y, 1.0 / direction.z);
         let mut stack = Vec::with_capacity(64);
         stack.push(0usize);
@@ -440,7 +440,7 @@ impl Bvh {
     }
 
     /// Find all candidate triangles whose expanded bounding box intersects a ray.
-    fn get_candidates(
+    pub(crate) fn get_candidates(
         &self,
         origin: Vec3,
         direction: Vec3,
@@ -775,6 +775,11 @@ impl TriangleBvh {
 #[pymodule(gil_used = false)]
 pub(crate) fn bvh(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleBvh>()?;
+    #[cfg(feature = "xla-ffi")]
+    {
+        m.add_function(pyo3::wrap_pyfunction!(super::ffi::bvh_nearest_hit_capsule, m)?)?;
+        m.add_function(pyo3::wrap_pyfunction!(super::ffi::bvh_get_candidates_capsule, m)?)?;
+    }
     Ok(())
 }
 
