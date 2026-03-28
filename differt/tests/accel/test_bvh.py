@@ -1,0 +1,325 @@
+"""Tests for BVH acceleration structure.
+
+Validates that BVH-accelerated intersection queries produce the same results
+as the brute-force implementations, for both hard and soft (differentiable) modes.
+"""
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pytest
+from differt.accel import TriangleBvh
+from differt.accel._accelerated import (
+    bvh_first_triangles_hit_by_rays,
+    bvh_rays_intersect_any_triangle,
+)
+from differt.accel._bvh import compute_expansion_radius
+from differt.rt._utils import (
+    first_triangles_hit_by_rays,
+    rays_intersect_any_triangle,
+)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def single_triangle():
+    return jnp.array(
+        [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
+    )
+
+
+@pytest.fixture()
+def three_triangles():
+    """Three triangles at different z-planes."""
+    return jnp.array(
+        [
+            [[0, 0, 0], [1, 0, 0], [0, 1, 0]],  # z=0
+            [[0, 0, 2], [1, 0, 2], [0, 1, 2]],  # z=2
+            [[5, 5, 0], [6, 5, 0], [5, 6, 0]],  # far away
+        ],
+        dtype=jnp.float32,
+    )
+
+
+@pytest.fixture()
+def cube_scene():
+    """12-triangle unit cube."""
+    faces = [
+        ([0, 0, 1], [1, 0, 1], [1, 1, 1]),
+        ([0, 0, 1], [1, 1, 1], [0, 1, 1]),
+        ([0, 0, 0], [0, 1, 0], [1, 1, 0]),
+        ([0, 0, 0], [1, 1, 0], [1, 0, 0]),
+        ([0, 1, 0], [0, 1, 1], [1, 1, 1]),
+        ([0, 1, 0], [1, 1, 1], [1, 1, 0]),
+        ([0, 0, 0], [1, 0, 0], [1, 0, 1]),
+        ([0, 0, 0], [1, 0, 1], [0, 0, 1]),
+        ([1, 0, 0], [1, 1, 0], [1, 1, 1]),
+        ([1, 0, 0], [1, 1, 1], [1, 0, 1]),
+        ([0, 0, 0], [0, 0, 1], [0, 1, 1]),
+        ([0, 0, 0], [0, 1, 1], [0, 1, 0]),
+    ]
+    return jnp.array(faces, dtype=jnp.float32)
+
+
+@pytest.fixture()
+def random_scene():
+    """50 random triangles in a 10x10x10 box."""
+    key = jax.random.PRNGKey(42)
+    verts = jax.random.uniform(key, (50, 3, 3), minval=0.0, maxval=10.0)
+    return verts
+
+
+# ---------------------------------------------------------------------------
+# TriangleBvh construction
+# ---------------------------------------------------------------------------
+
+
+class TestTriangleBvhConstruction:
+    def test_single_triangle(self, single_triangle):
+        bvh = TriangleBvh(single_triangle)
+        assert bvh.num_triangles == 1
+        assert bvh.num_nodes >= 1
+
+    def test_cube(self, cube_scene):
+        bvh = TriangleBvh(cube_scene)
+        assert bvh.num_triangles == 12
+
+    def test_random(self, random_scene):
+        bvh = TriangleBvh(random_scene)
+        assert bvh.num_triangles == 50
+
+    def test_numpy_input(self):
+        verts = np.array(
+            [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32
+        )
+        bvh = TriangleBvh(verts)
+        assert bvh.num_triangles == 1
+
+
+# ---------------------------------------------------------------------------
+# Nearest hit: BVH vs brute force
+# ---------------------------------------------------------------------------
+
+
+class TestNearestHit:
+    def test_single_triangle_hit(self, single_triangle):
+        bvh = TriangleBvh(single_triangle)
+        origins = jnp.array([[0.1, 0.1, 1.0]])
+        dirs = jnp.array([[0.0, 0.0, -1.0]])
+
+        bvh_idx, bvh_t = bvh_first_triangles_hit_by_rays(
+            origins, dirs, single_triangle, bvh=bvh
+        )
+        bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, single_triangle)
+
+        assert int(bvh_idx[0]) == int(bf_idx[0])
+        np.testing.assert_allclose(float(bvh_t[0]), float(bf_t[0]), atol=1e-4)
+
+    def test_single_triangle_miss(self, single_triangle):
+        bvh = TriangleBvh(single_triangle)
+        origins = jnp.array([[0.1, 0.1, 1.0]])
+        dirs = jnp.array([[0.0, 0.0, 1.0]])  # pointing away
+
+        bvh_idx, bvh_t = bvh_first_triangles_hit_by_rays(
+            origins, dirs, single_triangle, bvh=bvh
+        )
+        bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, single_triangle)
+
+        assert int(bvh_idx[0]) == int(bf_idx[0]) == -1
+
+    def test_cube_multiple_rays(self, cube_scene):
+        bvh = TriangleBvh(cube_scene)
+        origins = jnp.array(
+            [
+                [0.5, 0.5, 2.0],
+                [0.5, 0.5, -1.0],
+                [2.0, 0.5, 0.5],
+                [0.5, 2.0, 0.5],
+                [5.0, 5.0, 5.0],  # miss
+            ],
+            dtype=jnp.float32,
+        )
+        dirs = jnp.array(
+            [
+                [0.0, 0.0, -1.0],
+                [0.0, 0.0, 1.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0],
+                [0.0, 0.0, 1.0],  # miss
+            ],
+            dtype=jnp.float32,
+        )
+
+        bvh_idx, bvh_t = bvh_first_triangles_hit_by_rays(
+            origins, dirs, cube_scene, bvh=bvh
+        )
+        bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, cube_scene)
+
+        # Both should agree on hits vs misses
+        bvh_hit = np.asarray(bvh_idx) >= 0
+        bf_hit = np.asarray(bf_idx) >= 0
+        np.testing.assert_array_equal(bvh_hit, bf_hit)
+
+        # For hits, t values should match
+        for i in range(len(origins)):
+            if bvh_hit[i]:
+                np.testing.assert_allclose(
+                    float(bvh_t[i]), float(bf_t[i]), atol=1e-4
+                )
+
+    def test_random_scene_many_rays(self, random_scene):
+        bvh = TriangleBvh(random_scene)
+
+        key = jax.random.PRNGKey(123)
+        k1, k2 = jax.random.split(key)
+        origins = jax.random.uniform(k1, (100, 3), minval=-2.0, maxval=12.0)
+        dirs = jax.random.normal(k2, (100, 3))
+        dirs = dirs / jnp.linalg.norm(dirs, axis=-1, keepdims=True)
+
+        bvh_idx, bvh_t = bvh_first_triangles_hit_by_rays(
+            origins, dirs, random_scene, bvh=bvh
+        )
+        bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, random_scene)
+
+        bvh_hit = np.asarray(bvh_idx) >= 0
+        bf_hit = np.asarray(bf_idx) >= 0
+        np.testing.assert_array_equal(bvh_hit, bf_hit)
+
+        hit_mask = bvh_hit & bf_hit
+        np.testing.assert_allclose(
+            np.asarray(bvh_t)[hit_mask],
+            np.asarray(bf_t)[hit_mask],
+            atol=1e-4,
+        )
+
+    def test_fallback_without_bvh(self, single_triangle):
+        """Without bvh parameter, falls back to brute force."""
+        origins = jnp.array([[0.1, 0.1, 1.0]])
+        dirs = jnp.array([[0.0, 0.0, -1.0]])
+
+        idx, t = bvh_first_triangles_hit_by_rays(
+            origins, dirs, single_triangle, bvh=None
+        )
+        assert int(idx[0]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Any-triangle intersection: BVH vs brute force
+# ---------------------------------------------------------------------------
+
+
+class TestAnyIntersection:
+    def test_hard_mode(self, three_triangles):
+        bvh = TriangleBvh(three_triangles)
+        # Ray from above, hits triangle at z=2
+        origins = jnp.array([[0.1, 0.1, 3.0]])
+        dirs = jnp.array([[0.0, 0.0, -1.0]])
+
+        bvh_any = bvh_rays_intersect_any_triangle(
+            origins, dirs, three_triangles, bvh=bvh
+        )
+        bf_any = rays_intersect_any_triangle(origins, dirs, three_triangles)
+
+        assert bool(bvh_any[0]) == bool(bf_any[0])
+
+    def test_hard_mode_miss(self, three_triangles):
+        bvh = TriangleBvh(three_triangles)
+        origins = jnp.array([[0.1, 0.1, 3.0]])
+        dirs = jnp.array([[0.0, 0.0, 1.0]])  # pointing away
+
+        bvh_any = bvh_rays_intersect_any_triangle(
+            origins, dirs, three_triangles, bvh=bvh
+        )
+        bf_any = rays_intersect_any_triangle(origins, dirs, three_triangles)
+
+        assert bool(bvh_any[0]) == bool(bf_any[0]) == False  # noqa: E712
+
+    @pytest.mark.parametrize("smoothing_factor", [1.0, 10.0, 100.0])
+    def test_soft_mode_matches_brute_force(
+        self, three_triangles, smoothing_factor
+    ):
+        bvh = TriangleBvh(three_triangles)
+        origins = jnp.array([[0.1, 0.1, 3.0]])
+        dirs = jnp.array([[0.0, 0.0, -1.0]])
+
+        bvh_soft = bvh_rays_intersect_any_triangle(
+            origins,
+            dirs,
+            three_triangles,
+            smoothing_factor=smoothing_factor,
+            bvh=bvh,
+        )
+        bf_soft = rays_intersect_any_triangle(
+            origins,
+            dirs,
+            three_triangles,
+            smoothing_factor=smoothing_factor,
+        )
+
+        np.testing.assert_allclose(
+            float(bvh_soft[0]), float(bf_soft[0]), atol=1e-3
+        )
+
+    def test_soft_mode_random_scene(self, random_scene):
+        bvh = TriangleBvh(random_scene)
+        key = jax.random.PRNGKey(456)
+        k1, k2 = jax.random.split(key)
+        origins = jax.random.uniform(k1, (20, 3), minval=0.0, maxval=10.0)
+        dirs = jax.random.normal(k2, (20, 3))
+        dirs = dirs / jnp.linalg.norm(dirs, axis=-1, keepdims=True)
+
+        bvh_soft = bvh_rays_intersect_any_triangle(
+            origins,
+            dirs,
+            random_scene,
+            smoothing_factor=10.0,
+            bvh=bvh,
+            max_candidates=256,
+        )
+        bf_soft = rays_intersect_any_triangle(
+            origins, dirs, random_scene, smoothing_factor=10.0
+        )
+
+        np.testing.assert_allclose(
+            np.asarray(bvh_soft), np.asarray(bf_soft), atol=1e-2
+        )
+
+    def test_fallback_without_bvh(self, three_triangles):
+        # Ray from z=3 to z=-2 (length 5), triangle at z=2 is at t=0.2
+        origins = jnp.array([[0.1, 0.1, 3.0]])
+        dirs = jnp.array([[0.0, 0.0, -5.0]])
+
+        result = bvh_rays_intersect_any_triangle(
+            origins, dirs, three_triangles, bvh=None
+        )
+        assert bool(result[0])
+
+
+# ---------------------------------------------------------------------------
+# Expansion radius
+# ---------------------------------------------------------------------------
+
+
+class TestExpansionRadius:
+    def test_positive(self):
+        r = compute_expansion_radius(10.0, 1.0, 1e-7)
+        assert r > 0
+
+    def test_decreases_with_smoothing(self):
+        r1 = compute_expansion_radius(1.0, 1.0, 1e-7)
+        r2 = compute_expansion_radius(10.0, 1.0, 1e-7)
+        r3 = compute_expansion_radius(100.0, 1.0, 1e-7)
+        assert r1 > r2 > r3
+
+    def test_scales_with_triangle_size(self):
+        r1 = compute_expansion_radius(10.0, 1.0, 1e-7)
+        r2 = compute_expansion_radius(10.0, 2.0, 1e-7)
+        np.testing.assert_allclose(r2, 2 * r1)
+
+    def test_zero_smoothing(self):
+        r = compute_expansion_radius(0.0, 1.0, 1e-7)
+        assert r == float("inf")

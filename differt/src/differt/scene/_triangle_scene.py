@@ -808,6 +808,23 @@ class TriangleScene(eqx.Module):
             ),
         )
 
+    def build_bvh(self):
+        """Build a BVH acceleration structure for the scene's triangle mesh.
+
+        Returns:
+            A :class:`~differt.accel.TriangleBvh` instance.
+
+        Example:
+            >>> from differt.scene import TriangleScene
+            >>> scene = TriangleScene.load_xml("differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml")
+            >>> bvh = scene.build_bvh()
+            >>> bvh.num_triangles == scene.mesh.num_triangles
+            True
+        """
+        from differt.accel import TriangleBvh
+
+        return TriangleBvh(self.mesh.triangle_vertices)
+
     @overload
     def compute_paths(
         self,
