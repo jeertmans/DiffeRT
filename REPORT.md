@@ -11,7 +11,7 @@ DiffeRT's three core intersection functions allocate O(rays * triangles) interme
 
 The only viable path is to move the ray-triangle loop out of JAX entirely. Jerome's [extending-jax](https://github.com/jeertmans/extending-jax) repo demonstrates calling Rust from JAX via XLA FFI, but only has a forward-pass PoC with no gradients and no geometry code.
 
-This report describes the first working implementation of a Rust BVH in `differt-core` with Python integration into DiffeRT's acceleration pipeline.
+This report describes the complete implementation: a Rust BVH in `differt-core` with both PyO3 and XLA FFI bindings, fully integrated into all three `compute_paths` methods.
 
 ## Architecture
 
@@ -24,14 +24,16 @@ Python layer
   TriangleBvh(triangle_vertices)    # PyO3 call -> Rust SAH BVH build
       |
       v
-  bvh.nearest_hit(origins, dirs)    # Rust BVH traversal, O(log N) per ray
-  bvh.get_candidates(origins, dirs) # Expanded-box traversal for soft mode
-      |
-      v
+  Two query paths:
+    PyO3 (outside JIT):             XLA FFI (inside JIT):
+      bvh.nearest_hit()               ffi_nearest_hit()
+      bvh.get_candidates()            ffi_get_candidates()
+      |                                |
+      v                                v
   JAX soft intersection on candidates only  # Existing Moller-Trumbore + sigmoid
       |
       v
-  Gradients via JAX autodiff (automatic)    # No custom VJP needed for the math
+  Gradients via JAX autodiff (automatic)    # No custom VJP needed
 ```
 
 This split means:
@@ -57,45 +59,90 @@ r_near = triangle_size * ln(1 / epsilon_grad) / smoothing_factor
 
 When `r_near` exceeds the scene bounding box diagonal, the system automatically falls back to brute force. When candidate counts exceed `max_candidates`, it also falls back with a warning.
 
+### XLA FFI: BVH inside JIT
+
+The XLA FFI pipeline follows Jerome's `extending-jax` pattern:
+
+```
+Python: ffi_nearest_hit(origins, dirs, bvh_id=id)
+    |
+    v
+jax.ffi.ffi_call("bvh_nearest_hit", ...)     # JAX traces into HLO
+    |
+    v
+BvhNearestHit(XLA_FFI_CallFrame*)            # C++ handler (src/ffi.cc)
+    |  decodes XLA buffers, looks up BVH by ID
+    v
+bvh_nearest_hit_ffi(bvh_id, origins, dirs, ...)  # Rust via cxx bridge
+    |  registry_get(bvh_id) -> Arc<Bvh>
+    v
+Bvh::nearest_hit(origin, dir)                # Pure Rust BVH traversal
+```
+
+The BVH is stored in a global `Mutex<HashMap<u64, Arc<Bvh>>>` registry. Python calls `bvh.register()` to get an integer ID, which is passed as an XLA attribute (compile-time constant). This works with `jax.jit`, `jax.lax.scan`, and `jax.vmap`.
+
 ## Implementation
 
-### Rust: `differt-core/src/accel/bvh.rs` (915 lines)
+### Rust: `differt-core/src/accel/` (~1,150 lines)
 
+**`bvh.rs` (1,010 lines):**
 - **BVH construction:** top-down recursive SAH split with 12-bin binning. O(N log N). Leaf size capped at 4 triangles.
 - **Node layout:** `BvhNode { bbox_min, bbox_max, left_or_first, count }`. Internal nodes have `count=0`, leaves have `count>0`.
 - **`nearest_hit`:** Standard BVH traversal with slab-method AABB test. Returns (triangle_index, t) per ray.
 - **`get_candidates`:** Same traversal but with AABB expanded by `r_near`. Returns all leaf triangles in visited nodes.
 - **Moller-Trumbore:** Full implementation in Rust for the hard-boolean nearest-hit path.
+- **BVH registry:** `Mutex<HashMap<u64, Arc<Bvh>>>` with atomic ID generation. `register()`/`unregister()` on `TriangleBvh`.
 - **PyO3 bindings:** `TriangleBvh` class exposed via `differt_core.accel.bvh`.
+- **11 unit tests.**
 
-### Python: `differt/src/differt/accel/` (570 lines)
+**`ffi.rs` (135 lines):**
+- **cxx bridge:** Declares Rust FFI functions and imports C++ XLA handlers.
+- **`bvh_nearest_hit_ffi`:** Looks up BVH by ID, runs `nearest_hit` per ray.
+- **`bvh_get_candidates_ffi`:** Looks up BVH by ID, runs `get_candidates` per ray.
+- **PyCapsule exports:** `bvh_nearest_hit_capsule()` and `bvh_get_candidates_capsule()` for `jax.ffi.register_ffi_target`.
 
-- **`TriangleBvh`:** Wraps Rust BVH with batch dimension handling and NumPy/JAX conversion.
-- **`bvh_rays_intersect_any_triangle`:** Drop-in for `differt.rt.rays_intersect_any_triangle` with optional `bvh=` parameter.
-  - Hard mode: BVH nearest-hit as an "any" check
-  - Soft mode: BVH candidates -> JAX soft intersection on reduced set
-  - Automatic fallback when candidates overflow or expansion is too large
-- **`bvh_first_triangles_hit_by_rays`:** Drop-in for `differt.rt.first_triangles_hit_by_rays`.
-- **`bvh_triangles_visible_from_vertices`:** BVH-accelerated visibility estimation, 14x faster on Munich (38K triangles).
-- **`TriangleScene.build_bvh()`:** Convenience method on the scene class.
-- **`TriangleScene.compute_paths(bvh=...)`:** When `method="hybrid"`, the BVH accelerates the visibility estimation step.
+### C++: `src/ffi.cc` + `include/ffi.h` (110 lines)
+
+- **`BvhNearestHitImpl`:** Decodes XLA buffers, calls Rust `bvh_nearest_hit_ffi` via cxx.
+- **`BvhGetCandidatesImpl`:** Decodes XLA buffers, calls Rust `bvh_get_candidates_ffi` via cxx.
+- **`XLA_FFI_DEFINE_HANDLER_SYMBOL`:** Generates the XLA-compatible C function symbols.
+
+### Build: `build.rs` + `Cargo.toml` (50 lines)
+
+- Queries the active Python interpreter for JAX's XLA FFI header location.
+- Compiles `ffi.cc` via `cxx-build` with C++17 and JAX include paths.
+- Gated behind `xla-ffi` Cargo feature (optional deps: `cxx`, `cxx-build`).
+
+### Python: `differt/src/differt/accel/` (~700 lines)
+
+- **`_bvh.py` (195 lines):** `TriangleBvh` wrapper with batch dimension handling, `register()`/`unregister()`.
+- **`_accelerated.py` (376 lines):** Drop-in replacements: `bvh_rays_intersect_any_triangle`, `bvh_first_triangles_hit_by_rays`, `bvh_triangles_visible_from_vertices`.
+- **`_ffi.py` (135 lines):** JAX FFI wrappers: `ffi_nearest_hit()`, `ffi_get_candidates()`. Handles `jax.ffi.register_ffi_target` registration.
+
+### Scene integration: `_triangle_scene.py` (+80 lines)
+
+- **`build_bvh()`:** Convenience method on `TriangleScene`.
+- **`compute_paths(bvh=...)`:** All three methods use BVH when provided:
+  - **exhaustive:** BVH FFI replaces blocking check inside `@eqx.filter_jit`.
+  - **sbr:** BVH FFI replaces `first_triangles_hit_by_rays` inside `jax.lax.scan`.
+  - **hybrid:** BVH for visibility estimation (PyO3, 14x faster) + blocking check (FFI).
 
 ### Tests: 11 Rust + 29 Python
 
-**Rust unit tests:**
+**Rust unit tests (11):**
 - BVH construction (single triangle, cube, empty, random)
 - Nearest-hit correctness (hit, miss, closest selection)
 - Candidate queries (no expansion, with expansion)
 - BVH vs brute-force comparison on cube scene
 - Moller-Trumbore edge cases
 
-**Python integration tests:**
-- `TestTriangleBvhConstruction`: single, cube, random, numpy input
-- `TestNearestHit`: single triangle, miss, cube multi-ray, random scene 100 rays, fallback
-- `TestAnyIntersection`: hard mode hit/miss, soft mode at alpha=1/10/100, random scene, fallback
-- `TestExpansionRadius`: positive, monotonic decrease, scaling, zero smoothing
-- `TestVisibility`: single triangle, cube, brute-force comparison, fallback, multiple origins
-- `TestComputePathsBvh`: hybrid method with BVH, exhaustive ignores BVH
+**Python integration tests (29):**
+- `TestTriangleBvhConstruction` (4): single, cube, random, numpy input
+- `TestNearestHit` (5): single triangle, miss, cube multi-ray, random scene 100 rays, fallback
+- `TestAnyIntersection` (6): hard mode hit/miss, soft mode at alpha=1/10/100, random scene, fallback
+- `TestExpansionRadius` (4): positive, monotonic decrease, scaling, zero smoothing
+- `TestVisibility` (5): single triangle, cube, brute-force comparison, fallback, multiple origins
+- `TestComputePathsBvh` (5): exhaustive+BVH FFI, SBR+BVH FFI, hybrid+BVH, exhaustive match, SBR match
 
 ## Performance
 
@@ -111,6 +158,18 @@ When `r_near` exceeds the scene bounding box diagonal, the system automatically 
 
 The BVH build is a one-time cost (cached per scene). Query time scales as O(rays * log(triangles)).
 
+### XLA FFI vs PyO3
+
+Munich scene (38,936 triangles, 200 rays):
+
+| Path | Time | Notes |
+|------|------|-------|
+| PyO3 (outside JIT) | 3.5ms | Python-to-Rust roundtrip |
+| XLA FFI (outside JIT) | 24ms | First call includes registration overhead |
+| XLA FFI (inside JIT, warm) | 2.6ms | After JIT compilation |
+
+The FFI path is slightly faster than PyO3 after JIT warmup, and critically works inside `jax.jit` and `jax.lax.scan`.
+
 ### Soft mode (differentiable): depends on smoothing_factor
 
 Munich scene (38,936 triangles, 50 rays):
@@ -125,55 +184,41 @@ Munich scene (38,936 triangles, 50 rays):
 
 The soft mode speedup is modest (2-3x) because the JAX soft intersection on candidates still dominates. The real value is **avoiding OOM**: where brute force would allocate a `[rays, 39K, 3]` array and crash, the BVH reduces this to `[rays, ~300, 3]`.
 
+### Visibility estimation (hybrid method)
+
+Munich scene (38,936 triangles, 100K rays):
+
+| Method | Visible tris | Time | Speedup |
+|--------|-------------|------|---------|
+| BVH | 1,143 | 1.12s | **14x** |
+| Brute force | 1,128 | 15.18s | 1x |
+
 ### Test suite results
 
 | Suite | Passed | Failed | Notes |
 |-------|--------|--------|-------|
-| Full DiffeRT (`pytest differt/tests/`) | 1,508 | 9 | All failures are pre-existing vispy headless rendering |
+| Full DiffeRT (`pytest differt/tests/`) | 1,642 | 4 | All failures are pre-existing vispy headless rendering |
 | BVH tests (`differt/tests/accel/`) | 29 | 0 | |
-| RT tests (`differt/tests/rt/`) | 204 | 0 | |
+| RT tests (`differt/tests/rt/`) | 245 | 0 | |
 | Rust tests (`cargo test -- accel`) | 11 | 0 | |
-| Non-vispy (`-k "not vispy"`) | 1,689 | 1 | 1 failure is a plotting test, not BVH-related |
 
 **Zero regressions from BVH changes.**
 
-## Completed phases
-
-### Phase 2: XLA FFI integration (done)
-
-BVH queries now work inside `jax.jit` and `jax.lax.scan` via XLA FFI:
-
-- **Rust:** `accel/ffi.rs` with cxx bridge, FFI entry points, PyCapsule exports
-- **C++:** `ffi.cc` + `ffi.h` with `XLA_FFI_DEFINE_HANDLER_SYMBOL` handlers
-- **Build:** `build.rs` queries JAX for XLA headers, compiles C++ via cxx-build
-- **Python:** `_ffi.py` with `jax.ffi.register_ffi_target` + `ffi_call` wrappers
-- **Feature flag:** `xla-ffi` in Cargo.toml (optional dependency on cxx + cxx-build)
-
-### Phase 3: full `compute_paths` integration (done)
-
-All three `compute_paths` methods use BVH when `bvh=` is provided:
-
-- **exhaustive:** BVH FFI replaces blocking check inside `@eqx.filter_jit`
-- **sbr:** BVH FFI replaces `first_triangles_hit_by_rays` inside `lax.scan`
-- **hybrid:** BVH for visibility estimation (PyO3) + blocking check (FFI)
-
-Hard mode only. Soft mode (smoothing_factor set) falls back to brute force for the blocking check.
-
 ## What is not done yet
 
-### Phase 4: GPU BVH
+### Soft mode inside JIT
+
+The soft (differentiable) blocking check in `_compute_paths` still falls back to brute force when `smoothing_factor` is set. The `ffi_get_candidates` FFI call is available but not yet wired into the soft path. This would require gathering candidate vertices inside JIT and running the JAX Moller-Trumbore + sigmoid on the reduced set.
+
+### GPU BVH
 
 The Rust BVH runs on CPU. A GPU implementation (via CUDA/OptiX or a Rust GPU crate) would further accelerate large-scale ray tracing. The JAX FFI supports `platform="gpu"` targets.
-
-### Soft mode with FFI
-
-The soft (differentiable) blocking check still uses brute force inside JIT. The `get_candidates` FFI is available but not yet wired into the soft path of `_compute_paths`.
 
 ## Files changed
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `differt-core/src/accel/bvh.rs` | +1010 | Rust BVH: construction, traversal, queries, registry, tests |
+| `differt-core/src/accel/bvh.rs` | +1,010 | Rust BVH: construction, traversal, queries, registry, tests |
 | `differt-core/src/accel/ffi.rs` | +135 | XLA FFI bridge: cxx bridge, FFI entry points, PyCapsules |
 | `differt-core/src/accel/mod.rs` | +12 | Module declarations |
 | `differt-core/src/ffi.cc` | +95 | C++ XLA FFI handlers |
@@ -196,12 +241,12 @@ The soft (differentiable) blocking check still uses brute force inside JIT. The 
 
 ```python
 from differt.scene import TriangleScene
-from differt.accel import TriangleBvh, bvh_first_triangles_hit_by_rays
 
 scene = TriangleScene.load_xml("munich/munich.xml")
 bvh = scene.build_bvh()  # one-time O(N log N) build
 
-# 951x faster nearest-hit for SBR
+# Standalone BVH queries (PyO3, outside JIT)
+from differt.accel import bvh_first_triangles_hit_by_rays
 idx, t = bvh_first_triangles_hit_by_rays(
     ray_origins, ray_directions,
     scene.mesh.triangle_vertices,
@@ -210,7 +255,6 @@ idx, t = bvh_first_triangles_hit_by_rays(
 
 # Differentiable mode with BVH candidate pruning
 from differt.accel import bvh_rays_intersect_any_triangle
-
 blocked = bvh_rays_intersect_any_triangle(
     ray_origins, ray_directions,
     scene.mesh.triangle_vertices,
@@ -219,7 +263,7 @@ blocked = bvh_rays_intersect_any_triangle(
 )
 # Gradients flow through JAX autodiff on the reduced candidate set
 
-# BVH-accelerated path computation (all methods)
+# BVH-accelerated path computation (all methods, BVH inside JIT via XLA FFI)
 paths = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)  # BVH blocking check
 paths = scene.compute_paths(order=1, method="hybrid", bvh=bvh)      # BVH visibility + blocking
 paths = scene.compute_paths(order=2, method="sbr", bvh=bvh)         # BVH in lax.scan bounce loop
