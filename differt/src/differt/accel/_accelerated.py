@@ -106,12 +106,8 @@ def bvh_rays_intersect_any_triangle(
         # Apply active_triangles filter
         if active_triangles is not None:
             active = np.asarray(active_triangles).flatten()
-            # Check if the hit triangle is active
-            valid_hit = np.zeros_like(any_hit)
-            for i in range(len(hit_indices)):
-                if any_hit[i] and active[hit_indices[i]]:
-                    valid_hit[i] = True
-            any_hit = valid_hit
+            safe_idx = np.maximum(hit_indices, 0)
+            any_hit = any_hit & active[safe_idx]
 
         return jnp.asarray(any_hit.reshape(batch_shape))
 
@@ -377,16 +373,17 @@ def bvh_first_triangles_hit_by_rays(
     hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs)
 
     # Apply active_triangles filter: if the nearest hit is an inactive triangle,
-    # we need to find the next hit. For simplicity, we mark it as a miss.
-    # A more complete implementation would re-query excluding inactive triangles.
+    # mark it as a miss. A more complete implementation would re-query
+    # excluding inactive triangles.
     if active_triangles is not None:
         active = np.asarray(active_triangles)
         if active.ndim > 1:
             active = active.flatten()
-        for i in range(len(hit_indices)):
-            if hit_indices[i] >= 0 and not active[hit_indices[i]]:
-                hit_indices[i] = -1
-                hit_t[i] = float("inf")
+        has_hit = hit_indices >= 0
+        safe_idx = np.maximum(hit_indices, 0)
+        inactive_hit = has_hit & ~active[safe_idx]
+        hit_indices[inactive_hit] = -1
+        hit_t[inactive_hit] = float("inf")
 
     return (
         jnp.asarray(hit_indices.reshape(batch_shape)),
