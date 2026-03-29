@@ -11,6 +11,7 @@ Submodules
 .. toctree::
    :maxdepth: 1
 
+   differt.accel
    differt.em
    differt.geometry
    differt.plotting
