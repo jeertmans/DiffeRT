@@ -13,7 +13,7 @@ __all__ = (
     "ffi_nearest_hit",
 )
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jax
 import jax.numpy as jnp
@@ -65,7 +65,7 @@ def ffi_nearest_hit(
     *,
     bvh_id: int,
     active_mask: Array | None = None,
-) -> list:
+) -> Any:
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
     Args:
@@ -116,7 +116,7 @@ def ffi_get_candidates(
     bvh_id: int,
     expansion: float = 0.0,
     max_candidates: int = 256,
-) -> list:
+) -> Any:
     """BVH candidate selection via XLA FFI. Works inside ``jax.jit``.
 
     Args:
