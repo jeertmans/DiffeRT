@@ -3,8 +3,9 @@
 //! This module provides the cxx bridge between Rust BVH queries and
 //! C++ XLA FFI handlers, enabling BVH queries inside JIT-compiled JAX functions.
 
-use super::bvh::{Vec3, registry_get};
 use pyo3::prelude::*;
+
+use super::bvh::{Vec3, registry_get};
 
 #[cxx::bridge]
 mod ffi_bridge {

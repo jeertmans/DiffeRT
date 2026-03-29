@@ -112,7 +112,7 @@ def bvh_rays_intersect_any_triangle(
         return jnp.asarray(any_hit.reshape(batch_shape))
 
     # Soft/differentiable mode: BVH candidate selection + JAX soft intersection
-    alpha = float(smoothing_factor)
+    alpha = float(smoothing_factor)  # type: ignore[arg-type]
 
     # Estimate triangle size for expansion radius
     tri_np = np.asarray(triangle_vertices_jnp)
