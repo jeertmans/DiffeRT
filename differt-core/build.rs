@@ -19,29 +19,39 @@ fn main() {
                 "-c",
                 "from jax.ffi import include_dir; print(include_dir())",
             ])
-            .output()
-            .expect("Failed to run python to find JAX include dir. Is JAX installed?");
+            .output();
 
-        let include_path = String::from_utf8(output.stdout)
-            .expect("Invalid UTF-8 from JAX include_dir()")
-            .trim()
-            .to_string();
+        let include_path = match output {
+            Ok(ref out) if out.status.success() => {
+                let path = String::from_utf8(out.stdout.clone())
+                    .expect("Invalid UTF-8 from JAX include_dir()")
+                    .trim()
+                    .to_string();
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(path)
+                }
+            }
+            _ => None,
+        };
 
-        if include_path.is_empty() {
-            panic!(
-                "JAX include directory is empty. JAX >= 0.8.0 is required.\nstderr: {}",
-                String::from_utf8_lossy(&output.stderr)
+        if let Some(include_path) = include_path {
+            println!("cargo:rerun-if-changed=src/ffi.cc");
+            println!("cargo:rerun-if-changed=include/ffi.h");
+
+            cxx_build::bridge("src/accel/ffi.rs")
+                .file("src/ffi.cc")
+                .std("c++17")
+                .include(&include_path)
+                .include("include")
+                .compile("differt-ffi");
+        } else {
+            println!(
+                "cargo:warning=JAX not found or missing jax.ffi.include_dir(). \
+                 XLA FFI shim will not be compiled. \
+                 Install JAX >= 0.8.0 to enable XLA FFI support."
             );
         }
-
-        println!("cargo:rerun-if-changed=src/ffi.cc");
-        println!("cargo:rerun-if-changed=include/ffi.h");
-
-        cxx_build::bridge("src/accel/ffi.rs")
-            .file("src/ffi.cc")
-            .std("c++17")
-            .include(&include_path)
-            .include("include")
-            .compile("differt-ffi");
     }
 }

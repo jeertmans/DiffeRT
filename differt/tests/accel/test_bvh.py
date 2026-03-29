@@ -693,22 +693,15 @@ class TestFfiRegistration:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Missing xla-ffi feature raises ImportError with helpful message."""
+        import sys  # noqa: PLC0415
+
         import differt.accel._ffi as ffi_mod  # noqa: PLC0415
 
         monkeypatch.setattr(ffi_mod, "_FFI_REGISTERED", False)
 
-        # Patch the differt_core module to simulate missing xla-ffi
-        import types  # noqa: PLC0415
-
-        fake_core = types.ModuleType("differt_core._differt_core")
-        fake_accel = types.ModuleType("differt_core._differt_core.accel")
-        fake_bvh = types.ModuleType("differt_core._differt_core.accel.bvh")
-        # Remove the capsule attributes so getattr fails
-        fake_accel.bvh = fake_bvh
-        fake_core.accel = fake_accel
-        monkeypatch.setitem(
-            __import__("sys").modules, "differt_core._differt_core", fake_core
-        )
+        # Remove differt_core._differt_core from sys.modules so the import fails
+        monkeypatch.delitem(sys.modules, "differt_core._differt_core", raising=False)
+        monkeypatch.setitem(sys.modules, "differt_core._differt_core", None)
 
         with pytest.raises(ImportError, match="BVH XLA FFI not available"):
             ffi_mod._ensure_registered()
