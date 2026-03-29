@@ -27,12 +27,8 @@ fn main() {
                     .expect("Invalid UTF-8 from JAX include_dir()")
                     .trim()
                     .to_string();
-                if path.is_empty() {
-                    None
-                } else {
-                    Some(path)
-                }
-            }
+                if path.is_empty() { None } else { Some(path) }
+            },
             _ => None,
         };
 

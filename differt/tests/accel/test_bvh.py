@@ -509,13 +509,9 @@ class TestBatchedRays:
         """nearest_hit with ndim > 2 triggers the reshape branch."""
         bvh = TriangleBvh(single_triangle)
         # Shape (2, 1, 3) -- batch dimension
-        origins = jnp.array(
-            [[[0.1, 0.1, 1.0]], [[0.1, 0.1, 1.0]]], dtype=jnp.float32
-        )
-        dirs = jnp.array(
-            [[[0.0, 0.0, -1.0]], [[0.0, 0.0, 1.0]]], dtype=jnp.float32
-        )
-        idx, t = bvh.nearest_hit(origins, dirs)
+        origins = jnp.array([[[0.1, 0.1, 1.0]], [[0.1, 0.1, 1.0]]], dtype=jnp.float32)
+        dirs = jnp.array([[[0.0, 0.0, -1.0]], [[0.0, 0.0, 1.0]]], dtype=jnp.float32)
+        idx, _t = bvh.nearest_hit(origins, dirs)
         assert idx.shape == (2, 1)
         assert int(idx[0, 0]) == 0  # hit
         assert int(idx[1, 0]) == -1  # miss (pointing away)
@@ -523,12 +519,8 @@ class TestBatchedRays:
     def test_get_candidates_3d_origins(self, single_triangle: jax.Array) -> None:
         """get_candidates with ndim > 2 triggers the reshape branch."""
         bvh = TriangleBvh(single_triangle)
-        origins = jnp.array(
-            [[[0.1, 0.1, 1.0]], [[5.0, 5.0, 1.0]]], dtype=jnp.float32
-        )
-        dirs = jnp.array(
-            [[[0.0, 0.0, -1.0]], [[0.0, 0.0, -1.0]]], dtype=jnp.float32
-        )
+        origins = jnp.array([[[0.1, 0.1, 1.0]], [[5.0, 5.0, 1.0]]], dtype=jnp.float32)
+        dirs = jnp.array([[[0.0, 0.0, -1.0]], [[0.0, 0.0, -1.0]]], dtype=jnp.float32)
         max_cands = 8
         idx, counts = bvh.get_candidates(
             origins, dirs, expansion=0.0, max_candidates=max_cands
@@ -573,9 +565,7 @@ class TestAcceleratedBranches:
         )
         np.testing.assert_allclose(float(result[0]), float(bf_result[0]), atol=1e-3)
 
-    def test_soft_mode_max_candidates_exceeded(
-        self, random_scene: jax.Array
-    ) -> None:
+    def test_soft_mode_max_candidates_exceeded(self, random_scene: jax.Array) -> None:
         """max_candidates=1 with many overlapping triangles -> warning + fallback."""
         bvh = TriangleBvh(random_scene)
         key = jax.random.PRNGKey(789)
@@ -595,9 +585,7 @@ class TestAcceleratedBranches:
             )
         assert result.shape == (10,)
 
-    def test_hard_mode_with_active_triangles(
-        self, three_triangles: jax.Array
-    ) -> None:
+    def test_hard_mode_with_active_triangles(self, three_triangles: jax.Array) -> None:
         """active_triangles mask in hard mode for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         # Ray from z=3 pointing down with length 5 (t < 1 for triangles at z=2 and z=0)
@@ -618,9 +606,7 @@ class TestAcceleratedBranches:
         )
         assert not bool(result_far[0])
 
-    def test_soft_mode_with_active_triangles(
-        self, three_triangles: jax.Array
-    ) -> None:
+    def test_soft_mode_with_active_triangles(self, three_triangles: jax.Array) -> None:
         """active_triangles mask in soft mode for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
@@ -638,9 +624,7 @@ class TestAcceleratedBranches:
         assert result.shape == (1,)
         assert float(result[0]) > 0  # should detect the hit
 
-    def test_first_hit_with_active_triangles(
-        self, three_triangles: jax.Array
-    ) -> None:
+    def test_first_hit_with_active_triangles(self, three_triangles: jax.Array) -> None:
         """active_triangles mask for bvh_first_triangles_hit_by_rays."""
         bvh = TriangleBvh(three_triangles)
         # Ray from z=3 pointing down: nearest active hit changes with mask
@@ -655,9 +639,7 @@ class TestAcceleratedBranches:
         assert int(idx[0]) == 0  # nearest active is z=0
         np.testing.assert_allclose(float(t[0]), 0.6, atol=1e-4)  # 3.0/5.0
 
-    def test_visibility_with_active_triangles(
-        self, single_triangle: jax.Array
-    ) -> None:
+    def test_visibility_with_active_triangles(self, single_triangle: jax.Array) -> None:
         """active_triangles mask for bvh_triangles_visible_from_vertices."""
         bvh = TriangleBvh(single_triangle)
         origin = jnp.array([0.3, 0.3, 1.0])
@@ -681,13 +663,15 @@ class TestAcceleratedBranches:
 
 
 class TestFfiRegistration:
-    def test_ensure_registered_idempotent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_ensure_registered_idempotent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Second call to _ensure_registered short-circuits."""
         import differt.accel._ffi as ffi_mod  # noqa: PLC0415
 
         monkeypatch.setattr(ffi_mod, "_FFI_REGISTERED", True)
         # Should return immediately without touching differt_core
-        ffi_mod._ensure_registered()
+        ffi_mod._ensure_registered()  # noqa: SLF001
 
     def test_ensure_registered_import_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -704,7 +688,7 @@ class TestFfiRegistration:
         monkeypatch.setitem(sys.modules, "differt_core._differt_core", None)
 
         with pytest.raises(ImportError, match="BVH XLA FFI not available"):
-            ffi_mod._ensure_registered()
+            ffi_mod._ensure_registered()  # noqa: SLF001
 
 
 # ---------------------------------------------------------------------------
