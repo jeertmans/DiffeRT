@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
 from differt.accel import TriangleBvh
 from differt.accel._accelerated import (
     bvh_first_triangles_hit_by_rays,
@@ -20,21 +21,18 @@ from differt.rt._utils import (
     rays_intersect_any_triangle,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def single_triangle():
-    return jnp.array(
-        [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
-    )
+@pytest.fixture
+def single_triangle() -> jax.Array:
+    return jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
 
 
-@pytest.fixture()
-def three_triangles():
+@pytest.fixture
+def three_triangles() -> jax.Array:
     """Three triangles at different z-planes."""
     return jnp.array(
         [
@@ -46,8 +44,8 @@ def three_triangles():
     )
 
 
-@pytest.fixture()
-def cube_scene():
+@pytest.fixture
+def cube_scene() -> jax.Array:
     """12-triangle unit cube."""
     faces = [
         ([0, 0, 1], [1, 0, 1], [1, 1, 1]),
@@ -66,12 +64,11 @@ def cube_scene():
     return jnp.array(faces, dtype=jnp.float32)
 
 
-@pytest.fixture()
-def random_scene():
+@pytest.fixture
+def random_scene() -> jax.Array:
     """50 random triangles in a 10x10x10 box."""
     key = jax.random.PRNGKey(42)
-    verts = jax.random.uniform(key, (50, 3, 3), minval=0.0, maxval=10.0)
-    return verts
+    return jax.random.uniform(key, (50, 3, 3), minval=0.0, maxval=10.0)
 
 
 # ---------------------------------------------------------------------------
@@ -80,23 +77,21 @@ def random_scene():
 
 
 class TestTriangleBvhConstruction:
-    def test_single_triangle(self, single_triangle):
+    def test_single_triangle(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
         assert bvh.num_triangles == 1
         assert bvh.num_nodes >= 1
 
-    def test_cube(self, cube_scene):
+    def test_cube(self, cube_scene: jax.Array) -> None:
         bvh = TriangleBvh(cube_scene)
         assert bvh.num_triangles == 12
 
-    def test_random(self, random_scene):
+    def test_random(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
         assert bvh.num_triangles == 50
 
-    def test_numpy_input(self):
-        verts = np.array(
-            [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32
-        )
+    def test_numpy_input(self) -> None:
+        verts = np.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32)
         bvh = TriangleBvh(verts)
         assert bvh.num_triangles == 1
 
@@ -107,7 +102,7 @@ class TestTriangleBvhConstruction:
 
 
 class TestNearestHit:
-    def test_single_triangle_hit(self, single_triangle):
+    def test_single_triangle_hit(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
         origins = jnp.array([[0.1, 0.1, 1.0]])
         dirs = jnp.array([[0.0, 0.0, -1.0]])
@@ -120,19 +115,19 @@ class TestNearestHit:
         assert int(bvh_idx[0]) == int(bf_idx[0])
         np.testing.assert_allclose(float(bvh_t[0]), float(bf_t[0]), atol=1e-4)
 
-    def test_single_triangle_miss(self, single_triangle):
+    def test_single_triangle_miss(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
         origins = jnp.array([[0.1, 0.1, 1.0]])
         dirs = jnp.array([[0.0, 0.0, 1.0]])  # pointing away
 
-        bvh_idx, bvh_t = bvh_first_triangles_hit_by_rays(
+        bvh_idx, _bvh_t = bvh_first_triangles_hit_by_rays(
             origins, dirs, single_triangle, bvh=bvh
         )
-        bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, single_triangle)
+        bf_idx, _bf_t = first_triangles_hit_by_rays(origins, dirs, single_triangle)
 
         assert int(bvh_idx[0]) == int(bf_idx[0]) == -1
 
-    def test_cube_multiple_rays(self, cube_scene):
+    def test_cube_multiple_rays(self, cube_scene: jax.Array) -> None:
         bvh = TriangleBvh(cube_scene)
         origins = jnp.array(
             [
@@ -168,11 +163,9 @@ class TestNearestHit:
         # For hits, t values should match
         for i in range(len(origins)):
             if bvh_hit[i]:
-                np.testing.assert_allclose(
-                    float(bvh_t[i]), float(bf_t[i]), atol=1e-4
-                )
+                np.testing.assert_allclose(float(bvh_t[i]), float(bf_t[i]), atol=1e-4)
 
-    def test_random_scene_many_rays(self, random_scene):
+    def test_random_scene_many_rays(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
 
         key = jax.random.PRNGKey(123)
@@ -197,12 +190,12 @@ class TestNearestHit:
             atol=1e-4,
         )
 
-    def test_fallback_without_bvh(self, single_triangle):
+    def test_fallback_without_bvh(self, single_triangle: jax.Array) -> None:
         """Without bvh parameter, falls back to brute force."""
         origins = jnp.array([[0.1, 0.1, 1.0]])
         dirs = jnp.array([[0.0, 0.0, -1.0]])
 
-        idx, t = bvh_first_triangles_hit_by_rays(
+        idx, _t = bvh_first_triangles_hit_by_rays(
             origins, dirs, single_triangle, bvh=None
         )
         assert int(idx[0]) == 0
@@ -214,7 +207,7 @@ class TestNearestHit:
 
 
 class TestAnyIntersection:
-    def test_hard_mode(self, three_triangles):
+    def test_hard_mode(self, three_triangles: jax.Array) -> None:
         bvh = TriangleBvh(three_triangles)
         # Ray from above, hits triangle at z=2
         origins = jnp.array([[0.1, 0.1, 3.0]])
@@ -227,7 +220,7 @@ class TestAnyIntersection:
 
         assert bool(bvh_any[0]) == bool(bf_any[0])
 
-    def test_hard_mode_miss(self, three_triangles):
+    def test_hard_mode_miss(self, three_triangles: jax.Array) -> None:
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, 1.0]])  # pointing away
@@ -241,8 +234,8 @@ class TestAnyIntersection:
 
     @pytest.mark.parametrize("smoothing_factor", [1.0, 10.0, 100.0])
     def test_soft_mode_matches_brute_force(
-        self, three_triangles, smoothing_factor
-    ):
+        self, three_triangles: jax.Array, smoothing_factor: float
+    ) -> None:
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, -1.0]])
@@ -261,11 +254,9 @@ class TestAnyIntersection:
             smoothing_factor=smoothing_factor,
         )
 
-        np.testing.assert_allclose(
-            float(bvh_soft[0]), float(bf_soft[0]), atol=1e-3
-        )
+        np.testing.assert_allclose(float(bvh_soft[0]), float(bf_soft[0]), atol=1e-3)
 
-    def test_soft_mode_random_scene(self, random_scene):
+    def test_soft_mode_random_scene(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
         key = jax.random.PRNGKey(456)
         k1, k2 = jax.random.split(key)
@@ -285,11 +276,9 @@ class TestAnyIntersection:
             origins, dirs, random_scene, smoothing_factor=10.0
         )
 
-        np.testing.assert_allclose(
-            np.asarray(bvh_soft), np.asarray(bf_soft), atol=1e-2
-        )
+        np.testing.assert_allclose(np.asarray(bvh_soft), np.asarray(bf_soft), atol=1e-2)
 
-    def test_fallback_without_bvh(self, three_triangles):
+    def test_fallback_without_bvh(self, three_triangles: jax.Array) -> None:
         # Ray from z=3 to z=-2 (length 5), triangle at z=2 is at t=0.2
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, -5.0]])
@@ -306,22 +295,22 @@ class TestAnyIntersection:
 
 
 class TestExpansionRadius:
-    def test_positive(self):
+    def test_positive(self) -> None:
         r = compute_expansion_radius(10.0, 1.0, 1e-7)
         assert r > 0
 
-    def test_decreases_with_smoothing(self):
+    def test_decreases_with_smoothing(self) -> None:
         r1 = compute_expansion_radius(1.0, 1.0, 1e-7)
         r2 = compute_expansion_radius(10.0, 1.0, 1e-7)
         r3 = compute_expansion_radius(100.0, 1.0, 1e-7)
         assert r1 > r2 > r3
 
-    def test_scales_with_triangle_size(self):
+    def test_scales_with_triangle_size(self) -> None:
         r1 = compute_expansion_radius(10.0, 1.0, 1e-7)
         r2 = compute_expansion_radius(10.0, 2.0, 1e-7)
         np.testing.assert_allclose(r2, 2 * r1)
 
-    def test_zero_smoothing(self):
+    def test_zero_smoothing(self) -> None:
         r = compute_expansion_radius(0.0, 1.0, 1e-7)
         assert r == float("inf")
 
@@ -332,7 +321,7 @@ class TestExpansionRadius:
 
 
 class TestVisibility:
-    def test_single_triangle_visible(self, single_triangle):
+    def test_single_triangle_visible(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
         origin = jnp.array([0.3, 0.3, 1.0])
 
@@ -341,7 +330,7 @@ class TestVisibility:
         )
         assert bool(bvh_vis[0])  # triangle is visible from above
 
-    def test_cube_all_visible(self, cube_scene):
+    def test_cube_all_visible(self, cube_scene: jax.Array) -> None:
         bvh = TriangleBvh(cube_scene)
         origin = jnp.array([0.5, 0.5, 2.0])  # above the cube
 
@@ -351,8 +340,8 @@ class TestVisibility:
         # From above, the top face triangles should be visible
         assert int(bvh_vis.sum()) >= 2  # at least the top face
 
-    def test_matches_brute_force(self, cube_scene):
-        from differt.rt import triangles_visible_from_vertices
+    def test_matches_brute_force(self, cube_scene: jax.Array) -> None:
+        from differt.rt import triangles_visible_from_vertices  # noqa: PLC0415
 
         bvh = TriangleBvh(cube_scene)
         origin = jnp.array([0.5, 0.5, 2.0])
@@ -360,23 +349,21 @@ class TestVisibility:
         bvh_vis = bvh_triangles_visible_from_vertices(
             origin, cube_scene, bvh=bvh, num_rays=10000
         )
-        bf_vis = triangles_visible_from_vertices(
-            origin, cube_scene, num_rays=10000
-        )
+        bf_vis = triangles_visible_from_vertices(origin, cube_scene, num_rays=10000)
 
         # Both should see approximately the same set (statistical)
         bvh_count = int(bvh_vis.sum())
         bf_count = int(bf_vis.sum())
         assert abs(bvh_count - bf_count) <= 2  # allow small difference
 
-    def test_fallback_without_bvh(self, single_triangle):
+    def test_fallback_without_bvh(self, single_triangle: jax.Array) -> None:
         origin = jnp.array([0.3, 0.3, 1.0])
         vis = bvh_triangles_visible_from_vertices(
             origin, single_triangle, bvh=None, num_rays=1000
         )
         assert bool(vis[0])
 
-    def test_multiple_origins(self, cube_scene):
+    def test_multiple_origins(self, cube_scene: jax.Array) -> None:
         bvh = TriangleBvh(cube_scene)
         origins = jnp.array([
             [0.5, 0.5, 2.0],  # above
@@ -396,10 +383,29 @@ class TestVisibility:
 # ---------------------------------------------------------------------------
 
 
+def _has_xla_ffi() -> bool:
+    """Check if differt-core was built with xla-ffi feature."""
+    try:
+        from differt.accel._ffi import _ensure_registered  # noqa: PLC0415
+
+        _ensure_registered()
+    except (ImportError, AttributeError):
+        return False
+    return True
+
+
+_requires_ffi = pytest.mark.skipif(
+    not _has_xla_ffi(),
+    reason="differt-core not built with xla-ffi feature",
+)
+
+
+@_requires_ffi
 class TestComputePathsBvh:
-    def test_hybrid_with_bvh(self):
-        from differt.scene import TriangleScene
-        import equinox as eqx
+    def test_hybrid_with_bvh(self) -> None:
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
 
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
@@ -407,9 +413,7 @@ class TestComputePathsBvh:
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
         )
-        scene = eqx.tree_at(
-            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
-        )
+        scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
         bvh = scene.build_bvh()
 
         paths_bvh = scene.compute_paths(order=1, method="hybrid", bvh=bvh)
@@ -421,10 +425,11 @@ class TestComputePathsBvh:
             np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
         )
 
-    def test_exhaustive_with_bvh_ffi(self):
+    def test_exhaustive_with_bvh_ffi(self) -> None:
         """Exhaustive method uses BVH FFI for blocking check."""
-        from differt.scene import TriangleScene
-        import equinox as eqx
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
 
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
@@ -432,9 +437,7 @@ class TestComputePathsBvh:
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
         )
-        scene = eqx.tree_at(
-            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
-        )
+        scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
         bvh = scene.build_bvh()
 
         # BVH should give same results as brute force for hard mode
@@ -445,28 +448,21 @@ class TestComputePathsBvh:
             np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
         )
 
-    def test_sbr_with_bvh_ffi(self):
+    def test_sbr_with_bvh_ffi(self) -> None:
         """SBR method uses BVH FFI in the bounce loop."""
-        from differt.scene import TriangleScene
-        import equinox as eqx
+        import equinox as eqx  # noqa: PLC0415
 
-        scene = TriangleScene.load_xml(
-            "differt/src/differt/scene/scenes/box/box.xml"
-        )
+        from differt.scene import TriangleScene  # noqa: PLC0415
+
+        scene = TriangleScene.load_xml("differt/src/differt/scene/scenes/box/box.xml")
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 2.0]])
         )
-        scene = eqx.tree_at(
-            lambda s: s.receivers, scene, jnp.array([[0.5, 0.5, -1.0]])
-        )
+        scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[0.5, 0.5, -1.0]]))
         bvh = scene.build_bvh()
 
-        paths_bvh = scene.compute_paths(
-            order=1, method="sbr", bvh=bvh, num_rays=1000
-        )
-        paths_bf = scene.compute_paths(
-            order=1, method="sbr", num_rays=1000
-        )
+        paths_bvh = scene.compute_paths(order=1, method="sbr", bvh=bvh, num_rays=1000)
+        paths_bf = scene.compute_paths(order=1, method="sbr", num_rays=1000)
         # Both should produce SBRPaths with same shape and mostly matching data.
         # Small differences are expected due to different Moller-Trumbore epsilon
         # (BVH uses 1e-8, brute-force uses ~1.2e-6 for f32).
@@ -480,10 +476,11 @@ class TestComputePathsBvh:
         match_frac = np.mean(objs_bvh == objs_bf)
         assert match_frac > 0.95, f"Object indices match only {match_frac:.1%}"
 
-    def test_exhaustive_matches_without_bvh(self):
+    def test_exhaustive_matches_without_bvh(self) -> None:
         """Exhaustive with BVH produces same results as without."""
-        from differt.scene import TriangleScene
-        import equinox as eqx
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
 
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
@@ -491,9 +488,7 @@ class TestComputePathsBvh:
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
         )
-        scene = eqx.tree_at(
-            lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]])
-        )
+        scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
         bvh = scene.build_bvh()
 
         paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
