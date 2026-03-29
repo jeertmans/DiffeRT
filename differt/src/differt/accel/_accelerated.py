@@ -64,7 +64,7 @@ def bvh_rays_intersect_any_triangle(
         bvh: Pre-built BVH acceleration structure.
         max_candidates: Maximum candidates per ray for soft mode.
         epsilon_grad: Gradient truncation threshold for expansion radius.
-        kwargs: Keyword arguments passed to :func:`rays_intersect_triangles`.
+        kwargs: Keyword arguments passed to :func:`~differt.rt.rays_intersect_triangles`.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.

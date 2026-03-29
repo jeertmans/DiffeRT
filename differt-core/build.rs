@@ -3,19 +3,22 @@
 /// When the `xla-ffi` feature is enabled, this:
 /// 1. Queries JAX for XLA FFI header locations
 /// 2. Compiles the C++ FFI shim via cxx-build
-use std::env;
 
 fn main() {
     // Only build FFI when the feature is enabled
     #[cfg(feature = "xla-ffi")]
     {
+        use std::env;
+
         // Find the Python interpreter
-        let python = env::var("PYTHON_SYS_EXECUTABLE")
-            .unwrap_or_else(|_| "python3".to_string());
+        let python = env::var("PYTHON_SYS_EXECUTABLE").unwrap_or_else(|_| "python3".to_string());
 
         // Query JAX for its XLA FFI include directory
         let output = std::process::Command::new(&python)
-            .args(["-c", "from jax.ffi import include_dir; print(include_dir())"])
+            .args([
+                "-c",
+                "from jax.ffi import include_dir; print(include_dir())",
+            ])
             .output()
             .expect("Failed to run python to find JAX include dir. Is JAX installed?");
 
@@ -26,8 +29,7 @@ fn main() {
 
         if include_path.is_empty() {
             panic!(
-                "JAX include directory is empty. JAX >= 0.8.0 is required.\n\
-                 stderr: {}",
+                "JAX include directory is empty. JAX >= 0.8.0 is required.\nstderr: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
         }
