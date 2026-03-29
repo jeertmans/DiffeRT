@@ -3,7 +3,7 @@
 //! This module provides the cxx bridge between Rust BVH queries and
 //! C++ XLA FFI handlers, enabling BVH queries inside JIT-compiled JAX functions.
 
-use super::bvh::{registry_get, Vec3};
+use super::bvh::{Vec3, registry_get};
 use pyo3::prelude::*;
 
 #[cxx::bridge]
@@ -58,7 +58,7 @@ fn bvh_nearest_hit_ffi(
             hit_indices.fill(-1);
             hit_t.fill(f32::INFINITY);
             return;
-        }
+        },
     };
 
     // Convert u8 mask to bool slice (empty = no mask)
@@ -97,7 +97,7 @@ fn bvh_get_candidates_ffi(
             candidate_indices.fill(-1);
             candidate_counts.fill(0);
             return;
-        }
+        },
     };
 
     let num_rays = candidate_counts.len();

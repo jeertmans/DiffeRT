@@ -1,8 +1,12 @@
+import contextlib
 import math
 import typing
 import warnings
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
+
+if TYPE_CHECKING:
+    from differt.accel._bvh import TriangleBvh
 
 import equinox as eqx
 import jax
@@ -252,23 +256,25 @@ def _compute_paths(
     # [num_tx_vertices num_rx_vertices num_path_candidates]
     if bvh_id is not None and smoothing_factor is None:
         # BVH-accelerated blocking check (hard mode only, via XLA FFI)
-        from differt.accel._ffi import ffi_nearest_hit
+        from differt.accel._ffi import ffi_nearest_hit  # noqa: PLC0415
 
-        _batch_shape = ray_origins.shape[:-1]  # [..., order+1]
-        _flat_origins = ray_origins.reshape(-1, 3)
-        _flat_dirs = ray_directions.reshape(-1, 3)
-        _hit_idx, _hit_t = ffi_nearest_hit(
-            _flat_origins, _flat_dirs, bvh_id=bvh_id,
+        batch_shape = ray_origins.shape[:-1]  # [..., order+1]
+        flat_origins = ray_origins.reshape(-1, 3)
+        flat_dirs = ray_directions.reshape(-1, 3)
+        hit_idx, hit_t = ffi_nearest_hit(
+            flat_origins,
+            flat_dirs,
+            bvh_id=bvh_id,
             active_mask=mesh.mask,
         )
         # A ray is blocked if it hits something with t < 1 - hit_tol
-        _hit_tol_val = hit_tol if hit_tol is not None else 10.0 * jnp.finfo(
-            jnp.result_type(ray_origins, ray_directions)
-        ).eps
-        _blocked_flat = (_hit_idx >= 0) & (_hit_t < (1.0 - _hit_tol_val))
-        blocked = _blocked_flat.reshape(_batch_shape).any(
-            axis=-1
-        )  # Reduce on 'order'
+        hit_tol_val = (
+            hit_tol
+            if hit_tol is not None
+            else 10.0 * jnp.finfo(jnp.result_type(ray_origins, ray_directions)).eps
+        )
+        blocked_flat = (hit_idx >= 0) & (hit_t < (1.0 - hit_tol_val))
+        blocked = blocked_flat.reshape(batch_shape).any(axis=-1)  # Reduce on 'order'
     elif smoothing_factor is not None:
         blocked = rays_intersect_any_triangle(
             ray_origins,
@@ -435,17 +441,19 @@ def _compute_paths_sbr(
 
         # [num_tx_vertices num_rays]
         if bvh_id is not None:
-            from differt.accel._ffi import ffi_nearest_hit
+            from differt.accel._ffi import ffi_nearest_hit  # noqa: PLC0415
 
-            _sbr_shape = ray_origins.shape[:-1]
-            _flat_o = ray_origins.reshape(-1, 3)
-            _flat_d = ray_directions.reshape(-1, 3)
-            _idx, _t = ffi_nearest_hit(
-                _flat_o, _flat_d, bvh_id=bvh_id,
+            sbr_shape = ray_origins.shape[:-1]
+            flat_o = ray_origins.reshape(-1, 3)
+            flat_d = ray_directions.reshape(-1, 3)
+            idx, t = ffi_nearest_hit(
+                flat_o,
+                flat_d,
+                bvh_id=bvh_id,
                 active_mask=mesh.mask,
             )
-            triangles = _idx.reshape(_sbr_shape)
-            t_hit = _t.reshape(_sbr_shape)
+            triangles = idx.reshape(sbr_shape)
+            t_hit = t.reshape(sbr_shape)
         else:
             triangles, t_hit = first_triangles_hit_by_rays(
                 ray_origins,
@@ -842,7 +850,7 @@ class TriangleScene(eqx.Module):
             ),
         )
 
-    def build_bvh(self):
+    def build_bvh(self) -> "TriangleBvh":
         """Build a BVH acceleration structure for the scene's triangle mesh.
 
         Returns:
@@ -850,12 +858,14 @@ class TriangleScene(eqx.Module):
 
         Example:
             >>> from differt.scene import TriangleScene
-            >>> scene = TriangleScene.load_xml("differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml")
+            >>> scene = TriangleScene.load_xml(
+            ...     "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+            ... )
             >>> bvh = scene.build_bvh()
             >>> bvh.num_triangles == scene.mesh.num_triangles
             True
         """
-        from differt.accel import TriangleBvh
+        from differt.accel import TriangleBvh  # noqa: PLC0415
 
         return TriangleBvh(self.mesh.triangle_vertices)
 
@@ -1258,12 +1268,10 @@ class TriangleScene(eqx.Module):
         rx_batch = self.receivers.shape[:-1]
 
         # Extract BVH registry ID for FFI (if available)
-        _bvh_id = None
+        bvh_id = None
         if bvh is not None:
-            try:
-                _bvh_id = bvh.register()
-            except (AttributeError, TypeError):
-                pass
+            with contextlib.suppress(AttributeError, TypeError):
+                bvh_id = bvh.register()
 
         if method == "sbr":
             if order is None:
@@ -1279,7 +1287,7 @@ class TriangleScene(eqx.Module):
                 epsilon=epsilon,
                 max_dist=max_dist,
                 batch_size=batch_size,
-                bvh_id=_bvh_id,
+                bvh_id=bvh_id,
             ).reshape(*tx_batch, *rx_batch, -1)
 
         # 0 - Constants arrays of chunks
@@ -1298,7 +1306,7 @@ class TriangleScene(eqx.Module):
                 raise ValueError(msg)
 
             if bvh is not None:
-                from differt.accel._accelerated import (
+                from differt.accel._accelerated import (  # noqa: PLC0415
                     bvh_triangles_visible_from_vertices,
                 )
 
@@ -1395,7 +1403,7 @@ class TriangleScene(eqx.Module):
                     smoothing_factor=smoothing_factor,
                     confidence_threshold=confidence_threshold,
                     batch_size=batch_size,
-                    bvh_id=_bvh_id,
+                    bvh_id=bvh_id,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -1433,7 +1441,7 @@ class TriangleScene(eqx.Module):
             smoothing_factor=smoothing_factor,
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
-            bvh_id=_bvh_id,
+            bvh_id=bvh_id,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

@@ -9,37 +9,46 @@ Requires ``differt-core`` built with the ``xla-ffi`` feature.
 from __future__ import annotations
 
 __all__ = (
-    "ffi_nearest_hit",
     "ffi_get_candidates",
+    "ffi_nearest_hit",
 )
+
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Float, Int
+
+if TYPE_CHECKING:
+    from jaxtyping import Array, Float
 
 _FFI_REGISTERED = False
 
 
-def _ensure_registered():
-    """Register BVH FFI targets with JAX (once)."""
-    global _FFI_REGISTERED
+def _ensure_registered() -> None:
+    """Register BVH FFI targets with JAX (once).
+
+    Raises:
+        ImportError: If ``differt-core`` was not built with the ``xla-ffi`` feature.
+    """
+    global _FFI_REGISTERED  # noqa: PLW0603
     if _FFI_REGISTERED:
         return
 
     try:
-        from differt_core import _differt_core
+        from differt_core import _differt_core  # noqa: PLC0415, PLC2701
 
         bvh_mod = _differt_core.accel.bvh
         bvh_nearest_hit_capsule = bvh_mod.bvh_nearest_hit_capsule
         bvh_get_candidates_capsule = bvh_mod.bvh_get_candidates_capsule
     except (ImportError, AttributeError) as e:
-        raise ImportError(
+        msg = (
             "BVH XLA FFI not available. Rebuild differt-core with "
             "the xla-ffi feature: "
             "PYTHON_SYS_EXECUTABLE=$(which python) "
             "maturin develop --strip"
-        ) from e
+        )
+        raise ImportError(msg) from e
 
     jax.ffi.register_ffi_target(
         "bvh_nearest_hit", bvh_nearest_hit_capsule(), platform="cpu"
@@ -56,7 +65,7 @@ def ffi_nearest_hit(
     *,
     bvh_id: int,
     active_mask: Array | None = None,
-):
+) -> list:
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
     Args:
@@ -107,7 +116,7 @@ def ffi_get_candidates(
     bvh_id: int,
     expansion: float = 0.0,
     max_candidates: int = 256,
-):
+) -> list:
     """BVH candidate selection via XLA FFI. Works inside ``jax.jit``.
 
     Args:

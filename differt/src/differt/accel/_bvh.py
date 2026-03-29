@@ -36,7 +36,7 @@ class TriangleBvh:
 
     def __init__(self, triangle_vertices: ArrayLike) -> None:
         verts = np.asarray(triangle_vertices, dtype=np.float32)
-        if verts.ndim == 3:
+        if verts.ndim == 3:  # noqa: PLR2004
             # Shape (num_triangles, 3, 3) -> (num_triangles * 3, 3)
             verts = verts.reshape(-1, 3)
         self._inner = _RustBvh(verts)
@@ -74,7 +74,9 @@ class TriangleBvh:
         Example:
             >>> import jax.numpy as jnp
             >>> from differt.accel import TriangleBvh
-            >>> verts = jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
+            >>> verts = jnp.array(
+            ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
+            ... )
             >>> bvh = TriangleBvh(verts)
             >>> origins = jnp.array([[0.1, 0.1, 1.0]])
             >>> dirs = jnp.array([[0.0, 0.0, -1.0]])
@@ -87,7 +89,7 @@ class TriangleBvh:
         mask = None
         if active_mask is not None:
             mask = np.ascontiguousarray(np.asarray(active_mask).flatten())
-        if origins.ndim > 2:
+        if origins.ndim > 2:  # noqa: PLR2004
             orig_shape = origins.shape[:-1]
             origins = origins.reshape(-1, 3)
             dirs = dirs.reshape(-1, 3)
@@ -104,7 +106,9 @@ class TriangleBvh:
         Example:
             >>> import jax.numpy as jnp
             >>> from differt.accel import TriangleBvh
-            >>> verts = jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
+            >>> verts = jnp.array(
+            ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
+            ... )
             >>> bvh = TriangleBvh(verts)
             >>> bvh_id = bvh.register()
             >>> bvh_id > 0
@@ -143,7 +147,9 @@ class TriangleBvh:
         Example:
             >>> import jax.numpy as jnp
             >>> from differt.accel import TriangleBvh
-            >>> verts = jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
+            >>> verts = jnp.array(
+            ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
+            ... )
             >>> bvh = TriangleBvh(verts)
             >>> origins = jnp.array([[0.1, 0.1, 1.0]])
             >>> dirs = jnp.array([[0.0, 0.0, -1.0]])
@@ -153,7 +159,7 @@ class TriangleBvh:
         """
         origins = np.asarray(ray_origins, dtype=np.float32)
         dirs = np.asarray(ray_directions, dtype=np.float32)
-        if origins.ndim > 2:
+        if origins.ndim > 2:  # noqa: PLR2004
             orig_shape = origins.shape[:-1]
             origins = origins.reshape(-1, 3)
             dirs = dirs.reshape(-1, 3)
@@ -191,7 +197,7 @@ def compute_expansion_radius(
         >>> r > 0
         True
     """
-    import math
+    import math  # noqa: PLC0415
 
     if smoothing_factor <= 0:
         return float("inf")

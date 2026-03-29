@@ -16,15 +16,17 @@ __all__ = (
     "bvh_triangles_visible_from_vertices",
 )
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.accel._bvh import TriangleBvh, compute_expansion_radius
 from differt.rt._utils import rays_intersect_triangles
 from differt.utils import smoothing_function
+
+if TYPE_CHECKING:
+    from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 
 def bvh_rays_intersect_any_triangle(
@@ -68,7 +70,7 @@ def bvh_rays_intersect_any_triangle(
         For each ray, whether it intersects with any of the triangles.
     """
     if bvh is None:
-        from differt.rt._utils import rays_intersect_any_triangle
+        from differt.rt._utils import rays_intersect_any_triangle  # noqa: PLC0415
 
         return rays_intersect_any_triangle(
             ray_origins,
@@ -101,9 +103,7 @@ def bvh_rays_intersect_any_triangle(
         flat_dirs = np.asarray(ray_directions_jnp).reshape(-1, 3)
         mask_np = None
         if active_triangles is not None:
-            mask_np = np.ascontiguousarray(
-                np.asarray(active_triangles).flatten()
-            )
+            mask_np = np.ascontiguousarray(np.asarray(active_triangles).flatten())
         hit_indices, hit_t = bvh.nearest_hit(flat_origins, flat_dirs, mask_np)
 
         # Apply hit_threshold: only count hits with t < hit_threshold
@@ -116,11 +116,7 @@ def bvh_rays_intersect_any_triangle(
 
     # Estimate triangle size for expansion radius
     tri_np = np.asarray(triangle_vertices_jnp)
-    if tri_np.ndim > 3:
-        # Flatten batch dims for triangle size estimation
-        flat_tri = tri_np.reshape(-1, 3, 3)
-    else:
-        flat_tri = tri_np
+    flat_tri = tri_np.reshape(-1, 3, 3) if tri_np.ndim > 3 else tri_np  # noqa: PLR2004
     # Use mean edge length as characteristic size
     edges = np.diff(flat_tri, axis=-2, append=flat_tri[..., :1, :])
     mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
@@ -128,10 +124,12 @@ def bvh_rays_intersect_any_triangle(
 
     # Check if expansion is too large (soft smoothing -> fallback to brute force)
     scene_diag = float(
-        np.linalg.norm(flat_tri.reshape(-1, 3).max(axis=0) - flat_tri.reshape(-1, 3).min(axis=0))
+        np.linalg.norm(
+            flat_tri.reshape(-1, 3).max(axis=0) - flat_tri.reshape(-1, 3).min(axis=0)
+        )
     )
     if expansion > scene_diag:
-        from differt.rt._utils import rays_intersect_any_triangle
+        from differt.rt._utils import rays_intersect_any_triangle  # noqa: PLC0415
 
         return rays_intersect_any_triangle(
             ray_origins,
@@ -153,7 +151,7 @@ def bvh_rays_intersect_any_triangle(
     # If any ray has more candidates than max_candidates, fall back to brute force
     # for correctness (truncation would give wrong gradients)
     if np.any(candidate_counts > max_candidates):
-        import warnings
+        import warnings  # noqa: PLC0415
 
         warnings.warn(
             f"BVH candidate count ({int(candidate_counts.max())}) exceeds "
@@ -161,7 +159,7 @@ def bvh_rays_intersect_any_triangle(
             f"Increase max_candidates or smoothing_factor.",
             stacklevel=2,
         )
-        from differt.rt._utils import rays_intersect_any_triangle
+        from differt.rt._utils import rays_intersect_any_triangle  # noqa: PLC0415
 
         return rays_intersect_any_triangle(
             ray_origins,
@@ -180,7 +178,7 @@ def bvh_rays_intersect_any_triangle(
     # Gather candidate triangle vertices: shape [*batch, max_candidates, 3, 3]
     # Use the non-batch triangle_vertices (first batch element if batched)
     tri_flat = triangle_vertices_jnp
-    if tri_flat.ndim > 3:
+    if tri_flat.ndim > 3:  # noqa: PLR2004
         tri_flat = tri_flat.reshape(-1, 3, 3)
 
     # Clamp indices to valid range for gather (padding -1 -> 0, masked out later)
@@ -189,15 +187,16 @@ def bvh_rays_intersect_any_triangle(
 
     # Mask: which candidates are valid
     arange = jnp.arange(max_candidates)
-    mask = arange[None] < cand_counts[..., None] if cand_counts.ndim == 1 else arange < cand_counts[..., None]
+    mask = (
+        arange[None] < cand_counts[..., None]
+        if cand_counts.ndim == 1
+        else arange < cand_counts[..., None]
+    )
 
     # Active triangles filter
     if active_triangles is not None:
         active_jnp = jnp.asarray(active_triangles)
-        if active_jnp.ndim > 1:
-            active_flat = active_jnp.reshape(-1)
-        else:
-            active_flat = active_jnp
+        active_flat = active_jnp.reshape(-1) if active_jnp.ndim > 1 else active_jnp
         cand_active = active_flat[safe_idx.reshape(-1, max_candidates)].reshape(
             *batch_shape, max_candidates
         )
@@ -213,9 +212,7 @@ def bvh_rays_intersect_any_triangle(
     )
 
     soft_hit = jnp.minimum(hit, smoothing_function(hit_threshold - t, smoothing_factor))
-    result = jnp.sum(soft_hit * mask, axis=-1).clip(max=1.0)
-
-    return result
+    return jnp.sum(soft_hit * mask, axis=-1).clip(max=1.0)
 
 
 def bvh_triangles_visible_from_vertices(
@@ -244,7 +241,7 @@ def bvh_triangles_visible_from_vertices(
         For each triangle, whether it is visible from any of the rays.
     """
     if bvh is None:
-        from differt.rt._utils import triangles_visible_from_vertices
+        from differt.rt._utils import triangles_visible_from_vertices  # noqa: PLC0415
 
         return triangles_visible_from_vertices(
             vertices,
@@ -259,7 +256,7 @@ def bvh_triangles_visible_from_vertices(
     num_triangles = triangle_vertices_jnp.shape[-3]
 
     # Compute viewing frustum and generate fibonacci lattice directions
-    from differt.geometry import fibonacci_lattice, viewing_frustum
+    from differt.geometry import fibonacci_lattice, viewing_frustum  # noqa: PLC0415
 
     triangle_centers = triangle_vertices_jnp.mean(axis=-2, keepdims=True)
     world_vertices = jnp.concat(
@@ -354,7 +351,7 @@ def bvh_first_triangles_hit_by_rays(
         A tuple ``(indices, t)`` of the nearest triangle index and distance.
     """
     if bvh is None:
-        from differt.rt._utils import first_triangles_hit_by_rays
+        from differt.rt._utils import first_triangles_hit_by_rays  # noqa: PLC0415
 
         return first_triangles_hit_by_rays(
             ray_origins,

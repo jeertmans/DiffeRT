@@ -6,8 +6,8 @@
 //!   intersect each ray (for differentiable mode)
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -53,11 +53,19 @@ impl Vec3 {
     }
 
     fn min_comp(self, other: Self) -> Self {
-        Self::new(self.x.min(other.x), self.y.min(other.y), self.z.min(other.z))
+        Self::new(
+            self.x.min(other.x),
+            self.y.min(other.y),
+            self.z.min(other.z),
+        )
     }
 
     fn max_comp(self, other: Self) -> Self {
-        Self::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
+        Self::new(
+            self.x.max(other.x),
+            self.y.max(other.y),
+            self.z.max(other.z),
+        )
     }
 }
 
@@ -145,7 +153,13 @@ fn axis_component(v: Vec3, axis: usize) -> f32 {
 const MT_EPSILON: f32 = 1e-8;
 
 /// Returns (t, hit) where t is parametric distance, hit indicates valid intersection.
-fn ray_triangle_intersect(origin: Vec3, direction: Vec3, v0: Vec3, v1: Vec3, v2: Vec3) -> (f32, bool) {
+fn ray_triangle_intersect(
+    origin: Vec3,
+    direction: Vec3,
+    v0: Vec3,
+    v1: Vec3,
+    v2: Vec3,
+) -> (f32, bool) {
     let edge1 = v1.sub(v0);
     let edge2 = v2.sub(v0);
     let h = direction.cross(edge2);
@@ -334,8 +348,8 @@ impl Bvh {
             for i in (1..NUM_SAH_BINS).rev() {
                 right_box.grow_aabb(&bins[i]);
                 right_sum += bin_counts[i];
-                let cost =
-                    left_count_arr[i - 1] as f32 * left_area[i - 1] + right_sum as f32 * right_box.surface_area();
+                let cost = left_count_arr[i - 1] as f32 * left_area[i - 1]
+                    + right_sum as f32 * right_box.surface_area();
                 if cost < best_cost {
                     best_cost = cost;
                     best_axis = axis;
@@ -742,7 +756,7 @@ impl TriangleBvh {
                     ))
                 })?;
                 Some(s.to_vec())
-            }
+            },
             None => None,
         };
         let mask_slice: Option<&[bool]> = mask_vec.as_deref();
@@ -827,11 +841,11 @@ impl TriangleBvh {
             }
         }
 
-        let indices_array = numpy::ndarray::Array2::from_shape_vec(
-            (num_rays, max_candidates),
-            all_indices,
-        )
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Shape error: {e}")))?;
+        let indices_array =
+            numpy::ndarray::Array2::from_shape_vec((num_rays, max_candidates), all_indices)
+                .map_err(|e| {
+                    pyo3::exceptions::PyValueError::new_err(format!("Shape error: {e}"))
+                })?;
 
         Ok((
             PyArray2::from_owned_array(py, indices_array),
@@ -846,8 +860,14 @@ pub(crate) fn bvh(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleBvh>()?;
     #[cfg(feature = "xla-ffi")]
     {
-        m.add_function(pyo3::wrap_pyfunction!(super::ffi::bvh_nearest_hit_capsule, m)?)?;
-        m.add_function(pyo3::wrap_pyfunction!(super::ffi::bvh_get_candidates_capsule, m)?)?;
+        m.add_function(pyo3::wrap_pyfunction!(
+            super::ffi::bvh_nearest_hit_capsule,
+            m
+        )?)?;
+        m.add_function(pyo3::wrap_pyfunction!(
+            super::ffi::bvh_get_candidates_capsule,
+            m
+        )?)?;
     }
     Ok(())
 }
@@ -941,7 +961,10 @@ mod tests {
         let dir = Vec3::new(0.0, 0.0, -1.0);
         let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert!(idx >= 0, "Should hit a front-face triangle");
-        assert!((t - 1.0).abs() < 1e-5, "Distance to front face should be 1.0");
+        assert!(
+            (t - 1.0).abs() < 1e-5,
+            "Distance to front face should be 1.0"
+        );
     }
 
     #[test]
@@ -952,7 +975,10 @@ mod tests {
         let dir = Vec3::new(0.0, 0.0, -1.0);
         let (idx, t) = bvh.nearest_hit(origin, dir, None);
         assert!(idx >= 0);
-        assert!((t - 1.0).abs() < 1e-5, "Should hit front face at t=1, got t={t}");
+        assert!(
+            (t - 1.0).abs() < 1e-5,
+            "Should hit front face at t=1, got t={t}"
+        );
     }
 
     #[test]
@@ -994,7 +1020,10 @@ mod tests {
 
         // Large expansion: should include all
         let (_, count_large_exp) = bvh.get_candidates(origin, dir, 200.0, 256);
-        assert_eq!(count_large_exp, 10, "With large expansion, should find all 10");
+        assert_eq!(
+            count_large_exp, 10,
+            "With large expansion, should find all 10"
+        );
     }
 
     #[test]
@@ -1102,16 +1131,34 @@ mod tests {
         let v2 = Vec3::new(0.0, 1.0, 0.0);
 
         // Hit
-        let (t, hit) = ray_triangle_intersect(Vec3::new(0.1, 0.1, 1.0), Vec3::new(0.0, 0.0, -1.0), v0, v1, v2);
+        let (t, hit) = ray_triangle_intersect(
+            Vec3::new(0.1, 0.1, 1.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            v0,
+            v1,
+            v2,
+        );
         assert!(hit);
         assert!((t - 1.0).abs() < 1e-5);
 
         // Miss (outside triangle)
-        let (_, hit) = ray_triangle_intersect(Vec3::new(2.0, 2.0, 1.0), Vec3::new(0.0, 0.0, -1.0), v0, v1, v2);
+        let (_, hit) = ray_triangle_intersect(
+            Vec3::new(2.0, 2.0, 1.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            v0,
+            v1,
+            v2,
+        );
         assert!(!hit);
 
         // Miss (behind ray)
-        let (_, hit) = ray_triangle_intersect(Vec3::new(0.1, 0.1, -1.0), Vec3::new(0.0, 0.0, -1.0), v0, v1, v2);
+        let (_, hit) = ray_triangle_intersect(
+            Vec3::new(0.1, 0.1, -1.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            v0,
+            v1,
+            v2,
+        );
         assert!(!hit);
     }
 }
