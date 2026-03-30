@@ -1358,7 +1358,7 @@ class TriangleScene(eqx.Module):
                     edges = np.diff(tri_np, axis=-2, append=tri_np[..., :1, :])
                     mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
                     bvh_expansion = compute_expansion_radius(
-                        float(smoothing_factor), mean_tri_size
+                        float(np.asarray(smoothing_factor).real), mean_tri_size
                     )
 
                     # If expansion exceeds scene diagonal, BVH won't help
