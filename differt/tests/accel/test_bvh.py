@@ -790,3 +790,71 @@ class TestSoftModeBvhComputePaths:
             np.asarray(paths_bf.mask),
             atol=1e-6,
         )
+
+
+class TestSoftModeBvhBranchCoverage:
+    """Exercise the soft BVH branch in _compute_paths with mocked FFI."""
+
+    @staticmethod
+    def _make_scene() -> TriangleScene:
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
+        )
+        return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
+
+    def test_soft_bvh_branch_with_mocked_ffi(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Mock FFI to exercise the soft BVH code path for coverage."""
+        import differt.accel._ffi as ffi_mod  # noqa: PLC0415
+
+        scene = self._make_scene()
+        bvh = scene.build_bvh()
+
+        # Create a mock ffi_get_candidates using jax.pure_callback
+        # so it works inside JIT
+        def mock_ffi_get_candidates(
+            ray_origins: jax.Array,
+            ray_directions: jax.Array,
+            **kwargs: object,
+        ) -> tuple[jax.Array, jax.Array]:
+            expansion = float(kwargs.get("expansion", 0.0))  # type: ignore[arg-type]
+            max_candidates = int(kwargs.get("max_candidates", 256))  # type: ignore[arg-type]
+
+            def _callback(
+                origins: jax.Array, dirs: jax.Array
+            ) -> tuple[np.ndarray, np.ndarray]:
+                idx, counts = bvh.get_candidates(
+                    np.asarray(origins), np.asarray(dirs), expansion, max_candidates
+                )
+                return np.asarray(idx, dtype=np.int32), np.asarray(
+                    counts, dtype=np.int32
+                )
+
+            num_rays = ray_origins.shape[0]
+            result_shapes = (
+                jax.ShapeDtypeStruct((num_rays, max_candidates), jnp.int32),
+                jax.ShapeDtypeStruct((num_rays,), jnp.int32),
+            )
+            return jax.pure_callback(
+                _callback, result_shapes, ray_origins, ray_directions
+            )
+
+        monkeypatch.setattr(ffi_mod, "_ensure_registered", lambda: None)
+        monkeypatch.setattr(ffi_mod, "ffi_get_candidates", mock_ffi_get_candidates)
+
+        paths_bvh = scene.compute_paths(order=1, smoothing_factor=10.0, bvh=bvh)
+        paths_bf = scene.compute_paths(order=1, smoothing_factor=10.0)
+
+        np.testing.assert_allclose(
+            np.asarray(paths_bvh.mask),
+            np.asarray(paths_bf.mask),
+            atol=1e-3,
+        )
