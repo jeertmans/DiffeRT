@@ -70,6 +70,9 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, " "],
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
+    bvh_id: int | None = ...,
+    bvh_expansion: float | None = ...,
+    bvh_max_candidates: int = ...,
 ) -> Paths[_F]: ...
 
 
@@ -86,6 +89,9 @@ def _compute_paths(
     smoothing_factor: None,
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
+    bvh_id: int | None = ...,
+    bvh_expansion: float | None = ...,
+    bvh_max_candidates: int = ...,
 ) -> Paths[_B]: ...
 
 
@@ -103,6 +109,8 @@ def _compute_paths(
     confidence_threshold: Float[ArrayLike, ""],
     batch_size: int | None,
     bvh_id: int | None = None,
+    bvh_expansion: float | None = None,
+    bvh_max_candidates: int = 512,
 ) -> Paths[_M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, rx_vertices)
@@ -275,6 +283,62 @@ def _compute_paths(
         )
         blocked_flat = (hit_idx >= 0) & (hit_t < (1.0 - hit_tol_val))
         blocked = blocked_flat.reshape(batch_shape).any(axis=-1)  # Reduce on 'order'
+    elif (
+        bvh_id is not None
+        and smoothing_factor is not None
+        and bvh_expansion is not None
+    ):
+        # BVH-accelerated soft blocking check: candidate selection via FFI,
+        # differentiable intersection in JAX on the reduced candidate set.
+        from differt.accel._ffi import ffi_get_candidates  # noqa: PLC0415
+
+        batch_shape = ray_origins.shape[:-1]
+        flat_origins = ray_origins.reshape(-1, 3)
+        flat_dirs = ray_directions.reshape(-1, 3)
+
+        cand_idx, cand_counts = ffi_get_candidates(
+            flat_origins,
+            flat_dirs,
+            bvh_id=bvh_id,
+            expansion=bvh_expansion,
+            max_candidates=bvh_max_candidates,
+        )
+
+        # Gather candidate triangle vertices from the full mesh
+        tri_verts = mesh.triangle_vertices  # [num_triangles, 3, 3]
+        safe_idx = jnp.maximum(cand_idx, 0)  # clamp -1 padding -> 0
+        cand_verts = tri_verts[safe_idx]  # [N, max_cand, 3, 3]
+
+        # Validity mask: which candidate slots are populated
+        arange = jnp.arange(bvh_max_candidates)
+        mask = arange[None, :] < cand_counts[:, None]
+
+        # Active triangles filter
+        if mesh.mask is not None:
+            mask = mask & mesh.mask[safe_idx]
+
+        # Hit threshold
+        hit_tol_val = (
+            hit_tol
+            if hit_tol is not None
+            else 10.0 * jnp.finfo(jnp.result_type(ray_origins, ray_directions)).eps
+        )
+        hit_threshold = 1.0 - jnp.asarray(hit_tol_val)
+
+        # Soft intersection: broadcast rays [N,1,3] against candidates [N,max_cand,3,3]
+        t, hit = rays_intersect_triangles(
+            flat_origins[:, None, :],
+            flat_dirs[:, None, :],
+            cand_verts,
+            epsilon=epsilon,
+            smoothing_factor=smoothing_factor,
+        )
+
+        soft_hit = jnp.minimum(
+            hit, smoothing_function(hit_threshold - t, smoothing_factor)
+        )
+        blocked_flat = jnp.sum(soft_hit * mask, axis=-1).clip(max=1.0)
+        blocked = blocked_flat.reshape(batch_shape).max(axis=-1, initial=0.0)
     elif smoothing_factor is not None:
         blocked = rays_intersect_any_triangle(
             ray_origins,
@@ -1223,8 +1287,10 @@ class TriangleScene(eqx.Module):
 
                 When provided, the BVH accelerates intersection queries:
 
-                * ``'exhaustive'``: BVH replaces the blocking check
-                  (hard mode only, via XLA FFI inside JIT).
+                * ``'exhaustive'``: BVH accelerates the blocking check
+                  via XLA FFI inside JIT. In hard mode, uses nearest-hit.
+                  In soft mode, uses candidate selection with differentiable
+                  intersection on the reduced set.
                 * ``'hybrid'``: BVH accelerates both the visibility estimation
                   and the blocking check.
                 * ``'sbr'``: BVH replaces ``first_triangles_hit_by_rays`` in the
@@ -1269,9 +1335,39 @@ class TriangleScene(eqx.Module):
 
         # Extract BVH registry ID for FFI (if available)
         bvh_id = None
+        bvh_expansion = None
         if bvh is not None:
             with contextlib.suppress(AttributeError, TypeError):
                 bvh_id = bvh.register()
+
+            # Compute expansion radius for soft-mode BVH acceleration
+            # Requires XLA FFI (ffi_get_candidates) to work inside JIT
+            if bvh_id is not None and smoothing_factor is not None:
+                try:
+                    from differt.accel._ffi import _ensure_registered  # noqa: PLC0415
+
+                    _ensure_registered()
+                except (ImportError, AttributeError):
+                    pass  # FFI not available, soft BVH falls back to brute force
+                else:
+                    from differt.accel._bvh import (  # noqa: PLC0415
+                        compute_expansion_radius,
+                    )
+
+                    tri_np = np.asarray(self.mesh.triangle_vertices)
+                    edges = np.diff(tri_np, axis=-2, append=tri_np[..., :1, :])
+                    mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
+                    bvh_expansion = compute_expansion_radius(
+                        float(smoothing_factor), mean_tri_size
+                    )
+
+                    # If expansion exceeds scene diagonal, BVH won't help
+                    flat_pts = tri_np.reshape(-1, 3)
+                    scene_diag = float(
+                        np.linalg.norm(flat_pts.max(axis=0) - flat_pts.min(axis=0))
+                    )
+                    if bvh_expansion > scene_diag:
+                        bvh_expansion = None
 
         if method == "sbr":
             if order is None:
@@ -1404,6 +1500,8 @@ class TriangleScene(eqx.Module):
                     confidence_threshold=confidence_threshold,
                     batch_size=batch_size,
                     bvh_id=bvh_id,
+                    bvh_expansion=bvh_expansion,
+                    bvh_max_candidates=512,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -1442,6 +1540,8 @@ class TriangleScene(eqx.Module):
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
             bvh_id=bvh_id,
+            bvh_expansion=bvh_expansion,
+            bvh_max_candidates=512,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

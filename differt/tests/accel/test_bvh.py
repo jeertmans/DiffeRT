@@ -4,10 +4,17 @@ Validates that BVH-accelerated intersection queries produce the same results
 as the brute-force implementations, for both hard and soft (differentiable) modes.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
+if TYPE_CHECKING:
+    from differt.scene import TriangleScene
 
 from differt.accel import TriangleBvh
 from differt.accel._accelerated import (
@@ -706,3 +713,80 @@ class TestBuildBvh:
         bvh = scene.build_bvh()
         assert bvh.num_triangles == scene.mesh.num_triangles
         assert bvh.num_nodes >= 1
+
+
+# ---------------------------------------------------------------------------
+# Coverage: soft-mode BVH in _compute_paths
+# ---------------------------------------------------------------------------
+
+
+@_requires_ffi
+class TestSoftModeBvhComputePaths:
+    """Test differentiable BVH acceleration in compute_paths."""
+
+    @staticmethod
+    def _make_scene() -> TriangleScene:
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        scene = eqx.tree_at(
+            lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 1.0]])
+        )
+        return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
+
+    def test_soft_bvh_matches_brute_force(self) -> None:
+        """Soft mode with BVH should match brute force within tolerance."""
+        scene = self._make_scene()
+        bvh = scene.build_bvh()
+
+        for sf in [1.0, 10.0, 100.0]:
+            paths_bvh = scene.compute_paths(order=1, smoothing_factor=sf, bvh=bvh)
+            paths_bf = scene.compute_paths(order=1, smoothing_factor=sf)
+
+            np.testing.assert_allclose(
+                np.asarray(paths_bvh.mask),
+                np.asarray(paths_bf.mask),
+                atol=1e-3,
+                err_msg=f"Mismatch at smoothing_factor={sf}",
+            )
+
+    def test_soft_bvh_gradient_flow(self) -> None:
+        """Gradients should flow through the soft BVH path."""
+        import equinox as eqx  # noqa: PLC0415
+
+        from differt.scene import TriangleScene  # noqa: PLC0415
+
+        scene = TriangleScene.load_xml(
+            "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+        )
+        tx = jnp.array([[0.5, 0.5, 1.0]])
+        scene = eqx.tree_at(lambda s: s.transmitters, scene, tx)
+        scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
+        bvh = scene.build_bvh()
+
+        def loss_fn(tx_pos: jax.Array) -> jax.Array:
+            s = eqx.tree_at(lambda s: s.transmitters, scene, tx_pos)
+            paths = s.compute_paths(order=1, smoothing_factor=10.0, bvh=bvh)
+            return jnp.sum(paths.mask)
+
+        grad = jax.grad(loss_fn)(tx)
+        assert jnp.all(jnp.isfinite(grad)), f"Non-finite gradients: {grad}"
+
+    def test_soft_bvh_expansion_fallback(self) -> None:
+        """Very small smoothing_factor should fall back to brute force."""
+        scene = self._make_scene()
+        bvh = scene.build_bvh()
+
+        # smoothing_factor=0.001 produces huge expansion > scene diagonal
+        paths_bvh = scene.compute_paths(order=1, smoothing_factor=0.001, bvh=bvh)
+        paths_bf = scene.compute_paths(order=1, smoothing_factor=0.001)
+
+        np.testing.assert_allclose(
+            np.asarray(paths_bvh.mask),
+            np.asarray(paths_bf.mask),
+            atol=1e-6,
+        )

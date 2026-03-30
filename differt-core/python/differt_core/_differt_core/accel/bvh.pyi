@@ -1,4 +1,3 @@
-# pyright: reportMissingTypeArgument=false
 import numpy as np
 from jaxtyping import Float, Int
 
