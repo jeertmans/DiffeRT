@@ -288,10 +288,7 @@ def use(backend: LiteralString | None = None, **kwargs: Any) -> Iterator[Backend
     kwargs = {**config.defaults.kwargs, **kwargs}
 
     with config.with_defaults(backend=backend, kwargs=kwargs):
-        try:
-            yield backend
-        finally:
-            pass
+        yield backend
 
 
 @runtime_checkable
@@ -728,7 +725,4 @@ def reuse(
     with config.with_defaults(
         backend=backend, kwargs={**config.defaults.kwargs, **kwargs}
     ):
-        try:
-            yield canvas_or_fig
-        finally:
-            pass
+        yield canvas_or_fig

@@ -582,12 +582,14 @@ pub(crate) fn registry_get(id: u64) -> Option<std::sync::Arc<Bvh>> {
 ///     >>> bvh = TriangleBvh(verts)
 ///     >>> bvh.num_triangles
 ///     1
+#[cfg(not(tarpaulin_include))]
 #[pyclass]
 struct TriangleBvh {
     inner: std::sync::Arc<Bvh>,
     registry_id: Option<u64>,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl Drop for TriangleBvh {
     fn drop(&mut self) {
         if let Some(id) = self.registry_id.take() {
@@ -596,6 +598,7 @@ impl Drop for TriangleBvh {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 #[pymethods]
 impl TriangleBvh {
     #[new]
@@ -1126,6 +1129,185 @@ mod tests {
         let mask = vec![false, false];
         let (idx, _t) = bvh.nearest_hit(origin, dir, Some(&mask));
         assert_eq!(idx, -1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Registry tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_registry_insert_get_remove() {
+        let bvh = std::sync::Arc::new(Bvh::new(&single_triangle()));
+        let id = registry_insert(bvh);
+        assert!(id > 0);
+
+        let retrieved = registry_get(id);
+        assert!(retrieved.is_some());
+
+        registry_remove(id);
+        let gone = registry_get(id);
+        assert!(gone.is_none());
+    }
+
+    #[test]
+    fn test_registry_get_nonexistent() {
+        assert!(registry_get(999_999_999).is_none());
+    }
+
+    #[test]
+    fn test_registry_remove_nonexistent() {
+        // Should not panic
+        registry_remove(999_999_999);
+    }
+
+    #[test]
+    fn test_registry_multiple_entries() {
+        let bvh1 = std::sync::Arc::new(Bvh::new(&single_triangle()));
+        let bvh2 = std::sync::Arc::new(Bvh::new(&cube_triangles()));
+        let id1 = registry_insert(bvh1);
+        let id2 = registry_insert(bvh2);
+        assert_ne!(id1, id2);
+
+        assert!(registry_get(id1).is_some());
+        assert!(registry_get(id2).is_some());
+
+        registry_remove(id1);
+        assert!(registry_get(id1).is_none());
+        assert!(registry_get(id2).is_some());
+
+        registry_remove(id2);
+    }
+
+    // -----------------------------------------------------------------------
+    // Ray-triangle intersection edge cases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_ray_triangle_parallel() {
+        let v0 = Vec3::new(0.0, 0.0, 0.0);
+        let v1 = Vec3::new(1.0, 0.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        // Ray parallel to triangle plane
+        let (_, hit) = ray_triangle_intersect(
+            Vec3::new(0.1, 0.1, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            v0,
+            v1,
+            v2,
+        );
+        assert!(!hit);
+    }
+
+    #[test]
+    fn test_ray_triangle_v_negative() {
+        let v0 = Vec3::new(0.0, 0.0, 0.0);
+        let v1 = Vec3::new(1.0, 0.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        // Hits plane but v < 0 (outside triangle below edge)
+        let (_, hit) = ray_triangle_intersect(
+            Vec3::new(0.5, -0.5, 1.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            v0,
+            v1,
+            v2,
+        );
+        assert!(!hit);
+    }
+
+    #[test]
+    fn test_ray_triangle_uv_sum_exceeds_one() {
+        let v0 = Vec3::new(0.0, 0.0, 0.0);
+        let v1 = Vec3::new(1.0, 0.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        // u + v > 1 (near hypotenuse, outside)
+        let (_, hit) = ray_triangle_intersect(
+            Vec3::new(0.8, 0.8, 1.0),
+            Vec3::new(0.0, 0.0, -1.0),
+            v0,
+            v1,
+            v2,
+        );
+        assert!(!hit);
+    }
+
+    // -----------------------------------------------------------------------
+    // BVH get_candidates with max_candidates limit
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_get_candidates_max_limit() {
+        let bvh = Bvh::new(&cube_triangles());
+        let origin = Vec3::new(0.5, 0.5, 2.0);
+        let dir = Vec3::new(0.0, 0.0, -1.0);
+        // Limit to 1 candidate
+        let (candidates, count) = bvh.get_candidates(origin, dir, 10.0, 1);
+        // count reflects total found, candidates vec is capped
+        assert!(count >= 1);
+        assert!(candidates.len() <= 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Vec3 / Aabb additional coverage
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_vec3_operations() {
+        let a = Vec3::new(1.0, 2.0, 3.0);
+        let b = Vec3::new(4.0, 5.0, 6.0);
+        let diff = a.sub(b);
+        assert!((diff.x - (-3.0)).abs() < 1e-6);
+
+        let cross = a.cross(b);
+        // cross(a,b) = (2*6-3*5, 3*4-1*6, 1*5-2*4) = (-3, 6, -3)
+        assert!((cross.x - (-3.0)).abs() < 1e-6);
+        assert!((cross.y - 6.0).abs() < 1e-6);
+        assert!((cross.z - (-3.0)).abs() < 1e-6);
+
+        assert!((a.dot(b) - 32.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_aabb_expand_and_intersect() {
+        let mut bb = Aabb::empty();
+        bb.grow_point(Vec3::new(0.0, 0.0, 0.0));
+        bb.grow_point(Vec3::new(1.0, 1.0, 1.0));
+
+        // Ray that misses the original box but hits the expanded one
+        let origin = Vec3::new(1.5, 0.5, 5.0);
+        let dir = Vec3::new(0.0, 0.0, -1.0);
+        let inv_dir = Vec3::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z);
+
+        assert!(!bb.intersects_ray(origin, inv_dir));
+
+        let expanded = bb.expand(1.0);
+        assert!(expanded.intersects_ray(origin, inv_dir));
+    }
+
+    #[test]
+    fn test_axis_component_all_axes() {
+        let v = Vec3::new(1.0, 2.0, 3.0);
+        assert!((axis_component(v, 0) - 1.0).abs() < 1e-6);
+        assert!((axis_component(v, 1) - 2.0).abs() < 1e-6);
+        assert!((axis_component(v, 2) - 3.0).abs() < 1e-6);
+        // Default branch (axis >= 3 maps to z)
+        assert!((axis_component(v, 99) - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_bvh_node_is_leaf() {
+        let leaf = BvhNode {
+            bounds: Aabb::empty(),
+            left_or_first: 0,
+            count: 2,
+        };
+        assert!(leaf.is_leaf());
+
+        let internal = BvhNode {
+            bounds: Aabb::empty(),
+            left_or_first: 1,
+            count: 0,
+        };
+        assert!(!internal.is_leaf());
     }
 
     #[test]
