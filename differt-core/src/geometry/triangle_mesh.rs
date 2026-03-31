@@ -417,18 +417,20 @@ impl From<RawObj> for TriangleMesh {
 
             for material_file in raw_obj.material_libraries {
                 match File::open(&material_file) {
-                    Ok(file) => match obj::raw::material::parse_mtl(BufReader::new(file)) {
-                        Ok(raw_mat) => {
-                            for (material_name, material) in raw_mat.materials {
-                                materials.insert(material_name, material);
-                            }
-                        },
-                        Err(e) => {
-                            log::warn!(
-                                "An error occurred when parsing MTL file {material_file:#?}: \
+                    Ok(file) => {
+                        match obj::raw::material::parse_mtl(BufReader::new(file)) {
+                            Ok(raw_mat) => {
+                                for (material_name, material) in raw_mat.materials {
+                                    materials.insert(material_name, material);
+                                }
+                            },
+                            Err(e) => {
+                                log::warn!(
+                                    "An error occurred when parsing MTL file {material_file:#?}: \
                                      {e}."
-                            );
-                        },
+                                );
+                            },
+                        }
                     },
                     Err(e) => {
                         log::warn!(

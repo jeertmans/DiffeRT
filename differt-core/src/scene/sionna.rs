@@ -109,9 +109,11 @@ where
             let b = b_str.parse().map_err(de::Error::custom)?;
             Ok([r, g, b])
         },
-        _ => Err(de::Error::custom(
-            "value of <rgb> element must contain three floats",
-        )),
+        _ => {
+            Err(de::Error::custom(
+                "value of <rgb> element must contain three floats",
+            ))
+        },
     }
 }
 
@@ -195,12 +197,14 @@ impl<'de> Deserialize<'de> for Material {
             RawMaterial::TwoSided {
                 id,
                 bsdf: Bsdf { rgb: Rgb { color } },
-            } => Ok(Material {
-                name: id.strip_prefix("mat-").unwrap_or(&id).to_string(),
-                id,
-                color,
-                thickness: None,
-            }),
+            } => {
+                Ok(Material {
+                    name: id.strip_prefix("mat-").unwrap_or(&id).to_string(),
+                    id,
+                    color,
+                    thickness: None,
+                })
+            },
             RawMaterial::ItuRadioMaterial {
                 id,
                 r#type: Type::Struct { value: r#type },
@@ -235,8 +239,10 @@ impl<'de> Deserialize<'de> for Material {
                     name: format!("itu_{type}"),
                     id,
                     color,
-                    thickness: thickness.map(|t| match t {
-                        Thickness::Struct { value: thickness } => thickness,
+                    thickness: thickness.map(|t| {
+                        match t {
+                            Thickness::Struct { value: thickness } => thickness,
+                        }
                     }),
                 })
             },

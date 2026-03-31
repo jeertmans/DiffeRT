@@ -45,9 +45,8 @@ fn main() {
                 .compile("differt-ffi");
         } else {
             println!(
-                "cargo:warning=JAX not found or missing jax.ffi.include_dir(). \
-                 XLA FFI shim will not be compiled. \
-                 Install JAX >= 0.8.0 to enable XLA FFI support."
+                "cargo:warning=JAX not found or missing jax.ffi.include_dir(). XLA FFI shim will \
+                 not be compiled. Install JAX >= 0.8.0 to enable XLA FFI support."
             );
         }
     }

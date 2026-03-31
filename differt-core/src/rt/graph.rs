@@ -1219,9 +1219,11 @@ mod tests {
 
         loop {
             match (iter1.next(), iter2.next()) {
-                (Some(a), Some(b)) => match a.cmp(b) {
-                    Ordering::Equal => continue,
-                    ordering => return ordering,
+                (Some(a), Some(b)) => {
+                    match a.cmp(b) {
+                        Ordering::Equal => continue,
+                        ordering => return ordering,
+                    }
                 },
                 (Some(_), None) => return Ordering::Greater,
                 (None, Some(_)) => return Ordering::Less,
