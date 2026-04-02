@@ -131,7 +131,7 @@ jobs:
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
@@ -184,7 +184,7 @@ jobs:
       run: cargo tarpaulin --verbose --timeout 120 --out xml
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
