@@ -288,10 +288,7 @@ def use(backend: LiteralString | None = None, **kwargs: Any) -> Iterator[Backend
     kwargs = {**config.defaults.kwargs, **kwargs}
 
     with config.with_defaults(backend=backend, kwargs=kwargs):
-        try:
-            yield backend
-        finally:
-            pass
+        yield backend
 
 
 @runtime_checkable
@@ -636,7 +633,9 @@ def process_plotly_kwargs(
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
 
-    return kwargs.pop("figure", None) or go.Figure()
+    fig = kwargs.pop("figure", None) or go.Figure()
+    fig.update_scenes(aspectmode="data")
+    return fig
 
 
 def process_kwargs(
@@ -728,7 +727,4 @@ def reuse(
     with config.with_defaults(
         backend=backend, kwargs={**config.defaults.kwargs, **kwargs}
     ):
-        try:
-            yield canvas_or_fig
-        finally:
-            pass
+        yield canvas_or_fig
