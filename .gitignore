@@ -29,3 +29,4 @@ differt/src/differt/scene/scenes/
 coverage.xml
 
 .fileid.db
+.aider*
