@@ -4,7 +4,7 @@ __all__ = ("DeepMIMO", "export")
 
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
-from typing import Any, Generic, Literal, TypeGuard
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeGuard
 
 import equinox as eqx
 import jax
@@ -32,6 +32,16 @@ from differt.scene import TriangleScene
 from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
+
+if TYPE_CHECKING:
+    try:
+        import sionna.rt
+    except ImportError:
+        SionnaPaths = Any
+    else:
+        SionnaPaths = sionna.rt.Paths
+else:
+    SionnaPaths = Any
 
 
 def _pad_and_concat(
@@ -146,7 +156,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
     def _sort(
         self,
-        paths: "sionna.rt.Paths",  # type: ignore[reportUndefinedVariable]  # noqa: F821
+        paths: SionnaPaths,
     ) -> "DeepMIMO[Array]":
         """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # noqa: DOC201, DOC501
         if _is_jax_dtype(self):

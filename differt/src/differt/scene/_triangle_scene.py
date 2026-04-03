@@ -2,7 +2,7 @@ import math
 import typing
 import warnings
 from collections.abc import Iterator, Mapping
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import equinox as eqx
 import jax
@@ -1270,15 +1270,18 @@ class TriangleScene(eqx.Module):
             to = from_ + 1
 
         if chunk_size:
+            # Type checker not able to infer that order is not None in this branch, even with the previous checks, so we need to cast it
+            order = cast("int", order)
+
             path_candidates_iter = graph.all_paths_array_chunks(
                 from_=from_,
                 to=to,
-                depth=order + 2,  # type: ignore[unsupported-operator]
+                depth=order + 2,
                 include_from_and_to=False,
                 chunk_size=chunk_size,
             )
             it = (
-                _compute_paths(  # type: ignore[no-matching-overload]
+                _compute_paths(  # type: ignore[ty:no-matching-overload]
                     self.mesh,
                     tx_vertices,
                     rx_vertices,
@@ -1301,11 +1304,13 @@ class TriangleScene(eqx.Module):
             return it
 
         if path_candidates is None:
+            # Type checker not able to infer that order is not None in this branch, even with the previous checks, so we need to cast it
+            order = cast("int", order)
             path_candidates = jnp.asarray(
                 graph.all_paths_array(
                     from_=from_,
                     to=to,
-                    depth=order + 2,  # type: ignore[unsupported-operator]
+                    depth=order + 2,  # order not narrowed in this branch
                     include_from_and_to=False,
                 ),
                 dtype=int,
@@ -1318,7 +1323,7 @@ class TriangleScene(eqx.Module):
             if self.mesh.assume_quads:
                 path_candidates -= path_candidates % 2
 
-        return _compute_paths(  # type: ignore[no-matching-overload]
+        return _compute_paths(  # type: ignore[ty:no-matching-overload]
             self.mesh,
             tx_vertices,
             rx_vertices,

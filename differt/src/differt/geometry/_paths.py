@@ -350,7 +350,7 @@ class Paths(eqx.Module, Generic[_M]):
 
         if not _is_masked_paths(paths):
             # ty is unable to infer that _M & ~Array implies None
-            return paths  # type: ignore[invalid-return-type]
+            return paths  # type: ignore[ty:invalid-return-type]
 
         mask = paths.mask
         if mask.dtype == jnp.bool_:

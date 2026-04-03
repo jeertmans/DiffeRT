@@ -14,6 +14,7 @@ from typing import (
     ParamSpec,
     Protocol,
     TypeVar,
+    cast,
     get_args,
     no_type_check,
     runtime_checkable,
@@ -76,7 +77,7 @@ config = _Config()
 """Mutable config object with mutability of default values guarded by a lock."""
 
 
-def get_backend(backend: LiteralString | None = None) -> BackendName:
+def get_backend(backend: str | None = None) -> BackendName:
     """
     Return the name of the backend to use.
 
@@ -113,10 +114,11 @@ def get_backend(backend: LiteralString | None = None) -> BackendName:
     if importlib.util.find_spec(backend) is None:
         msg = f"Could not find backend '{backend}', did you install it?"
         raise ImportError(msg)
-    return backend
+
+    return cast("BackendName", backend)
 
 
-def set_defaults(backend: LiteralString | None = None, **kwargs: Any) -> BackendName:
+def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     """
     Set default backend and keyword arguments for future plotting utilities.
 
@@ -184,7 +186,7 @@ def set_defaults(backend: LiteralString | None = None, **kwargs: Any) -> Backend
     return backend
 
 
-def set_backend(backend: LiteralString) -> None:
+def set_backend(backend: str) -> None:
     """
     Set default backend for future plotting utilities.
 
@@ -207,7 +209,7 @@ def set_backend(backend: LiteralString) -> None:
     set_defaults(backend=backend)
 
 
-def update_defaults(backend: LiteralString | None = None, **kwargs: Any) -> BackendName:
+def update_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:
     """
     Update default backend and keyword arguments for future plotting utilities.
 
@@ -232,7 +234,7 @@ def update_defaults(backend: LiteralString | None = None, **kwargs: Any) -> Back
 
 
 @contextmanager
-def use(backend: LiteralString | None = None, **kwargs: Any) -> Iterator[BackendName]:
+def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
     """
     Create a context manager that updates plotting defaults and returns the current default backend.
 
@@ -302,11 +304,11 @@ class _Dispatcher(Protocol[P, T]):
     ) -> T: ...
     def register(
         self,
-        backend: LiteralString,
+        backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]: ...
 
 
-def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
+def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
     """
     Transform a function into a backend dispatcher for plot functions.
 
@@ -373,10 +375,10 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
         Traceback (most recent call last):
         ValueError: Unsupported backend 'numpy', allowed values are: ...
     """
-    registry: dict[str, Callable[P, PlotOutput]] = {}
+    registry: dict[str, Callable[P, T]] = {}
 
     def register(
-        backend: LiteralString,
+        backend: str,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """
         Return a wrapper that will call the decorated function for the specified backend.
@@ -431,37 +433,26 @@ def dispatch(fun: Callable[P, PlotOutput]) -> _Dispatcher[P, T]:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T:
-        """
-        Call the appropriate backend implementation based on the default backend and the provided arguments.
-
-        Args:
-            args: Positional arguments passed to the correct backend implementation.
-            kwargs: Keyword arguments passed to the correct backend implementation.
-
-        Returns:
-            The result of the call.
-        """
-        # We cannot currently add keyword argument to the signature,
-        # at least Pyright will not allow that,
-        # see: https://github.com/microsoft/pyright/issues/5844.
-        #
-        # The motivation is detailed in P612:
-        # https://peps.python.org/pep-0612/#concatenating-keyword-parameters.
-        backend_opt: LiteralString | None = kwargs.pop("backend", None)  # type: ignore[reportArgumentType]
+        # We cannot add keyword argument to the signature, because ParamSpec does not
+        #  allow parameters between
+        # *args: P.args and **kwargs: P.kwargs.
+        backend_opt = kwargs.pop("backend", None)
+        if backend_opt is not None and not isinstance(backend_opt, str):
+            msg = "Argument 'backend' must be a string."
+            raise TypeError(msg)
         backend = get_backend(backend_opt)
 
         try:
-            return registry[backend](*args, **kwargs)  # type: ignore[reportReturnType]
+            return registry[backend](*args, **kwargs)
         except KeyError:
             msg = f"No backend implementation for '{backend}'"
             raise NotImplementedError(
                 msg,
             ) from None
 
-    wrapper.register = register  # type: ignore[reportAttributeAccessIssue]
-    wrapper.registry = types.MappingProxyType(registry)  # type: ignore[reportAttributeAccessIssue]
-
-    return wrapper  # type: ignore[reportReportType]
+    wrapper.register = register  # type: ignore[ty:unresolved-attribute]
+    wrapper.registry = types.MappingProxyType(registry)  # type: ignore[ty:unresolved-attribute]
+    return wrapper  # type: ignore[ty:invalid-return-type]
 
 
 def view_from_canvas(canvas: Canvas) -> ViewBox:
