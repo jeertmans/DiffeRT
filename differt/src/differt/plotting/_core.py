@@ -135,6 +135,8 @@ def _(
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Figure:
+    kwargs.setdefault("lighting", {"ambient": 0.45, "diffuse": 0.85, "roughness": 0.3, "specular": 0.3, "fresnel": 0.1})
+    kwargs.setdefault("lightposition", {"x": 1000, "y": 1000, "z": 1000})
     fig = process_plotly_kwargs(kwargs)
     kwargs.setdefault("flatshading", True)
 
@@ -1099,6 +1101,8 @@ def _(
     if colors is not None and "surfacecolor" not in kwargs:
         kwargs["surfacecolor"] = np.asarray(colors)
 
+    kwargs.setdefault("lighting", {"ambient": 0.45, "diffuse": 0.85, "roughness": 0.3, "specular": 0.3, "fresnel": 0.1})
+    kwargs.setdefault("lightposition", {"x": 1000, "y": 1000, "z": 1000})
     fig.add_surface(x=x, y=y, z=z, **kwargs)
 
     return fig
