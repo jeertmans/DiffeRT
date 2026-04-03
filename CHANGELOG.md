@@ -26,6 +26,9 @@ with one *slight* but **important** difference:
 
 - Added {func}`set_backend<differt.plotting.set_backend>` function to easily switch between different plotting backends, without using the more verbose {func}`set_defaults<differt.plotting.set_defaults>` function (by <gh-user:jeertmans>, in <gh-pr:387>).
 
+### Changed
+
+- Changed default options for plotting with Plotly (`aspectmode="data"` and `flatshading=True` on meshes) so that Plotly is now a much better option for large 3D scenes. Edited the tutorial accordingly, showing the improved visualization and the importance of lighting (by <gh-user:jeertmans>, in <gh-pr:412>).
 
 ### Chore
 

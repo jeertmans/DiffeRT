@@ -633,7 +633,9 @@ def process_plotly_kwargs(
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
 
-    return kwargs.pop("figure", None) or go.Figure()
+    fig = kwargs.pop("figure", None) or go.Figure()
+    fig.update_scenes(aspectmode="data")
+    return fig
 
 
 def process_kwargs(

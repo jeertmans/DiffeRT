@@ -136,6 +136,7 @@ def _(
     **kwargs: Any,
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
+    kwargs.setdefault("flatshading", True)
 
     if (
         face_colors := kwargs.pop("face_colors", None)
