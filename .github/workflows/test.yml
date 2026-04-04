@@ -54,7 +54,7 @@ jobs:
       run: tree -L 2 differt/src/differt/scene/scenes
 
     - name: Upload scenes
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: sionna-scenes
         path: differt/src/differt/scene/scenes
