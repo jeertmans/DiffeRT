@@ -34,6 +34,10 @@ with one *slight* but **important** difference:
 
 - Unreleased changes are now displayed on the changelog page. Users looking for the latest released changes should look at the [stable version](https://differt.readthedocs.io/stable/) of the documentation (by <gh-user:jeertmans>, in <gh-pr:391>).
 
+### Fixed
+
+- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:copilot>).
+
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
 ### Added

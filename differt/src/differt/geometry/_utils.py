@@ -1,4 +1,4 @@
-from typing import Literal, no_type_check, overload
+from typing import Literal, overload
 
 import equinox as eqx
 import jax
@@ -448,17 +448,16 @@ def assemble_paths(
 ) -> Float[Array, "*batch 2 3"]: ...
 
 
-# NOTE: Jaxtyping does not match the correct shape for `intermediate_vertices` and will match
-#       `Float[ArrayLike, "*#batch 3"]` instead of `Float[ArrayLike, "*#batch num_inter_vertices 3"]`.
-#       This is why we use `no_type_check` here.
-# TODO: fix this.
-@no_type_check
+# NOTE: The implementation uses `*#inter_batch` for `intermediate_vertices` to avoid
+#       beartype from binding the shared `batch` dimension when checking `to_vertices`.
+#       The return type uses `Array` without shape annotation since the overloads
+#       already capture the precise return shapes for static type checkers and documentation.
 def assemble_paths(
     from_vertices: Float[ArrayLike, "*#batch 3"],
-    intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"]
-    | Float[ArrayLike, "*#batch 3"],
+    intermediate_vertices: Float[ArrayLike, "*#inter_batch num_inter_vertices 3"]
+    | Float[ArrayLike, "*#inter_batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
-) -> Float[Array, "*batch num_inter_vertices+2 3"] | Float[Array, "*batch 2 3"]:
+) -> Array:
     """
     Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
 
