@@ -358,7 +358,7 @@ class TestTriangleMesh:
         chex.assert_trees_all_equal(got, expected)
 
     def test_at_update_invalid_index(self, two_buildings_mesh: TriangleMesh) -> None:
-        with pytest.raises(ValueError, match="one-dimensional"):
+        with pytest.raises(jaxtyping.TypeCheckError):
             two_buildings_mesh.at[jnp.ones((2, 3), dtype=int)]
 
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
