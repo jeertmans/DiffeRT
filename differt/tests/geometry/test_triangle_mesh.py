@@ -312,19 +312,25 @@ class TestTriangleMesh:
         ],
     )
     @pytest.mark.parametrize(
-        ("method", "func_or_values"),
+        ("method", "jax_method", "func_or_values"),
         [
-            ("set", (0.0,)),
-            ("get", ()),
-            ("apply", (lambda x: 1 / x,)),
-            ("add", (jnp.array([1.0, 3.0, 6.0]),)),
-            ("mul", (2.0,)),
+            ("get", "get", ()),
+            ("set", "set", (0.0,)),
+            ("add", "add", (jnp.array([1.0, 3.0, 6.0]),)),
+            ("sub", "subtract", (jnp.array([1.0, 3.0, 6.0]),)),
+            ("mul", "mul", (2.0,)),
+            ("div", "divide", (2.0,)),
+            ("pow", "power", (2.0,)),
+            ("min", "min", (jnp.array([0.0, 0.0, 0.0]),)),
+            ("max", "max", (jnp.array([100.0, 100.0, 100.0]),)),
+            ("apply", "apply", (lambda x: 1 / x,)),
         ],
     )
     def test_at_update(
         self,
         index: slice | Array,
-        method: Literal["set", "apply", "add", "mul", "get"],
+        method: Literal["get", "set", "add", "sub", "mul", "div", "pow", "min", "max", "apply"],
+        jax_method: str,
         func_or_values: tuple[Any, ...],
         two_buildings_mesh: TriangleMesh,
     ) -> None:
@@ -338,7 +344,7 @@ class TestTriangleMesh:
             # Duplicate indices are dropped before updating
             index = jnp.unique(index)
 
-        vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
+        vertices = getattr(two_buildings_mesh.vertices.at[index, :], jax_method)(
             *func_or_values
         )
         if method == "get":

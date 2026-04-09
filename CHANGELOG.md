@@ -25,7 +25,8 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added {func}`set_backend<differt.plotting.set_backend>` function to easily switch between different plotting backends, without using the more verbose {func}`set_defaults<differt.plotting.set_defaults>` function (by <gh-user:jeertmans>, in <gh-pr:387>).
-- Improved type annotations for {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods (`get`, `set`, `add`, `mul`, `apply`): replaced `**kwargs: Any` with `**kwargs: Unpack[_AtUpdateKwargs]` (or `_AtGetKwargs` for `get`), and typed the `values` argument as broadcast-compatible `Float[ArrayLike, ...]` (by <gh-user:copilot>).
+- Improved type annotations for {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods (`get`, `set`, `add`, `mul`, `apply`): replaced `**kwargs: Any` with per-method `**kwargs: Unpack[_At<Method>Kwargs]` TypedDicts generated at import time by inspecting JAX's `ndarray.at` method signatures (so they stay in sync with JAX), and typed the `values` argument as broadcast-compatible `Float[ArrayLike, ...]` (by <gh-user:copilot>).
+- Added {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods `sub`, `div`, `pow`, `min`, and `max` as counterparts to JAX's `ndarray.at[...].subtract`, `divide`, `power`, `min`, and `max` (by <gh-user:copilot>).
 
 ### Changed
 
