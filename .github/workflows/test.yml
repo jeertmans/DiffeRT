@@ -132,7 +132,7 @@ jobs:
         path: differt/src/differt/scene/scenes
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact --jaxtyping-packages="${{ matrix.jaxtyping-packages || ''}}" -m pytest
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }}
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v6
