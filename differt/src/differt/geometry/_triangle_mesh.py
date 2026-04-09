@@ -603,8 +603,29 @@ class TriangleMesh(eqx.Module):
 
         Each method takes additional keyword parameters that are passed to the underlying
         :attr:`jax.numpy.ndarray.at` ``get`` method used to resolve triangle indices.
-        The accepted keyword arguments are documented in :class:`_AtUpdateKwargs`
-        (and :class:`_AtGetKwargs` for ``get``). Because the vertices of a triangle mesh may be shared
+        The following keyword arguments are accepted by all methods (``set``, ``add``,
+        ``mul``, ``apply``):
+
+        - ``indices_are_sorted`` (:class:`bool`, default :data:`False`): if :data:`True`,
+          the indices are assumed to be sorted in ascending order, which can allow more
+          efficient implementations on some backends;
+        - ``unique_indices`` (:class:`bool`, default :data:`False`): if :data:`True`,
+          the indices are assumed to be unique, which can allow more efficient
+          implementations on some backends;
+        - ``mode`` (:class:`str` or :data:`None`, default :data:`None`): out-of-bound
+          index handling mode — one of ``'promise_in_bounds'``, ``'drop'``,
+          ``'clip'``, or ``'fill'`` (see :attr:`jax.numpy.ndarray.at`);
+        - ``wrap_negative_indices`` (:class:`bool`, default :data:`True`): if
+          :data:`True`, negative indices are wrapped around; set to :data:`False`
+          to treat them as out-of-bound.
+
+        The ``get`` method additionally accepts:
+
+        - ``fill_value`` (:class:`~jaxtyping.ArrayLike` or :data:`None`, default
+          :data:`None`): fill value used for out-of-bound indices when
+          ``mode='fill'``.
+
+        Because the vertices of a triangle mesh may be shared
         between multiple triangles, this method prevents updating the same vertice multiple times
         by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
         will not result in duplicate updates.
