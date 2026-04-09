@@ -204,7 +204,7 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
             (15, 5, 3),
             (15, 3, 3),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )
@@ -254,14 +254,14 @@ def test_rays_intersect_triangles_random_inputs(
             (20, 3),
             (1, 3, 3),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         pytest.param(
             (10, 3),
             (10, 4),
             (10, 3, 3),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )

@@ -32,13 +32,13 @@ from ..utils import random_inputs
             (3, 3),
             (4,),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         pytest.param(
             (10, 3, 3),
             (12, 3),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )
@@ -553,7 +553,7 @@ class TestTriangleMesh:
                     pytest.mark.xfail(
                         reason="Unsupported type checking of typing.Self"
                     ),
-                    pytest.mark.jaxtyped,
+                    pytest.mark.require_typechecker,
                 ],
             ),
             pytest.param(
@@ -563,7 +563,7 @@ class TestTriangleMesh:
                     pytest.mark.xfail(
                         reason="Unsupported type checking of typing.Self"
                     ),
-                    pytest.mark.jaxtyped,
+                    pytest.mark.require_typechecker,
                 ],
             ),
         ],
