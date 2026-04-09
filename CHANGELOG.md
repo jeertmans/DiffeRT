@@ -25,6 +25,7 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added {func}`set_backend<differt.plotting.set_backend>` function to easily switch between different plotting backends, without using the more verbose {func}`set_defaults<differt.plotting.set_defaults>` function (by <gh-user:jeertmans>, in <gh-pr:387>).
+- Improved type annotations for {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods (`get`, `set`, `add`, `mul`, `apply`): replaced `**kwargs: Any` with `**kwargs: Unpack[_AtUpdateKwargs]` (or `_AtGetKwargs` for `get`), and typed the `values` argument as broadcast-compatible `Float[ArrayLike, ...]`. Added a validation that array indices passed to `at[...]` are at most one-dimensional (by <gh-user:copilot>).
 
 ### Changed
 

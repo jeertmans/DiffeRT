@@ -8,6 +8,7 @@ from typing import (
     Literal,
     TypedDict,
     TypeVar,
+    Unpack,
     overload,
 )
 
@@ -38,6 +39,39 @@ _AT_INDEXING_KWARGS: _AtIndexingKwargs = {
     "unique_indices": True,
     "wrap_negative_indices": False,
 }
+
+
+class _AtUpdateKwargs(TypedDict, total=False):
+    """Keyword arguments accepted by JAX's ``ndarray.at[...].get()`` and forwarded internally.
+
+    These kwargs control how triangle indices are resolved when updating vertices.
+    They correspond to the parameters of :attr:`jax.numpy.ndarray.at` methods.
+    """
+
+    indices_are_sorted: bool
+    """If ``True``, the indices are assumed to be sorted in ascending order,
+    which can allow more efficient implementations on some backends."""
+    unique_indices: bool
+    """If ``True``, the indices are assumed to be unique, which can allow
+    more efficient implementations on some backends."""
+    mode: str | None
+    """Out-of-bound index handling mode.  One of ``'promise_in_bounds'``,
+    ``'drop'``, ``'clip'``, or ``'fill'``.  See :attr:`jax.numpy.ndarray.at`
+    for the full description of each mode."""
+    wrap_negative_indices: bool
+    """If ``True`` (default in JAX), negative indices are wrapped around.
+    Set to ``False`` to treat them as out-of-bound."""
+
+
+class _AtGetKwargs(_AtUpdateKwargs, total=False):
+    """Keyword arguments accepted by JAX's ``ndarray.at[...].get()``.
+
+    Extends :class:`_AtUpdateKwargs` with the ``fill_value`` parameter that is
+    only meaningful for read (``get``) operations.
+    """
+
+    fill_value: ArrayLike | None
+    """The fill value used for out-of-bound indices when ``mode='fill'``."""
 
 
 @jax.jit
@@ -127,19 +161,33 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
     __slots__ = ("index", "mesh")
 
     def __init__(self, mesh: _T, index: _Index) -> None:
+        if not isinstance(index, slice):
+            index_array = jnp.asarray(index)
+            if index_array.ndim > 1:
+                raise ValueError(
+                    f"Index must be at most one-dimensional, got array with shape {index_array.shape}."
+                )
         self.mesh = mesh
         self.index = index
 
     def __repr__(self) -> str:
         return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
 
-    def _triangles_index(self, **kwargs: Any) -> _Index:
+    def _triangles_index(self, **kwargs: Unpack[_AtUpdateKwargs]) -> _Index:
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
         )
 
-    def set(self, values: Any, **kwargs: Any) -> _T:
+    def set(
+        self,
+        values: (
+            Float[ArrayLike, "#num_indexed_triangles #3"]
+            | Float[ArrayLike, "3"]
+            | Float[ArrayLike, ""]
+        ),
+        **kwargs: Unpack[_AtUpdateKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -147,7 +195,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
         )
 
-    def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+    def get(self, **kwargs: Unpack[_AtGetKwargs]) -> Float[ArrayLike, "num_indexed_triangles 3"]:
         # get() is allowed to return duplicates, so we do not use _triangles_index()
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
@@ -158,7 +206,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             [Float[ArrayLike, "num_indexed_triangles 3"]],
             Float[Array, "num_indexed_triangles 3"],
         ],
-        **kwargs: Any,
+        **kwargs: Unpack[_AtUpdateKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
@@ -167,7 +215,15 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
         )
 
-    def add(self, values: Any, **kwargs: Any) -> _T:
+    def add(
+        self,
+        values: (
+            Float[ArrayLike, "#num_indexed_triangles #3"]
+            | Float[ArrayLike, "3"]
+            | Float[ArrayLike, ""]
+        ),
+        **kwargs: Unpack[_AtUpdateKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -175,7 +231,15 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
         )
 
-    def mul(self, values: Any, **kwargs: Any) -> _T:
+    def mul(
+        self,
+        values: (
+            Float[ArrayLike, "#num_indexed_triangles #3"]
+            | Float[ArrayLike, "3"]
+            | Float[ArrayLike, ""]
+        ),
+        **kwargs: Unpack[_AtUpdateKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -533,12 +597,14 @@ class TriangleMesh(eqx.Module):
         - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
         - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
         - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values;
-        - ``get(values, **kwargs)``: Get the vertices of selected triangles.
+        - ``get(**kwargs)``: Get the vertices of selected triangles.
 
         E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
 
-        Each method takes additional keyword parameters that are passed to the methods
-        of :attr:`jax.numpy.ndarray.at`. Because the vertices of a triangle mesh may be shared
+        Each method takes additional keyword parameters that are passed to the underlying
+        :attr:`jax.numpy.ndarray.at` ``get`` method used to resolve triangle indices.
+        The accepted keyword arguments are documented in :class:`_AtUpdateKwargs`
+        (and :class:`_AtGetKwargs` for ``get``). Because the vertices of a triangle mesh may be shared
         between multiple triangles, this method prevents updating the same vertice multiple times
         by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
         will not result in duplicate updates.

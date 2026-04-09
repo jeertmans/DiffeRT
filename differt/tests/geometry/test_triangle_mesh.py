@@ -314,10 +314,10 @@ class TestTriangleMesh:
     @pytest.mark.parametrize(
         ("method", "func_or_values"),
         [
-            ("set", (0,)),
+            ("set", (0.0,)),
             ("get", ()),
             ("apply", (lambda x: 1 / x,)),
-            ("add", ([1.0, 3.0, 6.0],)),
+            ("add", (jnp.array([1.0, 3.0, 6.0]),)),
             ("mul", (2.0,)),
         ],
     )
@@ -350,6 +350,10 @@ class TestTriangleMesh:
                 vertices,
             )
         chex.assert_trees_all_equal(got, expected)
+
+    def test_at_update_invalid_index(self, two_buildings_mesh: TriangleMesh) -> None:
+        with pytest.raises(ValueError, match="one-dimensional"):
+            two_buildings_mesh.at[jnp.ones((2, 3), dtype=int)]
 
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
