@@ -36,7 +36,7 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
-- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:copilot>).
+- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:jeertmans>).
 
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
