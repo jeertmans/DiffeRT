@@ -450,14 +450,14 @@ def assemble_paths(
 
 # NOTE: The implementation uses `*#inter_batch` for `intermediate_vertices` to avoid
 #       beartype from binding the shared `batch` dimension when checking `to_vertices`.
-#       The return type uses `Array` without shape annotation since the overloads
-#       already capture the precise return shapes for static type checkers and documentation.
+#       The return type uses `num_vertices` (a fresh binding) instead of the arithmetic
+#       expression `num_inter_vertices+2` to avoid a jaxtyping AnnotationError.
 def assemble_paths(
     from_vertices: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#inter_batch num_inter_vertices 3"]
     | Float[ArrayLike, "*#inter_batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
-) -> Array:
+) -> Float[Array, "*batch num_vertices 3"]:
     """
     Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
 
