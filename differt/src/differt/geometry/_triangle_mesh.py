@@ -59,6 +59,8 @@ def _jax_at_kwargs_typeddict(
     fields: dict[str, Any] = {}
     for param_name, param in sig.parameters.items():
         if param_name in skip:
+            # Skip 'self' (the instance), 'values'/'func' (the primary positional
+            # argument specific to each operation — not a shared keyword argument).
             continue
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue

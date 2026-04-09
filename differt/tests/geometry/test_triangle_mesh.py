@@ -2,7 +2,7 @@ import logging
 import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from typing import Any, Literal
+from typing import Any
 
 import chex
 import equinox as eqx
@@ -329,7 +329,7 @@ class TestTriangleMesh:
     def test_at_update(
         self,
         index: slice | Array,
-        method: Literal["get", "set", "add", "sub", "mul", "div", "pow", "min", "max", "apply"],
+        method: str,
         jax_method: str,
         func_or_values: tuple[Any, ...],
         two_buildings_mesh: TriangleMesh,
