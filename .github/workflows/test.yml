@@ -79,7 +79,7 @@ jobs:
           group: tests-vispy
         - pyversion: '3.11'
           os: ubuntu-latest
-          jaxtyping-packages: differt
+          jaxtyping-packages: ''  # Running without type checker
           resolution: highest
         exclude:
         - os: windows-latest  # jaxlib wheels not available
