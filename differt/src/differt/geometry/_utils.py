@@ -1,4 +1,5 @@
-from typing import Literal, no_type_check, overload
+import typing
+from typing import TYPE_CHECKING, Literal, no_type_check, overload
 
 import equinox as eqx
 import jax
@@ -450,15 +451,15 @@ def assemble_paths(
 
 # NOTE: Jaxtyping does not match the correct shape for `intermediate_vertices` and will match
 #       `Float[ArrayLike, "*#batch 3"]` instead of `Float[ArrayLike, "*#batch num_inter_vertices 3"]`.
-#       This is why we use `no_type_check` here.
-# TODO: fix this.
-@no_type_check
+#       This is why we need to disable type checking here. However, the `no_type_check` decorator also
+#       suppresses `typing.get_type_hints()`, which is used by Sphinx to extract type annotations for
+#       documentation. To work around this, we use `no_type_check` when not generating documentation.
 def assemble_paths(
     from_vertices: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"]
     | Float[ArrayLike, "*#batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
-) -> Float[Array, "*batch num_inter_vertices+2 3"] | Float[Array, "*batch 2 3"]:
+) -> Float[Array, "*batch num_vertices+2 3"] |  Float[Array, "*batch 2 3"]:
     """
     Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
 
@@ -505,6 +506,10 @@ def assemble_paths(
         ),
         axis=-2,
     )
+
+
+if not TYPE_CHECKING and not hasattr(typing, "GENERATING_DOCS"):
+    assemble_paths = no_type_check(assemble_paths)
 
 
 @jax.jit

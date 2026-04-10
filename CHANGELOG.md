@@ -36,6 +36,10 @@ with one *slight* but **important** difference:
 - Renamed `jaxtyped` Pytest marker to `require_typechecker` (by <gh-user:jeertmans>, in <gh-pr:422>).
 - Added `require_no_typechecker` Pytest marker to automatically skip tests that cannot work when type checking is enabled (by <gh-user:jeertmans>, in <gh-pr:422>).
 
+### Fixed
+
+- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:jeertmans>).
+
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
 ### Added
