@@ -1,5 +1,5 @@
 import typing
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
     TYPE_CHECKING,
@@ -113,7 +113,14 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
-_Index = slice | Int[ArrayLike, ""] | Int[Array, " n"] | Bool[Array, " num_triangles"]
+_Index = (
+    slice
+    | Int[ArrayLike, ""]
+    | Int[Array, " n"]
+    | Bool[Array, " num_triangles"]
+    | Sequence[int]
+    | Sequence[bool]
+)
 _T = TypeVar("_T", bound="TriangleMesh")
 
 
@@ -164,7 +171,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def set(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -176,7 +188,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def add(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -188,7 +205,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def sub(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -200,7 +222,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def mul(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -212,7 +239,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def div(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -224,7 +256,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def pow(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -236,7 +273,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def min(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
@@ -248,7 +290,12 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
     def max(
         self,
-        values: (Float[ArrayLike, "3"] | Float[ArrayLike, "1"] | Float[ArrayLike, ""]),
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
         **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
         index = self._triangles_index(**kwargs)
