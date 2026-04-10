@@ -459,7 +459,7 @@ def assemble_paths(
     intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"]
     | Float[ArrayLike, "*#batch 3"],
     to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
-) -> Float[Array, "*batch num_vertices+2 3"]:
+) -> Float[Array, "*batch num_vertices+2 3"] |  Float[Array, "*batch 2 3"]:
     """
     Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
 
