@@ -29,7 +29,7 @@ from ..utils import random_inputs
             (10,),
             (2,),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         ((20, 10), (1,), does_not_raise()),
         ((20, 10), (10,), does_not_raise()),
@@ -40,13 +40,13 @@ from ..utils import random_inputs
             (20, 10),
             (20,),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         pytest.param(
             (10, 4),
             (10, 5),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )
@@ -71,7 +71,7 @@ def test_lengths_to__delays_random_inputs(
         pytest.param(
             (10, 4),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         ((1, 3), does_not_raise()),
         ((0, 3), does_not_raise()),

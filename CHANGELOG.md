@@ -33,6 +33,8 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Unreleased changes are now displayed on the changelog page. Users looking for the latest released changes should look at the [stable version](https://differt.readthedocs.io/stable/) of the documentation (by <gh-user:jeertmans>, in <gh-pr:391>).
+- Renamed `jaxtyped` Pytest marker to `require_typechecker` (by <gh-user:jeertmans>, in <gh-pr:422>).
+- Added `require_no_typechecker` Pytest marker to automatically skip tests that cannot work when type checking is enabled (by <gh-user:jeertmans>, in <gh-pr:422>).
 
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
