@@ -37,7 +37,7 @@ def bvh_rays_intersect_any_triangle(
     max_candidates: int = 512,
     epsilon_grad: float = 1e-7,
     **kwargs: Any,
-) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
+) -> Bool[Array, "..."] | Float[Array, "..."]:
     """BVH-accelerated version of :func:`~differt.rt.rays_intersect_any_triangle`.
 
     When ``bvh`` is provided, uses BVH candidate selection to reduce the number
@@ -219,7 +219,7 @@ def bvh_triangles_visible_from_vertices(
     *,
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
-) -> Bool[Array, "*batch num_triangles"]:
+) -> Bool[Array, "..."]:
     """BVH-accelerated version of :func:`~differt.rt.triangles_visible_from_vertices`.
 
     Uses BVH nearest-hit for O(log N) per ray instead of O(N), avoiding JAX's
@@ -330,7 +330,7 @@ def bvh_first_triangles_hit_by_rays(
     *,
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
-) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+) -> tuple[Int[Array, "..."], Float[Array, "..."]]:
     """BVH-accelerated version of :func:`~differt.rt.first_triangles_hit_by_rays`.
 
     Uses BVH traversal for O(log N) nearest-hit per ray instead of O(N).
