@@ -6,21 +6,17 @@ operations inside JIT-compiled JAX functions (``jax.jit``, ``jax.lax.scan``).
 Requires ``differt-core`` built with the ``xla-ffi`` feature.
 """
 
-from __future__ import annotations
-
 __all__ = (
     "ffi_get_candidates",
     "ffi_nearest_hit",
 )
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-
-if TYPE_CHECKING:
-    from jaxtyping import Array, Float
+from jaxtyping import Array, Float
 
 _FFI_REGISTERED = False
 
@@ -69,10 +65,10 @@ def ffi_nearest_hit(
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
     Args:
-        ray_origins: Ray origins with shape ``(num_rays, 3)``.
-        ray_directions: Ray directions with shape ``(num_rays, 3)``.
+        ray_origins: Ray origins.
+        ray_directions: Ray directions.
         bvh_id: Registry ID from ``bvh.register()``.
-        active_mask: Optional boolean mask with shape ``(num_triangles,)``.
+        active_mask: Optional boolean mask for active triangles.
             When provided, only triangles where the mask is ``True`` are
             considered during traversal, correctly finding the nearest
             *active* hit.
@@ -120,8 +116,8 @@ def ffi_get_candidates(
     """BVH candidate selection via XLA FFI. Works inside ``jax.jit``.
 
     Args:
-        ray_origins: Ray origins with shape ``(num_rays, 3)``.
-        ray_directions: Ray directions with shape ``(num_rays, 3)``.
+        ray_origins: Ray origins.
+        ray_directions: Ray directions.
         bvh_id: Registry ID from ``bvh.register()``.
         expansion: Bounding box expansion for differentiable mode.
         max_candidates: Maximum candidates per ray.

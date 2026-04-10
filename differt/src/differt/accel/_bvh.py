@@ -6,6 +6,8 @@ from O(rays * triangles) to O(rays * log(triangles)).
 
 __all__ = ("TriangleBvh",)
 
+import math
+
 import numpy as np
 from jaxtyping import ArrayLike
 
@@ -197,8 +199,6 @@ def compute_expansion_radius(
         >>> r > 0
         True
     """
-    import math  # noqa: PLC0415
-
     if smoothing_factor <= 0:
         return float("inf")
     return triangle_size * math.log(1.0 / epsilon_grad) / smoothing_factor

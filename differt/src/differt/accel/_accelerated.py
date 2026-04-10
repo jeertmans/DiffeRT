@@ -8,25 +8,21 @@ For the soft (differentiable) path, the BVH selects candidates and the
 existing JAX-based Moller-Trumbore runs on the reduced set.
 """
 
-from __future__ import annotations
-
 __all__ = (
     "bvh_first_triangles_hit_by_rays",
     "bvh_rays_intersect_any_triangle",
     "bvh_triangles_visible_from_vertices",
 )
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
+from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.accel._bvh import TriangleBvh, compute_expansion_radius
 from differt.rt._utils import rays_intersect_triangles
 from differt.utils import smoothing_function
-
-if TYPE_CHECKING:
-    from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 
 def bvh_rays_intersect_any_triangle(

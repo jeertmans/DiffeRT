@@ -1,20 +1,15 @@
 """Tests for BVH acceleration structure.
 
 Validates that BVH-accelerated intersection queries produce the same results
-as the brute-force implementations, for both hard and soft (differentiable) modes.
+as the brute-force implementations, for both non-smoothing and smoothing (differentiable) modes.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
+import chex
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
-
-if TYPE_CHECKING:
-    from differt.scene import TriangleScene
 
 from differt.accel import TriangleBvh
 from differt.accel._accelerated import (
@@ -23,10 +18,12 @@ from differt.accel._accelerated import (
     bvh_triangles_visible_from_vertices,
 )
 from differt.accel._bvh import compute_expansion_radius
+from differt.rt import triangles_visible_from_vertices
 from differt.rt._utils import (
     first_triangles_hit_by_rays,
     rays_intersect_any_triangle,
 )
+from differt.scene import TriangleScene
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -120,7 +117,7 @@ class TestNearestHit:
         bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, single_triangle)
 
         assert int(bvh_idx[0]) == int(bf_idx[0])
-        np.testing.assert_allclose(float(bvh_t[0]), float(bf_t[0]), atol=1e-4)
+        chex.assert_trees_all_close(bvh_t[0], bf_t[0], atol=1e-4)
 
     def test_single_triangle_miss(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
@@ -163,14 +160,14 @@ class TestNearestHit:
         bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, cube_scene)
 
         # Both should agree on hits vs misses
-        bvh_hit = np.asarray(bvh_idx) >= 0
-        bf_hit = np.asarray(bf_idx) >= 0
-        np.testing.assert_array_equal(bvh_hit, bf_hit)
+        bvh_hit = bvh_idx >= 0
+        bf_hit = bf_idx >= 0
+        chex.assert_trees_all_equal(bvh_hit, bf_hit)
 
         # For hits, t values should match
         for i in range(len(origins)):
             if bvh_hit[i]:
-                np.testing.assert_allclose(float(bvh_t[i]), float(bf_t[i]), atol=1e-4)
+                chex.assert_trees_all_close(bvh_t[i], bf_t[i], atol=1e-4)
 
     def test_random_scene_many_rays(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
@@ -186,14 +183,14 @@ class TestNearestHit:
         )
         bf_idx, bf_t = first_triangles_hit_by_rays(origins, dirs, random_scene)
 
-        bvh_hit = np.asarray(bvh_idx) >= 0
-        bf_hit = np.asarray(bf_idx) >= 0
-        np.testing.assert_array_equal(bvh_hit, bf_hit)
+        bvh_hit = bvh_idx >= 0
+        bf_hit = bf_idx >= 0
+        chex.assert_trees_all_equal(bvh_hit, bf_hit)
 
         hit_mask = bvh_hit & bf_hit
-        np.testing.assert_allclose(
-            np.asarray(bvh_t)[hit_mask],
-            np.asarray(bf_t)[hit_mask],
+        chex.assert_trees_all_close(
+            bvh_t[hit_mask],
+            bf_t[hit_mask],
             atol=1e-4,
         )
 
@@ -214,7 +211,7 @@ class TestNearestHit:
 
 
 class TestAnyIntersection:
-    def test_hard_mode(self, three_triangles: jax.Array) -> None:
+    def test_without_smoothing(self, three_triangles: jax.Array) -> None:
         bvh = TriangleBvh(three_triangles)
         # Ray from above, hits triangle at z=2
         origins = jnp.array([[0.1, 0.1, 3.0]])
@@ -227,7 +224,7 @@ class TestAnyIntersection:
 
         assert bool(bvh_any[0]) == bool(bf_any[0])
 
-    def test_hard_mode_miss(self, three_triangles: jax.Array) -> None:
+    def test_without_smoothing_miss(self, three_triangles: jax.Array) -> None:
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, 1.0]])  # pointing away
@@ -240,7 +237,7 @@ class TestAnyIntersection:
         assert bool(bvh_any[0]) == bool(bf_any[0]) == False  # noqa: E712
 
     @pytest.mark.parametrize("smoothing_factor", [1.0, 10.0, 100.0])
-    def test_soft_mode_matches_brute_force(
+    def test_with_smoothing_matches_brute_force(
         self, three_triangles: jax.Array, smoothing_factor: float
     ) -> None:
         bvh = TriangleBvh(three_triangles)
@@ -261,9 +258,9 @@ class TestAnyIntersection:
             smoothing_factor=smoothing_factor,
         )
 
-        np.testing.assert_allclose(float(bvh_soft[0]), float(bf_soft[0]), atol=1e-3)
+        chex.assert_trees_all_close(bvh_soft[0], bf_soft[0], atol=1e-3)
 
-    def test_soft_mode_random_scene(self, random_scene: jax.Array) -> None:
+    def test_with_smoothing_random_scene(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
         key = jax.random.PRNGKey(456)
         k1, k2 = jax.random.split(key)
@@ -283,7 +280,7 @@ class TestAnyIntersection:
             origins, dirs, random_scene, smoothing_factor=10.0
         )
 
-        np.testing.assert_allclose(np.asarray(bvh_soft), np.asarray(bf_soft), atol=1e-2)
+        chex.assert_trees_all_close(bvh_soft, bf_soft, atol=1e-2)
 
     def test_fallback_without_bvh(self, three_triangles: jax.Array) -> None:
         # Ray from z=3 to z=-2 (length 5), triangle at z=2 is at t=0.2
@@ -348,8 +345,6 @@ class TestVisibility:
         assert int(bvh_vis.sum()) >= 2  # at least the top face
 
     def test_matches_brute_force(self, cube_scene: jax.Array) -> None:
-        from differt.rt import triangles_visible_from_vertices  # noqa: PLC0415
-
         bvh = TriangleBvh(cube_scene)
         origin = jnp.array([0.5, 0.5, 2.0])
 
@@ -410,10 +405,6 @@ _requires_ffi = pytest.mark.skipif(
 @_requires_ffi
 class TestComputePathsBvh:
     def test_hybrid_with_bvh(self) -> None:
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -428,16 +419,10 @@ class TestComputePathsBvh:
 
         # Both should find the same valid paths
         assert paths_bvh.mask.shape == paths_bf.mask.shape
-        np.testing.assert_array_equal(
-            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
-        )
+        chex.assert_trees_all_equal(paths_bvh.mask, paths_bf.mask)
 
     def test_exhaustive_with_bvh_ffi(self) -> None:
         """Exhaustive method uses BVH FFI for blocking check."""
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -451,16 +436,10 @@ class TestComputePathsBvh:
         paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
         paths_bf = scene.compute_paths(order=1, method="exhaustive")
 
-        np.testing.assert_array_equal(
-            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
-        )
+        chex.assert_trees_all_equal(paths_bvh.mask, paths_bf.mask)
 
     def test_sbr_with_bvh_ffi(self) -> None:
         """SBR method uses BVH FFI in the bounce loop."""
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml("differt/src/differt/scene/scenes/box/box.xml")
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([[0.5, 0.5, 2.0]])
@@ -485,10 +464,6 @@ class TestComputePathsBvh:
 
     def test_exhaustive_matches_without_bvh(self) -> None:
         """Exhaustive with BVH produces same results as without."""
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -501,9 +476,7 @@ class TestComputePathsBvh:
         paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
         paths_bf = scene.compute_paths(order=1, method="exhaustive")
 
-        np.testing.assert_array_equal(
-            np.asarray(paths_bvh.mask), np.asarray(paths_bf.mask)
-        )
+        chex.assert_trees_all_equal(paths_bvh.mask, paths_bf.mask)
 
 
 # ---------------------------------------------------------------------------
@@ -555,7 +528,7 @@ class TestExpansionRadiusEdgeCases:
 
 
 class TestAcceleratedBranches:
-    def test_soft_mode_large_expansion_fallback(
+    def test_smoothing_large_expansion_fallback(
         self, three_triangles: jax.Array
     ) -> None:
         """Very small smoothing_factor -> huge expansion -> brute-force fallback."""
@@ -570,9 +543,9 @@ class TestAcceleratedBranches:
         bf_result = rays_intersect_any_triangle(
             origins, dirs, three_triangles, smoothing_factor=0.001
         )
-        np.testing.assert_allclose(float(result[0]), float(bf_result[0]), atol=1e-3)
+        chex.assert_trees_all_close(result[0], bf_result[0], atol=1e-3)
 
-    def test_soft_mode_max_candidates_exceeded(self, random_scene: jax.Array) -> None:
+    def test_smoothing_max_candidates_exceeded(self, random_scene: jax.Array) -> None:
         """max_candidates=1 with many overlapping triangles -> warning + fallback."""
         bvh = TriangleBvh(random_scene)
         key = jax.random.PRNGKey(789)
@@ -592,7 +565,9 @@ class TestAcceleratedBranches:
             )
         assert result.shape == (10,)
 
-    def test_hard_mode_with_active_triangles(self, three_triangles: jax.Array) -> None:
+    def test_without_smoothing_active_triangles(
+        self, three_triangles: jax.Array
+    ) -> None:
         """active_triangles mask in hard mode for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         # Ray from z=3 pointing down with length 5 (t < 1 for triangles at z=2 and z=0)
@@ -613,7 +588,7 @@ class TestAcceleratedBranches:
         )
         assert not bool(result_far[0])
 
-    def test_soft_mode_with_active_triangles(self, three_triangles: jax.Array) -> None:
+    def test_with_smoothing_active_triangles(self, three_triangles: jax.Array) -> None:
         """active_triangles mask in soft mode for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
@@ -644,7 +619,7 @@ class TestAcceleratedBranches:
             origins, dirs, three_triangles, active_triangles=active, bvh=bvh
         )
         assert int(idx[0]) == 0  # nearest active is z=0
-        np.testing.assert_allclose(float(t[0]), 0.6, atol=1e-4)  # 3.0/5.0
+        chex.assert_trees_all_close(t[0], jnp.array(0.6), atol=1e-4)
 
     def test_visibility_with_active_triangles(self, single_triangle: jax.Array) -> None:
         """active_triangles mask for bvh_triangles_visible_from_vertices."""
@@ -705,8 +680,6 @@ class TestFfiRegistration:
 
 class TestBuildBvh:
     def test_build_bvh_from_scene(self) -> None:
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -716,20 +689,16 @@ class TestBuildBvh:
 
 
 # ---------------------------------------------------------------------------
-# Coverage: soft-mode BVH in _compute_paths
+# Coverage: smoothing-mode BVH in _compute_paths
 # ---------------------------------------------------------------------------
 
 
 @_requires_ffi
-class TestSoftModeBvhComputePaths:
+class TestSmoothingBvhComputePaths:
     """Test differentiable BVH acceleration in compute_paths."""
 
     @staticmethod
     def _make_scene() -> TriangleScene:
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -738,8 +707,8 @@ class TestSoftModeBvhComputePaths:
         )
         return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
 
-    def test_soft_bvh_matches_brute_force(self) -> None:
-        """Soft mode with BVH should match brute force within tolerance."""
+    def test_smoothing_bvh_matches_brute_force(self) -> None:
+        """Smoothing mode with BVH should match brute force within tolerance."""
         scene = self._make_scene()
         bvh = scene.build_bvh()
 
@@ -747,19 +716,14 @@ class TestSoftModeBvhComputePaths:
             paths_bvh = scene.compute_paths(order=1, smoothing_factor=sf, bvh=bvh)
             paths_bf = scene.compute_paths(order=1, smoothing_factor=sf)
 
-            np.testing.assert_allclose(
-                np.asarray(paths_bvh.mask),
-                np.asarray(paths_bf.mask),
+            chex.assert_trees_all_close(
+                paths_bvh.mask,
+                paths_bf.mask,
                 atol=1e-3,
-                err_msg=f"Mismatch at smoothing_factor={sf}",
             )
 
-    def test_soft_bvh_gradient_flow(self) -> None:
-        """Gradients should flow through the soft BVH path."""
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
+    def test_smoothing_bvh_gradient_flow(self) -> None:
+        """Gradients should flow through the smoothing BVH path."""
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -776,7 +740,7 @@ class TestSoftModeBvhComputePaths:
         grad = jax.grad(loss_fn)(tx)
         assert jnp.all(jnp.isfinite(grad)), f"Non-finite gradients: {grad}"
 
-    def test_soft_bvh_expansion_fallback(self) -> None:
+    def test_smoothing_bvh_expansion_fallback(self) -> None:
         """Very small smoothing_factor should fall back to brute force."""
         scene = self._make_scene()
         bvh = scene.build_bvh()
@@ -785,22 +749,18 @@ class TestSoftModeBvhComputePaths:
         paths_bvh = scene.compute_paths(order=1, smoothing_factor=0.001, bvh=bvh)
         paths_bf = scene.compute_paths(order=1, smoothing_factor=0.001)
 
-        np.testing.assert_allclose(
-            np.asarray(paths_bvh.mask),
-            np.asarray(paths_bf.mask),
+        chex.assert_trees_all_close(
+            paths_bvh.mask,
+            paths_bf.mask,
             atol=1e-6,
         )
 
 
-class TestSoftModeBvhBranchCoverage:
-    """Exercise the soft BVH branch in _compute_paths with mocked FFI."""
+class TestSmoothingBvhBranchCoverage:
+    """Exercise the smoothing BVH branch in _compute_paths with mocked FFI."""
 
     @staticmethod
     def _make_scene() -> TriangleScene:
-        import equinox as eqx  # noqa: PLC0415
-
-        from differt.scene import TriangleScene  # noqa: PLC0415
-
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
         )
@@ -809,10 +769,10 @@ class TestSoftModeBvhBranchCoverage:
         )
         return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
 
-    def test_soft_bvh_branch_with_mocked_ffi(
+    def test_smoothing_bvh_branch_with_mocked_ffi(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Mock FFI to exercise the soft BVH code path for coverage."""
+        """Mock FFI to exercise the smoothing BVH code path for coverage."""
         import differt.accel._ffi as ffi_mod  # noqa: PLC0415
 
         scene = self._make_scene()
@@ -853,8 +813,8 @@ class TestSoftModeBvhBranchCoverage:
         paths_bvh = scene.compute_paths(order=1, smoothing_factor=10.0, bvh=bvh)
         paths_bf = scene.compute_paths(order=1, smoothing_factor=10.0)
 
-        np.testing.assert_allclose(
-            np.asarray(paths_bvh.mask),
-            np.asarray(paths_bf.mask),
+        chex.assert_trees_all_close(
+            paths_bvh.mask,
+            paths_bf.mask,
             atol=1e-3,
         )

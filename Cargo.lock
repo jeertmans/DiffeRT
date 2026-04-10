@@ -334,6 +334,7 @@ dependencies = [
  "obj-rs",
  "ply-rs",
  "pyo3",
+ "pyo3-build-config",
  "pyo3-log",
  "quick-xml",
  "rstest",

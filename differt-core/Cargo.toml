@@ -4,6 +4,7 @@ name = "bench_main"
 
 [build-dependencies]
 cxx-build = {version = ">=1.0,<1.0.178", optional = true}
+pyo3-build-config = {version = "0.25", optional = true}
 
 [dependencies]
 cxx = {version = ">=1.0,<1.0.178", optional = true}
@@ -27,7 +28,7 @@ testing_logger = "0.1.1"
 
 [features]
 extension-module = ["pyo3/extension-module"]
-xla-ffi = ["dep:cxx", "dep:cxx-build"]
+xla-ffi = ["dep:cxx", "dep:cxx-build", "dep:pyo3-build-config"]
 
 [lib]
 bench = false

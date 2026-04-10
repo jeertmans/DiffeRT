@@ -5,8 +5,10 @@ import warnings
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-if TYPE_CHECKING:
+try:
     from differt.accel._bvh import TriangleBvh
+except ImportError:
+    TriangleBvh = Any  # type: ignore[assignment,misc]
 
 import equinox as eqx
 import jax
@@ -917,6 +919,8 @@ class TriangleScene(eqx.Module):
     def build_bvh(self) -> "TriangleBvh":
         """Build a BVH acceleration structure for the scene's triangle mesh.
 
+        This delegates to :meth:`~differt.geometry.TriangleMesh.build_bvh`.
+
         Returns:
             A :class:`~differt.accel.TriangleBvh` instance.
 
@@ -929,9 +933,7 @@ class TriangleScene(eqx.Module):
             >>> bvh.num_triangles == scene.mesh.num_triangles
             True
         """
-        from differt.accel import TriangleBvh  # noqa: PLC0415
-
-        return TriangleBvh(self.mesh.triangle_vertices)
+        return self.mesh.build_bvh()
 
     @overload
     def compute_paths(

@@ -21,6 +21,9 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
+if TYPE_CHECKING:
+    from differt.accel._bvh import TriangleBvh
+
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
@@ -406,6 +409,29 @@ class TriangleMesh(eqx.Module):
             return jnp.empty_like(self.vertices, shape=(0, 3, 3))
 
         return jnp.take(self.vertices, self.triangles, axis=0)
+
+    def build_bvh(self) -> "TriangleBvh":
+        """Build a BVH acceleration structure for this mesh.
+
+        Returns:
+            A :class:`~differt.accel.TriangleBvh` instance.
+
+        Example:
+            >>> from differt.geometry import TriangleMesh
+            >>> import jax.numpy as jnp
+            >>> mesh = TriangleMesh(
+            ...     vertices=jnp.array(
+            ...         [[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=jnp.float32
+            ...     ),
+            ...     triangles=jnp.array([[0, 1, 2]]),
+            ... )
+            >>> bvh = mesh.build_bvh()
+            >>> bvh.num_triangles
+            1
+        """
+        from differt.accel import TriangleBvh  # noqa: PLC0415
+
+        return TriangleBvh(self.triangle_vertices)
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
