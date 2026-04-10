@@ -140,7 +140,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
     def __init__(self, mesh: _T, index: _Index) -> None:
         if not isinstance(index, slice):
             index_array = jnp.asarray(index)
-            if index_array.ndim > 1:  # pragma: no cover
+            if index_array.ndim > 1:
                 msg = f"Index must be at most one-dimensional, got array with shape {index_array.shape}."
                 raise ValueError(msg)
         self.mesh = mesh
