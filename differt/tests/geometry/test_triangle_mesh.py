@@ -2,7 +2,7 @@ import logging
 import re
 from contextlib import AbstractContextManager
 from contextlib import nullcontext as does_not_raise
-from typing import Any, Literal
+from typing import Any
 
 import chex
 import equinox as eqx
@@ -312,19 +312,25 @@ class TestTriangleMesh:
         ],
     )
     @pytest.mark.parametrize(
-        ("method", "func_or_values"),
+        ("method", "jax_method", "func_or_values"),
         [
-            ("set", (0,)),
-            ("get", ()),
-            ("apply", (lambda x: 1 / x,)),
-            ("add", ([1.0, 3.0, 6.0],)),
-            ("mul", (2.0,)),
+            ("get", "get", ()),
+            ("set", "set", (0.0,)),
+            ("add", "add", (jnp.array([1.0, 3.0, 6.0]),)),
+            ("sub", "subtract", (jnp.array([1.0, 3.0, 6.0]),)),
+            ("mul", "mul", (2.0,)),
+            ("div", "divide", (2.0,)),
+            ("pow", "power", (2.0,)),
+            ("min", "min", (jnp.array([0.0, 0.0, 0.0]),)),
+            ("max", "max", (jnp.array([100.0, 100.0, 100.0]),)),
+            ("apply", "apply", (lambda x: 1 / x,)),
         ],
     )
     def test_at_update(
         self,
         index: slice | Array,
-        method: Literal["set", "apply", "add", "mul", "get"],
+        method: str,
+        jax_method: str,
         func_or_values: tuple[Any, ...],
         two_buildings_mesh: TriangleMesh,
     ) -> None:
@@ -338,7 +344,7 @@ class TestTriangleMesh:
             # Duplicate indices are dropped before updating
             index = jnp.unique(index)
 
-        vertices = getattr(two_buildings_mesh.vertices.at[index, :], method)(
+        vertices = getattr(two_buildings_mesh.vertices.at[index, :], jax_method)(
             *func_or_values
         )
         if method == "get":
@@ -350,6 +356,20 @@ class TestTriangleMesh:
                 vertices,
             )
         chex.assert_trees_all_equal(got, expected)
+
+    @pytest.mark.require_typechecker
+    def test_at_update_invalid_index_type_error(
+        self, two_buildings_mesh: TriangleMesh
+    ) -> None:
+        with pytest.raises(TypeError):
+            two_buildings_mesh.at[jnp.ones((2, 3), dtype=int)]
+
+    @pytest.mark.require_no_typechecker
+    def test_at_update_invalid_index_value_error(
+        self, two_buildings_mesh: TriangleMesh
+    ) -> None:
+        with pytest.raises(ValueError, match="Index must be at most one-dimensional"):
+            two_buildings_mesh.at[jnp.ones((2, 3), dtype=int)]
 
     def test_rotate(self, two_buildings_mesh: TriangleMesh, key: PRNGKeyArray) -> None:
         angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)

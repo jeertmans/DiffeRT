@@ -1,13 +1,15 @@
 import typing
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
     Literal,
+    NotRequired,
     TypedDict,
     TypeVar,
+    Unpack,
     overload,
 )
 
@@ -28,16 +30,25 @@ else:
 
 
 class _AtIndexingKwargs(TypedDict):
-    indices_are_sorted: bool
-    unique_indices: bool
-    wrap_negative_indices: bool
+    mode: NotRequired[Literal["promise_in_bounds", "clip", "drop", "fill"]]
+    wrap_negative_indices: NotRequired[bool]
+    indices_are_sorted: NotRequired[bool]
+    unique_indices: NotRequired[bool]
 
 
 _AT_INDEXING_KWARGS: _AtIndexingKwargs = {
+    "wrap_negative_indices": False,
     "indices_are_sorted": True,
     "unique_indices": True,
-    "wrap_negative_indices": False,
 }
+
+
+class _GetIndexingKwargs(TypedDict):
+    mode: Literal["promise_in_bounds", "clip", "drop", "fill"]
+    wrap_negative_indices: NotRequired[bool]
+    fill_value: NotRequired[Any]
+    indices_are_sorted: NotRequired[bool]
+    unique_indices: NotRequired[bool]
 
 
 @jax.jit
@@ -102,7 +113,14 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
-_Index = slice | Int[ArrayLike, ""] | Int[Array, " n"] | Bool[Array, " num_triangles"]
+_Index = (
+    slice
+    | Int[ArrayLike, ""]
+    | Int[Array, " n"]
+    | Bool[Array, " num_triangles"]
+    | Sequence[int]
+    | Sequence[bool]
+)
 _T = TypeVar("_T", bound="TriangleMesh")
 
 
@@ -127,19 +145,40 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
     __slots__ = ("index", "mesh")
 
     def __init__(self, mesh: _T, index: _Index) -> None:
+        if not isinstance(index, slice):
+            index_array = jnp.asarray(index)
+            if index_array.ndim > 1:
+                msg = f"Index must be at most one-dimensional, got array with shape {index_array.shape}."
+                raise ValueError(msg)
         self.mesh = mesh
         self.index = index
 
     def __repr__(self) -> str:
         return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
 
-    def _triangles_index(self, **kwargs: Any) -> _Index:
+    def _triangles_index(self, **kwargs: Unpack[_GetIndexingKwargs]) -> _Index:
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
         )
 
-    def set(self, values: Any, **kwargs: Any) -> _T:
+    def get(
+        self, **kwargs: Unpack[_GetIndexingKwargs]
+    ) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+        # get() is allowed to return duplicates, so we do not use _triangles_index()
+        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
+        return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
+
+    def set(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -147,27 +186,16 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
         )
 
-    def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
-        # get() is allowed to return duplicates, so we do not use _triangles_index()
-        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
-        return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
-
-    def apply(
+    def add(
         self,
-        func: Callable[
-            [Float[ArrayLike, "num_indexed_triangles 3"]],
-            Float[Array, "num_indexed_triangles 3"],
-        ],
-        **kwargs: Any,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
-        index = self._triangles_index(**kwargs)
-        return eqx.tree_at(
-            lambda m: m.vertices,
-            self.mesh,
-            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
-        )
-
-    def add(self, values: Any, **kwargs: Any) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -175,12 +203,121 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
         )
 
-    def mul(self, values: Any, **kwargs: Any) -> _T:
+    def sub(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].subtract(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def mul(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].mul(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def div(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].divide(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def pow(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].power(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def min(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].min(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def max(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].max(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def apply(
+        self,
+        func: Callable[
+            [Float[ArrayLike, "num_indexed_triangles 3"]],
+            Float[Array, "num_indexed_triangles 3"],
+        ],
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
         )
 
 
@@ -509,14 +646,19 @@ class TriangleMesh(eqx.Module):
         """
         # Using self.triangle_vertices is important because, e.g., as a result of using
         # __getitem__, some vertices in 'self.vertices' may no longer be used by this mesh.
-        vertices = self.triangle_vertices.reshape(-1, 3)
-        where = jnp.repeat(self.mask, 3)[:, None] if self.mask is not None else None
+        vertices = self.triangle_vertices
+        where = self.mask[:, None] if self.mask is not None else None
         return jnp.vstack(
             (
-                jnp.min(vertices, axis=0, initial=+jnp.inf, where=where),
-                jnp.max(vertices, axis=0, initial=-jnp.inf, where=where),
+                jnp.min(vertices, axis=(0, 1), initial=+jnp.inf, where=where),
+                jnp.max(vertices, axis=(0, 1), initial=-jnp.inf, where=where),
             ),
         )
+
+    if TYPE_CHECKING:
+
+        @property
+        def at(self) -> _TriangleMeshVerticesUpdateHelper[Self]: ...
 
     @property
     def at(self):  # noqa: ANN202
@@ -529,17 +671,25 @@ class TriangleMesh(eqx.Module):
 
         In particular, the following methods are available:
 
+        - ``get(**kwargs)``: Get the vertices of selected triangles;
         - ``set(values, **kwargs)``: Set the vertices of selected triangles to some values;
-        - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
         - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
+        - ``sub(values, **kwargs)``: Subtract some values from the vertices of selected triangles;
         - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values;
-        - ``get(values, **kwargs)``: Get the vertices of selected triangles.
+        - ``div(values, **kwargs)``: Divide the vertices of selected triangles by some values;
+        - ``pow(values, **kwargs)``: Raise the vertices of selected triangles to some power;
+        - ``min(values, **kwargs)``: Take the element-wise minimum with the vertices of selected triangles;
+        - ``max(values, **kwargs)``: Take the element-wise maximum with the vertices of selected triangles;
+        - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles.
 
         E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
 
-        Each method takes additional keyword parameters that are passed to the methods
-        of :attr:`jax.numpy.ndarray.at`. Because the vertices of a triangle mesh may be shared
-        between multiple triangles, this method prevents updating the same vertice multiple times
+        Each method accepts the same keyword arguments as the corresponding ``get`` method of
+        :attr:`jax.numpy.ndarray.at`.
+        These keyword arguments control how triangle indices are resolved internally.
+
+        Because the vertices of a triangle mesh may be shared
+        between multiple triangles, this method prevents updating the same vertex multiple times
         by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
         will not result in duplicate updates.
 
