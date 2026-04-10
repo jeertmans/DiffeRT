@@ -75,7 +75,7 @@ nitpick_ignore = (
     ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
-    ("py:obj", "__main__.ArrayType"),
+    ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
 )
 
