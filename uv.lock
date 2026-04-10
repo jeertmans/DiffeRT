@@ -1174,12 +1174,12 @@ tests-vispy = [
 [package.metadata]
 
 [package.metadata.requires-dev]
-beartype = [{ name = "beartype", specifier = ">=0.22.0rc0" }]
+beartype = [{ name = "beartype", specifier = ">=0.22.9" }]
 bump = [{ name = "bump-my-version", specifier = ">=0.20.3" }]
 codspeed = [{ name = "pytest-codspeed", specifier = ">=2.2.0" }]
 cuda = [{ name = "jax", extras = ["cuda"], specifier = ">=0.8.1" }]
 dev = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["all"], editable = "differt" },
@@ -1213,7 +1213,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.21" },
 ]
 docs = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "differt", extras = ["all"], editable = "differt" },
     { name = "jax", specifier = "==0.8.1" },
     { name = "myst-nb", specifier = ">=0.17.2" },
@@ -1237,7 +1237,7 @@ profiling = [
 ]
 sionna = [{ name = "sionna-rt", marker = "python_full_version < '3.14' and sys_platform == 'linux'", specifier = "==1.1.0" }]
 tests = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "optax", specifier = ">=0.2.6" },
@@ -1251,7 +1251,7 @@ tests = [
     { name = "scipy", specifier = ">=1.12.0" },
 ]
 tests-extended = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["all"], editable = "differt" },
@@ -1268,7 +1268,7 @@ tests-extended = [
     { name = "sionna-rt", marker = "python_full_version < '3.14' and sys_platform == 'linux'", specifier = "==1.1.0" },
 ]
 tests-matplotlib = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["matplotlib"], editable = "differt" },
@@ -1283,7 +1283,7 @@ tests-matplotlib = [
     { name = "scipy", specifier = ">=1.12.0" },
 ]
 tests-plotly = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["plotly"], editable = "differt" },
@@ -1298,7 +1298,7 @@ tests-plotly = [
     { name = "scipy", specifier = ">=1.12.0" },
 ]
 tests-vispy = [
-    { name = "beartype", specifier = ">=0.22.0rc0" },
+    { name = "beartype", specifier = ">=0.22.9" },
     { name = "chex", specifier = ">=0.1.84" },
     { name = "differt", editable = "differt" },
     { name = "differt", extras = ["vispy", "vispy-backend"], editable = "differt" },
