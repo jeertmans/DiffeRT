@@ -265,7 +265,7 @@ def _compute_paths(
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
     if bvh_id is not None and smoothing_factor is None:
-        # BVH-accelerated blocking check (hard mode only, via XLA FFI)
+        # BVH-accelerated blocking check (without smoothing, via XLA FFI)
         from differt.accel._ffi import ffi_nearest_hit  # noqa: PLC0415
 
         batch_shape = ray_origins.shape[:-1]  # [..., order+1]
@@ -290,7 +290,7 @@ def _compute_paths(
         and smoothing_factor is not None
         and bvh_expansion is not None
     ):
-        # BVH-accelerated soft blocking check: candidate selection via FFI,
+        # BVH-accelerated blocking check with smoothing: candidate selection via FFI,
         # differentiable intersection in JAX on the reduced candidate set.
         from differt.accel._ffi import ffi_get_candidates  # noqa: PLC0415
 
@@ -327,7 +327,7 @@ def _compute_paths(
         )
         hit_threshold = 1.0 - jnp.asarray(hit_tol_val)
 
-        # Soft intersection: broadcast rays [N,1,3] against candidates [N,max_cand,3,3]
+        # Differentiable intersection: broadcast rays [N,1,3] against candidates [N,max_cand,3,3]
         t, hit = rays_intersect_triangles(
             flat_origins[:, None, :],
             flat_dirs[:, None, :],
@@ -336,10 +336,10 @@ def _compute_paths(
             smoothing_factor=smoothing_factor,
         )
 
-        soft_hit = jnp.minimum(
+        smoothed_hit = jnp.minimum(
             hit, smoothing_function(hit_threshold - t, smoothing_factor)
         )
-        blocked_flat = jnp.sum(soft_hit * mask, axis=-1).clip(max=1.0)
+        blocked_flat = jnp.sum(smoothed_hit * mask, axis=-1).clip(max=1.0)
         blocked = blocked_flat.reshape(batch_shape).max(axis=-1, initial=0.0)
     elif smoothing_factor is not None:
         blocked = rays_intersect_any_triangle(
@@ -1290,8 +1290,8 @@ class TriangleScene(eqx.Module):
                 When provided, the BVH accelerates intersection queries:
 
                 * ``'exhaustive'``: BVH accelerates the blocking check
-                  via XLA FFI inside JIT. In hard mode, uses nearest-hit.
-                  In soft mode, uses candidate selection with differentiable
+                  via XLA FFI inside JIT. Without smoothing, uses nearest-hit.
+                  With smoothing, uses candidate selection with differentiable
                   intersection on the reduced set.
                 * ``'hybrid'``: BVH accelerates both the visibility estimation
                   and the blocking check.
@@ -1342,7 +1342,7 @@ class TriangleScene(eqx.Module):
             with contextlib.suppress(AttributeError, TypeError):
                 bvh_id = bvh.register()
 
-            # Compute expansion radius for soft-mode BVH acceleration
+            # Compute expansion radius for smoothing BVH acceleration
             # Requires XLA FFI (ffi_get_candidates) to work inside JIT
             if bvh_id is not None and smoothing_factor is not None:
                 try:
@@ -1350,7 +1350,7 @@ class TriangleScene(eqx.Module):
 
                     _ensure_registered()
                 except (ImportError, AttributeError):
-                    pass  # FFI not available, soft BVH falls back to brute force
+                    pass  # FFI not available, smoothing BVH falls back to brute force
                 else:
                     from differt.accel._bvh import (  # noqa: PLC0415
                         compute_expansion_radius,

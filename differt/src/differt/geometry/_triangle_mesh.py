@@ -21,8 +21,10 @@ from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
 
-if TYPE_CHECKING:
+try:
     from differt.accel._bvh import TriangleBvh
+except ImportError:
+    TriangleBvh = Any  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self

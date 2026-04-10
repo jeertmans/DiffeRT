@@ -4,6 +4,8 @@ Validates that BVH-accelerated intersection queries produce the same results
 as the brute-force implementations, for both non-smoothing and smoothing (differentiable) modes.
 """
 
+import sys
+
 import chex
 import equinox as eqx
 import jax
@@ -244,21 +246,21 @@ class TestAnyIntersection:
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, -1.0]])
 
-        bvh_soft = bvh_rays_intersect_any_triangle(
+        bvh_smoothed = bvh_rays_intersect_any_triangle(
             origins,
             dirs,
             three_triangles,
             smoothing_factor=smoothing_factor,
             bvh=bvh,
         )
-        bf_soft = rays_intersect_any_triangle(
+        bf_smoothed = rays_intersect_any_triangle(
             origins,
             dirs,
             three_triangles,
             smoothing_factor=smoothing_factor,
         )
 
-        chex.assert_trees_all_close(bvh_soft[0], bf_soft[0], atol=1e-3)
+        chex.assert_trees_all_close(bvh_smoothed[0], bf_smoothed[0], atol=1e-3)
 
     def test_with_smoothing_random_scene(self, random_scene: jax.Array) -> None:
         bvh = TriangleBvh(random_scene)
@@ -268,7 +270,7 @@ class TestAnyIntersection:
         dirs = jax.random.normal(k2, (20, 3))
         dirs = dirs / jnp.linalg.norm(dirs, axis=-1, keepdims=True)
 
-        bvh_soft = bvh_rays_intersect_any_triangle(
+        bvh_smoothed = bvh_rays_intersect_any_triangle(
             origins,
             dirs,
             random_scene,
@@ -276,11 +278,11 @@ class TestAnyIntersection:
             bvh=bvh,
             max_candidates=256,
         )
-        bf_soft = rays_intersect_any_triangle(
+        bf_smoothed = rays_intersect_any_triangle(
             origins, dirs, random_scene, smoothing_factor=10.0
         )
 
-        chex.assert_trees_all_close(bvh_soft, bf_soft, atol=1e-2)
+        chex.assert_trees_all_close(bvh_smoothed, bf_smoothed, atol=1e-2)
 
     def test_fallback_without_bvh(self, three_triangles: jax.Array) -> None:
         # Ray from z=3 to z=-2 (length 5), triangle at z=2 is at t=0.2
@@ -432,7 +434,7 @@ class TestComputePathsBvh:
         scene = eqx.tree_at(lambda s: s.receivers, scene, jnp.array([[-0.5, 0.5, 0.5]]))
         bvh = scene.build_bvh()
 
-        # BVH should give same results as brute force for hard mode
+        # BVH should give same results as brute force without smoothing
         paths_bvh = scene.compute_paths(order=1, method="exhaustive", bvh=bvh)
         paths_bf = scene.compute_paths(order=1, method="exhaustive")
 
@@ -568,7 +570,7 @@ class TestAcceleratedBranches:
     def test_without_smoothing_active_triangles(
         self, three_triangles: jax.Array
     ) -> None:
-        """active_triangles mask in hard mode for bvh_rays_intersect_any_triangle."""
+        """active_triangles mask without smoothing for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         # Ray from z=3 pointing down with length 5 (t < 1 for triangles at z=2 and z=0)
         origins = jnp.array([[0.1, 0.1, 3.0]])
@@ -589,7 +591,7 @@ class TestAcceleratedBranches:
         assert not bool(result_far[0])
 
     def test_with_smoothing_active_triangles(self, three_triangles: jax.Array) -> None:
-        """active_triangles mask in soft mode for bvh_rays_intersect_any_triangle."""
+        """active_triangles mask with smoothing for bvh_rays_intersect_any_triangle."""
         bvh = TriangleBvh(three_triangles)
         origins = jnp.array([[0.1, 0.1, 3.0]])
         dirs = jnp.array([[0.0, 0.0, -1.0]])
@@ -659,8 +661,6 @@ class TestFfiRegistration:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Missing xla-ffi feature raises ImportError with helpful message."""
-        import sys  # noqa: PLC0415
-
         import differt.accel._ffi as ffi_mod  # noqa: PLC0415
 
         monkeypatch.setattr(ffi_mod, "_FFI_REGISTERED", False)
