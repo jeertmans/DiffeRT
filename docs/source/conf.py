@@ -94,8 +94,6 @@ numfig = True
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
-    "e3x": ("https://e3x.readthedocs.io/stable/", None),
-    "flax": ("https://flax-linen.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
     "matplotlib": ("https://matplotlib.org/stable", None),

@@ -1,6 +1,6 @@
 [dependency-groups]
 beartype = [
-  "beartype>=0.22.0rc0",  # See https://github.com/beartype/beartype/issues/555
+  "beartype>=0.22.9",
 ]
 bump = [
   "bump-my-version>=0.20.3",  # Pydantic>=2.12 is needed for Python 3.14
