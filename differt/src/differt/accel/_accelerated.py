@@ -3,8 +3,8 @@
 These are drop-in replacements for the functions in :mod:`differt.rt._utils`,
 accelerated by a BVH for O(rays * log(triangles)) instead of O(rays * triangles).
 
-For the hard (non-differentiable) path, the BVH does the full intersection.
-For the soft (differentiable) path, the BVH selects candidates and the
+Without smoothing (``smoothing_factor=None``), the BVH does the full intersection.
+With smoothing (``smoothing_factor`` set), the BVH selects candidates and the
 existing JAX-based Moller-Trumbore runs on the reduced set.
 """
 
@@ -21,6 +21,7 @@ import numpy as np
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.accel._bvh import TriangleBvh, compute_expansion_radius
+from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.rt._utils import rays_intersect_triangles
 from differt.utils import smoothing_function
 
@@ -37,18 +38,18 @@ def bvh_rays_intersect_any_triangle(
     max_candidates: int = 512,
     epsilon_grad: float = 1e-7,
     **kwargs: Any,
-) -> Bool[Array, "..."] | Float[Array, "..."]:
+) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """BVH-accelerated version of :func:`~differt.rt.rays_intersect_any_triangle`.
 
     When ``bvh`` is provided, uses BVH candidate selection to reduce the number
     of triangles tested per ray from O(N) to O(log N).
 
-    For the hard path (``smoothing_factor=None``), uses BVH nearest-hit to check
+    Without smoothing (``smoothing_factor=None``), uses BVH nearest-hit to check
     if any triangle blocks the ray.
 
-    For the soft path (``smoothing_factor`` set), uses BVH with expanded boxes
-    to find candidate triangles, then runs the standard soft intersection on
-    candidates only. Gradients flow through the JAX soft intersection normally.
+    With smoothing (``smoothing_factor`` set), uses BVH with expanded boxes
+    to find candidate triangles, then runs the standard differentiable intersection
+    on candidates only. Gradients flow through the JAX intersection normally.
 
     Args:
         ray_origins: An array of origin vertices.
@@ -58,7 +59,7 @@ def bvh_rays_intersect_any_triangle(
         hit_tol: Tolerance for hit detection.
         smoothing_factor: If set, uses smooth sigmoid approximations.
         bvh: Pre-built BVH acceleration structure.
-        max_candidates: Maximum candidates per ray for soft mode.
+        max_candidates: Maximum candidates per ray when smoothing is enabled.
         epsilon_grad: Gradient truncation threshold for expansion radius.
         kwargs: Keyword arguments passed to :func:`~differt.rt.rays_intersect_triangles`.
 
@@ -89,10 +90,21 @@ def bvh_rays_intersect_any_triangle(
         hit_tol = 10.0 * jnp.finfo(dtype).eps
 
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
-    batch_shape = ray_origins_jnp.shape[:-1]
+
+    # Compute batch shape from all inputs (matching brute-force broadcast semantics)
+    batch_shape = jnp.broadcast_shapes(
+        ray_origins_jnp.shape[:-1],
+        ray_directions_jnp.shape[:-1],
+        triangle_vertices_jnp.shape[:-3],
+        jnp.asarray(active_triangles).shape[:-1]
+        if active_triangles is not None
+        else (),
+    )
+    ray_origins_jnp = jnp.broadcast_to(ray_origins_jnp, (*batch_shape, 3))
+    ray_directions_jnp = jnp.broadcast_to(ray_directions_jnp, (*batch_shape, 3))
 
     if smoothing_factor is None:
-        # Hard mode: use BVH nearest-hit as an "any" check.
+        # No smoothing: use BVH nearest-hit as an "any" check.
         # Pass active_triangles mask directly to Rust BVH so it skips
         # inactive triangles and finds the nearest *active* hit.
         flat_origins = np.asarray(ray_origins_jnp).reshape(-1, 3)
@@ -107,7 +119,7 @@ def bvh_rays_intersect_any_triangle(
 
         return jnp.asarray(any_hit.reshape(batch_shape))
 
-    # Soft/differentiable mode: BVH candidate selection + JAX soft intersection
+    # Smoothing/differentiable path: BVH candidate selection + JAX intersection
     alpha = float(smoothing_factor)  # type: ignore[arg-type]
 
     # Estimate triangle size for expansion radius
@@ -118,7 +130,7 @@ def bvh_rays_intersect_any_triangle(
     mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
     expansion = compute_expansion_radius(alpha, mean_tri_size, epsilon_grad)
 
-    # Check if expansion is too large (soft smoothing -> fallback to brute force)
+    # Check if expansion is too large (smoothing -> fallback to brute force)
     scene_diag = float(
         np.linalg.norm(
             flat_tri.reshape(-1, 3).max(axis=0) - flat_tri.reshape(-1, 3).min(axis=0)
@@ -152,7 +164,7 @@ def bvh_rays_intersect_any_triangle(
         warnings.warn(
             f"BVH candidate count ({int(candidate_counts.max())}) exceeds "
             f"max_candidates ({max_candidates}). Falling back to brute force. "
-            f"Increase max_candidates or smoothing_factor.",
+            f"Increase max_candidates or decrease smoothing_factor.",
             stacklevel=2,
         )
         from differt.rt._utils import rays_intersect_any_triangle  # noqa: PLC0415
@@ -198,7 +210,7 @@ def bvh_rays_intersect_any_triangle(
         )
         mask = mask & cand_active
 
-    # Run soft intersection on candidates (this is pure JAX, differentiable)
+    # Run differentiable intersection on candidates (pure JAX)
     t, hit = rays_intersect_triangles(
         ray_origins_jnp[..., None, :],  # [*batch, 1, 3]
         ray_directions_jnp[..., None, :],  # [*batch, 1, 3]
@@ -219,7 +231,7 @@ def bvh_triangles_visible_from_vertices(
     *,
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
-) -> Bool[Array, "..."]:
+) -> Bool[Array, "*batch num_triangles"]:
     """BVH-accelerated version of :func:`~differt.rt.triangles_visible_from_vertices`.
 
     Uses BVH nearest-hit for O(log N) per ray instead of O(N), avoiding JAX's
@@ -251,9 +263,17 @@ def bvh_triangles_visible_from_vertices(
     triangle_vertices_jnp = jnp.asarray(triangle_vertices)
     num_triangles = triangle_vertices_jnp.shape[-3]
 
-    # Compute viewing frustum and generate fibonacci lattice directions
-    from differt.geometry import fibonacci_lattice, viewing_frustum  # noqa: PLC0415
+    # Compute batch shape from all inputs (matching brute-force broadcast semantics)
+    batch_shape = jnp.broadcast_shapes(
+        vertices_jnp.shape[:-1],
+        triangle_vertices_jnp.shape[:-3],
+        jnp.asarray(active_triangles).shape[:-1]
+        if active_triangles is not None
+        else (),
+    )
+    vertices_jnp = jnp.broadcast_to(vertices_jnp, (*batch_shape, 3))
 
+    # Compute viewing frustum and generate fibonacci lattice directions
     triangle_centers = triangle_vertices_jnp.mean(axis=-2, keepdims=True)
     world_vertices = jnp.concat(
         (triangle_vertices_jnp, triangle_centers), axis=-2
@@ -280,7 +300,6 @@ def bvh_triangles_visible_from_vertices(
     )(num_rays, frustum)
 
     # Flatten batch dims for BVH queries
-    batch_shape = ray_origins.shape[:-1]
     flat_origins = np.asarray(ray_origins).reshape(-1, 3)
     flat_dirs = np.asarray(ray_directions).reshape(-1, num_rays, 3)
     num_vertices = flat_origins.shape[0]
@@ -330,7 +349,7 @@ def bvh_first_triangles_hit_by_rays(
     *,
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
-) -> tuple[Int[Array, "..."], Float[Array, "..."]]:
+) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
     """BVH-accelerated version of :func:`~differt.rt.first_triangles_hit_by_rays`.
 
     Uses BVH traversal for O(log N) nearest-hit per ray instead of O(N).
@@ -359,7 +378,19 @@ def bvh_first_triangles_hit_by_rays(
 
     ray_origins_jnp = jnp.asarray(ray_origins)
     ray_directions_jnp = jnp.asarray(ray_directions)
-    batch_shape = ray_origins_jnp.shape[:-1]
+
+    # Compute batch shape from all inputs (matching brute-force broadcast semantics)
+    triangle_vertices_jnp = jnp.asarray(triangle_vertices)
+    batch_shape = jnp.broadcast_shapes(
+        ray_origins_jnp.shape[:-1],
+        ray_directions_jnp.shape[:-1],
+        triangle_vertices_jnp.shape[:-3],
+        jnp.asarray(active_triangles).shape[:-1]
+        if active_triangles is not None
+        else (),
+    )
+    ray_origins_jnp = jnp.broadcast_to(ray_origins_jnp, (*batch_shape, 3))
+    ray_directions_jnp = jnp.broadcast_to(ray_directions_jnp, (*batch_shape, 3))
 
     flat_origins = np.asarray(ray_origins_jnp).reshape(-1, 3)
     flat_dirs = np.asarray(ray_directions_jnp).reshape(-1, 3)
