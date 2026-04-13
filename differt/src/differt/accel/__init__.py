@@ -8,10 +8,13 @@ Example:
 
     >>> import jax.numpy as jnp
     >>> from differt.accel import TriangleBvh
-    >>> verts = jnp.array([
-    ...     [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
-    ...     [[1, 1, 0], [1, 0, 0], [0, 1, 0]],
-    ... ], dtype=jnp.float32)
+    >>> verts = jnp.array(
+    ...     [
+    ...         [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+    ...         [[1, 1, 0], [1, 0, 0], [0, 1, 0]],
+    ...     ],
+    ...     dtype=jnp.float32,
+    ... )
     >>> bvh = TriangleBvh(verts)
     >>> bvh.num_triangles
     2
