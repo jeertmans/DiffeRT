@@ -47,7 +47,7 @@ tests = [
   {include-group = "beartype"},
   "differt",
   "chex>=0.1.84",
-  "pytest>=9.0.2",
+  "pytest>=9.0.3",
   "pytest-benchmark>=4.0.0",
   "pytest-cov>=4.1.0",
   "pytest-env>=1.1.3",
