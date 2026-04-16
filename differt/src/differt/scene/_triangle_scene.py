@@ -1,14 +1,8 @@
-import contextlib
 import math
 import typing
 import warnings
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, Literal, overload
-
-try:
-    from differt.accel._bvh import TriangleBvh
-except ImportError:
-    TriangleBvh = Any  # type: ignore[assignment,misc]
 
 import equinox as eqx
 import jax
@@ -17,6 +11,7 @@ import numpy as np
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 import differt_core.scene
+from differt.accel.bvh import TriangleBvh
 from differt.geometry import (
     Paths,
     SBRPaths,
@@ -265,8 +260,9 @@ def _compute_paths(
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
     if bvh_id is not None and smoothing_factor is None:
+        # TODO: check whether we can avoid importing the hidden function here, just call a public function? Same for the next branch.
         # BVH-accelerated blocking check (without smoothing, via XLA FFI)
-        from differt.accel._ffi import ffi_nearest_hit  # noqa: PLC0415
+        from differt.accel.bvh._ffi import ffi_nearest_hit  # noqa: PLC0415
 
         batch_shape = ray_origins.shape[:-1]  # [..., order+1]
         flat_origins = ray_origins.reshape(-1, 3)
@@ -292,7 +288,7 @@ def _compute_paths(
     ):
         # BVH-accelerated blocking check with smoothing: candidate selection via FFI,
         # differentiable intersection in JAX on the reduced candidate set.
-        from differt.accel._ffi import ffi_get_candidates  # noqa: PLC0415
+        from differt.accel.bvh._ffi import ffi_get_candidates  # noqa: PLC0415
 
         batch_shape = ray_origins.shape[:-1]
         flat_origins = ray_origins.reshape(-1, 3)
@@ -507,7 +503,7 @@ def _compute_paths_sbr(
 
         # [num_tx_vertices num_rays]
         if bvh_id is not None:
-            from differt.accel._ffi import ffi_nearest_hit  # noqa: PLC0415
+            from differt.accel.bvh._ffi import ffi_nearest_hit  # noqa: PLC0415
 
             sbr_shape = ray_origins.shape[:-1]
             flat_o = ray_origins.reshape(-1, 3)
@@ -916,13 +912,15 @@ class TriangleScene(eqx.Module):
             ),
         )
 
-    def build_bvh(self) -> "TriangleBvh":
+    def build_bvh(self) -> TriangleBvh:
         """Build a BVH acceleration structure for the scene's triangle mesh.
 
         This delegates to :meth:`~differt.geometry.TriangleMesh.build_bvh`.
 
+        See :mod:`differt.accel.bvh` for more details about the BVH implementation.
+
         Returns:
-            A :class:`~differt.accel.TriangleBvh` instance.
+            A triangle BVH instance.
 
         Example:
             >>> from differt.scene import TriangleScene
@@ -952,7 +950,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -972,7 +970,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -992,7 +990,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -1012,7 +1010,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -1032,7 +1030,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SizedIterator[Paths[_F]]: ...
 
     @overload
@@ -1052,7 +1050,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SizedIterator[Paths[_B]]: ...
 
     @overload
@@ -1072,7 +1070,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Iterator[Paths[_F]]: ...
 
     @overload
@@ -1092,7 +1090,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Iterator[Paths[_B]]: ...
 
     @overload
@@ -1112,7 +1110,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -1132,7 +1130,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -1152,7 +1150,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-        bvh: Any = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SBRPaths: ...
 
     def compute_paths(
@@ -1171,7 +1169,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-        bvh: Any = None,
+        bvh: TriangleBvh | None = None,
     ) -> Paths[_M] | SizedIterator[Paths[_M]] | Iterator[Paths[_M]] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -1339,37 +1337,29 @@ class TriangleScene(eqx.Module):
         bvh_id = None
         bvh_expansion = None
         if bvh is not None:
-            with contextlib.suppress(AttributeError, TypeError):
-                bvh_id = bvh.register()
-
+            bvh_id = bvh.register()
             # Compute expansion radius for smoothing BVH acceleration
             # Requires XLA FFI (ffi_get_candidates) to work inside JIT
             if bvh_id is not None and smoothing_factor is not None:
-                try:
-                    from differt.accel._ffi import _ensure_registered  # noqa: PLC0415
+                # TODO: maybe we should consider making this function public?
+                from differt.accel.bvh._triangle_bvh import (  # noqa: PLC0415
+                    compute_expansion_radius,
+                )
 
-                    _ensure_registered()
-                except (ImportError, AttributeError):
-                    pass  # FFI not available, smoothing BVH falls back to brute force
-                else:
-                    from differt.accel._bvh import (  # noqa: PLC0415
-                        compute_expansion_radius,
-                    )
+                tri_np = np.asarray(self.mesh.triangle_vertices)
+                edges = np.diff(tri_np, axis=-2, append=tri_np[..., :1, :])
+                mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
+                bvh_expansion = compute_expansion_radius(
+                    float(np.asarray(smoothing_factor).real), mean_tri_size
+                )
 
-                    tri_np = np.asarray(self.mesh.triangle_vertices)
-                    edges = np.diff(tri_np, axis=-2, append=tri_np[..., :1, :])
-                    mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
-                    bvh_expansion = compute_expansion_radius(
-                        float(np.asarray(smoothing_factor).real), mean_tri_size
-                    )
-
-                    # If expansion exceeds scene diagonal, BVH won't help
-                    flat_pts = tri_np.reshape(-1, 3)
-                    scene_diag = float(
-                        np.linalg.norm(flat_pts.max(axis=0) - flat_pts.min(axis=0))
-                    )
-                    if bvh_expansion > scene_diag:
-                        bvh_expansion = None
+                # If expansion exceeds scene diagonal, BVH won't help
+                flat_pts = tri_np.reshape(-1, 3)
+                scene_diag = float(
+                    np.linalg.norm(flat_pts.max(axis=0) - flat_pts.min(axis=0))
+                )
+                if bvh_expansion > scene_diag:
+                    bvh_expansion = None
 
         if method == "sbr":
             if order is None:
@@ -1404,7 +1394,7 @@ class TriangleScene(eqx.Module):
                 raise ValueError(msg)
 
             if bvh is not None:
-                from differt.accel._accelerated import (  # noqa: PLC0415
+                from differt.accel.bvh._accelerated import (  # noqa: PLC0415
                     bvh_triangles_visible_from_vertices,
                 )
 

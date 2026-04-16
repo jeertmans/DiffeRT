@@ -13,23 +13,19 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from differt.accel import TriangleBvh
-from differt.accel._accelerated import (
+from differt.accel.bvh import (
+    TriangleBvh,
     bvh_first_triangles_hit_by_rays,
     bvh_rays_intersect_any_triangle,
     bvh_triangles_visible_from_vertices,
 )
-from differt.accel._bvh import compute_expansion_radius
-from differt.rt import triangles_visible_from_vertices
-from differt.rt._utils import (
+from differt.accel.bvh._triangle_bvh import compute_expansion_radius
+from differt.rt import (
     first_triangles_hit_by_rays,
     rays_intersect_any_triangle,
+    triangles_visible_from_vertices,
 )
 from differt.scene import TriangleScene
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -77,11 +73,6 @@ def random_scene() -> jax.Array:
     return jax.random.uniform(key, (50, 3, 3), minval=0.0, maxval=10.0)
 
 
-# ---------------------------------------------------------------------------
-# TriangleBvh construction
-# ---------------------------------------------------------------------------
-
-
 class TestTriangleBvhConstruction:
     def test_single_triangle(self, single_triangle: jax.Array) -> None:
         bvh = TriangleBvh(single_triangle)
@@ -100,11 +91,6 @@ class TestTriangleBvhConstruction:
         verts = np.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=np.float32)
         bvh = TriangleBvh(verts)
         assert bvh.num_triangles == 1
-
-
-# ---------------------------------------------------------------------------
-# Nearest hit: BVH vs brute force
-# ---------------------------------------------------------------------------
 
 
 class TestNearestHit:
@@ -207,11 +193,6 @@ class TestNearestHit:
         assert int(idx[0]) == 0
 
 
-# ---------------------------------------------------------------------------
-# Any-triangle intersection: BVH vs brute force
-# ---------------------------------------------------------------------------
-
-
 class TestAnyIntersection:
     def test_without_smoothing(self, three_triangles: jax.Array) -> None:
         bvh = TriangleBvh(three_triangles)
@@ -295,11 +276,6 @@ class TestAnyIntersection:
         assert bool(result[0])
 
 
-# ---------------------------------------------------------------------------
-# Expansion radius
-# ---------------------------------------------------------------------------
-
-
 class TestExpansionRadius:
     def test_positive(self) -> None:
         r = compute_expansion_radius(10.0, 1.0, 1e-7)
@@ -319,11 +295,6 @@ class TestExpansionRadius:
     def test_zero_smoothing(self) -> None:
         r = compute_expansion_radius(0.0, 1.0, 1e-7)
         assert r == float("inf")
-
-
-# ---------------------------------------------------------------------------
-# Visibility: BVH vs brute force
-# ---------------------------------------------------------------------------
 
 
 class TestVisibility:
@@ -382,30 +353,8 @@ class TestVisibility:
         assert int(bvh_vis[1].sum()) >= 2  # bottom visible
 
 
-# ---------------------------------------------------------------------------
-# compute_paths integration
-# ---------------------------------------------------------------------------
-
-
-def _has_xla_ffi() -> bool:
-    """Check if differt-core was built with xla-ffi feature."""
-    try:
-        from differt.accel._ffi import _ensure_registered  # noqa: PLC0415
-
-        _ensure_registered()
-    except (ImportError, AttributeError):
-        return False
-    return True
-
-
-_requires_ffi = pytest.mark.skipif(
-    not _has_xla_ffi(),
-    reason="differt-core not built with xla-ffi feature",
-)
-
-
-@_requires_ffi
 class TestComputePathsBvh:
+    # TODO: use get_sionna_scene (fixture is available)
     def test_hybrid_with_bvh(self) -> None:
         scene = TriangleScene.load_xml(
             "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
@@ -481,11 +430,6 @@ class TestComputePathsBvh:
         chex.assert_trees_all_equal(paths_bvh.mask, paths_bf.mask)
 
 
-# ---------------------------------------------------------------------------
-# Coverage: batched ray inputs (_bvh.py ndim > 2 branches)
-# ---------------------------------------------------------------------------
-
-
 class TestBatchedRays:
     def test_nearest_hit_3d_origins(self, single_triangle: jax.Array) -> None:
         """nearest_hit with ndim > 2 triggers the reshape branch."""
@@ -513,20 +457,10 @@ class TestBatchedRays:
         assert int(counts[1, 0]) == 0  # far away, no candidates
 
 
-# ---------------------------------------------------------------------------
-# Coverage: expansion radius edge case
-# ---------------------------------------------------------------------------
-
-
 class TestExpansionRadiusEdgeCases:
     def test_negative_smoothing(self) -> None:
         r = compute_expansion_radius(-5.0, 1.0, 1e-7)
         assert r == float("inf")
-
-
-# ---------------------------------------------------------------------------
-# Coverage: _accelerated.py uncovered branches
-# ---------------------------------------------------------------------------
 
 
 class TestAcceleratedBranches:
@@ -641,27 +575,13 @@ class TestAcceleratedBranches:
         assert not bool(vis_inactive[0])
 
 
-# ---------------------------------------------------------------------------
-# Coverage: _ffi.py ensure_registered branches
-# ---------------------------------------------------------------------------
-
-
 class TestFfiRegistration:
-    def test_ensure_registered_idempotent(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Second call to _ensure_registered short-circuits."""
-        import differt.accel._ffi as ffi_mod  # noqa: PLC0415
-
-        monkeypatch.setattr(ffi_mod, "_FFI_REGISTERED", True)
-        # Should return immediately without touching differt_core
-        ffi_mod._ensure_registered()  # noqa: SLF001
-
+    # TODO: update this test, as we always register the FFI at import time now, so the monkeypatching may not work as intended / maybe this test is no longer relevant.
     def test_ensure_registered_import_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Missing xla-ffi feature raises ImportError with helpful message."""
-        import differt.accel._ffi as ffi_mod  # noqa: PLC0415
+        import differt.accel.bvh._ffi as ffi_mod  # noqa: PLC0415
 
         monkeypatch.setattr(ffi_mod, "_FFI_REGISTERED", False)
 
@@ -671,11 +591,6 @@ class TestFfiRegistration:
 
         with pytest.raises(ImportError, match="BVH XLA FFI not available"):
             ffi_mod._ensure_registered()  # noqa: SLF001
-
-
-# ---------------------------------------------------------------------------
-# Coverage: _triangle_scene.py build_bvh
-# ---------------------------------------------------------------------------
 
 
 class TestBuildBvh:
@@ -688,12 +603,6 @@ class TestBuildBvh:
         assert bvh.num_nodes >= 1
 
 
-# ---------------------------------------------------------------------------
-# Coverage: smoothing-mode BVH in _compute_paths
-# ---------------------------------------------------------------------------
-
-
-@_requires_ffi
 class TestSmoothingBvhComputePaths:
     """Test differentiable BVH acceleration in compute_paths."""
 
@@ -773,7 +682,7 @@ class TestSmoothingBvhBranchCoverage:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Mock FFI to exercise the smoothing BVH code path for coverage."""
-        import differt.accel._ffi as ffi_mod  # noqa: PLC0415
+        import differt.accel.bvh._ffi as ffi_mod  # noqa: PLC0415
 
         scene = self._make_scene()
         bvh = scene.build_bvh()

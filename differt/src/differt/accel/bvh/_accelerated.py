@@ -1,29 +1,17 @@
-"""BVH-accelerated versions of DiffeRT's ray-triangle intersection functions.
-
-These are drop-in replacements for the functions in :mod:`differt.rt._utils`,
-accelerated by a BVH for O(rays * log(triangles)) instead of O(rays * triangles).
-
-Without smoothing (``smoothing_factor=None``), the BVH does the full intersection.
-With smoothing (``smoothing_factor`` set), the BVH selects candidates and the
-existing JAX-based Moller-Trumbore runs on the reduced set.
-"""
-
-__all__ = (
-    "bvh_first_triangles_hit_by_rays",
-    "bvh_rays_intersect_any_triangle",
-    "bvh_triangles_visible_from_vertices",
-)
-
 from typing import Any
 
 import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
-from differt.accel._bvh import TriangleBvh, compute_expansion_radius
-from differt.geometry import fibonacci_lattice, viewing_frustum
-from differt.rt._utils import rays_intersect_triangles
+from differt.geometry._utils import (  # TODO: fixme, this it to avoid circular import
+    fibonacci_lattice,
+    viewing_frustum,
+)
+from differt.rt import rays_intersect_triangles
 from differt.utils import smoothing_function
+
+from ._triangle_bvh import TriangleBvh, compute_expansion_radius
 
 
 def bvh_rays_intersect_any_triangle(
@@ -39,10 +27,10 @@ def bvh_rays_intersect_any_triangle(
     epsilon_grad: float = 1e-7,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-    """BVH-accelerated version of :func:`~differt.rt.rays_intersect_any_triangle`.
+    r"""BVH-accelerated version of :func:`~differt.rt.rays_intersect_any_triangle`.
 
     When ``bvh`` is provided, uses BVH candidate selection to reduce the number
-    of triangles tested per ray from O(N) to O(log N).
+    of triangles tested per ray from :math:`\mathcal{O}(N)` to :math:`\mathcal{O}(\log(N))`.
 
     Without smoothing (``smoothing_factor=None``), uses BVH nearest-hit to check
     if any triangle blocks the ray.
@@ -232,10 +220,10 @@ def bvh_triangles_visible_from_vertices(
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
-    """BVH-accelerated version of :func:`~differt.rt.triangles_visible_from_vertices`.
+    r"""BVH-accelerated version of :func:`~differt.rt.triangles_visible_from_vertices`.
 
-    Uses BVH nearest-hit for O(log N) per ray instead of O(N), avoiding JAX's
-    O(rays * triangles) memory allocation.
+    Uses BVH nearest-hit for :math:`\mathcal{O}(\log(N))` per ray instead of :math:`\mathcal{O}(N)`, avoiding JAX's
+    :math:`\mathcal{O}(\text{rays} \cdot \text{triangles})` memory allocation.
 
     Args:
         vertices: An array of vertices, used as origins of the rays.
@@ -350,9 +338,9 @@ def bvh_first_triangles_hit_by_rays(
     bvh: TriangleBvh | None = None,
     **kwargs: Any,
 ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
-    """BVH-accelerated version of :func:`~differt.rt.first_triangles_hit_by_rays`.
+    r"""BVH-accelerated version of :func:`~differt.rt.first_triangles_hit_by_rays`.
 
-    Uses BVH traversal for O(log N) nearest-hit per ray instead of O(N).
+    Uses BVH traversal for :math:`\mathcal{O}(\log(N))` nearest-hit per ray instead of :math:`\mathcal{O}(N)`.
 
     Args:
         ray_origins: An array of origin vertices.

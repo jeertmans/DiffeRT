@@ -1,17 +1,11 @@
-"""BVH acceleration structure wrapping the Rust implementation.
-
-Provides :class:`TriangleBvh` for accelerating ray-triangle intersection queries
-from O(rays * triangles) to O(rays * log(triangles)).
-"""
-
 __all__ = ("TriangleBvh",)
 
 import math
 
 import numpy as np
-from jaxtyping import ArrayLike
+from jaxtyping import ArrayLike, Float
 
-from differt_core.accel import TriangleBvh as _RustBvh
+from differt_core.accel.bvh import TriangleBvh as _RustBvh
 
 
 class TriangleBvh:
@@ -25,18 +19,21 @@ class TriangleBvh:
       bounding boxes (for differentiable mode)
 
     Args:
-        triangle_vertices: Triangle vertices with shape ``(num_triangles, 3, 3)``.
+        triangle_vertices: Triangle vertices.
 
     Example:
         >>> import jax.numpy as jnp
-        >>> from differt.accel import TriangleBvh
+        >>> from differt.accel.bvh import TriangleBvh
         >>> verts = jnp.array([[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32)
         >>> bvh = TriangleBvh(verts)
         >>> bvh.num_triangles
         1
     """
 
-    def __init__(self, triangle_vertices: ArrayLike) -> None:
+    def __init__(
+        self, triangle_vertices: Float[ArrayLike, "num_triangles 3 3"]
+    ) -> None:
+        # TODO: why would we pass 2-dimension input?
         verts = np.asarray(triangle_vertices, dtype=np.float32)
         if verts.ndim == 3:  # noqa: PLR2004
             # Shape (num_triangles, 3, 3) -> (num_triangles * 3, 3)
@@ -75,7 +72,7 @@ class TriangleBvh:
 
         Example:
             >>> import jax.numpy as jnp
-            >>> from differt.accel import TriangleBvh
+            >>> from differt.accel.bvh import TriangleBvh
             >>> verts = jnp.array(
             ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
             ... )
@@ -107,7 +104,7 @@ class TriangleBvh:
 
         Example:
             >>> import jax.numpy as jnp
-            >>> from differt.accel import TriangleBvh
+            >>> from differt.accel.bvh import TriangleBvh
             >>> verts = jnp.array(
             ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
             ... )
@@ -148,7 +145,7 @@ class TriangleBvh:
 
         Example:
             >>> import jax.numpy as jnp
-            >>> from differt.accel import TriangleBvh
+            >>> from differt.accel.bvh import TriangleBvh
             >>> verts = jnp.array(
             ...     [[[0, 0, 0], [1, 0, 0], [0, 1, 0]]], dtype=jnp.float32
             ... )
@@ -194,7 +191,7 @@ def compute_expansion_radius(
         The expansion radius in the same units as triangle_size.
 
     Example:
-        >>> from differt.accel._bvh import compute_expansion_radius
+        >>> from differt.accel.bvh import compute_expansion_radius
         >>> r = compute_expansion_radius(10.0, triangle_size=1.0)
         >>> r > 0
         True

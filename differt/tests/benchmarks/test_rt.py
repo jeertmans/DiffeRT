@@ -7,8 +7,8 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
 
-from differt.accel import TriangleBvh
-from differt.accel._accelerated import (
+from differt.accel.bvh import (
+    TriangleBvh,
     bvh_first_triangles_hit_by_rays,
     bvh_rays_intersect_any_triangle,
     bvh_triangles_visible_from_vertices,

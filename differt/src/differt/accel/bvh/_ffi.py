@@ -2,8 +2,6 @@
 
 These functions call into Rust BVH queries via XLA FFI, enabling BVH
 operations inside JIT-compiled JAX functions (``jax.jit``, ``jax.lax.scan``).
-
-Requires ``differt-core`` built with the ``xla-ffi`` feature.
 """
 
 __all__ = (
@@ -18,41 +16,17 @@ import jax.numpy as jnp
 import numpy as np
 from jaxtyping import Array, Float
 
-_FFI_REGISTERED = False
+import differt_core.accel.bvh as _differt_core_bvh
 
+bvh_nearest_hit_capsule = _differt_core_bvh.bvh_nearest_hit_capsule
+bvh_get_candidates_capsule = _differt_core_bvh.bvh_get_candidates_capsule
 
-def _ensure_registered() -> None:
-    """Register BVH FFI targets with JAX (once).
-
-    Raises:
-        ImportError: If ``differt-core`` was not built with the ``xla-ffi`` feature.
-    """
-    global _FFI_REGISTERED  # noqa: PLW0603
-    if _FFI_REGISTERED:
-        return
-
-    try:
-        from differt_core import _differt_core  # noqa: PLC0415, PLC2701
-
-        bvh_mod = _differt_core.accel.bvh
-        bvh_nearest_hit_capsule = bvh_mod.bvh_nearest_hit_capsule
-        bvh_get_candidates_capsule = bvh_mod.bvh_get_candidates_capsule
-    except (ImportError, AttributeError) as e:
-        msg = (
-            "BVH XLA FFI not available. Rebuild differt-core with "
-            "the xla-ffi feature: "
-            "PYTHON_SYS_EXECUTABLE=$(which python) "
-            "maturin develop --strip"
-        )
-        raise ImportError(msg) from e
-
-    jax.ffi.register_ffi_target(
-        "bvh_nearest_hit", bvh_nearest_hit_capsule(), platform="cpu"
-    )
-    jax.ffi.register_ffi_target(
-        "bvh_get_candidates", bvh_get_candidates_capsule(), platform="cpu"
-    )
-    _FFI_REGISTERED = True
+jax.ffi.register_ffi_target(
+    "bvh_nearest_hit", bvh_nearest_hit_capsule(), platform="cpu"
+)
+jax.ffi.register_ffi_target(
+    "bvh_get_candidates", bvh_get_candidates_capsule(), platform="cpu"
+)
 
 
 def ffi_nearest_hit(
@@ -60,7 +34,7 @@ def ffi_nearest_hit(
     ray_directions: Float[Array, "num_rays 3"],
     *,
     bvh_id: int,
-    active_mask: Array | None = None,
+    active_mask: Array | None = None,  # TODO: use better type annotation
 ) -> Any:
     """BVH nearest-hit via XLA FFI. Works inside ``jax.jit``.
 
@@ -77,8 +51,6 @@ def ffi_nearest_hit(
         A tuple ``(hit_indices, hit_t)`` with triangle index (``-1`` for miss)
         and parametric distance.
     """
-    _ensure_registered()
-
     num_rays = ray_origins.shape[0]
     out_types = [
         jax.ShapeDtypeStruct((num_rays,), jnp.int32),  # hit_indices
@@ -126,8 +98,6 @@ def ffi_get_candidates(
         A tuple ``(candidate_indices, candidate_counts)`` where indices
         are padded with ``-1`` and counts indicate valid entries.
     """
-    _ensure_registered()
-
     num_rays = ray_origins.shape[0]
     out_types = [
         jax.ShapeDtypeStruct(

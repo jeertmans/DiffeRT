@@ -1,7 +1,9 @@
-//! BVH (Bounding Volume Hierarchy) acceleration structure for triangle meshes.
+//! Bounding Volume Hierarchy (BVH) acceleration structure for triangle meshes.
 //!
-//! Provides SAH-based BVH construction and two query types:
-//! - Nearest-hit: find the closest triangle intersected by each ray (for SBR)
+//! Provides surface-area heuristic (SAH)-based BVH construction and
+//! two query types:
+//! - Nearest-hit: find the closest triangle intersected by each ray
+//!   (e.g., for shooting and bouncing rays)
 //! - Candidate selection: find all triangles whose expanded bounding boxes
 //!   intersect each ray (for differentiable mode)
 
@@ -865,17 +867,14 @@ impl TriangleBvh {
 #[pymodule(gil_used = false)]
 pub(crate) fn bvh(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TriangleBvh>()?;
-    #[cfg(feature = "xla-ffi")]
-    {
-        m.add_function(pyo3::wrap_pyfunction!(
-            super::ffi::bvh_nearest_hit_capsule,
-            m
-        )?)?;
-        m.add_function(pyo3::wrap_pyfunction!(
-            super::ffi::bvh_get_candidates_capsule,
-            m
-        )?)?;
-    }
+    m.add_function(pyo3::wrap_pyfunction!(
+        super::ffi::bvh_nearest_hit_capsule,
+        m
+    )?)?;
+    m.add_function(pyo3::wrap_pyfunction!(
+        super::ffi::bvh_get_candidates_capsule,
+        m
+    )?)?;
     Ok(())
 }
 
