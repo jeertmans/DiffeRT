@@ -20,19 +20,30 @@ with one *slight* but **important** difference:
 
 <!-- start changelog -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...HEAD)
+
+## [0.8.0](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...v0.8.0)
 
 ### Added
 
 - Added {func}`set_backend<differt.plotting.set_backend>` function to easily switch between different plotting backends, without using the more verbose {func}`set_defaults<differt.plotting.set_defaults>` function (by <gh-user:jeertmans>, in <gh-pr:387>).
+- Improved type annotations for {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods (`get`, `set`, `add`, `mul`, `apply`, and the new `sub`, `div`, `pow`, `min`, `max`): replaced `**kwargs: Any` with `**kwargs: Unpack[_GetIndexingKwargs]` {class}`typing.TypedDict`, and typed the `values` argument as `Float[ArrayLike, "3|1|"]` (by <gh-user:copilot> and <gh-user:jeertmans>, in <gh-pr:420>).
+- Added {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` indexing methods `sub`, `div`, `pow`, `min`, and `max` as counterparts to JAX's `ndarray.at[...].subtract`, `divide`, `power`, `min`, and `max` (by <gh-user:copilot> and <gh-user:jeertmans>, in <gh-pr:420>).
 
 ### Changed
 
 - Changed default options for plotting with Plotly (`aspectmode="data"` and `flatshading=True` on meshes) so that Plotly is now a much better option for large 3D scenes. Edited the tutorial accordingly, showing the improved visualization and the importance of lighting (by <gh-user:jeertmans>, in <gh-pr:412>).
+- {meth}`TriangleMesh.at<differt.geometry.TriangleMesh.at>` now raises a {exc}`ValueError` if the array index passed to `at[...]` is not at most one-dimensional. This is a **breaking-change** (by <gh-user:copilot> and <gh-user:jeertmans>, in <gh-pr:420>).
 
 ### Chore
 
-- Unreleased changes are now displayed on the changelog page. Users looking for the latest released changes should look at the [stable version](https://differt.readthedocs.io/stable/) of the documentation (by <gh-user:jeertmans>, in <gh-pr:391>).
+- v0.8.0 changes are now displayed on the changelog page. Users looking for the latest released changes should look at the [stable version](https://differt.readthedocs.io/stable/) of the documentation (by <gh-user:jeertmans>, in <gh-pr:391>).
+- Renamed `jaxtyped` Pytest marker to `require_typechecker` (by <gh-user:jeertmans>, in <gh-pr:422>).
+- Added `require_no_typechecker` Pytest marker to automatically skip tests that cannot work when type checking is enabled (by <gh-user:jeertmans>, in <gh-pr:422>).
+
+### Fixed
+
+- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:jeertmans>).
 
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 

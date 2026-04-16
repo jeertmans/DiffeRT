@@ -75,7 +75,7 @@ nitpick_ignore = (
     ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
     ("py:obj", "differt.rt.utils._T"),
-    ("py:obj", "__main__.ArrayType"),
+    ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
     ("py:class", "setup.<locals>.ArrayLike"),
 )
@@ -95,8 +95,6 @@ numfig = True
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
-    "e3x": ("https://e3x.readthedocs.io/stable/", None),
-    "flax": ("https://flax-linen.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
     "matplotlib": ("https://matplotlib.org/stable", None),
