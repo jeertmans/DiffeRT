@@ -22,6 +22,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...HEAD)
 
+### Changed
+
+- Added lighting by default when using Plotly for plotting meshes, see <gh-pr:412>  (by <gh-user:jeertmans>, in <gh-pr:432>).
+
 ## [0.8.0](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...v0.8.0)
 
 ### Added
