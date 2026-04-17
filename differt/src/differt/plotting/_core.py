@@ -137,6 +137,19 @@ def _(
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
     kwargs.setdefault("flatshading", True)
+    kwargs.setdefault(
+        "lighting",
+        {
+            "ambient": 0.5,
+            "diffuse": 0.9,
+            "fresnel": 0.1,
+            "specular": 0.9,
+            "roughness": 0.5,
+            "facenormalsepsilon": 1e-15,
+            "vertexnormalsepsilon": 1e-15,
+        },
+    )
+    kwargs.setdefault("lightposition", {"x": 100000, "y": 100000, "z": 100000})
 
     if (
         face_colors := kwargs.pop("face_colors", None)
