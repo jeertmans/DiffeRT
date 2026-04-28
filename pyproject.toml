@@ -2,9 +2,6 @@
 beartype = [
   "beartype>=0.22.9",
 ]
-bump = [
-  "bump-my-version>=0.20.3",  # Pydantic>=2.12 is needed for Python 3.14
-]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
   "jax[cuda]>=0.8.1",
@@ -13,9 +10,10 @@ dev = [
   {include-group = "codspeed"},
   {include-group = "docs"},
   {include-group = "tests"},
+  "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
   "pre-commit>=3.5.0",
-  "ty>=0.0.28",
+  "ty==0.0.32",
 ]
 docs = [
   {include-group = "beartype"},
@@ -273,6 +271,10 @@ extend-allowed-calls = ["chex.assert_trees_all_equal", "chex.assert_trees_all_cl
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
+
+[tool.ruff.lint.flake8-import-conventions.extend-aliases]
+"differt.plotting" = "dplt"
+"jax.numpy" = "jnp"
 
 [tool.ruff.lint.pep8-naming]
 extend-ignore-names = ["T"]
