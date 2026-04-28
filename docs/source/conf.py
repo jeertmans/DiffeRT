@@ -385,12 +385,10 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
-        fragment_placeholder = "{fragment}"
+        fragment_placeholder = "{fragment}"  # noqa: RUF027
         if fragment and fragment_placeholder not in url_template:
             url = f"{url}#{fragment}"
-        title = explicit_title or title_template.format(
-            path=path, fragment=fragment
-        )
+        title = explicit_title or title_template.format(path=path, fragment=fragment)
 
         node = nodes.reference(rawtext, title, refuri=url, classes=["github"])
         return [node], []
