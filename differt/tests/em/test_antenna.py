@@ -52,7 +52,7 @@ class TestAntenna:
             TypeError,
             match="Can't instantiate abstract class Antenna",
         ):
-            _ = Antenna(frequency=1e9)  # type: ignore[reportAbstractUsage]
+            _ = Antenna(frequency=jnp.asarray(1e9))
 
     @pytest.mark.parametrize("num_wavelengths", [None, 10.0])
     @pytest.mark.parametrize(

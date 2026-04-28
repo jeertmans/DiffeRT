@@ -346,7 +346,7 @@ def fix_reference(
 
 
 def setup(app: Sphinx) -> None:
-    typing.GENERATING_DOCS = True  # type: ignore[reportAttributeAccessIssue]
+    typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
     import jaxtyping  # noqa: PLC0415
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
@@ -355,7 +355,7 @@ def setup(app: Sphinx) -> None:
     class ArrayLike(jaxtyping.Array):
         pass
 
-    jaxtyping.ArrayLike = ArrayLike  # type: ignore[invalid-assignment]
+    jaxtyping.ArrayLike = ArrayLike  # type: ignore[ty:invalid-assignment]
 
     from typing import TypeVar  # noqa: PLC0415
 
@@ -367,7 +367,7 @@ def setup(app: Sphinx) -> None:
 
     import differt.plugins._deepmimo_types  # noqa: PLC0415
 
-    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[generalTypeIssue]  # noqa: SLF001
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # noqa: SLF001
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 

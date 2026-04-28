@@ -35,7 +35,7 @@ def draw_mesh(
     vertices: Real[ArrayLike, "num_vertices 3"],
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a 3D mesh made of triangles.
 
@@ -86,6 +86,7 @@ def draw_mesh(
             >>> fig  # doctest: +SKIP
 
     """
+    raise NotImplementedError
 
 
 @draw_mesh.register("vispy")
@@ -98,13 +99,13 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
-    if vertices.size == 0 or triangles.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
-        return canvas
-
     kwargs.setdefault("shading", "flat")
 
     vertices = np.asarray(vertices)
     triangles = np.asarray(triangles)
+
+    if vertices.size == 0 or triangles.size == 0:
+        return canvas
 
     view.add(Mesh(vertices=vertices, faces=triangles, **kwargs))
     view.camera.set_range()
@@ -166,7 +167,7 @@ def _(
 def draw_paths(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a batch of paths of the same length.
 
@@ -208,6 +209,7 @@ def draw_paths(
             ... )
             >>> fig  # doctest: +SKIP
     """
+    raise NotImplementedError
 
 
 @draw_paths.register("vispy")
@@ -276,7 +278,7 @@ def draw_rays(
     *,
     ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a batch of rays.
 
@@ -358,6 +360,7 @@ def draw_rays(
             ... )
             >>> fig  # doctest: +SKIP
     """
+    raise NotImplementedError
 
 
 @draw_rays.register("vispy")
@@ -372,14 +375,14 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
-    if ray_origins.size == 0 or ray_directions.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
-        return canvas
-
     kwargs.setdefault("width", 3.0)
     kwargs.setdefault("arrow_size", 6.0)
 
     ray_origins = np.asarray(ray_origins).reshape(-1, 3)
     ray_directions = np.asarray(ray_directions).reshape(-1, 3)
+
+    if ray_origins.size == 0 or ray_directions.size == 0:
+        return canvas
     ratio = np.asarray(ratio)
     body_ends = ray_origins + (1 - ratio) * ray_directions
 
@@ -407,7 +410,7 @@ def _(
 ) -> MplFigure:
     fig, ax = process_matplotlib_kwargs(kwargs)
 
-    kwargs.setdefault("arrow_length_ratio", float(ratio))  # type: ignore[reportCallIssue]
+    kwargs.setdefault("arrow_length_ratio", float(np.asarray(ratio)))
 
     ray_origins = np.asarray(ray_origins).reshape(-1, 3)
     ray_directions = np.asarray(ray_directions).reshape(-1, 3)
@@ -480,7 +483,7 @@ def draw_markers(
     labels: Sequence[str] | None = None,
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot markers and, optionally, their label.
 
@@ -521,6 +524,7 @@ def draw_markers(
             >>> fig = draw_markers(markers, labels, backend="plotly")
             >>> fig  # doctest: +SKIP
     """
+    raise NotImplementedError
 
 
 @draw_markers.register("vispy")
@@ -534,13 +538,16 @@ def _(
 
     canvas, view = process_vispy_kwargs(kwargs)
 
-    if markers.size == 0:  # type: ignore[reportAttributeAccessIssue]  # pragma: no cover
-        return canvas
-
     kwargs.setdefault("size", 1)
     kwargs.setdefault("edge_width_rel", 0.05)
     kwargs.setdefault("scaling", "scene")
-    markers = np.asarray(markers).reshape(-1, 3)
+    markers = np.asarray(markers)
+
+    if markers.size == 0:
+        return canvas
+
+    markers = markers.reshape(-1, 3)
+
     view.add(Markers(pos=markers, **kwargs))
 
     if labels:
@@ -613,7 +620,7 @@ def draw_image(
     y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a 2D image on a 3D canvas, at a fixed z-coordinate.
 
@@ -664,6 +671,7 @@ def draw_image(
             >>> fig2  # doctest: +SKIP
 
     """
+    raise NotImplementedError
 
 
 @draw_image.register("vispy")
@@ -772,7 +780,7 @@ def draw_contour(
     levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a 2D contour on a 3D canvas, at a fixed z-coordinate.
 
@@ -823,6 +831,7 @@ def draw_contour(
             >>> fig2  # doctest: +SKIP
 
     """
+    raise NotImplementedError
 
 
 @draw_contour.register("vispy")
@@ -909,7 +918,7 @@ def _(
 
     y = np.arange(m) if y is None else np.asarray(y)
 
-    if not isinstance(levels, int) and isinstance(levels, ArrayLike):
+    if levels is not None and not np.isscalar(levels):
         levels = np.asarray(levels)
 
     if fill:
@@ -940,7 +949,7 @@ def _(
     if isinstance(levels, int):
         kwargs.setdefault("autocontour", True)
         kwargs.setdefault("ncontours", levels)
-    elif isinstance(levels, ArrayLike):
+    elif levels is not None and not np.isscalar(levels):
         levels = np.asarray(levels)
         msg = (
             "Plotly does not support arbitrary level values, but only linearly spaced levels. "
@@ -973,7 +982,7 @@ def draw_surface(
     z: Real[ArrayLike, "rows cols"],
     colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     **kwargs: Any,
-) -> Canvas | MplFigure | Figure:  # type: ignore[reportInvalidTypeForm]
+) -> Canvas | MplFigure | Figure:
     """
     Plot a 3D surface.
 
@@ -1023,6 +1032,7 @@ def draw_surface(
             >>> fig2  # doctest: +SKIP
 
     """
+    raise NotImplementedError
 
 
 @draw_surface.register("vispy")

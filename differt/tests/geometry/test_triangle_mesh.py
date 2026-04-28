@@ -235,7 +235,7 @@ class TestTriangleMesh:
             ValueError,
             match=r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
         ):
-            _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[ty:no-matching-overload]
 
         with pytest.raises(
             ValueError,
@@ -243,7 +243,7 @@ class TestTriangleMesh:
                 r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
             ),
         ):
-            _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[ty:no-matching-overload]
 
         with pytest.raises(
             ValueError,
@@ -267,7 +267,7 @@ class TestTriangleMesh:
                 r"You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             ),
         ):
-            _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(center)  # type: ignore[ty:no-matching-overload]
 
     @pytest.mark.parametrize(
         ("length", "width", "height"),
@@ -610,7 +610,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError, match="You must specify one of 'colors' or `key`, not both"
         ):
-            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[no-matching-overload]
+            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[ty:no-matching-overload]
 
     def test_set_face_materials(
         self,

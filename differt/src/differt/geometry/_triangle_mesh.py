@@ -1724,8 +1724,8 @@ class TriangleMesh(eqx.Module):
             if sample_objects:
                 indices = jnp.arange(self.num_triangles)
                 indices_inside_bounds = (
-                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[reportOptionalSubscript]
-                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[reportOptionalSubscript]
+                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[ty:not-subscriptable]
+                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[ty:not-subscriptable]
                 triangle_indices = indices_inside_bounds.argmax(
                     axis=1
                 )  # Exactly one bound should be true for each triangle
@@ -1757,7 +1757,7 @@ class TriangleMesh(eqx.Module):
 
         if sample_objects:
             indices = jnp.concatenate([
-                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[reportOptionalSubscript]
+                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[ty:not-subscriptable]
                 for i in indices
             ])
         if self.assume_quads:
