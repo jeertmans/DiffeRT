@@ -25,6 +25,9 @@ with one *slight* but **important** difference:
 ### Changed
 
 - Added lighting by default when using Plotly for plotting meshes, see <gh-pr:412>  (by <gh-user:jeertmans>, in <gh-pr:432>).
+
+### Chore
+
 - Replaced raw GitHub issue/PR URLs in documentation (Markdown, RST, and Python docstrings) with dedicated Sphinx roles (`gh-pr`, `gh-issue`, `gh-user`, `ext-gh-issue`) (by <gh-user:copilot>, in <gh-pr:437>).
 
 ## [0.8.0](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...v0.8.0)
