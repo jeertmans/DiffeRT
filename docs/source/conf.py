@@ -10,6 +10,7 @@
 import inspect
 import operator
 import os
+import re
 import sys
 import typing
 from datetime import date
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from docutils import nodes
+from docutils.parsers.rst.states import Inliner
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
 from sphinx.environment import BuildEnvironment
@@ -345,6 +347,54 @@ def fix_reference(
     return None
 
 
+# -- GitHub roles
+
+
+_EXPLICIT_TITLE_RE = re.compile(r"^(.+?)\s*<(.+)>$", re.DOTALL)
+
+_GITHUB_BASE_URL = "https://github.com"
+_REPO = "jeertmans/DiffeRT"
+
+
+def _make_gh_role(
+    url_template: str,
+    title_template: str,
+) -> Any:
+    """Create a GitHub Sphinx role with given URL and title templates."""
+
+    def role(
+        name: str,
+        rawtext: str,
+        text: str,
+        lineno: int,
+        inliner: Inliner,
+        options: dict[str, Any] | None = None,
+        content: list[str] | None = None,
+    ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
+        m = _EXPLICIT_TITLE_RE.match(text)
+        if m:
+            explicit_title, target = m.group(1), m.group(2)
+        else:
+            explicit_title, target = None, text
+
+        if "#" in target:
+            path, fragment = target.split("#", 1)
+        else:
+            path, fragment = target, ""
+
+        url = url_template.format(
+            base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
+        )
+        title = explicit_title or title_template.format(
+            path=path, fragment=fragment
+        )
+
+        node = nodes.reference(rawtext, title, refuri=url, classes=["github"])
+        return [node], []
+
+    return role
+
+
 def setup(app: Sphinx) -> None:
     typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
@@ -373,3 +423,32 @@ def setup(app: Sphinx) -> None:
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
     app.connect("missing-reference", fix_reference)
+
+    app.add_role(
+        "gh-pr",
+        _make_gh_role(
+            url_template="{base}/{repo}/pull/{path}",
+            title_template="PR #{path}",
+        ),
+    )
+    app.add_role(
+        "gh-issue",
+        _make_gh_role(
+            url_template="{base}/{repo}/issues/{path}",
+            title_template="Issue #{path}",
+        ),
+    )
+    app.add_role(
+        "gh-user",
+        _make_gh_role(
+            url_template="{base}/{path}",
+            title_template="@{path}",
+        ),
+    )
+    app.add_role(
+        "ext-gh-issue",
+        _make_gh_role(
+            url_template="{base}/{path}/issues/{fragment}",
+            title_template="Issue {path}#{fragment}",
+        ),
+    )
