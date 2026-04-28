@@ -363,11 +363,11 @@ def _make_gh_role(
     """Create a GitHub Sphinx role with given URL and title templates."""
 
     def role(
-        name: str,
+        _name: str,
         rawtext: str,
         text: str,
-        lineno: int,
-        inliner: Inliner,
+        _lineno: int,
+        _inliner: Inliner,
         _options: dict[str, Any] | None = None,
         _content: list[str] | None = None,
     ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
@@ -385,7 +385,8 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
-        if fragment and "{fragment}" not in url_template:
+        fragment_placeholder = "{fragment}"
+        if fragment and fragment_placeholder not in url_template:
             url = f"{url}#{fragment}"
         title = explicit_title or title_template.format(
             path=path, fragment=fragment
