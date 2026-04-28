@@ -368,8 +368,8 @@ def _make_gh_role(
         text: str,
         lineno: int,
         inliner: Inliner,
-        options: dict[str, Any] | None = None,
-        content: list[str] | None = None,
+        _options: dict[str, Any] | None = None,
+        _content: list[str] | None = None,
     ) -> tuple[list[nodes.Node], list[nodes.system_message]]:
         m = _EXPLICIT_TITLE_RE.match(text)
         if m:
@@ -385,6 +385,8 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
+        if fragment and "{fragment}" not in url_template:
+            url = f"{url}#{fragment}"
         title = explicit_title or title_template.format(
             path=path, fragment=fragment
         )
