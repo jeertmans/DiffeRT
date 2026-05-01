@@ -2,7 +2,12 @@
 harness = false
 name = "bench_main"
 
+[build-dependencies]
+cxx-build = {version = ">=1.0,<1.0.178"}
+pyo3-build-config = {version = "0.25"}
+
 [dependencies]
+cxx = {version = ">=1.0,<1.0.178"}
 indexmap = {version = "2.5.0", features = ["serde"]}
 log = "0.4"
 nalgebra = "0.32.3"

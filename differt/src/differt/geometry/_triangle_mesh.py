@@ -19,6 +19,7 @@ import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
+from differt.accel.bvh import TriangleBvh
 from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
@@ -543,6 +544,31 @@ class TriangleMesh(eqx.Module):
             return jnp.empty_like(self.vertices, shape=(0, 3, 3))
 
         return jnp.take(self.vertices, self.triangles, axis=0)
+
+    def build_bvh(self) -> TriangleBvh:
+        """
+        Build a :class:`~differt.accel.bvh.TriangleBvh` acceleration structure for this mesh.
+
+        See :mod:`differt.accel.bvh` for more details about the BVH implementation.
+
+        Returns:
+            A triangle BVH instance.
+
+        Example:
+            >>> from differt.geometry import TriangleMesh
+            >>> import jax.numpy as jnp
+            >>> mesh = TriangleMesh(
+            ...     vertices=jnp.array(
+            ...         [[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=jnp.float32
+            ...     ),
+            ...     triangles=jnp.array([[0, 1, 2]]),
+            ... )
+            >>> bvh = mesh.build_bvh()
+            >>> bvh.num_triangles
+            1
+
+        """
+        return TriangleBvh(self.triangle_vertices)
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
