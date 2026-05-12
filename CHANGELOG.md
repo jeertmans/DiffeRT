@@ -24,12 +24,12 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:copilot>, in <gh-pr:438>).
-- Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:438>).
+- Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
+- Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:444>).
 
 ### Chore
 
-- Added tests for the improved Sionna-compatible XML scene parser using OSM building data, ensuring correct parsing of materials and colors (by <gh-user:jeertmans>, in <gh-pr:438>).
+- Added tests for the improved Sionna-compatible XML scene parser using OSM building data, ensuring correct parsing of materials and colors (by <gh-user:jeertmans>, in <gh-pr:444>).
 
 ## [0.8.1](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...v0.8.1)
 
