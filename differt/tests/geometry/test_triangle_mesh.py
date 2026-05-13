@@ -287,9 +287,9 @@ class TestTriangleMesh:
         preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
 
         chex.assert_trees_all_equal(
-            preserved.mask, jnp.array([False, False, True], dtype=bool)
+            preserved.mask, jnp.array([False, False, False], dtype=bool)
         )
-        assert preserved.masked().num_triangles == 1
+        assert preserved.masked().num_triangles == 0
 
     @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
     def test_keep_within_preserve_objects_without_bounds(

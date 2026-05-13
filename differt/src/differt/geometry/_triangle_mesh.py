@@ -890,9 +890,9 @@ class TriangleMesh(eqx.Module):
         if x_min is not None or x_max is not None:
             vertices = vertices.at[:, 0].apply(lambda x: x.clip(min=x_min, max=x_max))
         if y_min is not None or y_max is not None:
-            vertices = vertices.at[:, 1].apply(lambda x: x.clip(min=y_min, max=y_max))
+            vertices = vertices.at[:, 1].apply(lambda y: y.clip(min=y_min, max=y_max))
         if z_min is not None or z_max is not None:
-            vertices = vertices.at[:, 2].apply(lambda x: x.clip(min=z_min, max=z_max))
+            vertices = vertices.at[:, 2].apply(lambda z: z.clip(min=z_min, max=z_max))
 
         return eqx.tree_at(lambda m: m.vertices, self, vertices)
 
@@ -2077,7 +2077,7 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context:
 
-                >>> fig = mesh.keep_all_within(y_min=-20).plot(
+                >>> fig = mesh.keep_all_within(y_min=-20.0).plot(
                 ...     backend="plotly",
                 ... )
                 >>> fig  # doctest: +SKIP
@@ -2088,7 +2088,7 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> fig = mesh.keep_all_within(
-                ...     y_min=-20,
+                ...     y_min=-20.0,
                 ...     preserve_objects=False,
                 ... ).plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
@@ -2164,7 +2164,7 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context:
 
-                >>> fig = mesh.keep_any_within(x_max=0).plot(
+                >>> fig = mesh.keep_any_within(x_max=0.0).plot(
                 ...     backend="plotly",
                 ... )
                 >>> fig  # doctest: +SKIP
@@ -2175,7 +2175,7 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> fig = mesh.keep_any_within(
-                ...     x_max=0,
+                ...     x_max=0.0,
                 ...     preserve_objects=False,
                 ... ).plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
@@ -2186,8 +2186,8 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> fig = mesh.keep_any_within(
-                ...     x_min=-70,
-                ...     x_max=+15,
+                ...     x_min=-70.0,
+                ...     x_max=+15.0,
                 ...     clip=True,
                 ... ).plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
