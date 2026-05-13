@@ -471,14 +471,20 @@ def rays_intersect_any_triangle(
     )
 
     num_rays = math.prod(batch)
-    # If user passed None explicitly, process everything in a single batch
-    if batch_size is None:
-        batch_size = max(num_rays, num_triangles)
-    if ray_batch_size is None:
-        ray_batch_size = batch_size
-    if tri_batch_size is None:
-        tri_batch_size = batch_size
-
+    ray_batch_size = (
+        ray_batch_size
+        if ray_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_rays
+    )
+    tri_batch_size = (
+        tri_batch_size
+        if tri_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_triangles
+    )
     ray_chunk_size = max(min(ray_batch_size, num_rays), 1)
     tri_chunk_size = max(min(tri_batch_size, num_triangles), 1)
 
@@ -797,13 +803,21 @@ def triangles_visible_from_vertices(
     )
 
     num_triangles = triangle_vertices.shape[-3]
-    # None means process everything in a single batch
-    if batch_size is None:
-        batch_size = max(num_rays, num_triangles)
-    if ray_batch_size is None:
-        ray_batch_size = batch_size
-    if tri_batch_size is None:
-        tri_batch_size = batch_size
+    num_rays = math.prod(batch)
+    ray_batch_size = (
+        ray_batch_size
+        if ray_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_rays
+    )
+    tri_batch_size = (
+        tri_batch_size
+        if tri_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_triangles
+    )
     ray_batch_size = max(min(ray_batch_size, num_rays), 1)
     tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
 
@@ -957,13 +971,20 @@ def first_triangles_hit_by_rays(
     )
 
     num_rays = math.prod(batch)
-    # None means process everything in a single batch
-    if batch_size is None:
-        batch_size = max(num_rays, num_triangles)
-    if ray_batch_size is None:
-        ray_batch_size = batch_size
-    if tri_batch_size is None:
-        tri_batch_size = batch_size
+    ray_batch_size = (
+        ray_batch_size
+        if ray_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_rays
+    )
+    tri_batch_size = (
+        tri_batch_size
+        if tri_batch_size is not None
+        else batch_size
+        if batch_size is not None
+        else num_triangles
+    )
 
     ray_chunk_size = max(min(ray_batch_size, num_rays), 1)
     tri_chunk_size = max(min(tri_batch_size, num_triangles), 1)
