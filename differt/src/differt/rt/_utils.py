@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
-from differt.geometry import viewing_frustum
+from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph
 
@@ -612,7 +612,7 @@ def rays_intersect_any_triangle(
     *,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
-    batch_size: int | None = 1024,
+    batch_size: int | None = 4096,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -783,29 +783,6 @@ def rays_intersect_any_triangle(
     )(ray_origins, ray_directions, triangle_vertices, active_triangles)
 
 
-def _fibonacci_lattice_chunk(
-    start_index,
-    chunk_size,
-    total_n,
-    frustum,
-):
-    phi = 1.618033988749895  # golden ratio
-    i = jnp.arange(chunk_size) + start_index
-
-    lat = jnp.arccos(1 - 2 * i / total_n)
-    lon = 2 * jnp.pi * i / phi
-
-    pa = jnp.stack((lat, lon), axis=-1)
-
-    if frustum is not None:
-        pa %= frustum[1, -2:] - frustum[0, -2:]
-        pa += frustum[0, -2:]
-
-    from differt.geometry import spherical_to_cartesian
-
-    return spherical_to_cartesian(pa)
-
-
 def _triangles_visible_from_vertex(
     vertex,
     triangle_vertices,
@@ -820,68 +797,21 @@ def _triangles_visible_from_vertex(
     **kwargs,
 ):
     frustum = viewing_frustum(vertex, world_vertices, active_vertices=active_vertices)
+    ray_directions = fibonacci_lattice(num_rays, frustum=frustum)
 
-    def body_fn(
-        batch_index: Int[Array, ""],
-        visible_so_far: Bool[Array, " num_triangles"],
-    ) -> Bool[Array, " num_triangles"]:
-        start_index = batch_index * ray_batch_size
-        ray_directions = _fibonacci_lattice_chunk(
-            start_index, ray_batch_size, num_rays, frustum
-        )
-
-        indices, _ = first_triangles_hit_by_rays(
-            vertex,
-            ray_directions,
-            triangle_vertices,
-            active_triangles=active_triangles,
-            ray_batch_size=None,
-            tri_batch_size=tri_batch_size,
-            **kwargs,
-        )
-
-        valid_hits = indices >= 0
-        safe_indices = jnp.where(valid_hits, indices, 0)
-        visible_in_batch = (
-            jnp.zeros(num_triangles, dtype=bool).at[safe_indices].max(valid_hits)
-        )
-
-        return visible_so_far | visible_in_batch
-
-    num_ray_batches, rem_rays = divmod(num_rays, ray_batch_size)
-
-    visible = jax.lax.fori_loop(
-        0,
-        num_ray_batches,
-        body_fn,
-        init_val=jnp.zeros(num_triangles, dtype=bool),
+    indices, _ = first_triangles_hit_by_rays(
+        vertex,
+        ray_directions,
+        triangle_vertices,
+        active_triangles=active_triangles,
+        ray_batch_size=ray_batch_size,
+        tri_batch_size=tri_batch_size,
+        **kwargs,
     )
 
-    if rem_rays > 0:
-        start_index = num_ray_batches * ray_batch_size
-        ray_directions = _fibonacci_lattice_chunk(
-            start_index, rem_rays, num_rays, frustum
-        )
-        indices, _ = first_triangles_hit_by_rays(
-            vertex,
-            ray_directions,
-            triangle_vertices,
-            active_triangles=active_triangles,
-            ray_batch_size=None,
-            tri_batch_size=tri_batch_size,
-            **kwargs,
-        )
-        valid_hits = indices >= 0
-        safe_indices = jnp.where(valid_hits, indices, 0)
-        visible_in_batch = (
-            jnp.bincount(
-                safe_indices,
-                weights=valid_hits.astype(jnp.int32),
-                length=num_triangles,
-            )
-            > 0
-        )
-        visible |= visible_in_batch
+    valid_hits = indices >= 0
+    safe_indices = jnp.where(valid_hits, indices, 0)
+    visible = jnp.zeros(num_triangles, dtype=bool).at[safe_indices].max(valid_hits)
 
     return visible
 
@@ -892,7 +822,7 @@ def triangles_visible_from_vertices(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     num_rays: int = int(1e6),
-    batch_size: int | None = 1024,
+    batch_size: int | None = 4096,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -1143,7 +1073,10 @@ def triangles_visible_from_vertices(
             **kwargs,
         ).reshape((*batch, num_triangles))
 
-    return jax.lax.map(f, tuple(xs)).reshape((*batch, num_triangles))
+    return jax.lax.map(f, tuple(xs), batch_size=batch_size).reshape((
+        *batch,
+        num_triangles,
+    ))
 
 
 @eqx.filter_jit
@@ -1152,7 +1085,7 @@ def first_triangles_hit_by_rays(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
-    batch_size: int | None = 1024,
+    batch_size: int | None = 4096,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -1298,5 +1231,9 @@ def first_triangles_hit_by_rays(
         )
         return indices.reshape(batch), ts.reshape(batch)
 
-    indices, ts = jax.lax.map(f, tuple(xs), batch_size=ray_batch_size)
+    if num_rays > ray_batch_size:
+        indices, ts = jax.lax.map(f, tuple(xs), batch_size=ray_batch_size)
+    else:
+        indices, ts = jax.vmap(f)(jnp.stack(xs, axis=1))
+
     return indices.reshape(batch), ts.reshape(batch)

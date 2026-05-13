@@ -1031,7 +1031,7 @@ class TriangleScene(eqx.Module):
         max_dist: Float[ArrayLike, ""] = 1e-3,
         smoothing_factor: Float[ArrayLike, ""] | None = None,
         confidence_threshold: Float[ArrayLike, ""] = 0.5,
-        batch_size: int | None = 512,
+        batch_size: int | None = 4096,
         disconnect_inactive_triangles: bool = False,
     ) -> Paths[_M] | SizedIterator[Paths[_M]] | Iterator[Paths[_M]] | SBRPaths:
         """
