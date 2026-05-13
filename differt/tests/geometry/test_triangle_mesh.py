@@ -21,6 +21,36 @@ from differt.geometry._utils import rotation_matrix_along_x_axis
 from ..utils import random_inputs
 
 
+@pytest.fixture
+def keep_within_mesh() -> TriangleMesh:
+    return TriangleMesh(
+        vertices=jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [0.2, 0.0, 0.0],
+                [0.0, 0.2, 0.0],
+                [0.1, 0.0, 0.0],
+                [0.2, 0.0, 0.0],
+                [0.3, 0.1, 0.0],
+                [0.8, 0.0, 0.0],
+                [0.9, 0.0, 0.0],
+                [1.0, 0.1, 0.0],
+            ],
+            dtype=float,
+        ),
+        triangles=jnp.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=int),
+        object_bounds=jnp.array([[0, 1], [1, 3]], dtype=int),
+    )
+
+
+@pytest.fixture
+def medium_random_mesh(key: PRNGKeyArray) -> TriangleMesh:
+    key_vertices, key_triangles = jax.random.split(key)
+    vertices = jax.random.uniform(key_vertices, (64, 3), minval=-3.0, maxval=3.0)
+    triangles = jax.random.randint(key_triangles, (128, 3), 0, vertices.shape[0])
+    return TriangleMesh(vertices=vertices, triangles=triangles)
+
+
 @pytest.mark.parametrize(
     ("triangle_vertices", "vertices", "expectation"),
     [
@@ -191,6 +221,243 @@ class TestTriangleMesh:
             assert sub_mesh.num_triangles == 12
 
         assert count == 1
+
+    def test_keep_any_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
+
+        filtered = mesh.keep_any_within(x_min=0.75, preserve_objects=False)
+        chex.assert_trees_all_equal(
+            filtered.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        assert filtered.num_active_triangles == 1
+        assert filtered.masked().num_triangles == 1
+
+        assert (
+            mesh
+            .keep_all_within(x_min=0.75, preserve_objects=False)
+            .masked()
+            .num_triangles
+            == 1
+        )
+
+        preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, True, True], dtype=bool)
+        )
+        assert preserved.num_active_triangles == 2
+        assert preserved.masked().num_triangles == 2
+
+    def test_keep_all_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
+
+        filtered = mesh.keep_all_within(x_min=0.75, preserve_objects=False)
+        chex.assert_trees_all_equal(
+            filtered.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        assert filtered.num_active_triangles == 1
+        assert filtered.masked().num_triangles == 1
+
+        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        assert preserved.num_active_triangles == 0
+        assert preserved.masked().num_triangles == 0
+
+    def test_keep_within_respects_existing_mask(
+        self, keep_within_mesh: TriangleMesh
+    ) -> None:
+        mesh = eqx.tree_at(
+            lambda m: m.mask,
+            keep_within_mesh,
+            jnp.array([False, False, True], dtype=bool),
+            is_leaf=lambda x: x is None,
+        )
+
+        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        assert preserved.masked().num_triangles == 0
+
+    @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
+    def test_keep_within_preserve_objects_without_bounds(
+        self, method_name: str
+    ) -> None:
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.2, 0.0, 0.0],
+                    [0.0, 0.2, 0.0],
+                    [0.8, 0.0, 0.0],
+                    [0.9, 0.0, 0.0],
+                    [1.0, 0.1, 0.0],
+                ],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2], [3, 4, 5]], dtype=int),
+        )
+
+        filtered = getattr(mesh, method_name)(x_min=0.75, preserve_objects=False)
+        preserved = getattr(mesh, method_name)(x_min=0.75, preserve_objects=True)
+
+        chex.assert_trees_all_equal(filtered.mask, preserved.mask)
+        chex.assert_trees_all_equal(filtered.masked(), preserved.masked())
+
+    def test_clip(self) -> None:
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [[-1.0, 2.0, 3.0], [4.0, -5.0, 6.0], [7.0, 8.0, -9.0]],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2]], dtype=int),
+        )
+
+        got = mesh.clip(x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, z_min=0.0)
+        expected = TriangleMesh(
+            vertices=jnp.array(
+                [[0.0, 1.0, 3.0], [1.0, 0.0, 6.0], [1.0, 1.0, 0.0]],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2]], dtype=int),
+        )
+
+        chex.assert_trees_all_equal(got, expected)
+
+    @pytest.mark.parametrize("x_min", [None, -1.0])
+    @pytest.mark.parametrize("x_max", [None, +1.0])
+    @pytest.mark.parametrize("y_min", [None, -0.5])
+    @pytest.mark.parametrize("y_max", [None, +0.5])
+    @pytest.mark.parametrize("z_min", [None, -2.0])
+    @pytest.mark.parametrize("z_max", [None, +2.0])
+    def test_clip_random_medium_mesh(
+        self,
+        x_min: float | None,
+        x_max: float | None,
+        y_min: float | None,
+        y_max: float | None,
+        z_min: float | None,
+        z_max: float | None,
+        medium_random_mesh: TriangleMesh,
+    ) -> None:
+        clipped = medium_random_mesh.clip(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+        )
+
+        assert clipped.triangles.shape == medium_random_mesh.triangles.shape
+
+        if x_min is not None:
+            assert jnp.all(clipped.vertices[:, 0] >= x_min)
+        if x_max is not None:
+            assert jnp.all(clipped.vertices[:, 0] <= x_max)
+        if y_min is not None:
+            assert jnp.all(clipped.vertices[:, 1] >= y_min)
+        if y_max is not None:
+            assert jnp.all(clipped.vertices[:, 1] <= y_max)
+        if z_min is not None:
+            assert jnp.all(clipped.vertices[:, 2] >= z_min)
+        if z_max is not None:
+            assert jnp.all(clipped.vertices[:, 2] <= z_max)
+
+        if all(bound is None for bound in (x_min, x_max, y_min, y_max, z_min, z_max)):
+            chex.assert_trees_all_equal(clipped.vertices, medium_random_mesh.vertices)
+
+    @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
+    @pytest.mark.parametrize("x_min", [None, -1.0])
+    @pytest.mark.parametrize("x_max", [None, +1.0])
+    @pytest.mark.parametrize("y_min", [None, -0.5])
+    @pytest.mark.parametrize("y_max", [None, +0.5])
+    @pytest.mark.parametrize("z_min", [None, -2.0])
+    @pytest.mark.parametrize("z_max", [None, +2.0])
+    def test_keep_within_random_medium_mesh(
+        self,
+        method_name: str,
+        x_min: float | None,
+        x_max: float | None,
+        y_min: float | None,
+        y_max: float | None,
+        z_min: float | None,
+        z_max: float | None,
+        medium_random_mesh: TriangleMesh,
+    ) -> None:
+        kept = getattr(medium_random_mesh, method_name)(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=False,
+            clip=True,
+        )
+
+        assert kept.triangles.shape == medium_random_mesh.triangles.shape
+        assert kept.mask is not None
+
+        if x_min is not None:
+            assert jnp.all(kept.vertices[:, 0] >= x_min)
+        if x_max is not None:
+            assert jnp.all(kept.vertices[:, 0] <= x_max)
+        if y_min is not None:
+            assert jnp.all(kept.vertices[:, 1] >= y_min)
+        if y_max is not None:
+            assert jnp.all(kept.vertices[:, 1] <= y_max)
+        if z_min is not None:
+            assert jnp.all(kept.vertices[:, 2] >= z_min)
+        if z_max is not None:
+            assert jnp.all(kept.vertices[:, 2] <= z_max)
+
+        if all(bound is None for bound in (x_min, x_max, y_min, y_max, z_min, z_max)):
+            chex.assert_trees_all_equal(kept.vertices, medium_random_mesh.vertices)
+            chex.assert_trees_all_equal(
+                kept.mask, jnp.ones(medium_random_mesh.num_triangles, dtype=bool)
+            )
+
+    def test_keep_within_clip(self, keep_within_mesh: TriangleMesh) -> None:
+        expected_keep_all_vertices = jnp.array(
+            [
+                [0.75, 0.0, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.2, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.1, 0.0],
+                [0.8, 0.0, 0.0],
+                [0.9, 0.0, 0.0],
+                [1.0, 0.1, 0.0],
+            ],
+            dtype=float,
+        )
+        expected_keep_any_vertices = expected_keep_all_vertices
+
+        mesh = keep_within_mesh
+
+        kept = mesh.keep_all_within(
+            x_min=0.75,
+            preserve_objects=True,
+            clip=True,
+        )
+        chex.assert_trees_all_equal(
+            kept.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        chex.assert_trees_all_equal(kept.vertices, expected_keep_all_vertices)
+
+        kept = keep_within_mesh.keep_any_within(
+            x_min=0.75,
+            preserve_objects=False,
+            clip=True,
+        )
+        chex.assert_trees_all_equal(
+            kept.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        chex.assert_trees_all_equal(kept.vertices, expected_keep_any_vertices)
 
     @pytest.mark.xfail(
         reason="No longer raises an error, as no more type checking is done on jnp.asarray.",

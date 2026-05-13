@@ -26,6 +26,7 @@ with one *slight* but **important** difference:
 
 - Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
 - Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:444>).
+- Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
 
 ### Chore
 
