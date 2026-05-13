@@ -2060,11 +2060,15 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import get_sionna_scene, TriangleScene
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
                 >>>
-                >>> mesh = TriangleScene.load_xml(
-                ...     get_sionna_scene("simple_street_canyon")
-                ... ).mesh
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
                 >>> fig = mesh.plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
 
@@ -2143,11 +2147,15 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import get_sionna_scene, TriangleScene
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
                 >>>
-                >>> mesh = TriangleScene.load_xml(
-                ...     get_sionna_scene("simple_street_canyon")
-                ... ).mesh
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
                 >>> fig = mesh.plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
 
