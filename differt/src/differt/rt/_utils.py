@@ -663,14 +663,14 @@ def rays_intersect_any_triangle(
             The ray batch size is automatically adjusted to be the minimum of the number of rays
             and the specified ray batch size.
 
-            If :data:`None`, it defaults to :data:`batch_size`.
+            If :data:`None`, it defaults to ``batch_size``.
         tri_batch_size: The number of triangles to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
             The triangle batch size is automatically adjusted to be the minimum of the number of
             triangles and the specified triangle batch size.
 
-            If :data:`None`, it defaults to :data:`batch_size`.
+            If :data:`None`, it defaults to ``batch_size``.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
