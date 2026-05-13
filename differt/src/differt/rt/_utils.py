@@ -420,24 +420,26 @@ def rays_intersect_any_triangle(
             between 0 (:data:`False`) and 1 (:data:`True`).
 
             For more details, refer to :ref:`smoothing`.
-        batch_size: The default batch size used when either the ray or triangle batch size is
-            not specified. This allows to make a trade-off between memory usage and performance.
+        batch_size: The default batch size used when either ``ray_batch_size`` or
+            ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
+            usage and performance.
 
-            If :data:`None`, a heuristic based on the input sizes is used.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
+            Otherwise, they are both overwritten with this value.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
             The ray batch size is automatically adjusted to be the minimum of the number of rays
             and the specified ray batch size.
 
-            If :data:`None`, the ray batch size is set to the number of rays.
+            If :data:`None`, it defaults to :data:`batch_size`.
         tri_batch_size: The number of triangles to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
             The triangle batch size is automatically adjusted to be the minimum of the number of
             triangles and the specified triangle batch size.
 
-            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
+            If :data:`None`, it defaults to :data:`batch_size`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -548,6 +550,7 @@ def rays_intersect_any_triangle(
     if has_batch_tris:
         xs_rays.append(blocked_tris)
     if active_triangles is not None and has_batch_active:
+        # TODO: fix type checking issue here, as blocked_active is inferred as Array | None, but we know it's not None in this branch... do we?
         xs_rays.append(blocked_active)
 
     def scan_rays(carry_rays, ray_chunk):
@@ -642,24 +645,26 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
-        batch_size: The default batch size used when either the ray or triangle batch size is
-            not specified. This allows to make a trade-off between memory usage and performance.
+        batch_size: The default batch size used when either ``ray_batch_size`` or
+            ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
+            usage and performance.
 
-            If :data:`None`, a heuristic based on the input sizes is used.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
+            Otherwise, they are both overwritten with this value.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
             The ray batch size is automatically adjusted to be the minimum of the number of rays
             and the specified ray batch size.
 
-            If :data:`None`, the ray batch size is set to the number of rays.
+            If :data:`None`, it defaults to ``batch_size``.
         tri_batch_size: The number of triangles to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
             The triangle batch size is automatically adjusted to be the minimum of the number of
             triangles and the specified triangle batch size.
 
-            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
+            If :data:`None`, it defaults to :data:`batch_size`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -881,14 +886,16 @@ def first_triangles_hit_by_rays(
             which triangles are active, i.e., should be considered for intersection.
 
             If not specified, all triangles are considered active.
-        batch_size: The default batch size used when either the ray or triangle batch size is
-            not specified. This allows to make a trade-off between memory usage and performance.
+        batch_size: The default batch size used when either ``ray_batch_size`` or
+            ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
+            usage and performance.
 
-            If :data:`None`, a heuristic based on the input sizes is used.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
+            Otherwise, they are both overwritten with this value.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to chunk rays and reduce peak memory usage.
 
-            If :data:`None`, all rays are processed together.
+            If :data:`None`, it defaults to ``batch_size``.
         tri_batch_size: The number of triangles to process in a single batch.
             This allows to chunk triangles and reduce peak memory usage.
 

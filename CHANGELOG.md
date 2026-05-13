@@ -22,6 +22,10 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...HEAD)
 
+### Changed
+
+- Updated the `batch_size` argument semantics for {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`: `None` now means the explicit `ray_batch_size` and `tri_batch_size` values are used, while any other value is propagated to both batch-size arguments (by <gh-user:jeertmans>, in <gh-pr:446>).
+
 ### Added
 
 - Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
