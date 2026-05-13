@@ -30,6 +30,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
+- Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
 - Updated the `batch_size` argument semantics for {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` so that `batch_size` acts as the default for whichever of `ray_batch_size` and `tri_batch_size` are left unspecified (by <gh-user:jeertmans>, in <gh-pr:446>).
 
 ### Chore
