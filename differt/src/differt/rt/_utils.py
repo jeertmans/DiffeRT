@@ -1,3 +1,4 @@
+import math
 import typing
 from collections.abc import Callable, Iterator, Sized
 from functools import cache
@@ -351,6 +352,8 @@ def rays_intersect_any_triangle(
     hit_tol: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: None = ...,
     batch_size: int | None = ...,
+    ray_batch_size: int | None = ...,
+    tri_batch_size: int | None = ...,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"]: ...
 
@@ -365,6 +368,7 @@ def rays_intersect_any_triangle(
     hit_tol: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: Float[ArrayLike, ""],
     batch_size: int | None = ...,
+    ray_batch_size: int | None = ...,
     **kwargs: Any,
 ) -> Float[Array, " *batch"]: ...
 
@@ -378,7 +382,9 @@ def rays_intersect_any_triangle(
     *,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
-    batch_size: int | None = 512,
+    batch_size: int | None = 1024,
+    ray_batch_size: int | None = None,
+    tri_batch_size: int | None = None,
     **kwargs: Any,
 ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
     """
@@ -414,13 +420,24 @@ def rays_intersect_any_triangle(
             between 0 (:data:`False`) and 1 (:data:`True`).
 
             For more details, refer to :ref:`smoothing`.
-        batch_size: The number of triangles to process in a single batch.
+        batch_size: The default batch size used when either the ray or triangle batch size is
+            not specified. This allows to make a trade-off between memory usage and performance.
+
+            If :data:`None`, a heuristic based on the input sizes is used.
+        ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
-            The batch size is automatically adjusted to be the minimum of the number of triangles
-            and the specified batch size.
+            The ray batch size is automatically adjusted to be the minimum of the number of rays
+            and the specified ray batch size.
 
-            If :data:`None`, the batch size is set to the number of triangles.
+            If :data:`None`, the ray batch size is set to the number of rays.
+        tri_batch_size: The number of triangles to process in a single batch.
+            This allows to make a trade-off between memory usage and performance.
+
+            The triangle batch size is automatically adjusted to be the minimum of the number of
+            triangles and the specified triangle batch size.
+
+            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -438,21 +455,28 @@ def rays_intersect_any_triangle(
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
     num_triangles = triangle_vertices.shape[-3]
-    if batch_size is None:
-        batch_size = num_triangles
-    batch_size = max(min(batch_size, num_triangles), 1)
-    num_batches, rem = divmod(num_triangles, batch_size)
 
     if active_triangles is not None:
         active_triangles = jnp.asarray(active_triangles)
 
-    # Combine the batch dimensions
     batch = jnp.broadcast_shapes(
         ray_origins.shape[:-1],
         ray_directions.shape[:-1],
         triangle_vertices.shape[:-3],
         active_triangles.shape[:-1] if active_triangles is not None else (),
     )
+
+    num_rays = math.prod(batch)
+    # If user passed None explicitly, process everything in a single batch
+    if batch_size is None:
+        batch_size = max(num_rays, num_triangles)
+    if ray_batch_size is None:
+        ray_batch_size = batch_size
+    if tri_batch_size is None:
+        tri_batch_size = batch_size
+
+    ray_chunk_size = max(min(ray_batch_size, num_rays), 1)
+    tri_chunk_size = max(min(tri_batch_size, num_triangles), 1)
 
     if num_triangles == 0:
         # If there are no triangles, there are no intersections
@@ -465,84 +489,122 @@ def rays_intersect_any_triangle(
             else jnp.zeros(batch, dtype=bool)
         )
 
-    def map_fn(
-        ray_origins: Float[Array, "*#batch 3"],
-        ray_directions: Float[Array, "*#batch 3"],
-        triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
-        active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        t, hit = rays_intersect_triangles(
-            ray_origins[..., None, :],
-            ray_directions[..., None, :],
-            triangle_vertices,
-            smoothing_factor=smoothing_factor,
-            **kwargs,
-        )
-        if smoothing_factor is not None:
-            return jnp.minimum(
-                hit, smoothing_function(hit_threshold - t, smoothing_factor)
-            ).sum(axis=-1, where=active_triangles)
-        return ((t < hit_threshold) & hit).any(axis=-1, where=active_triangles)
+    ray_origins = jnp.broadcast_to(ray_origins, (*batch, 3)).reshape(-1, 3)
+    ray_directions = jnp.broadcast_to(ray_directions, (*batch, 3)).reshape(-1, 3)
 
-    def reduce_fn(
-        left: Bool[Array, " *batch"] | Float[Array, " *batch"],
-        right: Bool[Array, " *batch"] | Float[Array, " *batch"],
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        if smoothing_factor is not None:
-            return (left + right).clip(max=1.0)
-        return left | right
+    pad_rays_len = (ray_chunk_size - (num_rays % ray_chunk_size)) % ray_chunk_size
+    if pad_rays_len > 0:
+        ray_origins = jnp.pad(ray_origins, ((0, pad_rays_len), (0, 0)))
+        ray_directions = jnp.pad(ray_directions, ((0, pad_rays_len), (0, 0)))
 
-    def body_fun(
-        batch_index: Int[Array, ""],
-        intersect: Bool[Array, " *batch"] | Float[Array, " *batch"],
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        start_index = batch_index * batch_size
-        batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
-        )
-        batch_of_active_triangles = (
-            jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+    num_rays_chunks = ray_origins.shape[0] // ray_chunk_size
+    blocked_ro = ray_origins.reshape(num_rays_chunks, ray_chunk_size, 3)
+    blocked_rd = ray_directions.reshape(num_rays_chunks, ray_chunk_size, 3)
+
+    pad_tris_len = (tri_chunk_size - (num_triangles % tri_chunk_size)) % tri_chunk_size
+
+    has_batch_tris = triangle_vertices.shape[:-3] != ()
+    if has_batch_tris:
+        triangle_vertices = jnp.broadcast_to(
+            triangle_vertices, (*batch, num_triangles, 3, 3)
+        ).reshape(-1, num_triangles, 3, 3)
+        if pad_rays_len > 0 or pad_tris_len > 0:
+            triangle_vertices = jnp.pad(
+                triangle_vertices,
+                ((0, pad_rays_len), (0, pad_tris_len), (0, 0), (0, 0)),
             )
-            if active_triangles is not None
-            else None
+        blocked_tris = triangle_vertices.reshape(
+            num_rays_chunks, ray_chunk_size, -1, tri_chunk_size, 3, 3
         )
-        return reduce_fn(
-            intersect,
-            map_fn(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
-                triangle_vertices=batch_of_triangle_vertices,
-                active_triangles=batch_of_active_triangles,
-            ),
+    else:
+        if pad_tris_len > 0:
+            triangle_vertices = jnp.pad(
+                triangle_vertices, ((0, pad_tris_len), (0, 0), (0, 0))
+            )
+        blocked_tris = triangle_vertices.reshape(-1, tri_chunk_size, 3, 3)
+
+    if active_triangles is not None:
+        has_batch_active = active_triangles.shape[:-1] != ()
+        if has_batch_active:
+            active_triangles = jnp.broadcast_to(
+                active_triangles, (*batch, num_triangles)
+            ).reshape(-1, num_triangles)
+            if pad_rays_len > 0 or pad_tris_len > 0:
+                active_triangles = jnp.pad(
+                    active_triangles, ((0, pad_rays_len), (0, pad_tris_len))
+                )
+            blocked_active = active_triangles.reshape(
+                num_rays_chunks, ray_chunk_size, -1, tri_chunk_size
+            )
+        else:
+            if pad_tris_len > 0:
+                active_triangles = jnp.pad(active_triangles, ((0, pad_tris_len),))
+            blocked_active = active_triangles.reshape(-1, tri_chunk_size)
+    else:
+        has_batch_active = False
+        blocked_active = None
+
+    xs_rays = [blocked_ro, blocked_rd]
+    if has_batch_tris:
+        xs_rays.append(blocked_tris)
+    if active_triangles is not None and has_batch_active:
+        xs_rays.append(blocked_active)
+
+    def scan_rays(carry_rays, ray_chunk):
+        ro_block = ray_chunk[0]
+        rd_block = ray_chunk[1]
+
+        idx = 2
+        if has_batch_tris:
+            tris_block_batch = jnp.swapaxes(ray_chunk[idx], 0, 1)
+            idx += 1
+        else:
+            tris_block_batch = blocked_tris
+
+        if active_triangles is not None and has_batch_active:
+            active_block_batch = jnp.swapaxes(ray_chunk[idx], 0, 1)
+        elif active_triangles is not None:
+            active_block_batch = blocked_active
+        else:
+            active_block_batch = None
+
+        xs_tris = [tris_block_batch]
+        if active_block_batch is not None:
+            xs_tris.append(active_block_batch)
+
+        def scan_tris(carry_tris, tris_chunk):
+            tris_block = tris_chunk[0]
+            active_block = tris_chunk[1] if len(tris_chunk) > 1 else None
+
+            t, hit = rays_intersect_triangles(
+                ro_block[..., None, :],
+                rd_block[..., None, :],
+                tris_block,
+                smoothing_factor=smoothing_factor,
+                **kwargs,
+            )
+
+            if smoothing_factor is not None:
+                block_hits = jnp.minimum(
+                    hit, smoothing_function(hit_threshold - t, smoothing_factor)
+                ).sum(axis=-1, where=active_block)
+                return (carry_tris + block_hits).clip(max=1.0), None
+            block_hits = ((t < hit_threshold) & hit).any(axis=-1, where=active_block)
+            return carry_tris | block_hits, None
+
+        init_val = (
+            jnp.zeros(ray_chunk_size)
+            if smoothing_factor is not None
+            else jnp.zeros(ray_chunk_size, dtype=bool)
         )
 
-    init_val = (
-        jnp.zeros(batch)
-        if smoothing_factor is not None
-        else jnp.zeros(batch, dtype=jnp.bool)
-    )
+        hits_for_chunk, _ = jax.lax.scan(scan_tris, init=init_val, xs=tuple(xs_tris))
+        return carry_rays, hits_for_chunk
 
-    intersect = jax.lax.fori_loop(
-        0,
-        num_batches,
-        body_fun,
-        init_val=init_val,
-    )
+    _, all_hits = jax.lax.scan(scan_rays, init=None, xs=tuple(xs_rays))
 
-    if rem > 0:
-        return reduce_fn(
-            intersect,
-            map_fn(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
-                triangle_vertices=triangle_vertices[..., -rem:, :, :],
-                active_triangles=active_triangles[..., -rem:]
-                if active_triangles is not None
-                else None,
-            ),
-        )
-    return intersect
+    hits = all_hits.reshape(-1)
+    return hits[:num_rays].reshape(batch)
 
 
 @eqx.filter_jit
@@ -551,7 +613,9 @@ def triangles_visible_from_vertices(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     num_rays: int = int(1e6),
-    batch_size: int | None = 512,
+    batch_size: int | None = 1024,
+    ray_batch_size: int | None = None,
+    tri_batch_size: int | None = None,
     **kwargs: Any,
 ) -> Bool[Array, "*batch num_triangles"]:
     """
@@ -578,13 +642,24 @@ def triangles_visible_from_vertices(
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
-        batch_size: The number of rays to process in a single batch.
+        batch_size: The default batch size used when either the ray or triangle batch size is
+            not specified. This allows to make a trade-off between memory usage and performance.
+
+            If :data:`None`, a heuristic based on the input sizes is used.
+        ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
-            The batch size is automatically adjusted to be the minimum of the number of rays
-            and the specified batch size.
+            The ray batch size is automatically adjusted to be the minimum of the number of rays
+            and the specified ray batch size.
 
-            If :data:`None`, the batch size is set to the number of rays.
+            If :data:`None`, the ray batch size is set to the number of rays.
+        tri_batch_size: The number of triangles to process in a single batch.
+            This allows to make a trade-off between memory usage and performance.
+
+            The triangle batch size is automatically adjusted to be the minimum of the number of
+            triangles and the specified triangle batch size.
+
+            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -693,9 +768,6 @@ def triangles_visible_from_vertices(
         active_vertices=active_vertices,
     )
 
-    batch_size = num_rays if batch_size is None else min(batch_size, num_rays)
-    num_batches, rem = divmod(num_rays, batch_size)
-
     # [*batch num_rays 3]
     ray_directions = jnp.vectorize(
         lambda n, frustum: fibonacci_lattice(n, frustum=frustum),
@@ -711,65 +783,72 @@ def triangles_visible_from_vertices(
         active_triangles.shape[:-1] if active_triangles is not None else (),
     )
 
+    num_triangles = triangle_vertices.shape[-3]
+    # None means process everything in a single batch
+    if batch_size is None:
+        batch_size = max(num_rays, num_triangles)
+    if ray_batch_size is None:
+        ray_batch_size = batch_size
+    if tri_batch_size is None:
+        tri_batch_size = batch_size
+    ray_batch_size = max(min(ray_batch_size, num_rays), 1)
+    tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
+
+    num_ray_batches, rem_rays = divmod(num_rays, ray_batch_size)
+
     def update_visible_triangles(
         visible_triangles: Bool[Array, "*#batch num_triangles"],
-        visible_indices: Int[Array, "*batch batch_size"],
+        ray_directions_batch: Float[Array, "*#batch batch_rays 3"],
     ) -> Bool[Array, "*#batch num_triangles"]:
-        indices = jnp.indices(visible_triangles.shape, sparse=True)
-        indices = (*indices[:-1], visible_indices)
-        return visible_triangles.at[indices].set(True, wrap_negative_indices=False)
-
-    def map_fn(
-        ray_origins: Float[Array, "*#batch 3"],
-        ray_directions: Float[Array, "*#batch batch_size 3"],
-        triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
-        active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> Int[Array, "*batch batch_size"]:
+        """Check which triangles are visible from rays in this batch."""
         indices, _ = first_triangles_hit_by_rays(
             ray_origins[..., None, :],
-            ray_directions,
+            ray_directions_batch,
             triangle_vertices[..., None, :, :, :],
             active_triangles=active_triangles[..., None, :]
             if active_triangles is not None
             else None,
-            batch_size=None,
+            batch_size=tri_batch_size,
+            ray_batch_size=ray_directions_batch.shape[-2],
+            tri_batch_size=tri_batch_size,
             **kwargs,
         )
-        return indices
+        # indices: [*batch ray_batch_size], value >= 0 means triangle index was hit
+        # Convert to per-triangle: for each triangle, check if any ray hit it
+        indices_expanded = indices[..., None]  # [*batch ray_batch_size 1]
+        triangles_range = jnp.arange(num_triangles)  # [num_triangles]
+        indices_one_hot = (indices_expanded == triangles_range) & (
+            indices_expanded >= 0
+        )
+        # Reduce over rays: [*batch num_triangles]
+        hit_any_ray = jnp.any(indices_one_hot, axis=-2)
+        return visible_triangles | hit_any_ray
 
     def body_fun(
         batch_index: Int[Array, ""],
         visible_triangles: Bool[Array, "*batch num_triangles"],
     ) -> Bool[Array, "*batch num_triangles"]:
-        start_index = batch_index * batch_size
+        start_index = batch_index * ray_batch_size
         batch_of_ray_directions = jax.lax.dynamic_slice_in_dim(
-            ray_directions, start_index, batch_size, axis=-2
+            ray_directions, start_index, ray_batch_size, axis=-2
         )
-        visible_indices = map_fn(
-            ray_origins,
-            batch_of_ray_directions,
-            triangle_vertices,
-            active_triangles,
-        )
-        return update_visible_triangles(visible_triangles, visible_indices)
+        return update_visible_triangles(visible_triangles, batch_of_ray_directions)
 
-    init_val = jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=jnp.bool)
+    init_val = jnp.zeros((*batch, num_triangles), dtype=jnp.bool_)
 
     visible_triangles = jax.lax.fori_loop(
         0,
-        num_batches,
+        num_ray_batches,
         body_fun,
         init_val=init_val,
     )
 
-    if rem > 0:
-        visible_indices = map_fn(
-            ray_origins,
-            ray_directions[..., -rem:, :],
-            triangle_vertices,
-            active_triangles,
+    if rem_rays > 0:
+        batch_of_ray_directions = ray_directions[..., -rem_rays:, :]
+        visible_triangles = update_visible_triangles(
+            visible_triangles, batch_of_ray_directions
         )
-        return update_visible_triangles(visible_triangles, visible_indices)
+
     return visible_triangles
 
 
@@ -779,7 +858,9 @@ def first_triangles_hit_by_rays(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
-    batch_size: int | None = 512,
+    batch_size: int | None = 1024,
+    ray_batch_size: int | None = None,
+    tri_batch_size: int | None = None,
     **kwargs: Any,
 ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
     """
@@ -800,13 +881,18 @@ def first_triangles_hit_by_rays(
             which triangles are active, i.e., should be considered for intersection.
 
             If not specified, all triangles are considered active.
-        batch_size: The number of triangles to process in a single batch.
-            This allows to make a trade-off between memory usage and performance.
+        batch_size: The default batch size used when either the ray or triangle batch size is
+            not specified. This allows to make a trade-off between memory usage and performance.
 
-            The batch size is automatically adjusted to be the minimum of the number of triangles
-            and the specified batch size.
+            If :data:`None`, a heuristic based on the input sizes is used.
+        ray_batch_size: The number of rays to process in a single batch.
+            This allows to chunk rays and reduce peak memory usage.
 
-            If :data:`None`, the batch size is set to the number of triangles.
+            If :data:`None`, all rays are processed together.
+        tri_batch_size: The number of triangles to process in a single batch.
+            This allows to chunk triangles and reduce peak memory usage.
+
+            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -827,10 +913,6 @@ def first_triangles_hit_by_rays(
         epsilon = jnp.asarray(100 * jnp.finfo(dtype).eps)
 
     num_triangles = triangle_vertices.shape[-3]
-    if batch_size is None:
-        batch_size = num_triangles
-    batch_size = max(min(batch_size, num_triangles), 1)
-    num_batches, rem = divmod(num_triangles, batch_size)
 
     if active_triangles is not None:
         active_triangles = jnp.asarray(active_triangles)
@@ -842,6 +924,18 @@ def first_triangles_hit_by_rays(
         triangle_vertices.shape[:-3],
         active_triangles.shape[:-1] if active_triangles is not None else (),
     )
+
+    num_rays = math.prod(batch)
+    # None means process everything in a single batch
+    if batch_size is None:
+        batch_size = max(num_rays, num_triangles)
+    if ray_batch_size is None:
+        ray_batch_size = batch_size
+    if tri_batch_size is None:
+        tri_batch_size = batch_size
+
+    ray_chunk_size = max(min(ray_batch_size, num_rays), 1)
+    tri_chunk_size = max(min(tri_batch_size, num_triangles), 1)
 
     if num_triangles == 0:
         # If there are no triangles, there are no hits
@@ -891,99 +985,195 @@ def first_triangles_hit_by_rays(
         t = jnp.where(is_finite, t, jnp.inf)
         return indices, t, center_distances, eps
 
-    def map_fn(
-        ray_origins: Float[Array, "*#batch 3"],
-        ray_directions: Float[Array, "*#batch 3"],
-        triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
-        active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
-        t, hit = rays_intersect_triangles(
-            ray_origins[..., None, :],
-            ray_directions[..., None, :],
-            triangle_vertices,
-            **kwargs,
-        )
-        if active_triangles is not None:
-            hit &= active_triangles
-        t = jnp.where(hit, t, jnp.inf)
-        indices = jnp.arange(triangle_vertices.shape[-3])
-        indices = jnp.broadcast_to(indices, t.shape)
-        center_distances = jnp.linalg.norm(
-            triangle_vertices.mean(axis=-2) - ray_origins[..., None, :], axis=-1
-        )
-        center_distances = jnp.broadcast_to(center_distances, t.shape)
-        eps = jnp.broadcast_to(epsilon, t.shape)
-        return jax.lax.reduce(
-            (indices, t, center_distances, eps),
-            (-1, jnp.inf, jnp.inf, epsilon),
-            reduce_fn,
-            dimensions=(t.ndim - 1,),
-        )[:3]
+    def _process_ray_batch(
+        ray_origins_batch: Float[Array, "*#batch 3"],
+        ray_directions_batch: Float[Array, "*#batch 3"],
+        triangle_vertices_batch: Float[Array, "*#batch num_triangles 3 3"],
+        active_triangles_batch: Bool[Array, "*#batch num_triangles"] | None = None,
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+        """Process one batch of rays through all triangles."""
 
-    def body_fun(
-        batch_index: Int[Array, ""],
-        carry: tuple[
+        def map_fn(
+            ray_origins: Float[Array, "*#batch 3"],
+            ray_directions: Float[Array, "*#batch 3"],
+            triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
+            active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
+        ) -> tuple[
             Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
-        ],
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
-        start_index = batch_index * batch_size
-        batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
+        ]:
+            t, hit = rays_intersect_triangles(
+                ray_origins[..., None, :],
+                ray_directions[..., None, :],
+                triangle_vertices,
+                **kwargs,
+            )
+            if active_triangles is not None:
+                hit &= active_triangles
+            t = jnp.where(hit, t, jnp.inf)
+            indices = jnp.arange(triangle_vertices.shape[-3])
+            indices = jnp.broadcast_to(indices, t.shape)
+            center_distances = jnp.linalg.norm(
+                triangle_vertices.mean(axis=-2) - ray_origins[..., None, :], axis=-1
+            )
+            center_distances = jnp.broadcast_to(center_distances, t.shape)
+            eps = jnp.broadcast_to(epsilon, t.shape)
+            return jax.lax.reduce(
+                (indices, t, center_distances, eps),
+                (-1, jnp.inf, jnp.inf, epsilon),
+                reduce_fn,
+                dimensions=(t.ndim - 1,),
+            )[:3]
+
+        num_triangle_batches, rem_triangles = divmod(num_triangles, tri_chunk_size)
+
+        def body_fun(
+            batch_index: Int[Array, ""],
+            carry: tuple[
+                Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
+            ],
+        ) -> tuple[
+            Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
+        ]:
+            start_index = batch_index * tri_chunk_size
+            batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
+                triangle_vertices_batch, start_index, tri_chunk_size, axis=-3
+            )
+            batch_of_active_triangles = (
+                jax.lax.dynamic_slice_in_dim(
+                    active_triangles_batch, start_index, tri_chunk_size, axis=-1
+                )
+                if active_triangles_batch is not None
+                else None
+            )
+            indices, t, center_distances = map_fn(
+                ray_origins_batch,
+                ray_directions_batch,
+                batch_of_triangle_vertices,
+                batch_of_active_triangles,
+            )
+            return reduce_fn(
+                (carry[0], carry[1], carry[2], epsilon),
+                (indices + start_index, t, center_distances, epsilon),
+            )[:3]
+
+        init_val = (
+            -jnp.ones(ray_origins_batch.shape[:-1], dtype=jnp.int32),
+            jnp.full(
+                ray_origins_batch.shape[:-1],
+                jnp.inf,
+                dtype=jnp.result_type(
+                    ray_origins_batch, ray_directions_batch, triangle_vertices_batch
+                ),
+            ),
+            jnp.full(
+                ray_origins_batch.shape[:-1],
+                jnp.inf,
+                dtype=jnp.result_type(
+                    ray_origins_batch, ray_directions_batch, triangle_vertices_batch
+                ),
+            ),
         )
-        batch_of_active_triangles = (
+
+        indices, t, center_distances = jax.lax.fori_loop(
+            0,
+            num_triangle_batches,
+            body_fun,
+            init_val=init_val,
+        )
+
+        if rem_triangles > 0:
+            rem_indices, rem_t, rem_center_distances = map_fn(
+                ray_origins_batch,
+                ray_directions_batch,
+                triangle_vertices_batch[..., -rem_triangles:, :, :],
+                active_triangles_batch[..., -rem_triangles:]
+                if active_triangles_batch is not None
+                else None,
+            )
+            indices, t, _ = reduce_fn(
+                (indices, t, center_distances, epsilon),
+                (
+                    rem_indices + num_triangle_batches * tri_chunk_size,
+                    rem_t,
+                    rem_center_distances,
+                    epsilon,
+                ),
+            )[:3]
+
+        return (indices, t)
+
+    ray_origins = jnp.broadcast_to(ray_origins, (*batch, 3)).reshape(-1, 3)
+    ray_directions = jnp.broadcast_to(ray_directions, (*batch, 3)).reshape(-1, 3)
+    triangle_vertices = jnp.broadcast_to(
+        triangle_vertices, (*batch, num_triangles, 3, 3)
+    ).reshape(-1, num_triangles, 3, 3)
+    if active_triangles is not None:
+        active_triangles = jnp.broadcast_to(
+            active_triangles, (*batch, num_triangles)
+        ).reshape(-1, num_triangles)
+
+    num_ray_batches, rem_rays = divmod(num_rays, ray_chunk_size)
+
+    init_indices = -jnp.ones(num_rays, dtype=jnp.int32)
+    init_t = jnp.full(
+        num_rays,
+        jnp.inf,
+        dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
+    )
+
+    def ray_body_fun(
+        batch_index: Int[Array, ""],
+        carry: tuple[Int[Array, "*"], Float[Array, "*"]],
+    ) -> tuple[Int[Array, "*"], Float[Array, "*"]]:
+        start_index = batch_index * ray_chunk_size
+        ray_origins_batch = jax.lax.dynamic_slice_in_dim(
+            ray_origins, start_index, ray_chunk_size, axis=0
+        )
+        ray_directions_batch = jax.lax.dynamic_slice_in_dim(
+            ray_directions, start_index, ray_chunk_size, axis=0
+        )
+        triangle_vertices_batch = jax.lax.dynamic_slice_in_dim(
+            triangle_vertices, start_index, ray_chunk_size, axis=0
+        )
+        active_triangles_batch = (
             jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+                active_triangles, start_index, ray_chunk_size, axis=0
             )
             if active_triangles is not None
             else None
         )
-        indices, t, center_distances = map_fn(
-            ray_origins,
-            ray_directions,
-            batch_of_triangle_vertices,
-            batch_of_active_triangles,
+        indices_batch, t_batch = _process_ray_batch(
+            ray_origins_batch,
+            ray_directions_batch,
+            triangle_vertices_batch,
+            active_triangles_batch,
         )
-        # TODO: use *carry when ty supports starred expressions
-        return reduce_fn(
-            (carry[0], carry[1], carry[2], epsilon),
-            (indices + start_index, t, center_distances, epsilon),
-        )[:3]
+        indices = jax.lax.dynamic_update_slice(carry[0], indices_batch, (start_index,))
+        t = jax.lax.dynamic_update_slice(carry[1], t_batch, (start_index,))
+        return (indices, t)
 
-    init_val = (
-        -jnp.ones(batch, dtype=jnp.int32),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
-    )
-
-    indices, t, center_distances = jax.lax.fori_loop(
+    indices, t = jax.lax.fori_loop(
         0,
-        num_batches,
-        body_fun,
-        init_val=init_val,
+        num_ray_batches,
+        ray_body_fun,
+        init_val=(init_indices, init_t),
     )
 
-    if rem > 0:
-        rem_indices, rem_t, rem_center_distances = map_fn(
-            ray_origins,
-            ray_directions,
-            triangle_vertices[..., -rem:, :, :],
-            active_triangles[..., -rem:] if active_triangles is not None else None,
+    if rem_rays > 0:
+        start_index = num_ray_batches * ray_chunk_size
+        ray_origins_batch = ray_origins[-rem_rays:, :]
+        ray_directions_batch = ray_directions[-rem_rays:, :]
+        triangle_vertices_batch = triangle_vertices[-rem_rays:, :, :, :]
+        active_triangles_batch = (
+            active_triangles[-rem_rays:, :] if active_triangles is not None else None
         )
-        return reduce_fn(
-            (indices, t, center_distances, epsilon),
-            (
-                rem_indices + num_batches * batch_size,
-                rem_t,
-                rem_center_distances,
-                epsilon,
-            ),
-        )[:2]
-    return (indices, t)
+        rem_indices, rem_t = _process_ray_batch(
+            ray_origins_batch,
+            ray_directions_batch,
+            triangle_vertices_batch,
+            active_triangles_batch,
+        )
+        indices = jax.lax.dynamic_update_slice(indices, rem_indices, (start_index,))
+        t = jax.lax.dynamic_update_slice(t, rem_t, (start_index,))
+
+    return (indices.reshape(batch), t.reshape(batch))
