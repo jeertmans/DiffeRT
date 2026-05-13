@@ -439,15 +439,15 @@ def _ray_intersect_any_triangle(
 
 
 def _first_triangle_hit_by_ray_batched(
-    ray_origin,
-    ray_direction,
-    triangle_vertices,
-    active_triangles,
-    triangle_indices,
+    ray_origin: Float[Array, "3"],
+    ray_direction: Float[Array, "3"],
+    triangle_vertices: Float[Array, "batch_size 3 3"],
+    active_triangles: Bool[Array, " batch_size"] | None,
+    triangle_indices: Int[Array, " batch_size"],
     *,
-    dist_tol,
-    **kwargs,
-):
+    dist_tol: Float[Array, ""],
+    **kwargs: Any,
+) -> tuple[Int[Array, ""], Float[Array, ""], Float[Array, ""]]:
     ts, hits = jax.vmap(
         partial(rays_intersect_triangles, **kwargs),
         in_axes=(None, None, 0),
@@ -480,15 +480,15 @@ def _first_triangle_hit_by_ray_batched(
 
 
 def _first_triangle_hit_by_ray(
-    ray_origin,
-    ray_direction,
-    triangle_vertices,
-    active_triangles,
+    ray_origin: Float[Array, "3"],
+    ray_direction: Float[Array, "3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    active_triangles: Bool[Array, " num_triangles"] | None,
     *,
-    batch_size,
-    dist_tol,
-    **kwargs,
-):
+    batch_size: int,
+    dist_tol: Float[Array, ""],
+    **kwargs: Any,
+) -> tuple[Int[Array, ""], Float[Array, ""]]:
     def combine_best(
         left: tuple[Int[Array, ""], Float[Array, ""], Float[Array, ""]],
         right: tuple[Int[Array, ""], Float[Array, ""], Float[Array, ""]],
@@ -612,7 +612,7 @@ def rays_intersect_any_triangle(
     *,
     hit_tol: Float[ArrayLike, ""] | None = None,
     smoothing_factor: Float[ArrayLike, ""] | None = None,
-    batch_size: int | None = 4096,
+    batch_size: int | None = 1024,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -765,7 +765,7 @@ def rays_intersect_any_triangle(
         else:
             map_fn = partial(map_fn, active_triangles=active_triangles)
 
-        def f(args):
+        def f(args: tuple[Array, ...]) -> Bool[Array, ""] | Float[Array, ""]:
             return map_fn(**dict(zip(argnames, args, strict=True)))
 
         return jax.lax.map(f, tuple(xs), batch_size=ray_batch_size).reshape(batch)
@@ -784,18 +784,18 @@ def rays_intersect_any_triangle(
 
 
 def _triangles_visible_from_vertex(
-    vertex,
-    triangle_vertices,
-    active_triangles,
+    vertex: Float[Array, "3"],
+    triangle_vertices: Float[Array, "num_triangles 3 3"],
+    active_triangles: Bool[Array, " num_triangles"] | None,
     *,
-    num_rays,
-    num_triangles,
-    ray_batch_size,
-    tri_batch_size,
-    world_vertices,
-    active_vertices,
-    **kwargs,
-):
+    num_rays: int,
+    num_triangles: int,
+    ray_batch_size: int | None,
+    tri_batch_size: int | None,
+    world_vertices: Float[Array, "num_world_vertices 3"],
+    active_vertices: Bool[Array, " num_world_vertices"] | None,
+    **kwargs: Any,
+) -> Bool[Array, " num_triangles"]:
     frustum = viewing_frustum(vertex, world_vertices, active_vertices=active_vertices)
     ray_directions = fibonacci_lattice(num_rays, frustum=frustum)
 
@@ -811,9 +811,7 @@ def _triangles_visible_from_vertex(
 
     valid_hits = indices >= 0
     safe_indices = jnp.where(valid_hits, indices, 0)
-    visible = jnp.zeros(num_triangles, dtype=bool).at[safe_indices].max(valid_hits)
-
-    return visible
+    return jnp.zeros(num_triangles, dtype=bool).at[safe_indices].max(valid_hits)
 
 
 @eqx.filter_jit
@@ -822,7 +820,7 @@ def triangles_visible_from_vertices(
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     num_rays: int = int(1e6),
-    batch_size: int | None = 4096,
+    batch_size: int | None = 1024,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -978,7 +976,6 @@ def triangles_visible_from_vertices(
         triangle_vertices.shape[:-3],
         active_triangles.shape[:-1] if active_triangles is not None else (),
     )
-    num_vertices = math.prod(batch)
 
     ray_batch_size = (
         ray_batch_size
@@ -1051,7 +1048,7 @@ def triangles_visible_from_vertices(
             else None,
         )
 
-    def f(args):
+    def f(args: tuple[Array, ...]) -> Bool[Array, "num_triangles"]:
         return map_fn(**dict(zip(argnames, args, strict=True)))
 
     if not xs:
@@ -1085,7 +1082,7 @@ def first_triangles_hit_by_rays(
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
-    batch_size: int | None = 4096,
+    batch_size: int | None = 1024,
     ray_batch_size: int | None = None,
     tri_batch_size: int | None = None,
     **kwargs: Any,
@@ -1214,7 +1211,7 @@ def first_triangles_hit_by_rays(
             else None,
         )
 
-    def f(args):
+    def f(args: tuple[Array, ...]) -> tuple[Int[Array, ""], Float[Array, ""]]:
         return map_fn(**dict(zip(argnames, args, strict=True)))
 
     if not xs:
@@ -1234,6 +1231,6 @@ def first_triangles_hit_by_rays(
     if num_rays > ray_batch_size:
         indices, ts = jax.lax.map(f, tuple(xs), batch_size=ray_batch_size)
     else:
-        indices, ts = jax.vmap(f)(jnp.stack(xs, axis=1))
+        indices, ts = jax.vmap(f)(tuple(xs))
 
     return indices.reshape(batch), ts.reshape(batch)
