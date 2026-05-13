@@ -678,7 +678,7 @@ def triangles_visible_from_vertices(
             The triangle batch size is automatically adjusted to be the minimum of the number of
             triangles and the specified triangle batch size.
 
-            If :data:`None`, it defaults to :data:`batch_size`.
+            If :data:`None`, it defaults to ``batch_size``.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
@@ -937,7 +937,7 @@ def first_triangles_hit_by_rays(
         tri_batch_size: The number of triangles to process in a single batch.
             This allows to chunk triangles and reduce peak memory usage.
 
-            If :data:`None`, the triangle batch size defaults to :data:`batch_size`.
+            If :data:`None`, the triangle batch size defaults to ``batch_size``.
         kwargs: Keyword arguments passed to
             :func:`rays_intersect_triangles`.
 
