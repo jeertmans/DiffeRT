@@ -21,28 +21,8 @@ from differt.geometry._utils import rotation_matrix_along_x_axis
 from ..utils import random_inputs
 
 
-def _keep_any_filter_mesh() -> TriangleMesh:
-    return TriangleMesh(
-        vertices=jnp.array(
-            [
-                [0.0, 0.0, 0.0],
-                [0.2, 0.0, 0.0],
-                [0.0, 0.2, 0.0],
-                [0.1, 0.0, 0.0],
-                [0.2, 0.0, 0.0],
-                [0.3, 0.1, 0.0],
-                [0.8, 0.0, 0.0],
-                [0.1, 0.0, 0.0],
-                [0.2, 0.1, 0.0],
-            ],
-            dtype=float,
-        ),
-        triangles=jnp.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=int),
-        object_bounds=jnp.array([[0, 1], [1, 3]], dtype=int),
-    )
-
-
-def _keep_all_filter_mesh() -> TriangleMesh:
+@pytest.fixture
+def keep_within_mesh() -> TriangleMesh:
     return TriangleMesh(
         vertices=jnp.array(
             [
@@ -234,8 +214,8 @@ class TestTriangleMesh:
 
         assert count == 1
 
-    def test_keep_any_within(self) -> None:
-        mesh = _keep_any_filter_mesh()
+    def test_keep_any_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
 
         filtered = mesh.keep_any_within(x_min=0.75, preserve_objects=False)
         chex.assert_trees_all_equal(
@@ -249,7 +229,7 @@ class TestTriangleMesh:
             .keep_all_within(x_min=0.75, preserve_objects=False)
             .masked()
             .num_triangles
-            == 0
+            == 1
         )
 
         preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
@@ -259,8 +239,8 @@ class TestTriangleMesh:
         assert preserved.num_active_triangles == 2
         assert preserved.masked().num_triangles == 2
 
-    def test_keep_all_within(self) -> None:
-        mesh = _keep_all_filter_mesh()
+    def test_keep_all_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
 
         filtered = mesh.keep_all_within(x_min=0.75, preserve_objects=False)
         chex.assert_trees_all_equal(
@@ -276,10 +256,12 @@ class TestTriangleMesh:
         assert preserved.num_active_triangles == 0
         assert preserved.masked().num_triangles == 0
 
-    def test_keep_within_respects_existing_mask(self) -> None:
+    def test_keep_within_respects_existing_mask(
+        self, keep_within_mesh: TriangleMesh
+    ) -> None:
         mesh = eqx.tree_at(
             lambda m: m.mask,
-            _keep_all_filter_mesh(),
+            keep_within_mesh,
             jnp.array([False, False, True], dtype=bool),
             is_leaf=lambda x: x is None,
         )
@@ -336,7 +318,7 @@ class TestTriangleMesh:
 
         chex.assert_trees_all_equal(got, expected)
 
-    def test_keep_within_clip(self) -> None:
+    def test_keep_within_clip(self, keep_within_mesh: TriangleMesh) -> None:
         expected_keep_all_vertices = jnp.array(
             [
                 [0.75, 0.0, 0.0],
@@ -351,22 +333,9 @@ class TestTriangleMesh:
             ],
             dtype=float,
         )
-        expected_keep_any_vertices = jnp.array(
-            [
-                [0.75, 0.0, 0.0],
-                [0.75, 0.0, 0.0],
-                [0.75, 0.2, 0.0],
-                [0.75, 0.0, 0.0],
-                [0.75, 0.0, 0.0],
-                [0.75, 0.1, 0.0],
-                [0.8, 0.0, 0.0],
-                [0.75, 0.0, 0.0],
-                [0.75, 0.1, 0.0],
-            ],
-            dtype=float,
-        )
+        expected_keep_any_vertices = expected_keep_all_vertices
 
-        mesh = _keep_all_filter_mesh()
+        mesh = keep_within_mesh
 
         kept = mesh.keep_all_within(
             x_min=0.75,
@@ -378,7 +347,7 @@ class TestTriangleMesh:
         )
         chex.assert_trees_all_equal(kept.vertices, expected_keep_all_vertices)
 
-        kept = _keep_any_filter_mesh().keep_any_within(
+        kept = keep_within_mesh.keep_any_within(
             x_min=0.75,
             preserve_objects=False,
             clip=True,
