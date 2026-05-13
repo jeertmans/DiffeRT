@@ -369,6 +369,7 @@ def rays_intersect_any_triangle(
     smoothing_factor: Float[ArrayLike, ""],
     batch_size: int | None = ...,
     ray_batch_size: int | None = ...,
+    tri_batch_size: int | None = ...,
     **kwargs: Any,
 ) -> Float[Array, " *batch"]: ...
 
@@ -424,8 +425,9 @@ def rays_intersect_any_triangle(
             ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
             usage and performance.
 
-            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
-            Otherwise, they are both overwritten with this value.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are
+            used. Otherwise, this value is used as the default for whichever of
+            ``ray_batch_size`` and ``tri_batch_size`` are left unspecified.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
@@ -550,10 +552,12 @@ def rays_intersect_any_triangle(
     if has_batch_tris:
         xs_rays.append(blocked_tris)
     if active_triangles is not None and has_batch_active:
-        # TODO: fix type checking issue here, as blocked_active is inferred as Array | None, but we know it's not None in this branch... do we?
-        xs_rays.append(blocked_active)
+        xs_rays.append(typing.cast("Array", blocked_active))
 
-    def scan_rays(carry_rays, ray_chunk):
+    def scan_rays(
+        carry_rays: Any,
+        ray_chunk: tuple[Array, ...],
+    ) -> tuple[Any, Array]:
         ro_block = ray_chunk[0]
         rd_block = ray_chunk[1]
 
@@ -575,7 +579,10 @@ def rays_intersect_any_triangle(
         if active_block_batch is not None:
             xs_tris.append(active_block_batch)
 
-        def scan_tris(carry_tris, tris_chunk):
+        def scan_tris(
+            carry_tris: Any,
+            tris_chunk: tuple[Array, ...],
+        ) -> tuple[Any, None]:
             tris_block = tris_chunk[0]
             active_block = tris_chunk[1] if len(tris_chunk) > 1 else None
 
@@ -649,8 +656,9 @@ def triangles_visible_from_vertices(
             ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
             usage and performance.
 
-            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
-            Otherwise, they are both overwritten with this value.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are
+            used. Otherwise, this value is used as the default for whichever of
+            ``ray_batch_size`` and ``tri_batch_size`` are left unspecified.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
@@ -799,13 +807,16 @@ def triangles_visible_from_vertices(
     ray_batch_size = max(min(ray_batch_size, num_rays), 1)
     tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
 
+    if num_triangles == 0:
+        return jnp.zeros((*batch, 0), dtype=jnp.bool_)
+
     num_ray_batches, rem_rays = divmod(num_rays, ray_batch_size)
 
     def update_visible_triangles(
         visible_triangles: Bool[Array, "*#batch num_triangles"],
         ray_directions_batch: Float[Array, "*#batch batch_rays 3"],
     ) -> Bool[Array, "*#batch num_triangles"]:
-        """Check which triangles are visible from rays in this batch."""
+        # Check which triangles are visible from rays in this batch.
         indices, _ = first_triangles_hit_by_rays(
             ray_origins[..., None, :],
             ray_directions_batch,
@@ -819,14 +830,26 @@ def triangles_visible_from_vertices(
             **kwargs,
         )
         # indices: [*batch ray_batch_size], value >= 0 means triangle index was hit
-        # Convert to per-triangle: for each triangle, check if any ray hit it
-        indices_expanded = indices[..., None]  # [*batch ray_batch_size 1]
-        triangles_range = jnp.arange(num_triangles)  # [num_triangles]
-        indices_one_hot = (indices_expanded == triangles_range) & (
-            indices_expanded >= 0
-        )
-        # Reduce over rays: [*batch num_triangles]
-        hit_any_ray = jnp.any(indices_one_hot, axis=-2)
+        # Convert to per-triangle using a bincount-based reduction to avoid materializing a
+        # [*batch ray_batch_size num_triangles] one-hot tensor.
+        valid_hits = indices >= 0
+        safe_indices = jnp.where(valid_hits, indices, 0)
+
+        flat_safe_indices = safe_indices.reshape(-1, safe_indices.shape[-1])
+        flat_valid_hits = valid_hits.reshape(-1, valid_hits.shape[-1])
+
+        def count_hits(row_indices: Array, row_valid_hits: Array) -> Array:
+            return (
+                jnp.bincount(
+                    row_indices,
+                    weights=row_valid_hits.astype(jnp.int32),
+                    length=num_triangles,
+                )
+                > 0
+            )
+
+        hit_any_ray = jax.vmap(count_hits)(flat_safe_indices, flat_valid_hits)
+        hit_any_ray = hit_any_ray.reshape((*indices.shape[:-1], num_triangles))
         return visible_triangles | hit_any_ray
 
     def body_fun(
@@ -890,8 +913,9 @@ def first_triangles_hit_by_rays(
             ``tri_batch_size`` is not specified. This allows to make a trade-off between memory
             usage and performance.
 
-            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are used.
-            Otherwise, they are both overwritten with this value.
+            If :data:`None`, the provided ``ray_batch_size`` and ``tri_batch_size`` values are
+            used. Otherwise, this value is used as the default for whichever of
+            ``ray_batch_size`` and ``tri_batch_size`` are left unspecified.
         ray_batch_size: The number of rays to process in a single batch.
             This allows to chunk rays and reduce peak memory usage.
 
@@ -998,7 +1022,7 @@ def first_triangles_hit_by_rays(
         triangle_vertices_batch: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles_batch: Bool[Array, "*#batch num_triangles"] | None = None,
     ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
-        """Process one batch of rays through all triangles."""
+        # Process one batch of rays through all triangles.
 
         def map_fn(
             ray_origins: Float[Array, "*#batch 3"],
