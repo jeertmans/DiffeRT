@@ -2186,7 +2186,6 @@ class TriangleMesh(eqx.Module):
                 :context:
 
                 >>> fig = mesh.keep_any_within(
-                ...     x_min=-70.0,
                 ...     x_max=+15.0,
                 ...     clip=True,
                 ... ).plot(backend="plotly")
