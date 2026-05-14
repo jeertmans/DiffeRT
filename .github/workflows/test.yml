@@ -204,6 +204,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ env.UV_PYTHON}}
+
     - name: Setup uv
       uses: astral-sh/setup-uv@v7
       with:
