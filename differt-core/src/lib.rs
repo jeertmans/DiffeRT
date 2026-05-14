@@ -1,5 +1,6 @@
 use pyo3::{prelude::*, wrap_pymodule};
 
+pub mod accel;
 pub mod geometry;
 pub mod rt;
 pub mod scene;
@@ -19,6 +20,7 @@ fn _differt_core(m: Bound<'_, PyModule>) -> PyResult<()> {
         env!("CARGO_PKG_VERSION_PATCH").parse::<u32>().unwrap(),
     );
     m.add("__version_info__", version_info)?;
+    m.add_wrapped(wrap_pymodule!(accel::accel))?;
     m.add_wrapped(wrap_pymodule!(geometry::geometry))?;
     m.add_wrapped(wrap_pymodule!(rt::rt))?;
     m.add_wrapped(wrap_pymodule!(scene::scene))?;

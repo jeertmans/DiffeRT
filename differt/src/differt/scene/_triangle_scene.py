@@ -11,6 +11,7 @@ import numpy as np
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 import differt_core.scene
+from differt.accel.bvh import TriangleBvh
 from differt.geometry import (
     Paths,
     SBRPaths,
@@ -66,6 +67,9 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, " "],
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
+    bvh_id: int | None = ...,
+    bvh_expansion: float | None = ...,
+    bvh_max_candidates: int = ...,
 ) -> Paths[_F]: ...
 
 
@@ -82,6 +86,9 @@ def _compute_paths(
     smoothing_factor: None,
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
+    bvh_id: int | None = ...,
+    bvh_expansion: float | None = ...,
+    bvh_max_candidates: int = ...,
 ) -> Paths[_B]: ...
 
 
@@ -98,6 +105,9 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, ""] | None,
     confidence_threshold: Float[ArrayLike, ""],
     batch_size: int | None,
+    bvh_id: int | None = None,
+    bvh_expansion: float | None = None,
+    bvh_max_candidates: int = 512,
 ) -> Paths[_M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, rx_vertices)
@@ -249,7 +259,85 @@ def _compute_paths(
     # 3.3 - Identify paths that are blocked by other objects
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
-    if smoothing_factor is not None:
+    if bvh_id is not None and smoothing_factor is None:
+        # TODO: check whether we can avoid importing the hidden function here, just call a public function? Same for the next branch.
+        # BVH-accelerated blocking check (without smoothing, via XLA FFI)
+        from differt.accel.bvh._ffi import ffi_nearest_hit  # noqa: PLC0415
+
+        batch_shape = ray_origins.shape[:-1]  # [..., order+1]
+        flat_origins = ray_origins.reshape(-1, 3)
+        flat_dirs = ray_directions.reshape(-1, 3)
+        hit_idx, hit_t = ffi_nearest_hit(
+            flat_origins,
+            flat_dirs,
+            bvh_id=bvh_id,
+            active_mask=mesh.mask,
+        )
+        # A ray is blocked if it hits something with t < 1 - hit_tol
+        hit_tol_val = (
+            hit_tol
+            if hit_tol is not None
+            else 10.0 * jnp.finfo(jnp.result_type(ray_origins, ray_directions)).eps
+        )
+        blocked_flat = (hit_idx >= 0) & (hit_t < (1.0 - hit_tol_val))
+        blocked = blocked_flat.reshape(batch_shape).any(axis=-1)  # Reduce on 'order'
+    elif (
+        bvh_id is not None
+        and smoothing_factor is not None
+        and bvh_expansion is not None
+    ):
+        # BVH-accelerated blocking check with smoothing: candidate selection via FFI,
+        # differentiable intersection in JAX on the reduced candidate set.
+        from differt.accel.bvh._ffi import ffi_get_candidates  # noqa: PLC0415
+
+        batch_shape = ray_origins.shape[:-1]
+        flat_origins = ray_origins.reshape(-1, 3)
+        flat_dirs = ray_directions.reshape(-1, 3)
+
+        cand_idx, cand_counts = ffi_get_candidates(
+            flat_origins,
+            flat_dirs,
+            bvh_id=bvh_id,
+            expansion=bvh_expansion,
+            max_candidates=bvh_max_candidates,
+        )
+
+        # Gather candidate triangle vertices from the full mesh
+        tri_verts = mesh.triangle_vertices  # [num_triangles, 3, 3]
+        safe_idx = jnp.maximum(cand_idx, 0)  # clamp -1 padding -> 0
+        cand_verts = tri_verts[safe_idx]  # [N, max_cand, 3, 3]
+
+        # Validity mask: which candidate slots are populated
+        arange = jnp.arange(bvh_max_candidates)
+        mask = arange[None, :] < cand_counts[:, None]
+
+        # Active triangles filter
+        if mesh.mask is not None:
+            mask = mask & mesh.mask[safe_idx]
+
+        # Hit threshold
+        hit_tol_val = (
+            hit_tol
+            if hit_tol is not None
+            else 10.0 * jnp.finfo(jnp.result_type(ray_origins, ray_directions)).eps
+        )
+        hit_threshold = 1.0 - jnp.asarray(hit_tol_val)
+
+        # Differentiable intersection: broadcast rays [N,1,3] against candidates [N,max_cand,3,3]
+        t, hit = rays_intersect_triangles(
+            flat_origins[:, None, :],
+            flat_dirs[:, None, :],
+            cand_verts,
+            epsilon=epsilon,
+            smoothing_factor=smoothing_factor,
+        )
+
+        smoothed_hit = jnp.minimum(
+            hit, smoothing_function(hit_threshold - t, smoothing_factor)
+        )
+        blocked_flat = jnp.sum(smoothed_hit * mask, axis=-1).clip(max=1.0)
+        blocked = blocked_flat.reshape(batch_shape).max(axis=-1, initial=0.0)
+    elif smoothing_factor is not None:
         blocked = rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
@@ -356,6 +444,7 @@ def _compute_paths_sbr(
     epsilon: Float[ArrayLike, ""] | None,
     max_dist: Float[ArrayLike, ""],
     batch_size: int | None,
+    bvh_id: int | None = None,
 ) -> SBRPaths:
     # TODO: type annotations for SBRPaths with mask dtype
     # 1 - Prepare arrays
@@ -413,14 +502,29 @@ def _compute_paths_sbr(
         # 1 - Compute next intersection with triangles
 
         # [num_tx_vertices num_rays]
-        triangles, t_hit = first_triangles_hit_by_rays(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            active_triangles=mesh.mask,
-            epsilon=epsilon,
-            batch_size=batch_size,
-        )
+        if bvh_id is not None:
+            from differt.accel.bvh._ffi import ffi_nearest_hit  # noqa: PLC0415
+
+            sbr_shape = ray_origins.shape[:-1]
+            flat_o = ray_origins.reshape(-1, 3)
+            flat_d = ray_directions.reshape(-1, 3)
+            idx, t = ffi_nearest_hit(
+                flat_o,
+                flat_d,
+                bvh_id=bvh_id,
+                active_mask=mesh.mask,
+            )
+            triangles = idx.reshape(sbr_shape)
+            t_hit = t.reshape(sbr_shape)
+        else:
+            triangles, t_hit = first_triangles_hit_by_rays(
+                ray_origins,
+                ray_directions,
+                triangle_vertices,
+                active_triangles=mesh.mask,
+                epsilon=epsilon,
+                batch_size=batch_size,
+            )
 
         # 2 - Check if the rays pass near RX
 
@@ -808,6 +912,27 @@ class TriangleScene(eqx.Module):
             ),
         )
 
+    def build_bvh(self) -> TriangleBvh:
+        """Build a BVH acceleration structure for the scene's triangle mesh.
+
+        This delegates to :meth:`~differt.geometry.TriangleMesh.build_bvh`.
+
+        See :mod:`differt.accel.bvh` for more details about the BVH implementation.
+
+        Returns:
+            A triangle BVH instance.
+
+        Example:
+            >>> from differt.scene import TriangleScene
+            >>> scene = TriangleScene.load_xml(
+            ...     "differt/src/differt/scene/scenes/simple_reflector/simple_reflector.xml"
+            ... )
+            >>> bvh = scene.build_bvh()
+            >>> bvh.num_triangles == scene.mesh.num_triangles
+            True
+        """
+        return self.mesh.build_bvh()
+
     @overload
     def compute_paths(
         self,
@@ -825,6 +950,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -844,6 +970,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -863,6 +990,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -882,6 +1010,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -901,6 +1030,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SizedIterator[Paths[_F]]: ...
 
     @overload
@@ -920,6 +1050,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SizedIterator[Paths[_B]]: ...
 
     @overload
@@ -939,6 +1070,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Iterator[Paths[_F]]: ...
 
     @overload
@@ -958,6 +1090,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Iterator[Paths[_B]]: ...
 
     @overload
@@ -977,6 +1110,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_F]: ...
 
     @overload
@@ -996,6 +1130,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> Paths[_B]: ...
 
     @overload
@@ -1015,6 +1150,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
+        bvh: TriangleBvh | None = ...,
     ) -> SBRPaths: ...
 
     def compute_paths(
@@ -1033,6 +1169,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
+        bvh: TriangleBvh | None = None,
     ) -> Paths[_M] | SizedIterator[Paths[_M]] | Iterator[Paths[_M]] | SBRPaths:
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
@@ -1146,6 +1283,18 @@ class TriangleScene(eqx.Module):
                 For the ``'hybrid'`` method, inactive triangles are always disconnected
                 regardless of this parameter value, as the method already depends on
                 the mask.
+            bvh: An optional BVH acceleration structure from :meth:`build_bvh`.
+
+                When provided, the BVH accelerates intersection queries:
+
+                * ``'exhaustive'``: BVH accelerates the blocking check
+                  via XLA FFI inside JIT. Without smoothing, uses nearest-hit.
+                  With smoothing, uses candidate selection with differentiable
+                  intersection on the reduced set.
+                * ``'hybrid'``: BVH accelerates both the visibility estimation
+                  and the blocking check.
+                * ``'sbr'``: BVH replaces ``first_triangles_hit_by_rays`` in the
+                  bounce loop (via XLA FFI inside ``lax.scan``).
 
 
         Returns:
@@ -1184,6 +1333,34 @@ class TriangleScene(eqx.Module):
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
 
+        # Extract BVH registry ID for FFI (if available)
+        bvh_id = None
+        bvh_expansion = None
+        if bvh is not None:
+            bvh_id = bvh.register()
+            # Compute expansion radius for smoothing BVH acceleration
+            # Requires XLA FFI (ffi_get_candidates) to work inside JIT
+            if bvh_id is not None and smoothing_factor is not None:
+                # TODO: maybe we should consider making this function public?
+                from differt.accel.bvh._triangle_bvh import (  # noqa: PLC0415
+                    compute_expansion_radius,
+                )
+
+                tri_np = np.asarray(self.mesh.triangle_vertices)
+                edges = np.diff(tri_np, axis=-2, append=tri_np[..., :1, :])
+                mean_tri_size = float(np.mean(np.linalg.norm(edges, axis=-1)))
+                bvh_expansion = compute_expansion_radius(
+                    float(np.asarray(smoothing_factor).real), mean_tri_size
+                )
+
+                # If expansion exceeds scene diagonal, BVH won't help
+                flat_pts = tri_np.reshape(-1, 3)
+                scene_diag = float(
+                    np.linalg.norm(flat_pts.max(axis=0) - flat_pts.min(axis=0))
+                )
+                if bvh_expansion > scene_diag:
+                    bvh_expansion = None
+
         if method == "sbr":
             if order is None:
                 msg = "Argument 'order' is required when 'method == \"sbr\"'."
@@ -1198,6 +1375,7 @@ class TriangleScene(eqx.Module):
                 epsilon=epsilon,
                 max_dist=max_dist,
                 batch_size=batch_size,
+                bvh_id=bvh_id,
             ).reshape(*tx_batch, *rx_batch, -1)
 
         # 0 - Constants arrays of chunks
@@ -1215,23 +1393,44 @@ class TriangleScene(eqx.Module):
                 msg = "Argument 'order' is required when 'method == \"hybrid\"'."
                 raise ValueError(msg)
 
-            triangles_visible_from_tx = triangles_visible_from_vertices(
-                tx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
-                num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
-            ).any(axis=0)  # reduce on all transmitters
+            if bvh is not None:
+                from differt.accel.bvh._accelerated import (  # noqa: PLC0415
+                    bvh_triangles_visible_from_vertices,
+                )
 
-            triangles_visible_from_rx = triangles_visible_from_vertices(
-                rx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
-                num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
-            ).any(axis=0)  # reduce on all receivers
+                triangles_visible_from_tx = bvh_triangles_visible_from_vertices(
+                    tx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    bvh=bvh,
+                ).any(axis=0)  # reduce on all transmitters
+
+                triangles_visible_from_rx = bvh_triangles_visible_from_vertices(
+                    rx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    bvh=bvh,
+                ).any(axis=0)  # reduce on all receivers
+            else:
+                triangles_visible_from_tx = triangles_visible_from_vertices(
+                    tx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    batch_size=batch_size,
+                ).any(axis=0)  # reduce on all transmitters
+
+                triangles_visible_from_rx = triangles_visible_from_vertices(
+                    rx_vertices,
+                    self.mesh.triangle_vertices,
+                    active_triangles=self.mesh.mask,
+                    num_rays=num_rays,
+                    epsilon=epsilon,
+                    batch_size=batch_size,
+                ).any(axis=0)  # reduce on all receivers
 
             if assume_quads:
                 triangles_visible_from_tx = triangles_visible_from_tx.reshape(
@@ -1295,6 +1494,9 @@ class TriangleScene(eqx.Module):
                     smoothing_factor=smoothing_factor,
                     confidence_threshold=confidence_threshold,
                     batch_size=batch_size,
+                    bvh_id=bvh_id,
+                    bvh_expansion=bvh_expansion,
+                    bvh_max_candidates=512,
                 ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
                 for path_candidates in path_candidates_iter
             )
@@ -1334,6 +1536,9 @@ class TriangleScene(eqx.Module):
             smoothing_factor=smoothing_factor,
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
+            bvh_id=bvh_id,
+            bvh_expansion=bvh_expansion,
+            bvh_max_candidates=512,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
 
     def plot(

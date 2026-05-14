@@ -7,6 +7,12 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
 
+from differt.accel.bvh import (
+    TriangleBvh,
+    bvh_first_triangles_hit_by_rays,
+    bvh_rays_intersect_any_triangle,
+    bvh_triangles_visible_from_vertices,
+)
 from differt.geometry import fibonacci_lattice
 from differt.rt import (
     fermat_path_on_planar_mirrors,
@@ -191,6 +197,88 @@ def test_compute_paths_disconnect_inactive_triangles_benchmark(
             ):
                 num_valid_paths += paths.num_valid_paths
         return num_valid_paths
+
+    bench_fun()
+
+    benchmark(bench_fun)
+
+
+# ---------------------------------------------------------------------------
+# BVH-accelerated benchmarks (PyO3 path, no FFI needed)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.benchmark(group="rays_intersect_any_triangle_bvh")
+def test_rays_intersect_any_triangle_bvh(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    scene = random_scene(simple_street_canyon_scene, key=key)
+    bvh = TriangleBvh(scene.mesh.triangle_vertices)
+
+    ray_origins = scene.transmitters
+    ray_directions = fibonacci_lattice(1_000_000)
+
+    @jax.block_until_ready
+    def bench_fun() -> Array:
+        return bvh_rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            scene.mesh.triangle_vertices,
+            active_triangles=scene.mesh.mask,
+            bvh=bvh,
+        )
+
+    bench_fun()
+
+    benchmark(bench_fun)
+
+
+@pytest.mark.benchmark(group="first_triangles_hit_by_rays_bvh")
+def test_first_triangles_hit_by_rays_bvh(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    scene = random_scene(simple_street_canyon_scene, key=key)
+    bvh = TriangleBvh(scene.mesh.triangle_vertices)
+
+    ray_origins = scene.transmitters
+    ray_directions = fibonacci_lattice(1_000_000)
+
+    @jax.block_until_ready
+    def bench_fun() -> tuple[Array, Array]:
+        return bvh_first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+            scene.mesh.triangle_vertices,
+            active_triangles=scene.mesh.mask,
+            bvh=bvh,
+        )
+
+    bench_fun()
+
+    benchmark(bench_fun)
+
+
+@pytest.mark.benchmark(group="triangles_visible_from_vertices_bvh")
+def test_transmitter_visibility_bvh(
+    simple_street_canyon_scene: TriangleScene,
+    benchmark: BenchmarkFixture,
+    key: PRNGKeyArray,
+) -> None:
+    scene = random_scene(simple_street_canyon_scene, key=key)
+    bvh = TriangleBvh(scene.mesh.triangle_vertices)
+
+    @jax.block_until_ready
+    def bench_fun() -> Array:
+        return bvh_triangles_visible_from_vertices(
+            scene.transmitters,
+            scene.mesh.triangle_vertices,
+            active_triangles=scene.mesh.mask,
+            bvh=bvh,
+        )
 
     bench_fun()
 
