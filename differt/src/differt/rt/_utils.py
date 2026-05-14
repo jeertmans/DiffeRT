@@ -575,7 +575,7 @@ def rays_intersect_any_triangle(
         if batch_size is not None
         else num_rays
     )
-    ray_batch_size = min(ray_batch_size, num_rays)
+    ray_batch_size = max(min(ray_batch_size, num_rays), 1)
     tri_batch_size = (
         tri_batch_size
         if tri_batch_size is not None
@@ -583,7 +583,7 @@ def rays_intersect_any_triangle(
         if batch_size is not None
         else num_triangles
     )
-    tri_batch_size = min(tri_batch_size, num_triangles)
+    tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
     if num_triangles == 0:
         # If there are no triangles, there are no intersections
         return (
@@ -844,7 +844,7 @@ def first_triangles_hit_by_rays(
             :func:`rays_intersect_triangles`.
 
     Returns:
-        For each ray, return the index and to distance to the first triangle hit.
+        For each ray, return the index and the distance to the first triangle hit.
 
         If no triangle is hit, the index is set to ``-1`` and
         the distance is set to :data:`inf<numpy.inf>`.
@@ -875,7 +875,7 @@ def first_triangles_hit_by_rays(
         if batch_size is not None
         else num_rays
     )
-    ray_batch_size = min(ray_batch_size, num_rays)
+    ray_batch_size = max(min(ray_batch_size, num_rays), 1)
     tri_batch_size = (
         tri_batch_size
         if tri_batch_size is not None
@@ -883,7 +883,7 @@ def first_triangles_hit_by_rays(
         if batch_size is not None
         else num_triangles
     )
-    tri_batch_size = min(tri_batch_size, num_triangles)
+    tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
     if num_triangles == 0:
         # If there are no triangles, there are no hits
         return (
@@ -1159,7 +1159,7 @@ def triangles_visible_from_vertices(
         if batch_size is not None
         else num_rays
     )
-    ray_batch_size = min(ray_batch_size, num_rays)
+    ray_batch_size = max(min(ray_batch_size, num_rays), 1)
     tri_batch_size = (
         tri_batch_size
         if tri_batch_size is not None
@@ -1167,7 +1167,7 @@ def triangles_visible_from_vertices(
         if batch_size is not None
         else num_triangles
     )
-    tri_batch_size = min(tri_batch_size, num_triangles)
+    tri_batch_size = max(min(tri_batch_size, num_triangles), 1)
 
     if num_triangles == 0:
         return jnp.zeros((*batch, 0), dtype=jnp.bool_)
