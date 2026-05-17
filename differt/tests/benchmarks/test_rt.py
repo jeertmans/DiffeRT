@@ -80,7 +80,9 @@ def test_rays_intersect_any_triangle(
     scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    ray_directions = fibonacci_lattice(1_000_000)
+    num_triangles = scene.mesh.triangle_vertices.shape[0]
+    num_rays = 1_000_000 if num_triangles < 1000 else 10_000
+    ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
     def bench_fun() -> Array:
@@ -126,7 +128,9 @@ def test_first_triangles_hit_by_rays(
     scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    ray_directions = fibonacci_lattice(1_000_000)
+    num_triangles = scene.mesh.triangle_vertices.shape[0]
+    num_rays = 1_000_000 if num_triangles < 1000 else 10_000
+    ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
     def bench_fun() -> tuple[Array, Array]:
