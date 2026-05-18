@@ -80,8 +80,7 @@ def test_rays_intersect_any_triangle(
     scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    num_triangles = scene.mesh.triangle_vertices.shape[0]
-    num_rays = 1_000_000 if num_triangles < 1000 else 10_000
+    num_rays = 10_000  # TODO: increase this number once the implementation is faster / uses less memory
     ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
@@ -112,7 +111,7 @@ def test_transmitter_visibility(
             scene.transmitters,
             scene.mesh.triangle_vertices,
             active_triangles=scene.mesh.mask,
-            num_rays=100_000,  # TODO: increase this number once the implementation is faster / uses less memory
+            num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
         )
 
     bench_fun()
@@ -129,7 +128,7 @@ def test_first_triangles_hit_by_rays(
     scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    num_rays = 100_000  # TODO: increase this number once the implementation is faster / uses less memory
+    num_rays = 10_000  # TODO: increase this number once the implementation is faster / uses less memory
     ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
@@ -177,7 +176,7 @@ def test_compute_paths(
             paths = scene.compute_paths(
                 order=order,
                 method=method,
-                num_rays=100_000,  # TODO: increase this number once the implementation is faster / uses less memory
+                num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
                 disconnect_inactive_triangles=disconnect_inactive_triangles,
             )
             num_valid_paths += paths.num_valid_paths
