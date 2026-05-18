@@ -1,13 +1,15 @@
 import typing
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
     Literal,
+    NotRequired,
     TypedDict,
     TypeVar,
+    Unpack,
     overload,
 )
 
@@ -28,16 +30,25 @@ else:
 
 
 class _AtIndexingKwargs(TypedDict):
-    indices_are_sorted: bool
-    unique_indices: bool
-    wrap_negative_indices: bool
+    mode: NotRequired[Literal["promise_in_bounds", "clip", "drop", "fill"]]
+    wrap_negative_indices: NotRequired[bool]
+    indices_are_sorted: NotRequired[bool]
+    unique_indices: NotRequired[bool]
 
 
 _AT_INDEXING_KWARGS: _AtIndexingKwargs = {
+    "wrap_negative_indices": False,
     "indices_are_sorted": True,
     "unique_indices": True,
-    "wrap_negative_indices": False,
 }
+
+
+class _GetIndexingKwargs(TypedDict):
+    mode: Literal["promise_in_bounds", "clip", "drop", "fill"]
+    wrap_negative_indices: NotRequired[bool]
+    fill_value: NotRequired[Any]
+    indices_are_sorted: NotRequired[bool]
+    unique_indices: NotRequired[bool]
 
 
 @jax.jit
@@ -102,7 +113,14 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
-_Index = slice | Int[ArrayLike, ""] | Int[Array, " n"] | Bool[Array, " num_triangles"]
+_Index = (
+    slice
+    | Int[ArrayLike, ""]
+    | Int[Array, " n"]
+    | Bool[Array, " num_triangles"]
+    | Sequence[int]
+    | Sequence[bool]
+)
 _T = TypeVar("_T", bound="TriangleMesh")
 
 
@@ -127,19 +145,40 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
     __slots__ = ("index", "mesh")
 
     def __init__(self, mesh: _T, index: _Index) -> None:
+        if not isinstance(index, slice):
+            index_array = jnp.asarray(index)
+            if index_array.ndim > 1:
+                msg = f"Index must be at most one-dimensional, got array with shape {index_array.shape}."
+                raise ValueError(msg)
         self.mesh = mesh
         self.index = index
 
     def __repr__(self) -> str:
         return f"_TriangleMeshVerticesUpdateRef({self.mesh!r}, {self.index!r})"
 
-    def _triangles_index(self, **kwargs: Any) -> _Index:
+    def _triangles_index(self, **kwargs: Unpack[_GetIndexingKwargs]) -> _Index:
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return jnp.unique(
             index, size=len(index), fill_value=self.mesh.vertices.shape[0]
         )
 
-    def set(self, values: Any, **kwargs: Any) -> _T:
+    def get(
+        self, **kwargs: Unpack[_GetIndexingKwargs]
+    ) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+        # get() is allowed to return duplicates, so we do not use _triangles_index()
+        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
+        return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
+
+    def set(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -147,27 +186,16 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
         )
 
-    def get(self, **kwargs: Any) -> Float[ArrayLike, "num_indexed_triangles 3"]:
-        # get() is allowed to return duplicates, so we do not use _triangles_index()
-        index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
-        return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
-
-    def apply(
+    def add(
         self,
-        func: Callable[
-            [Float[ArrayLike, "num_indexed_triangles 3"]],
-            Float[Array, "num_indexed_triangles 3"],
-        ],
-        **kwargs: Any,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
     ) -> _T:
-        index = self._triangles_index(**kwargs)
-        return eqx.tree_at(
-            lambda m: m.vertices,
-            self.mesh,
-            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
-        )
-
-    def add(self, values: Any, **kwargs: Any) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
@@ -175,12 +203,121 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
         )
 
-    def mul(self, values: Any, **kwargs: Any) -> _T:
+    def sub(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].subtract(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def mul(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
         index = self._triangles_index(**kwargs)
         return eqx.tree_at(
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].mul(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def div(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].divide(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def pow(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].power(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def min(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].min(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def max(
+        self,
+        values: (
+            Float[ArrayLike, "3"]
+            | Float[ArrayLike, "1"]
+            | Float[ArrayLike, ""]
+            | Sequence[float]
+        ),
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].max(values, **_AT_INDEXING_KWARGS),
+        )
+
+    def apply(
+        self,
+        func: Callable[
+            [Float[ArrayLike, "num_indexed_triangles 3"]],
+            Float[Array, "num_indexed_triangles 3"],
+        ],
+        **kwargs: Unpack[_GetIndexingKwargs],
+    ) -> _T:
+        index = self._triangles_index(**kwargs)
+        return eqx.tree_at(
+            lambda m: m.vertices,
+            self.mesh,
+            self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
         )
 
 
@@ -509,14 +646,19 @@ class TriangleMesh(eqx.Module):
         """
         # Using self.triangle_vertices is important because, e.g., as a result of using
         # __getitem__, some vertices in 'self.vertices' may no longer be used by this mesh.
-        vertices = self.triangle_vertices.reshape(-1, 3)
-        where = jnp.repeat(self.mask, 3)[:, None] if self.mask is not None else None
+        vertices = self.triangle_vertices
+        where = self.mask[:, None] if self.mask is not None else None
         return jnp.vstack(
             (
-                jnp.min(vertices, axis=0, initial=+jnp.inf, where=where),
-                jnp.max(vertices, axis=0, initial=-jnp.inf, where=where),
+                jnp.min(vertices, axis=(0, 1), initial=+jnp.inf, where=where),
+                jnp.max(vertices, axis=(0, 1), initial=-jnp.inf, where=where),
             ),
         )
+
+    if TYPE_CHECKING:
+
+        @property
+        def at(self) -> _TriangleMeshVerticesUpdateHelper[Self]: ...
 
     @property
     def at(self):  # noqa: ANN202
@@ -529,17 +671,25 @@ class TriangleMesh(eqx.Module):
 
         In particular, the following methods are available:
 
+        - ``get(**kwargs)``: Get the vertices of selected triangles;
         - ``set(values, **kwargs)``: Set the vertices of selected triangles to some values;
-        - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles;
         - ``add(values, **kwargs)``: Add some values to the vertices of selected triangles;
+        - ``sub(values, **kwargs)``: Subtract some values from the vertices of selected triangles;
         - ``mul(values, **kwargs)``: Multiply the vertices of selected triangles by some values;
-        - ``get(values, **kwargs)``: Get the vertices of selected triangles.
+        - ``div(values, **kwargs)``: Divide the vertices of selected triangles by some values;
+        - ``pow(values, **kwargs)``: Raise the vertices of selected triangles to some power;
+        - ``min(values, **kwargs)``: Take the element-wise minimum with the vertices of selected triangles;
+        - ``max(values, **kwargs)``: Take the element-wise maximum with the vertices of selected triangles;
+        - ``apply(func, **kwargs)``: Apply a function to the vertices of selected triangles.
 
         E.g., ``mesh.at[0:2].add([1.0, 2.0, 3.0])`` will translate the first two triangles.
 
-        Each method takes additional keyword parameters that are passed to the methods
-        of :attr:`jax.numpy.ndarray.at`. Because the vertices of a triangle mesh may be shared
-        between multiple triangles, this method prevents updating the same vertice multiple times
+        Each method accepts the same keyword arguments as the corresponding ``get`` method of
+        :attr:`jax.numpy.ndarray.at`.
+        These keyword arguments control how triangle indices are resolved internally.
+
+        Because the vertices of a triangle mesh may be shared
+        between multiple triangles, this method prevents updating the same vertex multiple times
         by ignoring duplicate vertex indices. As a result, providing duplicate triangle indices
         will not result in duplicate updates.
 
@@ -692,6 +842,59 @@ class TriangleMesh(eqx.Module):
             self,
             self.vertices + jnp.asarray(translation),
         )
+
+    def clip(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+    ) -> Self:
+        """
+        Clip all vertex coordinates to the given bounds.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+
+        Returns:
+            A new mesh with clipped vertices.
+
+        Examples:
+            The following example shows the effect on a plotted mesh before and after clipping.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(length=4.0, width=2.0, height=1.0)
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            .. plotly::
+                :context:
+
+                >>> clipped = mesh.clip(x_min=-1.0, x_max=1.0, y_min=-0.5, y_max=0.5)
+                >>> fig = clipped.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        vertices = self.vertices
+
+        if x_min is not None or x_max is not None:
+            vertices = vertices.at[:, 0].apply(lambda x: x.clip(min=x_min, max=x_max))
+        if y_min is not None or y_max is not None:
+            vertices = vertices.at[:, 1].apply(lambda y: y.clip(min=y_min, max=y_max))
+        if z_min is not None or z_max is not None:
+            vertices = vertices.at[:, 2].apply(lambda z: z.clip(min=z_min, max=z_max))
+
+        return eqx.tree_at(lambda m: m.vertices, self, vertices)
 
     @classmethod
     def empty(cls) -> Self:
@@ -1574,8 +1777,8 @@ class TriangleMesh(eqx.Module):
             if sample_objects:
                 indices = jnp.arange(self.num_triangles)
                 indices_inside_bounds = (
-                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[reportOptionalSubscript]
-                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[reportOptionalSubscript]
+                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[ty:not-subscriptable]
+                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[ty:not-subscriptable]
                 triangle_indices = indices_inside_bounds.argmax(
                     axis=1
                 )  # Exactly one bound should be true for each triangle
@@ -1607,7 +1810,7 @@ class TriangleMesh(eqx.Module):
 
         if sample_objects:
             indices = jnp.concatenate([
-                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[reportOptionalSubscript]
+                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[ty:not-subscriptable]
                 for i in indices
             ])
         if self.assume_quads:
@@ -1742,3 +1945,260 @@ class TriangleMesh(eqx.Module):
         if return_indices:
             return mesh, indices
         return mesh
+
+    def _keep_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        preserve_objects: bool = True,
+        keep_any: bool = False,
+        clip: bool = False,
+    ) -> Self:
+        triangle_vertices = self.triangle_vertices
+        xs, ys, zs = jnp.unstack(triangle_vertices, axis=-1)
+
+        vertex_mask = jnp.ones_like(xs, dtype=bool)
+        if x_min is not None:
+            vertex_mask &= xs >= x_min
+        if x_max is not None:
+            vertex_mask &= xs <= x_max
+        if y_min is not None:
+            vertex_mask &= ys >= y_min
+        if y_max is not None:
+            vertex_mask &= ys <= y_max
+        if z_min is not None:
+            vertex_mask &= zs >= z_min
+        if z_max is not None:
+            vertex_mask &= zs <= z_max
+
+        mask = (
+            jnp.any(vertex_mask, axis=-1) if keep_any else jnp.all(vertex_mask, axis=-1)
+        )
+
+        if self.mask is not None:
+            mask &= self.mask
+
+        if preserve_objects and self.object_bounds is not None:
+            object_ends = self.object_bounds[:, 1]
+            object_ids = jnp.searchsorted(
+                object_ends, jnp.arange(self.num_triangles), side="right"
+            )
+            object_counts = (
+                jnp.zeros(self.object_bounds.shape[0], dtype=int).at[object_ids].add(1)
+            )
+            object_kept_counts = (
+                jnp
+                .zeros(self.object_bounds.shape[0], dtype=int)
+                .at[object_ids]
+                .add(mask.astype(int))
+            )
+            object_mask = (
+                object_kept_counts > 0
+                if keep_any
+                else object_kept_counts == object_counts
+            )
+            mask = object_mask[object_ids]
+            if self.mask is not None:
+                mask &= self.mask
+
+        mesh = eqx.tree_at(lambda m: m.mask, self, mask, is_leaf=lambda x: x is None)
+        if clip:
+            mesh = mesh.clip(
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
+                z_min=z_min,
+                z_max=z_max,
+            )
+        return mesh
+
+    def keep_all_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        *,
+        preserve_objects: bool = True,
+        clip: bool = False,
+    ) -> Self:
+        """
+        Return a new mesh, keeping only the triangles with all vertices within the given bounds.
+
+        If ``preserve_objects`` is set to :data:`True`, and :attr:`object_bounds` is not
+        :data:`None`, then all triangles belonging to the same object as a triangle with all
+        vertices within the given bounds are kept, but only if all triangles in that object
+        satisfy the bounds.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+            preserve_objects: Whether to preserve objects.
+            clip: Whether to clip the vertices of the returned mesh to the given bounds.
+
+        Returns:
+            A new mesh with the triangles filtered according to the given bounds.
+
+        :seealso::
+
+            :meth:`keep_any_within`
+
+        Examples:
+            The following example shows how to filter the simple street canyon scene.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
+                >>>
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Here, we keep the objects that have all vertices inside the selected range.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_all_within(y_min=-20.0).plot(
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            By default, and if :attr:`object_bounds` is not :data:`None`, the filtering is done by objects. You can disable this behavior by setting ``preserve_objects`` to :data:`False`.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_all_within(
+                ...     y_min=-20.0,
+                ...     preserve_objects=False,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        return self._keep_within(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=preserve_objects,
+            keep_any=False,
+            clip=clip,
+        )
+
+    def keep_any_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        *,
+        preserve_objects: bool = True,
+        clip: bool = False,
+    ) -> Self:
+        """
+        Return a new mesh, keeping only the triangles with at least one vertex within the given bounds.
+
+        If ``preserve_objects`` is set to :data:`True`, and :attr:`object_bounds` is not
+        :data:`None`, then all triangles belonging to the same object as a triangle with at
+        least one vertex within the given bounds are kept.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+            preserve_objects: Whether to preserve objects.
+            clip: Whether to clip the vertices of the returned mesh to the given bounds.
+
+        Returns:
+            A new mesh with the triangles filtered according to the given bounds.
+
+        :seealso::
+
+            :meth:`keep_all_within`
+
+        Examples:
+            The following example shows how to filter the simple street canyon scene.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
+                >>>
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Here, we keep the objects that have all vertices inside the selected range.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(x_max=0.0).plot(
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            By default, and if :attr:`object_bounds` is not :data:`None`, the filtering is done by objects. You can disable this behavior by setting ``preserve_objects`` to :data:`False`.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(
+                ...     x_max=0.0,
+                ...     preserve_objects=False,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Finally, we can also clip the vertices of the returned mesh to the given bounds. This is especially useful to trim the plane of the ground in outdoor scenes.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(
+                ...     x_max=+15.0,
+                ...     clip=True,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        return self._keep_within(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=preserve_objects,
+            keep_any=True,
+            clip=clip,
+        )

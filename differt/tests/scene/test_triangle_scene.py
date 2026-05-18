@@ -352,11 +352,11 @@ class TestTriangleScene:
                 is_leaf=lambda x: x is None,
             )
 
-        expected = scene.compute_paths(  # type: ignore[no-matching-overload]
+        expected = scene.compute_paths(
             order=order,
             chunk_size=chunk_size,
             method=method,
-        )
+        )  # ty: ignore[no-matching-overload]
 
         if method != "exhaustive":
             expectation = pytest.warns(
@@ -367,12 +367,12 @@ class TestTriangleScene:
             expectation = does_not_raise()
 
         with expectation:
-            got = scene.compute_paths(  # type: ignore[no-matching-overload]
+            got = scene.compute_paths(
                 order=order,
                 method=method,
                 chunk_size=chunk_size,
                 smoothing_factor=1000.0,
-            )
+            )  # ty: ignore[no-matching-overload]
 
         assert type(got) is type(expected)
 
@@ -451,14 +451,15 @@ class TestTriangleScene:
         )
 
         with expectation:
-            got = scene.compute_paths(  # type: ignore[no-matching-overload]
+            got = scene.compute_paths(
                 order=order,
                 chunk_size=chunk_size,
                 path_candidates=path_candidates,
                 method=method,
-            )
+            )  # ty: ignore[no-matching-overload]
 
             paths = next(got) if isinstance(got, Iterator) else got
+            assert isinstance(paths, Paths)
 
             chex.assert_trees_all_close(paths.vertices, expected_path_vertices)
 

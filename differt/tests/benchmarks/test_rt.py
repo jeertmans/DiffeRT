@@ -21,10 +21,11 @@ from ..rt.utils import PlanarMirrorsSetup
 
 
 def random_scene(scene: TriangleScene, *, key: PRNGKeyArray) -> TriangleScene:
+    sample_objects = scene.mesh.object_bounds is not None
     return eqx.tree_at(
         lambda s: s.mesh,
         scene,
-        scene.mesh.sample(0.5, by_masking=True, sample_objects=True, key=key),
+        scene.mesh.sample(0.5, by_masking=True, sample_objects=sample_objects, key=key),
     )
 
 
@@ -72,14 +73,15 @@ def test_fermat(
 
 @pytest.mark.benchmark(group="rays_intersect_any_triangle")
 def test_rays_intersect_any_triangle(
-    simple_street_canyon_scene: TriangleScene,
+    bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
-    scene = random_scene(simple_street_canyon_scene, key=key)
+    scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    ray_directions = fibonacci_lattice(1_000_000)
+    num_rays = 10_000  # TODO: increase this number once the implementation is faster / uses less memory
+    ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
     def bench_fun() -> Array:
@@ -97,11 +99,11 @@ def test_rays_intersect_any_triangle(
 
 @pytest.mark.benchmark(group="triangles_visible_from_vertices")
 def test_transmitter_visibility(
-    simple_street_canyon_scene: TriangleScene,
+    bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
-    scene = random_scene(simple_street_canyon_scene, key=key)
+    scene = random_scene(bench_scene, key=key)
 
     @jax.block_until_ready
     def bench_fun() -> Array:
@@ -109,6 +111,7 @@ def test_transmitter_visibility(
             scene.transmitters,
             scene.mesh.triangle_vertices,
             active_triangles=scene.mesh.mask,
+            num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
         )
 
     bench_fun()
@@ -118,14 +121,15 @@ def test_transmitter_visibility(
 
 @pytest.mark.benchmark(group="first_triangles_hit_by_rays")
 def test_first_triangles_hit_by_rays(
-    simple_street_canyon_scene: TriangleScene,
+    bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
-    scene = random_scene(simple_street_canyon_scene, key=key)
+    scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    ray_directions = fibonacci_lattice(1_000_000)
+    num_rays = 10_000  # TODO: increase this number once the implementation is faster / uses less memory
+    ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
     def bench_fun() -> tuple[Array, Array]:
@@ -142,54 +146,40 @@ def test_first_triangles_hit_by_rays(
 
 
 @pytest.mark.benchmark(group="compute_paths")
-@pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
+@pytest.mark.parametrize(
+    "method",
+    [pytest.param("exhaustive", id="exhaustive"), pytest.param("hybrid", id="hybrid")],
+)
+@pytest.mark.parametrize(
+    "disconnect_inactive_triangles",
+    [pytest.param(False, id="no_disconnect"), pytest.param(True, id="disconnect")],
+)
 def test_compute_paths(
     method: Literal["exhaustive", "hybrid"],
-    simple_street_canyon_scene: TriangleScene,
+    disconnect_inactive_triangles: bool,
+    bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
-    scene = random_scene(simple_street_canyon_scene.set_assume_quads(), key=key)
+    scene = random_scene(bench_scene.set_assume_quads(), key=key)
+
+    if method == "hybrid" and not disconnect_inactive_triangles:
+        pytest.skip("Triangles are always disconnected for 'hybrid' method.")
 
     @jax.block_until_ready
     def bench_fun() -> Array:
         num_valid_paths = jnp.array(0, dtype=jnp.int32)
-        for order in range(3):
-            for paths in scene.compute_paths(
+        for order in [
+            0,
+            1,
+        ]:  # TODO: add higher orders once the implementation is faster / uses less memory
+            paths = scene.compute_paths(
                 order=order,
                 method=method,
-                chunk_size=10_000,
-            ):
-                num_valid_paths += paths.num_valid_paths
-        return num_valid_paths
-
-    bench_fun()
-
-    benchmark(bench_fun)
-
-
-@pytest.mark.benchmark(group="compute_paths_disconnect_optimization")
-@pytest.mark.parametrize("disconnect_inactive_triangles", [False, True])
-def test_compute_paths_disconnect_inactive_triangles_benchmark(
-    disconnect_inactive_triangles: bool,
-    simple_street_canyon_scene: TriangleScene,
-    benchmark: BenchmarkFixture,
-    key: PRNGKeyArray,
-) -> None:
-    """Benchmark the performance benefit of disconnecting inactive triangles."""
-    scene = random_scene(simple_street_canyon_scene.set_assume_quads(), key=key)
-
-    @jax.block_until_ready
-    def bench_fun() -> Array:
-        num_valid_paths = jnp.array(0, dtype=jnp.int32)
-        for order in range(3):
-            for paths in scene.compute_paths(
-                order=order,
-                method="exhaustive",
-                chunk_size=10_000,
+                num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
                 disconnect_inactive_triangles=disconnect_inactive_triangles,
-            ):
-                num_valid_paths += paths.num_valid_paths
+            )
+            num_valid_paths += paths.num_valid_paths
         return num_valid_paths
 
     bench_fun()

@@ -40,13 +40,15 @@ plt = pytest.importorskip("matplotlib.pyplot", reason="matplotlib not installed"
 
 
 @dispatch
-def my_plot_unimplemented(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
+def my_plot_unimplemented(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:
     """A plot function with no backend implementation."""
+    raise NotImplementedError
 
 
 @dispatch
-def my_plot(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:  # type: ignore[reportReturnType]
+def my_plot(**kwargs: Any) -> SceneCanvas | MplFigure | Figure:
     """A plot function with dummy backend implementations."""
+    raise NotImplementedError
 
 
 @my_plot.register("vispy")

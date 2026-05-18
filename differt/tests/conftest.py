@@ -82,17 +82,29 @@ def close_figure(
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line("markers", "jaxtyped: mark test as requiring jaxtyping")
+    config.addinivalue_line(
+        "markers", "require_typechecker: mark test as requiring runtime type checking"
+    )
+    config.addinivalue_line(
+        "markers",
+        "require_no_typechecker: mark test as requiring no runtime type checking",
+    )
 
 
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
     if (option := config.getoption("--jaxtyping-packages")) and "differt" in option:
+        skip_require_no_typechecker = pytest.mark.skip(
+            reason='cannot run with --jaxtyping-packages="differt,..." option enabled'
+        )
+        for item in items:
+            if "require_no_typechecker" in item.keywords:
+                item.add_marker(skip_require_no_typechecker)
         return
-    skip_jaxtyping = pytest.mark.skip(
+    skip_require_typechecker = pytest.mark.skip(
         reason='need --jaxtyping-packages="differt,..." option to run'
     )
     for item in items:
-        if "jaxtyped" in item.keywords:
-            item.add_marker(skip_jaxtyping)
+        if "require_typechecker" in item.keywords:
+            item.add_marker(skip_require_typechecker)

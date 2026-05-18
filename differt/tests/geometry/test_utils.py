@@ -36,7 +36,7 @@ from ..utils import random_inputs
         pytest.param(
             (10, 4),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )
@@ -102,7 +102,7 @@ def test_orthogonal_basis(u: Array) -> None:
         pytest.param(
             (10, 4),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         ((1, 3), does_not_raise()),
         ((0, 3), does_not_raise()),
@@ -237,12 +237,12 @@ def test_assemble_paths() -> None:
         pytest.param(
             ((3,), (6, 4), (3,)),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
         pytest.param(
             ((1, 3), (3,), (1, 3)),
             pytest.raises(TypeError),
-            marks=pytest.mark.jaxtyped,
+            marks=pytest.mark.require_typechecker,
         ),
     ],
 )

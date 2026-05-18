@@ -192,14 +192,12 @@ def _image_method(
         _forward,
         init=from_vertex,
         xs=(mirror_vertices, mirror_normals),
-        unroll=True,
     )
     _, paths = jax.lax.scan(
         _backward,
         init=to_vertex,
         xs=(mirror_vertices, mirror_normals, images),
         reverse=True,
-        unroll=True,
     )
 
     return paths
