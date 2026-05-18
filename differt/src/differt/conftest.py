@@ -17,10 +17,6 @@ if sys.platform.startswith("darwin"):
     collect_ignore_glob = ["*", "**/*"]
 
 
-def pytest_configure() -> None:
-    chex.set_n_cpu_devices(8)
-
-
 @pytest.fixture(autouse=True)
 def add_doctest_modules(doctest_namespace: dict[str, Any]) -> None:
     doctest_namespace["jax"] = jax

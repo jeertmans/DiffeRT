@@ -132,7 +132,7 @@ jobs:
         path: differt/src/differt/scene/scenes
 
     - name: Run tests
-      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }}
+      run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }} --durations=10
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v6
@@ -197,22 +197,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: [download-scenes]
     env:
-      PY_VERSION: 3.11
+      UV_PYTHON: 3.12
     permissions:
       pull-requests: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    - name: Download scenes
-      uses: actions/download-artifact@v8
+    - name: Setup Python
+      uses: actions/setup-python@v6
       with:
-        name: sionna-scenes
-        path: differt/src/differt/scene/scenes
-
-    - uses: actions/setup-python@v6
-      with:
-        python-version: ${{ env.PY_VERSION }}
+        python-version: ${{ env.UV_PYTHON}}
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v7
@@ -221,34 +216,17 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
-      id: rust-toolchain
+
+    - name: Download scenes
+      uses: actions/download-artifact@v8
       with:
-        components: llvm-tools
-
-    - name: Cache Rust
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install dependencies for profiling
-      run: uv sync --no-dev --group tests
-
-    - name: Build PGO wheel
-      id: pgo-wheel
-      uses: ./.github/actions/build-pgo-wheel
-      with:
-        interpreter: ${{ env.PY_VERSION }}
-        rust-toolchain: ${{ steps.rust-toolchain.outputs.name }}
-      env:
-        # make sure profiling information is present
-        CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
-        CARGO_PROFILE_RELEASE_STRIP: false
-
-    - name: Install PGO wheel
-      run: uv pip install ${{ steps.pgo-wheel.outputs.wheel }} --force-reinstall
+        name: sionna-scenes
+        path: differt/src/differt/scene/scenes
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v4
       with:
-        mode: instrumentation
+        mode: simulation
         run: uv run --group=codspeed pytest differt/tests/benchmarks --codspeed
 
   rust-benchmark:
