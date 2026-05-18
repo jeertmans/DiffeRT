@@ -94,3 +94,4 @@ pattern = '^version = "(?P<version>[^"]+)'
 
 [tool.uv.sources]
 differt_core = {workspace = true}
+vispy = { git = "https://github.com/vispy/vispy.git", branch = "fix-jupyter-context" }
