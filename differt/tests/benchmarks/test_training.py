@@ -5,6 +5,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import optax
+import pytest
 from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
@@ -70,6 +71,7 @@ class LOSModel(eqx.Module):
             out_size=num_embeds,
             width_size=width,
             depth=depth,
+            scan=True,
             key=key_embeds,
         )
         self.logits = nn.Linear(num_embeds * 3, "scalar", key=key_logits)
@@ -105,6 +107,7 @@ def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
     return jnp.mean((pred - paths.mask.astype(pred.dtype)) ** 2)
 
 
+@pytest.mark.benchmark(group="training")
 def test_train_step(
     simple_street_canyon_scene: TriangleScene,
     benchmark: BenchmarkFixture,

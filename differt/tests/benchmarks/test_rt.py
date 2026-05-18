@@ -112,6 +112,7 @@ def test_transmitter_visibility(
             scene.transmitters,
             scene.mesh.triangle_vertices,
             active_triangles=scene.mesh.mask,
+            num_rays=100_000,  # TODO: increase this number once the implementation is faster / uses less memory
         )
 
     bench_fun()
@@ -128,8 +129,7 @@ def test_first_triangles_hit_by_rays(
     scene = random_scene(bench_scene, key=key)
 
     ray_origins = scene.transmitters
-    num_triangles = scene.mesh.triangle_vertices.shape[0]
-    num_rays = 1_000_000 if num_triangles < 1000 else 10_000
+    num_rays = 100_000  # TODO: increase this number once the implementation is faster / uses less memory
     ray_directions = fibonacci_lattice(num_rays)
 
     @jax.block_until_ready
@@ -147,54 +147,40 @@ def test_first_triangles_hit_by_rays(
 
 
 @pytest.mark.benchmark(group="compute_paths")
-@pytest.mark.parametrize("method", ["exhaustive", "hybrid"])
+@pytest.mark.parametrize(
+    "method",
+    [pytest.param("exhaustive", id="exhaustive"), pytest.param("hybrid", id="hybrid")],
+)
+@pytest.mark.parametrize(
+    "disconnect_inactive_triangles",
+    [pytest.param(False, id="no_disconnect"), pytest.param(True, id="disconnect")],
+)
 def test_compute_paths(
     method: Literal["exhaustive", "hybrid"],
-    bench_scene: TriangleScene,
-    benchmark: BenchmarkFixture,
-    key: PRNGKeyArray,
-) -> None:
-    scene = random_scene(bench_scene.set_assume_quads(), key=key)
-
-    @jax.block_until_ready
-    def bench_fun() -> Array:
-        num_valid_paths = jnp.array(0, dtype=jnp.int32)
-        for order in range(3):
-            for paths in scene.compute_paths(
-                order=order,
-                method=method,
-                chunk_size=10_000,
-            ):
-                num_valid_paths += paths.num_valid_paths
-        return num_valid_paths
-
-    bench_fun()
-
-    benchmark(bench_fun)
-
-
-@pytest.mark.benchmark(group="compute_paths_disconnect_optimization")
-@pytest.mark.parametrize("disconnect_inactive_triangles", [False, True])
-def test_compute_paths_disconnect_inactive_triangles_benchmark(
     disconnect_inactive_triangles: bool,
     bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
-    """Benchmark the performance benefit of disconnecting inactive triangles."""
     scene = random_scene(bench_scene.set_assume_quads(), key=key)
+
+    if method == "hybrid" and not disconnect_inactive_triangles:
+        pytest.skip("Triangles are always disconnected for 'hybrid' method.")
 
     @jax.block_until_ready
     def bench_fun() -> Array:
         num_valid_paths = jnp.array(0, dtype=jnp.int32)
-        for order in range(3):
-            for paths in scene.compute_paths(
+        for order in [
+            0,
+            1,
+        ]:  # TODO: add higher orders once the implementation is faster / uses less memory
+            paths = scene.compute_paths(
                 order=order,
-                method="exhaustive",
-                chunk_size=10_000,
+                method=method,
+                num_rays=100_000,  # TODO: increase this number once the implementation is faster / uses less memory
                 disconnect_inactive_triangles=disconnect_inactive_triangles,
-            ):
-                num_valid_paths += paths.num_valid_paths
+            )
+            num_valid_paths += paths.num_valid_paths
         return num_valid_paths
 
     bench_fun()
