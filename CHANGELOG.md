@@ -26,11 +26,20 @@ with one *slight* but **important** difference:
 
 - Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
 - Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:444>).
+- Added the `ray_batch_size` and `tri_batch_size` arguments to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to let users control ray and triangle chunk sizes independently (by <gh-user:jeertmans>, in <gh-pr:446>).
+
+### Changed
+
 - Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
+- Updated the `batch_size` argument semantics for {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` so that `batch_size` acts as the default for whichever of `ray_batch_size` and `tri_batch_size` are left unspecified (by <gh-user:jeertmans>, in <gh-pr:446>).
 
 ### Chore
 
 - Added tests for the improved Sionna-compatible XML scene parser using OSM building data, ensuring correct parsing of materials and colors (by <gh-user:jeertmans>, in <gh-pr:444>).
+
+### Perf
+
+- Reworked the ray-triangle intersection helpers to use double-chunk processing over rays and triangles, reducing peak memory usage while keeping performance high on CPU and GPU (by <gh-user:jeertmans>, in <gh-pr:446>).
 
 ## [0.8.1](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...v0.8.1)
 
