@@ -1,4 +1,5 @@
 import typing
+import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
@@ -770,6 +771,18 @@ class TriangleMesh(eqx.Module):
         if self.mask is None:
             return jax.tree.map(lambda m: m, self)
 
+        triangles = self.triangles[self.mask, :]
+        # We will need to re-index the vertices, so we first get the unique vertex indices used by the active triangles,
+        used_indices = jnp.unique(triangles.reshape(-1))
+        # Then we create a lookup table to re-index the triangles, where the indices of the used vertices are replaced by their new indices.
+        lookup = jnp.empty((self.vertices.shape[0],), dtype=triangles.dtype)
+        lookup = lookup.at[used_indices].set(
+            jnp.arange(used_indices.shape[0], dtype=triangles.dtype)
+        )
+        # Keep unique vertices
+        vertices = self.vertices[used_indices, :]
+        triangles = lookup[triangles]
+
         return eqx.tree_at(
             lambda m: (
                 m.vertices,
@@ -781,8 +794,8 @@ class TriangleMesh(eqx.Module):
             ),
             self,
             (
-                self.vertices,
-                self.triangles[self.mask, :],
+                vertices,
+                triangles,
                 self.face_colors[self.mask, :]
                 if self.face_colors is not None
                 else None,
@@ -1958,6 +1971,13 @@ class TriangleMesh(eqx.Module):
         keep_any: bool = False,
         clip: bool = False,
     ) -> Self:
+        if preserve_objects and self.object_bounds is not None:
+            warnings.warn(
+                "Preserving objects is not fully supported yet, and some bugs may occur. Use with caution.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         triangle_vertices = self.triangle_vertices
         xs, ys, zs = jnp.unstack(triangle_vertices, axis=-1)
 
@@ -2036,6 +2056,9 @@ class TriangleMesh(eqx.Module):
         :data:`None`, then all triangles belonging to the same object as a triangle with all
         vertices within the given bounds are kept, but only if all triangles in that object
         satisfy the bounds.
+
+        Warning:
+            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
 
         Args:
             x_min: The minimum x coordinate.
@@ -2124,6 +2147,9 @@ class TriangleMesh(eqx.Module):
         :data:`None`, then all triangles belonging to the same object as a triangle with at
         least one vertex within the given bounds are kept.
 
+        Warning:
+            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
+
         Args:
             x_min: The minimum x coordinate.
             x_max: The maximum x coordinate.
@@ -2202,3 +2228,134 @@ class TriangleMesh(eqx.Module):
             keep_any=True,
             clip=clip,
         )
+
+    def center(self) -> Self:
+        """
+        Return a new mesh, centered around the origin.
+
+        The center of the mesh is computed as the center of its bounding box,
+        and the mesh is translated so that this center is at the origin in the (x, y) plane.
+        The z-coordinate remains unchanged.
+
+        This method is useful for centering scenes after filtering operations that may
+        have removed parts of the mesh (e.g., using :meth:`keep_all_within` or :meth:`keep_any_within`).
+
+        Returns:
+            A new centered mesh with the same structure but with vertices translated.
+
+        Examples:
+            The following example shows how to center a mesh around the origin.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(
+                ...     length=4.0, width=2.0, height=1.0
+                ... ).translate([2.0, 1.0, 0.0])
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            After centering, the mesh is translated to the origin in the (x, y) plane:
+
+            .. plotly::
+                :context:
+
+                >>> centered = mesh.center()
+                >>> fig = centered.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        (x_min, y_min, _), (x_max, y_max, _) = self.bounding_box
+        center = jnp.array([(x_min + x_max) * 0.5, (y_min + y_max) * 0.5, 0.0])
+        return eqx.tree_at(lambda m: m.vertices, self, self.vertices - center)
+
+    def add_ground(
+        self,
+        x_scale: Float[ArrayLike, ""] = 1.0,
+        y_scale: Float[ArrayLike, ""] = 1.0,
+        z: Float[ArrayLike, ""] | None = None,
+        material_name: str = "itu_concrete",
+        face_color: Float[ArrayLike, "3"] = jnp.array([0.539, 0.539, 0.539]),
+    ) -> Self:
+        """
+        Add a ground plane to this mesh.
+
+        The ground plane is a quadrilateral (represented as two triangles) added at the bottom of the mesh,
+        i.e., below all existing triangles. The ground plane is scaled based on the bounding box of the mesh
+        to create a realistic proportional ground.
+
+        This method is particularly useful for scenes that have been filtered or clipped (e.g., using
+        :meth:`keep_all_within` or :meth:`keep_any_within`), as these operations may remove the original ground plane.
+
+        Args:
+            x_scale: The scale factor of the ground plane along the x-axis. A value of 1.0 means the ground
+                has the same width as the mesh's bounding box. Default is 1.0.
+            y_scale: The scale factor of the ground plane along the y-axis. A value of 1.0 means the ground
+                has the same depth as the mesh's bounding box. Default is 1.0.
+            z: The z coordinate of the ground plane. If :data:`None`, the ground is placed at the minimum
+                z coordinate of the mesh's bounding box. Default is :data:`None`.
+            material_name: The name of the material for the ground plane. Default is ``"itu_concrete"``.
+            face_color: The RGB color of the ground plane faces, with values in the range [0, 1].
+                Default is ``[0.539, 0.539, 0.539]`` (concrete gray).
+
+        Returns:
+            A new mesh with a ground plane appended.
+
+        Examples:
+            The following example shows how to add a ground plane to a simple mesh.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            After adding a ground plane, the mesh includes an additional quadrilateral at the bottom:
+
+            .. plotly::
+                :context:
+
+                >>> with_ground = mesh.add_ground()
+                >>> fig = with_ground.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            You can customize the ground plane size and appearance. For example, a larger ground plane with a different color:
+
+            .. plotly::
+                :context:
+
+                >>> custom_ground = mesh.add_ground(
+                ...     x_scale=2.0, y_scale=2.0, face_color=jnp.array([0.2, 0.2, 0.2])
+                ... )
+                >>> fig = custom_ground.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        (x_min, y_min, z_min), (x_max, y_max, _) = self.bounding_box
+        if z is None:
+            z = z_min
+
+        center = jnp.array([(x_min + x_max) * 0.5, (y_min + y_max) * 0.5, z])
+        u = jnp.array([(x_max - x_min) * x_scale * 0.5, 0.0, 0.0])
+        v = jnp.array([0.0, (y_max - y_min) * y_scale * 0.5, 0.0])
+        vertices = jnp.array([
+            center + u + v,
+            center - u + v,
+            center - u - v,
+            center + u - v,
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+
+        ground = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            object_bounds=jnp.array([[0, 2]]),
+            face_colors=jnp.array([face_color, face_color]),
+            face_materials=jnp.array([0, 0]),
+            material_names=(material_name,),
+            assume_quads=True,
+        )
+        return self.append(ground)
