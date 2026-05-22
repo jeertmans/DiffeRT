@@ -240,7 +240,11 @@ class TestTriangleMesh:
             == 1
         )
 
-        preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
         chex.assert_trees_all_equal(
             preserved.mask, jnp.array([False, True, True], dtype=bool)
         )
@@ -257,7 +261,11 @@ class TestTriangleMesh:
         assert filtered.num_active_triangles == 1
         assert filtered.masked().num_triangles == 1
 
-        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
         chex.assert_trees_all_equal(
             preserved.mask, jnp.array([False, False, False], dtype=bool)
         )
@@ -274,7 +282,11 @@ class TestTriangleMesh:
             is_leaf=lambda x: x is None,
         )
 
-        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
 
         chex.assert_trees_all_equal(
             preserved.mask, jnp.array([False, False, False], dtype=bool)

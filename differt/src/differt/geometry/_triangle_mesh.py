@@ -2253,7 +2253,7 @@ class TriangleMesh(eqx.Module):
                 >>>
                 >>> mesh = TriangleMesh.box(
                 ...     length=4.0, width=2.0, height=1.0
-                ... ).translate([2.0, 1.0, 0.0])
+                ... ).translate(jnp.array([2.0, 1.0, 0.0]))
                 >>> fig = mesh.plot(backend="plotly")
                 >>> fig  # doctest: +SKIP
 
