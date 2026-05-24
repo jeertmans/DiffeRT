@@ -132,7 +132,7 @@ impl<'de> Deserialize<'de> for Material {
         #[serde(rename_all = "snake_case")]
         struct Bsdf {
             #[serde(rename = "rgb")]
-            rgb: Rgb,
+            rgb: Option<Rgb>,
         }
 
         #[derive(Debug)]
@@ -172,6 +172,10 @@ impl<'de> Deserialize<'de> for Material {
                 r#type: Type,
                 thickness: Option<Thickness>,
             },
+            Diffuse {
+                id: String,
+                rgb: Option<Rgb>,
+            },
         }
 
         quick_xml::impl_deserialize_for_internally_tagged_enum! {
@@ -189,15 +193,46 @@ impl<'de> Deserialize<'de> for Material {
                 #[serde(skip)]
                 thickness: Option<Thickness>,
             }),
+            ("diffuse"  => Diffuse {
+                #[serde(rename = "@id")]
+                id: String,
+                #[serde(rename = "rgb")]
+                rgb: Option<Rgb>,
+            }),
         }
 
         let raw_mat = RawMaterial::deserialize(deserializer)?;
 
         match raw_mat {
-            RawMaterial::TwoSided {
-                id,
-                bsdf: Bsdf { rgb: Rgb { color } },
-            } => {
+            RawMaterial::TwoSided { id, bsdf } => {
+                let color = match bsdf.rgb {
+                    Some(Rgb { color }) => color,
+                    None => {
+                        log::warn!(
+                            "material {id:#?} is missing an <rgb> element, using default color, \
+                             i.e., black",
+                        );
+                        [0.0, 0.0, 0.0]
+                    },
+                };
+                Ok(Material {
+                    name: id.strip_prefix("mat-").unwrap_or(&id).to_string(),
+                    id,
+                    color,
+                    thickness: None,
+                })
+            },
+            RawMaterial::Diffuse { id, rgb } => {
+                let color = match rgb {
+                    Some(Rgb { color }) => color,
+                    None => {
+                        log::warn!(
+                            "material {id:#?} is missing an <rgb> element, using default color, \
+                             i.e., black",
+                        );
+                        [0.0, 0.0, 0.0]
+                    },
+                };
                 Ok(Material {
                     name: id.strip_prefix("mat-").unwrap_or(&id).to_string(),
                     id,
@@ -341,4 +376,457 @@ pub(crate) fn sionna(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SionnaScene>()?;
     m.add_class::<Shape>()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserializes_twosided_material_without_rgb() {
+        let xml = r#"
+            <bsdf type="twosided" id="mat-wall">
+                <bsdf type="diffuse"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-wall");
+        assert_eq!(material.name, "wall");
+        assert_eq!(material.color, [0.0, 0.0, 0.0]);
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_diffuse_material_without_rgb() {
+        let xml = r#"
+            <bsdf type="diffuse" id="default-bsdf"/>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "default-bsdf");
+        assert_eq!(material.name, "default-bsdf");
+        assert_eq!(material.color, [0.0, 0.0, 0.0]);
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_diffuse_material_with_rgb() {
+        let xml = r#"
+            <bsdf type="diffuse" id="mat-concrete">
+                <rgb value="0.539 0.539 0.539"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-concrete");
+        assert_eq!(material.name, "concrete");
+        assert_eq!(material.color, [0.539, 0.539, 0.539]);
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_twosided_material_with_rgb() {
+        let xml = r#"
+            <bsdf type="twosided" id="mat-glass">
+                <bsdf type="diffuse">
+                    <rgb value="0.168 0.139 0.509"/>
+                </bsdf>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-glass");
+        assert_eq!(material.name, "glass");
+        assert_eq!(material.color, [0.168, 0.139, 0.509]);
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_twosided_with_nested_diffuse_with_rgb() {
+        let xml = r#"
+            <bsdf type="twosided" id="mat-wood">
+                <bsdf type="diffuse">
+                    <rgb value="0.266 0.109 0.060"/>
+                </bsdf>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-wood");
+        assert_eq!(material.name, "wood");
+        assert_eq!(material.color, [0.266, 0.109, 0.060]);
+    }
+
+    #[test]
+    fn deserializes_itu_marble() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="marble">
+                <string name="type" value="marble"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "marble");
+        assert_eq!(material.name, "itu_marble");
+        assert_eq!(material.color, [0.701, 0.644, 0.485]);
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_itu_concrete() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="concrete">
+                <string name="type" value="concrete"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "concrete");
+        assert_eq!(material.name, "itu_concrete");
+        assert_eq!(material.color, [0.539, 0.539, 0.539]);
+    }
+
+    #[test]
+    fn deserializes_itu_wood() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="wood">
+                <string name="type" value="wood"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_wood");
+        assert_eq!(material.color, [0.266, 0.109, 0.060]);
+    }
+
+    #[test]
+    fn deserializes_itu_metal() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="metal">
+                <string name="type" value="metal"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_metal");
+        assert_eq!(material.color, [0.220, 0.220, 0.254]);
+    }
+
+    #[test]
+    fn deserializes_itu_brick() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="brick">
+                <string name="type" value="brick"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_brick");
+        assert_eq!(material.color, [0.402, 0.112, 0.087]);
+    }
+
+    #[test]
+    fn deserializes_itu_glass() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="glass">
+                <string name="type" value="glass"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_glass");
+        assert_eq!(material.color, [0.168, 0.139, 0.509]);
+    }
+
+    #[test]
+    fn deserializes_itu_floorboard() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="floorboard">
+                <string name="type" value="floorboard"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_floorboard");
+        assert_eq!(material.color, [0.539, 0.386, 0.025]);
+    }
+
+    #[test]
+    fn deserializes_itu_ceiling_board() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="ceiling">
+                <string name="type" value="ceiling_board"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_ceiling_board");
+        assert_eq!(material.color, [0.376, 0.539, 0.117]);
+    }
+
+    #[test]
+    fn deserializes_itu_chipboard() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="chipboard">
+                <string name="type" value="chipboard"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_chipboard");
+        assert_eq!(material.color, [0.509, 0.159, 0.323]);
+    }
+
+    #[test]
+    fn deserializes_itu_plasterboard() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="plasterboard">
+                <string name="type" value="plasterboard"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_plasterboard");
+        assert_eq!(material.color, [0.051, 0.539, 0.133]);
+    }
+
+    #[test]
+    fn deserializes_itu_plywood() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="plywood">
+                <string name="type" value="plywood"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_plywood");
+        assert_eq!(material.color, [0.136, 0.076, 0.539]);
+    }
+
+    #[test]
+    fn deserializes_itu_very_dry_ground() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="ground">
+                <string name="type" value="very_dry_ground"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_very_dry_ground");
+        assert_eq!(material.color, [0.539, 0.319, 0.223]);
+    }
+
+    #[test]
+    fn deserializes_itu_medium_dry_ground() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="ground">
+                <string name="type" value="medium_dry_ground"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_medium_dry_ground");
+        assert_eq!(material.color, [0.539, 0.181, 0.076]);
+    }
+
+    #[test]
+    fn deserializes_itu_wet_ground() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="ground">
+                <string name="type" value="wet_ground"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_wet_ground");
+        assert_eq!(material.color, [0.539, 0.027, 0.147]);
+    }
+
+    #[test]
+    fn deserializes_itu_unknown_type() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="unknown">
+                <string name="type" value="unknown_material_type"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_unknown_material_type");
+        // Unknown types default to black
+        assert_eq!(material.color, [0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn deserializes_itu_thickness_ignored() {
+        // Note: thickness elements in ITU materials are currently skipped
+        // in deserialization (marked with #[serde(skip)])
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="window">
+                <string name="type" value="glass"/>
+                <float name="thickness" value="0.01"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "window");
+        assert_eq!(material.name, "itu_glass");
+        assert_eq!(material.color, [0.168, 0.139, 0.509]);
+        // Thickness is currently not deserialized for ITU materials
+        assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_material_without_mat_prefix() {
+        let xml = r#"
+            <bsdf type="diffuse" id="simple_name"/>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        // ID without "mat-" prefix should be kept as-is
+        assert_eq!(material.id, "simple_name");
+        assert_eq!(material.name, "simple_name");
+    }
+
+    #[test]
+    fn deserializes_material_with_different_prefixes() {
+        let xml = r#"
+            <bsdf type="diffuse" id="custom-prefix-test"/>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        // Only "mat-" prefix is stripped, others are kept
+        assert_eq!(material.id, "custom-prefix-test");
+        assert_eq!(material.name, "custom-prefix-test");
+    }
+
+    #[test]
+    fn deserializes_diffuse_with_zero_rgb() {
+        let xml = r#"
+            <bsdf type="diffuse" id="black-material">
+                <rgb value="0.0 0.0 0.0"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.color, [0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn deserializes_diffuse_with_max_rgb() {
+        let xml = r#"
+            <bsdf type="diffuse" id="white-material">
+                <rgb value="1.0 1.0 1.0"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.color, [1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn deserializes_diffuse_with_mixed_rgb_values() {
+        let xml = r#"
+            <bsdf type="diffuse" id="mixed">
+                <rgb value="0.1 0.5 0.9"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.color, [0.1, 0.5, 0.9]);
+    }
+
+    #[test]
+    fn deserializes_twosided_with_multiple_mat_prefixes() {
+        let xml = r#"
+            <bsdf type="twosided" id="mat-mat-double">
+                <bsdf type="diffuse">
+                    <rgb value="0.5 0.5 0.5"/>
+                </bsdf>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        // Only first "mat-" is stripped
+        assert_eq!(material.id, "mat-mat-double");
+        assert_eq!(material.name, "mat-double");
+    }
+
+    #[test]
+    fn deserializes_sionna_real_world_glass() {
+        // Real example from simple_street_canyon.xml
+        let xml = r#"
+            <bsdf type="twosided" id="mat-itu_glass">
+                <bsdf type="diffuse">
+                    <rgb value="0.212230 0.564711 0.799103"/>
+                </bsdf>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-itu_glass");
+        assert_eq!(material.name, "itu_glass");
+        assert_eq!(material.color[0], 0.212230);
+        assert_eq!(material.color[1], 0.564711);
+        assert_eq!(material.color[2], 0.799103);
+    }
+
+    #[test]
+    fn deserializes_sionna_real_world_wood() {
+        // Real example from simple_street_canyon.xml
+        let xml = r#"
+            <bsdf type="twosided" id="mat-itu_wood">
+                <bsdf type="diffuse">
+                    <rgb value="0.508881 0.168269 0.059511"/>
+                </bsdf>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "mat-itu_wood");
+        assert_eq!(material.name, "itu_wood");
+    }
+
+    #[test]
+    fn deserializes_osm_buildings_style_diffuse() {
+        // Real example pattern from OSM buildings XML
+        let xml = r#"
+            <bsdf type="diffuse" id="default-bsdf"/>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "default-bsdf");
+        // Defaults to black when no RGB
+        assert_eq!(material.color, [0.0, 0.0, 0.0]);
+    }
 }

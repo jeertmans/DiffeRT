@@ -645,11 +645,13 @@ class RadiationPattern(BaseAntenna):
 
         r = self.center + distance * jnp.stack((x, y, z), axis=-1)
 
-        s = self.poynting_vector(r)  # type: ignore[reportAttributeAccessIssue]
+        s, p = self.polarization_vectors(r)
 
-        p = jnp.linalg.norm(s, axis=-1, keepdims=True)
+        power = jnp.sum(s * s, axis=-1, keepdims=True) + jnp.sum(
+            p * p, axis=-1, keepdims=True
+        )
 
-        gain = p / p.max()
+        gain = power / power.max()
 
         r *= gain
         gain = jnp.squeeze(gain, axis=-1)

@@ -1,4 +1,5 @@
 import typing
+import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
@@ -796,6 +797,18 @@ class TriangleMesh(eqx.Module):
         if self.mask is None:
             return jax.tree.map(lambda m: m, self)
 
+        triangles = self.triangles[self.mask, :]
+        # We will need to re-index the vertices, so we first get the unique vertex indices used by the active triangles,
+        used_indices = jnp.unique(triangles.reshape(-1))
+        # Then we create a lookup table to re-index the triangles, where the indices of the used vertices are replaced by their new indices.
+        lookup = jnp.empty((self.vertices.shape[0],), dtype=triangles.dtype)
+        lookup = lookup.at[used_indices].set(
+            jnp.arange(used_indices.shape[0], dtype=triangles.dtype)
+        )
+        # Keep unique vertices
+        vertices = self.vertices[used_indices, :]
+        triangles = lookup[triangles]
+
         return eqx.tree_at(
             lambda m: (
                 m.vertices,
@@ -807,8 +820,8 @@ class TriangleMesh(eqx.Module):
             ),
             self,
             (
-                self.vertices,
-                self.triangles[self.mask, :],
+                vertices,
+                triangles,
                 self.face_colors[self.mask, :]
                 if self.face_colors is not None
                 else None,
@@ -868,6 +881,59 @@ class TriangleMesh(eqx.Module):
             self,
             self.vertices + jnp.asarray(translation),
         )
+
+    def clip(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+    ) -> Self:
+        """
+        Clip all vertex coordinates to the given bounds.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+
+        Returns:
+            A new mesh with clipped vertices.
+
+        Examples:
+            The following example shows the effect on a plotted mesh before and after clipping.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(length=4.0, width=2.0, height=1.0)
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            .. plotly::
+                :context:
+
+                >>> clipped = mesh.clip(x_min=-1.0, x_max=1.0, y_min=-0.5, y_max=0.5)
+                >>> fig = clipped.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        vertices = self.vertices
+
+        if x_min is not None or x_max is not None:
+            vertices = vertices.at[:, 0].apply(lambda x: x.clip(min=x_min, max=x_max))
+        if y_min is not None or y_max is not None:
+            vertices = vertices.at[:, 1].apply(lambda y: y.clip(min=y_min, max=y_max))
+        if z_min is not None or z_max is not None:
+            vertices = vertices.at[:, 2].apply(lambda z: z.clip(min=z_min, max=z_max))
+
+        return eqx.tree_at(lambda m: m.vertices, self, vertices)
 
     @classmethod
     def empty(cls) -> Self:
@@ -1750,8 +1816,8 @@ class TriangleMesh(eqx.Module):
             if sample_objects:
                 indices = jnp.arange(self.num_triangles)
                 indices_inside_bounds = (
-                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[reportOptionalSubscript]
-                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[reportOptionalSubscript]
+                    self.object_bounds[:, 0] <= indices[:, None]  # type: ignore[ty:not-subscriptable]
+                ) & (indices[:, None] < self.object_bounds[:, 1])  # type: ignore[ty:not-subscriptable]
                 triangle_indices = indices_inside_bounds.argmax(
                     axis=1
                 )  # Exactly one bound should be true for each triangle
@@ -1783,7 +1849,7 @@ class TriangleMesh(eqx.Module):
 
         if sample_objects:
             indices = jnp.concatenate([
-                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[reportOptionalSubscript]
+                jnp.arange(self.object_bounds[i, 0], self.object_bounds[i, 1])  # type: ignore[ty:not-subscriptable]
                 for i in indices
             ])
         if self.assume_quads:
@@ -1918,3 +1984,404 @@ class TriangleMesh(eqx.Module):
         if return_indices:
             return mesh, indices
         return mesh
+
+    def _keep_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        preserve_objects: bool = True,
+        keep_any: bool = False,
+        clip: bool = False,
+    ) -> Self:
+        if preserve_objects and self.object_bounds is not None:
+            warnings.warn(
+                "Preserving objects is not fully supported yet, and some bugs may occur. Use with caution.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        triangle_vertices = self.triangle_vertices
+        xs, ys, zs = jnp.unstack(triangle_vertices, axis=-1)
+
+        vertex_mask = jnp.ones_like(xs, dtype=bool)
+        if x_min is not None:
+            vertex_mask &= xs >= x_min
+        if x_max is not None:
+            vertex_mask &= xs <= x_max
+        if y_min is not None:
+            vertex_mask &= ys >= y_min
+        if y_max is not None:
+            vertex_mask &= ys <= y_max
+        if z_min is not None:
+            vertex_mask &= zs >= z_min
+        if z_max is not None:
+            vertex_mask &= zs <= z_max
+
+        mask = (
+            jnp.any(vertex_mask, axis=-1) if keep_any else jnp.all(vertex_mask, axis=-1)
+        )
+
+        if self.mask is not None:
+            mask &= self.mask
+
+        if preserve_objects and self.object_bounds is not None:
+            object_ends = self.object_bounds[:, 1]
+            object_ids = jnp.searchsorted(
+                object_ends, jnp.arange(self.num_triangles), side="right"
+            )
+            object_counts = (
+                jnp.zeros(self.object_bounds.shape[0], dtype=int).at[object_ids].add(1)
+            )
+            object_kept_counts = (
+                jnp
+                .zeros(self.object_bounds.shape[0], dtype=int)
+                .at[object_ids]
+                .add(mask.astype(int))
+            )
+            object_mask = (
+                object_kept_counts > 0
+                if keep_any
+                else object_kept_counts == object_counts
+            )
+            mask = object_mask[object_ids]
+            if self.mask is not None:
+                mask &= self.mask
+
+        mesh = eqx.tree_at(lambda m: m.mask, self, mask, is_leaf=lambda x: x is None)
+        if clip:
+            mesh = mesh.clip(
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
+                z_min=z_min,
+                z_max=z_max,
+            )
+        return mesh
+
+    def keep_all_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        *,
+        preserve_objects: bool = True,
+        clip: bool = False,
+    ) -> Self:
+        """
+        Return a new mesh, keeping only the triangles with all vertices within the given bounds.
+
+        If ``preserve_objects`` is set to :data:`True`, and :attr:`object_bounds` is not
+        :data:`None`, then all triangles belonging to the same object as a triangle with all
+        vertices within the given bounds are kept, but only if all triangles in that object
+        satisfy the bounds.
+
+        Warning:
+            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+            preserve_objects: Whether to preserve objects.
+            clip: Whether to clip the vertices of the returned mesh to the given bounds.
+
+        Returns:
+            A new mesh with the triangles filtered according to the given bounds.
+
+        :seealso::
+
+            :meth:`keep_any_within`
+
+        Examples:
+            The following example shows how to filter the simple street canyon scene.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
+                >>>
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Here, we keep the objects that have all vertices inside the selected range.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_all_within(y_min=-20.0).plot(
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            By default, and if :attr:`object_bounds` is not :data:`None`, the filtering is done by objects. You can disable this behavior by setting ``preserve_objects`` to :data:`False`.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_all_within(
+                ...     y_min=-20.0,
+                ...     preserve_objects=False,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        return self._keep_within(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=preserve_objects,
+            keep_any=False,
+            clip=clip,
+        )
+
+    def keep_any_within(
+        self,
+        x_min: Float[ArrayLike, ""] | None = None,
+        x_max: Float[ArrayLike, ""] | None = None,
+        y_min: Float[ArrayLike, ""] | None = None,
+        y_max: Float[ArrayLike, ""] | None = None,
+        z_min: Float[ArrayLike, ""] | None = None,
+        z_max: Float[ArrayLike, ""] | None = None,
+        *,
+        preserve_objects: bool = True,
+        clip: bool = False,
+    ) -> Self:
+        """
+        Return a new mesh, keeping only the triangles with at least one vertex within the given bounds.
+
+        If ``preserve_objects`` is set to :data:`True`, and :attr:`object_bounds` is not
+        :data:`None`, then all triangles belonging to the same object as a triangle with at
+        least one vertex within the given bounds are kept.
+
+        Warning:
+            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
+
+        Args:
+            x_min: The minimum x coordinate.
+            x_max: The maximum x coordinate.
+            y_min: The minimum y coordinate.
+            y_max: The maximum y coordinate.
+            z_min: The minimum z coordinate.
+            z_max: The maximum z coordinate.
+            preserve_objects: Whether to preserve objects.
+            clip: Whether to clip the vertices of the returned mesh to the given bounds.
+
+        Returns:
+            A new mesh with the triangles filtered according to the given bounds.
+
+        :seealso::
+
+            :meth:`keep_all_within`
+
+        Examples:
+            The following example shows how to filter the simple street canyon scene.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.scene import (
+                ...     TriangleScene,
+                ...     download_sionna_scenes,
+                ...     get_sionna_scene,
+                ... )
+                >>>
+                >>> download_sionna_scenes()  # doctest: +SKIP
+                >>> file = get_sionna_scene("simple_street_canyon")
+                >>> mesh = TriangleScene.load_xml(file).mesh
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Here, we keep the objects that have all vertices inside the selected range.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(x_max=0.0).plot(
+                ...     backend="plotly",
+                ... )
+                >>> fig  # doctest: +SKIP
+
+            By default, and if :attr:`object_bounds` is not :data:`None`, the filtering is done by objects. You can disable this behavior by setting ``preserve_objects`` to :data:`False`.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(
+                ...     x_max=0.0,
+                ...     preserve_objects=False,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            Finally, we can also clip the vertices of the returned mesh to the given bounds. This is especially useful to trim the plane of the ground in outdoor scenes.
+
+            .. plotly::
+                :context:
+
+                >>> fig = mesh.keep_any_within(
+                ...     x_max=+15.0,
+                ...     clip=True,
+                ... ).plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        return self._keep_within(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=preserve_objects,
+            keep_any=True,
+            clip=clip,
+        )
+
+    def center(self) -> Self:
+        """
+        Return a new mesh, centered around the origin.
+
+        The center of the mesh is computed as the center of its bounding box,
+        and the mesh is translated so that this center is at the origin in the (x, y) plane.
+        The z-coordinate remains unchanged.
+
+        This method is useful for centering scenes after filtering operations that may
+        have removed parts of the mesh (e.g., using :meth:`keep_all_within` or :meth:`keep_any_within`).
+
+        Returns:
+            A new centered mesh with the same structure but with vertices translated.
+
+        Examples:
+            The following example shows how to center a mesh around the origin.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(
+                ...     length=4.0, width=2.0, height=1.0
+                ... ).translate(jnp.array([2.0, 1.0, 0.0]))
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            After centering, the mesh is translated to the origin in the (x, y) plane:
+
+            .. plotly::
+                :context:
+
+                >>> centered = mesh.center()
+                >>> fig = centered.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        (x_min, y_min, _), (x_max, y_max, _) = self.bounding_box
+        center = jnp.array([(x_min + x_max) * 0.5, (y_min + y_max) * 0.5, 0.0])
+        return eqx.tree_at(lambda m: m.vertices, self, self.vertices - center)
+
+    def add_ground(
+        self,
+        x_scale: Float[ArrayLike, ""] = 1.0,
+        y_scale: Float[ArrayLike, ""] = 1.0,
+        z: Float[ArrayLike, ""] | None = None,
+        material_name: str = "itu_concrete",
+        face_color: Float[ArrayLike, "3"] = jnp.array([0.539, 0.539, 0.539]),
+    ) -> Self:
+        """
+        Add a ground plane to this mesh.
+
+        The ground plane is a quadrilateral (represented as two triangles) added at the bottom of the mesh,
+        i.e., below all existing triangles. The ground plane is scaled based on the bounding box of the mesh
+        to create a realistic proportional ground.
+
+        This method is particularly useful for scenes that have been filtered or clipped (e.g., using
+        :meth:`keep_all_within` or :meth:`keep_any_within`), as these operations may remove the original ground plane.
+
+        Args:
+            x_scale: The scale factor of the ground plane along the x-axis. A value of 1.0 means the ground
+                has the same width as the mesh's bounding box. Default is 1.0.
+            y_scale: The scale factor of the ground plane along the y-axis. A value of 1.0 means the ground
+                has the same depth as the mesh's bounding box. Default is 1.0.
+            z: The z coordinate of the ground plane. If :data:`None`, the ground is placed at the minimum
+                z coordinate of the mesh's bounding box. Default is :data:`None`.
+            material_name: The name of the material for the ground plane. Default is ``"itu_concrete"``.
+            face_color: The RGB color of the ground plane faces, with values in the range [0, 1].
+                Default is ``[0.539, 0.539, 0.539]`` (concrete gray).
+
+        Returns:
+            A new mesh with a ground plane appended.
+
+        Examples:
+            The following example shows how to add a ground plane to a simple mesh.
+
+            .. plotly::
+                :context: reset
+
+                >>> from differt.geometry import TriangleMesh
+                >>>
+                >>> mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+                >>> fig = mesh.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            After adding a ground plane, the mesh includes an additional quadrilateral at the bottom:
+
+            .. plotly::
+                :context:
+
+                >>> with_ground = mesh.add_ground()
+                >>> fig = with_ground.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+
+            You can customize the ground plane size and appearance. For example, a larger ground plane with a different color:
+
+            .. plotly::
+                :context:
+
+                >>> custom_ground = mesh.add_ground(
+                ...     x_scale=2.0, y_scale=2.0, face_color=jnp.array([0.2, 0.2, 0.2])
+                ... )
+                >>> fig = custom_ground.plot(backend="plotly")
+                >>> fig  # doctest: +SKIP
+        """
+        (x_min, y_min, z_min), (x_max, y_max, _) = self.bounding_box
+        if z is None:
+            z = z_min
+
+        center = jnp.array([(x_min + x_max) * 0.5, (y_min + y_max) * 0.5, z])
+        u = jnp.array([(x_max - x_min) * x_scale * 0.5, 0.0, 0.0])
+        v = jnp.array([0.0, (y_max - y_min) * y_scale * 0.5, 0.0])
+        vertices = jnp.array([
+            center + u + v,
+            center - u + v,
+            center - u - v,
+            center + u - v,
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
+
+        ground = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            object_bounds=jnp.array([[0, 2]]),
+            face_colors=jnp.array([face_color, face_color]),
+            face_materials=jnp.array([0, 0]),
+            material_names=(material_name,),
+            assume_quads=True,
+        )
+        return self.append(ground)

@@ -2,9 +2,6 @@
 beartype = [
   "beartype>=0.22.9",
 ]
-bump = [
-  "bump-my-version>=0.20.3",  # Pydantic>=2.12 is needed for Python 3.14
-]
 codspeed = ["pytest-codspeed>=2.2.0"]
 cuda = [
   "jax[cuda]>=0.8.1",
@@ -13,9 +10,10 @@ dev = [
   {include-group = "codspeed"},
   {include-group = "docs"},
   {include-group = "tests"},
+  "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
   "pre-commit>=3.5.0",
-  "ty>=0.0.21",
+  "ty==0.0.32",
 ]
 docs = [
   {include-group = "beartype"},
@@ -87,7 +85,7 @@ version = "1.0.0"
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.8.0"
+current_version = "0.8.2"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -215,6 +213,7 @@ filterwarnings = [
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
   'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
+  'ignore:Preserving objects is not fully supported yet:UserWarning',  # TODO: remove this when preserve_objects is fully supported
 ]
 log_level = "INFO"
 markers = [
@@ -273,6 +272,10 @@ extend-allowed-calls = ["chex.assert_trees_all_equal", "chex.assert_trees_all_cl
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["equinox.field", "jax.numpy.array"]
+
+[tool.ruff.lint.flake8-import-conventions.extend-aliases]
+"differt.plotting" = "dplt"
+"jax.numpy" = "jnp"
 
 [tool.ruff.lint.pep8-naming]
 extend-ignore-names = ["T"]

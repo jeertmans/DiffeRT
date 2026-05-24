@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, no_type_check
 
 import equinox as eqx
 import fpt_jax
@@ -169,17 +169,21 @@ def fermat_path_on_linear_objects(
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
 
     # Needed until https://github.com/jax-ml/jax/issues/34697 is resolved
-    return fpt_jax.trace_rays(  # type: ignore[invalid-return-type]
-        from_vertices,  # type: ignore[invalid-argument-type]
-        to_vertices,  # type: ignore[too-many-positional-arguments]
-        object_origins,
-        object_vectors,
-        num_iters=steps,  # type: ignore[unknown-argument]
-        unroll=unroll,  # type: ignore[unknown-argument]
-        num_iters_linesearch=linesearch_steps,  # type: ignore[unknown-argument]
-        unroll_linesearch=unroll_linesearch,  # type: ignore[unknown-argument]
-        implicit_diff=implicit_diff,  # type: ignore[unknown-argument]
-    )
+    @no_type_check
+    def _call_fpt_jax() -> Array:
+        return fpt_jax.trace_rays(
+            from_vertices,
+            to_vertices,
+            object_origins,
+            object_vectors,
+            num_iters=steps,
+            unroll=unroll,
+            num_iters_linesearch=linesearch_steps,
+            unroll_linesearch=unroll_linesearch,
+            implicit_diff=implicit_diff,
+        )
+
+    return _call_fpt_jax()
 
 
 @eqx.filter_jit

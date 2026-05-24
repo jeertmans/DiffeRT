@@ -20,7 +20,38 @@ with one *slight* but **important** difference:
 
 <!-- start changelog -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...HEAD)
+
+## [0.8.2](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...v0.8.2)
+
+### Added
+
+- Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
+- Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:444>).
+- Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
+- Added the {meth}`TriangleMesh.center<differt.geometry.TriangleMesh.center>` and {meth}`TriangleMesh.add_ground<differt.geometry.TriangleMesh.add_ground>` methods to support centering and adding a ground plane to the mesh, especially for when the ground plane is removed by any of the filtering methods (by <gh-user:jeertmans>, in <gh-pr:452>).
+
+## Changed
+
+- Added warning message to {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods when `preserve_objects=True` is used, as it is not fully supported yet (by <gh-user:jeertmans>, in <gh-pr:452>).
+
+### Chore
+
+- Added tests for the improved Sionna-compatible XML scene parser using OSM building data, ensuring correct parsing of materials and colors (by <gh-user:jeertmans>, in <gh-pr:444>).
+
+### Fixed
+
+- Unused triangle vertices are now properly removed when masking a mesh with {meth}`TriangleMesh.masked<differt.geometry.TriangleMesh.masked>`, fixing a potential plotting bugs as unused vertices may be used to compute the total visible area (by <gh-user:jeertmans>, in <gh-pr:452>).
+
+## [0.8.1](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...v0.8.1)
+
+### Changed
+
+- Added lighting by default when using Plotly for plotting meshes, see <gh-pr:412>  (by <gh-user:jeertmans>, in <gh-pr:432>).
+
+### Chore
+
+- Replaced raw GitHub issue/PR URLs in documentation (Markdown, RST, and Python docstrings) with dedicated Sphinx roles (`gh-pr`, `gh-issue`, `gh-user`, `ext-gh-issue`) (by <gh-user:copilot>, in <gh-pr:437>).
 
 ## [0.8.0](https://github.com/jeertmans/DiffeRT/compare/v0.7.0...v0.8.0)
 

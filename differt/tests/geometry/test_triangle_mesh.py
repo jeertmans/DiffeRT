@@ -21,6 +21,36 @@ from differt.geometry._utils import rotation_matrix_along_x_axis
 from ..utils import random_inputs
 
 
+@pytest.fixture
+def keep_within_mesh() -> TriangleMesh:
+    return TriangleMesh(
+        vertices=jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [0.2, 0.0, 0.0],
+                [0.0, 0.2, 0.0],
+                [0.1, 0.0, 0.0],
+                [0.2, 0.0, 0.0],
+                [0.3, 0.1, 0.0],
+                [0.8, 0.0, 0.0],
+                [0.9, 0.0, 0.0],
+                [1.0, 0.1, 0.0],
+            ],
+            dtype=float,
+        ),
+        triangles=jnp.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=int),
+        object_bounds=jnp.array([[0, 1], [1, 3]], dtype=int),
+    )
+
+
+@pytest.fixture
+def medium_random_mesh(key: PRNGKeyArray) -> TriangleMesh:
+    key_vertices, key_triangles = jax.random.split(key)
+    vertices = jax.random.uniform(key_vertices, (64, 3), minval=-3.0, maxval=3.0)
+    triangles = jax.random.randint(key_triangles, (128, 3), 0, vertices.shape[0])
+    return TriangleMesh(vertices=vertices, triangles=triangles)
+
+
 @pytest.mark.parametrize(
     ("triangle_vertices", "vertices", "expectation"),
     [
@@ -192,6 +222,255 @@ class TestTriangleMesh:
 
         assert count == 1
 
+    def test_keep_any_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
+
+        filtered = mesh.keep_any_within(x_min=0.75, preserve_objects=False)
+        chex.assert_trees_all_equal(
+            filtered.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        assert filtered.num_active_triangles == 1
+        assert filtered.masked().num_triangles == 1
+
+        assert (
+            mesh
+            .keep_all_within(x_min=0.75, preserve_objects=False)
+            .masked()
+            .num_triangles
+            == 1
+        )
+
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, True, True], dtype=bool)
+        )
+        assert preserved.num_active_triangles == 2
+        assert preserved.masked().num_triangles == 2
+
+    def test_keep_all_within(self, keep_within_mesh: TriangleMesh) -> None:
+        mesh = keep_within_mesh
+
+        filtered = mesh.keep_all_within(x_min=0.75, preserve_objects=False)
+        chex.assert_trees_all_equal(
+            filtered.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        assert filtered.num_active_triangles == 1
+        assert filtered.masked().num_triangles == 1
+
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        assert preserved.num_active_triangles == 0
+        assert preserved.masked().num_triangles == 0
+
+    def test_keep_within_respects_existing_mask(
+        self, keep_within_mesh: TriangleMesh
+    ) -> None:
+        mesh = eqx.tree_at(
+            lambda m: m.mask,
+            keep_within_mesh,
+            jnp.array([False, False, True], dtype=bool),
+            is_leaf=lambda x: x is None,
+        )
+
+        with pytest.warns(
+            UserWarning,
+            match="Preserving objects is not fully supported yet",
+        ):
+            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+
+        chex.assert_trees_all_equal(
+            preserved.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        assert preserved.masked().num_triangles == 0
+
+    @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
+    def test_keep_within_preserve_objects_without_bounds(
+        self, method_name: str
+    ) -> None:
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.2, 0.0, 0.0],
+                    [0.0, 0.2, 0.0],
+                    [0.8, 0.0, 0.0],
+                    [0.9, 0.0, 0.0],
+                    [1.0, 0.1, 0.0],
+                ],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2], [3, 4, 5]], dtype=int),
+        )
+
+        filtered = getattr(mesh, method_name)(x_min=0.75, preserve_objects=False)
+        preserved = getattr(mesh, method_name)(x_min=0.75, preserve_objects=True)
+
+        chex.assert_trees_all_equal(filtered.mask, preserved.mask)
+        chex.assert_trees_all_equal(filtered.masked(), preserved.masked())
+
+    def test_clip(self) -> None:
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [[-1.0, 2.0, 3.0], [4.0, -5.0, 6.0], [7.0, 8.0, -9.0]],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2]], dtype=int),
+        )
+
+        got = mesh.clip(x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, z_min=0.0)
+        expected = TriangleMesh(
+            vertices=jnp.array(
+                [[0.0, 1.0, 3.0], [1.0, 0.0, 6.0], [1.0, 1.0, 0.0]],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2]], dtype=int),
+        )
+
+        chex.assert_trees_all_equal(got, expected)
+
+    @pytest.mark.parametrize("x_min", [None, -1.0])
+    @pytest.mark.parametrize("x_max", [None, +1.0])
+    @pytest.mark.parametrize("y_min", [None, -0.5])
+    @pytest.mark.parametrize("y_max", [None, +0.5])
+    @pytest.mark.parametrize("z_min", [None, -2.0])
+    @pytest.mark.parametrize("z_max", [None, +2.0])
+    def test_clip_random_medium_mesh(
+        self,
+        x_min: float | None,
+        x_max: float | None,
+        y_min: float | None,
+        y_max: float | None,
+        z_min: float | None,
+        z_max: float | None,
+        medium_random_mesh: TriangleMesh,
+    ) -> None:
+        clipped = medium_random_mesh.clip(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+        )
+
+        assert clipped.triangles.shape == medium_random_mesh.triangles.shape
+
+        if x_min is not None:
+            assert jnp.all(clipped.vertices[:, 0] >= x_min)
+        if x_max is not None:
+            assert jnp.all(clipped.vertices[:, 0] <= x_max)
+        if y_min is not None:
+            assert jnp.all(clipped.vertices[:, 1] >= y_min)
+        if y_max is not None:
+            assert jnp.all(clipped.vertices[:, 1] <= y_max)
+        if z_min is not None:
+            assert jnp.all(clipped.vertices[:, 2] >= z_min)
+        if z_max is not None:
+            assert jnp.all(clipped.vertices[:, 2] <= z_max)
+
+        if all(bound is None for bound in (x_min, x_max, y_min, y_max, z_min, z_max)):
+            chex.assert_trees_all_equal(clipped.vertices, medium_random_mesh.vertices)
+
+    @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
+    @pytest.mark.parametrize("x_min", [None, -1.0])
+    @pytest.mark.parametrize("x_max", [None, +1.0])
+    @pytest.mark.parametrize("y_min", [None, -0.5])
+    @pytest.mark.parametrize("y_max", [None, +0.5])
+    @pytest.mark.parametrize("z_min", [None, -2.0])
+    @pytest.mark.parametrize("z_max", [None, +2.0])
+    def test_keep_within_random_medium_mesh(
+        self,
+        method_name: str,
+        x_min: float | None,
+        x_max: float | None,
+        y_min: float | None,
+        y_max: float | None,
+        z_min: float | None,
+        z_max: float | None,
+        medium_random_mesh: TriangleMesh,
+    ) -> None:
+        kept = getattr(medium_random_mesh, method_name)(
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            z_min=z_min,
+            z_max=z_max,
+            preserve_objects=False,
+            clip=True,
+        )
+
+        assert kept.triangles.shape == medium_random_mesh.triangles.shape
+        assert kept.mask is not None
+
+        if x_min is not None:
+            assert jnp.all(kept.vertices[:, 0] >= x_min)
+        if x_max is not None:
+            assert jnp.all(kept.vertices[:, 0] <= x_max)
+        if y_min is not None:
+            assert jnp.all(kept.vertices[:, 1] >= y_min)
+        if y_max is not None:
+            assert jnp.all(kept.vertices[:, 1] <= y_max)
+        if z_min is not None:
+            assert jnp.all(kept.vertices[:, 2] >= z_min)
+        if z_max is not None:
+            assert jnp.all(kept.vertices[:, 2] <= z_max)
+
+        if all(bound is None for bound in (x_min, x_max, y_min, y_max, z_min, z_max)):
+            chex.assert_trees_all_equal(kept.vertices, medium_random_mesh.vertices)
+            chex.assert_trees_all_equal(
+                kept.mask, jnp.ones(medium_random_mesh.num_triangles, dtype=bool)
+            )
+
+    def test_keep_within_clip(self, keep_within_mesh: TriangleMesh) -> None:
+        expected_keep_all_vertices = jnp.array(
+            [
+                [0.75, 0.0, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.2, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.0, 0.0],
+                [0.75, 0.1, 0.0],
+                [0.8, 0.0, 0.0],
+                [0.9, 0.0, 0.0],
+                [1.0, 0.1, 0.0],
+            ],
+            dtype=float,
+        )
+        expected_keep_any_vertices = expected_keep_all_vertices
+
+        mesh = keep_within_mesh
+
+        kept = mesh.keep_all_within(
+            x_min=0.75,
+            preserve_objects=True,
+            clip=True,
+        )
+        chex.assert_trees_all_equal(
+            kept.mask, jnp.array([False, False, False], dtype=bool)
+        )
+        chex.assert_trees_all_equal(kept.vertices, expected_keep_all_vertices)
+
+        kept = keep_within_mesh.keep_any_within(
+            x_min=0.75,
+            preserve_objects=False,
+            clip=True,
+        )
+        chex.assert_trees_all_equal(
+            kept.mask, jnp.array([False, False, True], dtype=bool)
+        )
+        chex.assert_trees_all_equal(kept.vertices, expected_keep_any_vertices)
+
     @pytest.mark.xfail(
         reason="No longer raises an error, as no more type checking is done on jnp.asarray.",
     )
@@ -235,7 +514,7 @@ class TestTriangleMesh:
             ValueError,
             match=r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none.",
         ):
-            _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(vertex_a, vertex_b)  # type: ignore[ty:no-matching-overload]
 
         with pytest.raises(
             ValueError,
@@ -243,7 +522,7 @@ class TestTriangleMesh:
                 r"You must specify either of both  of 'vertex_b' and 'vertex_c', or none."
             ),
         ):
-            _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(vertex_a, vertex_c=vertex_c)  # type: ignore[ty:no-matching-overload]
 
         with pytest.raises(
             ValueError,
@@ -267,7 +546,7 @@ class TestTriangleMesh:
                 r"You must specify one of ('vertex_b', 'vertex_c') or 'normal', not both."
             ),
         ):
-            _ = TriangleMesh.plane(center)  # type: ignore[reportCallIssue]
+            _ = TriangleMesh.plane(center)  # type: ignore[ty:no-matching-overload]
 
     @pytest.mark.parametrize(
         ("length", "width", "height"),
@@ -610,7 +889,7 @@ class TestTriangleMesh:
         with pytest.raises(
             ValueError, match="You must specify one of 'colors' or `key`, not both"
         ):
-            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[no-matching-overload]
+            _ = two_buildings_mesh.set_face_colors(colors, key=key)  # type: ignore[ty:no-matching-overload]
 
     def test_set_face_materials(
         self,
@@ -983,3 +1262,441 @@ class TestTriangleMesh:
             # Without preserve, object_bounds should be removed
             shuffled_mesh = mesh.shuffle(key=key)
             assert shuffled_mesh.object_bounds is None
+
+    def test_center_simple_mesh(self) -> None:
+        # Test centering a simple mesh
+        # Create a mesh with known bounds
+        vertices = jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [0.0, 2.0, 0.0],
+                [2.0, 2.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2], [1, 3, 2]], dtype=int)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        # Center the mesh
+        centered = mesh.center()
+
+        # The center of the bounding box should be at (1.0, 1.0, z_min)
+        # After centering, it should be at (0.0, 0.0, z_min)
+        (x_min, y_min, z_min), (x_max, y_max, z_max) = centered.bounding_box
+        assert jnp.allclose(x_min + x_max, 0.0, atol=1e-6)
+        assert jnp.allclose(y_min + y_max, 0.0, atol=1e-6)
+
+        # The z-coordinate should remain unchanged
+        assert jnp.allclose(z_min, 0.0, atol=1e-6)
+        assert jnp.allclose(z_max, 0.0, atol=1e-6)
+
+    def test_center_asymmetric_mesh(self) -> None:
+        # Test centering a mesh with asymmetric bounds
+        vertices = jnp.array(
+            [
+                [1.0, 2.0, 0.0],
+                [3.0, 2.0, 0.0],
+                [1.0, 4.0, 0.0],
+                [3.0, 4.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2], [1, 3, 2]], dtype=int)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        centered = mesh.center()
+
+        # Center should be at (0, 0) after centering
+        (x_min, y_min, _), (x_max, y_max, _) = centered.bounding_box
+        assert jnp.allclose(x_min + x_max, 0.0, atol=1e-6)
+        assert jnp.allclose(y_min + y_max, 0.0, atol=1e-6)
+
+    def test_center_with_negative_z(self) -> None:
+        # Test centering a mesh with negative z values
+        vertices = jnp.array(
+            [
+                [0.0, 0.0, -1.0],
+                [2.0, 0.0, -1.0],
+                [0.0, 2.0, -1.0],
+                [2.0, 2.0, 1.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2], [1, 3, 2]], dtype=int)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        centered = mesh.center()
+
+        # Z-coordinates should not be modified
+        assert jnp.allclose(jnp.min(centered.vertices[:, 2]), -1.0, atol=1e-6)
+        assert jnp.allclose(jnp.max(centered.vertices[:, 2]), 1.0, atol=1e-6)
+
+        # X and Y should be centered
+        (x_min, y_min, _), (x_max, y_max, _) = centered.bounding_box
+        assert jnp.allclose(x_min + x_max, 0.0, atol=1e-6)
+        assert jnp.allclose(y_min + y_max, 0.0, atol=1e-6)
+
+    def test_center_preserves_structure(self) -> None:
+        # Test that centering preserves mesh structure and attributes
+        vertices = jnp.array(
+            [
+                [1.0, 1.0, 0.0],
+                [2.0, 1.0, 0.0],
+                [1.0, 2.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2]], dtype=int)
+        face_colors = jnp.array([[1.0, 0.0, 0.0]], dtype=float)
+        mesh = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_colors=face_colors,
+        )
+
+        centered = mesh.center()
+
+        # Mesh structure should be preserved
+        assert centered.num_triangles == mesh.num_triangles
+        chex.assert_trees_all_equal(centered.triangles, mesh.triangles)
+        chex.assert_trees_all_equal(centered.face_colors, mesh.face_colors)
+
+    def test_center_idempotent(self) -> None:
+        # Test that centering twice gives the same result as centering once
+        vertices = jnp.array(
+            [
+                [1.0, 2.0, 0.0],
+                [3.0, 2.0, 0.0],
+                [1.0, 4.0, 0.0],
+                [3.0, 4.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2], [1, 3, 2]], dtype=int)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        centered_once = mesh.center()
+        centered_twice = centered_once.center()
+
+        # Centering twice should not change the result (within tolerance)
+        chex.assert_trees_all_close(
+            centered_once.vertices,
+            centered_twice.vertices,
+            atol=1e-6,
+        )
+
+    def test_center_with_mask(self) -> None:
+        # Test centering a masked mesh
+        vertices = jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [0.0, 2.0, 0.0],
+                [2.0, 2.0, 0.0],
+                [4.0, 0.0, 0.0],
+                [4.0, 2.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+                [1, 4, 5],
+            ],
+            dtype=int,
+        )
+        mask = jnp.array([True, True, False], dtype=bool)
+        mesh = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            mask=mask,
+        )
+
+        centered = mesh.center()
+
+        # Mask should be preserved
+        chex.assert_trees_all_equal(centered.mask, mesh.mask)
+
+    def test_center_single_point_mesh(self) -> None:
+        # Test centering a degenerate mesh with all vertices at the same point
+        vertices = jnp.array(
+            [
+                [1.0, 1.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [1.0, 1.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2]], dtype=int)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        centered = mesh.center()
+
+        # All vertices should be at the origin in x,y
+        assert jnp.allclose(centered.vertices[:, 0], 0.0, atol=1e-6)
+        assert jnp.allclose(centered.vertices[:, 1], 0.0, atol=1e-6)
+
+    def test_center_with_object_bounds(self) -> None:
+        # Test centering a mesh with object bounds
+        vertices = jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [0.0, 2.0, 0.0],
+                [2.0, 2.0, 0.0],
+                [3.0, 0.0, 0.0],
+                [5.0, 0.0, 0.0],
+                [3.0, 2.0, 0.0],
+                [5.0, 2.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array(
+            [
+                [0, 1, 2],
+                [1, 3, 2],
+                [4, 5, 6],
+                [5, 7, 6],
+            ],
+            dtype=int,
+        )
+        object_bounds = jnp.array([[0, 2], [2, 4]], dtype=int)
+        mesh = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            object_bounds=object_bounds,
+        )
+
+        centered = mesh.center()
+
+        # Object bounds should be preserved
+        chex.assert_trees_all_equal(centered.object_bounds, mesh.object_bounds)
+
+    def test_add_ground_simple(self) -> None:
+        # Test adding a ground plane to a simple mesh
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [
+                    [0.0, 0.0, 1.0],
+                    [2.0, 0.0, 1.0],
+                    [0.0, 2.0, 1.0],
+                    [2.0, 2.0, 1.0],
+                ],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2], [1, 3, 2]], dtype=jnp.int32),
+        )
+
+        with_ground = mesh.add_ground()
+
+        # The mesh should have 2 additional triangles (1 quadrilateral = 2 triangles)
+        assert with_ground.num_triangles == mesh.num_triangles + 2
+
+        # The ground should be below the mesh
+        mesh_min_z = jnp.min(mesh.vertices[:, 2])
+        ground_max_z = jnp.max(with_ground.vertices[int(mesh.vertices.shape[0]) :, 2])
+        assert jnp.allclose(ground_max_z, mesh_min_z, atol=1e-6)
+
+    def test_add_ground_has_correct_structure(self) -> None:
+        # Test that the added ground plane has the correct structure
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        with_ground = mesh.add_ground()
+
+        # The ground plane should be represented as a quadrilateral (2 triangles)
+        ground_triangles = with_ground.triangles[int(mesh.triangles.shape[0]) :, :]
+        assert int(ground_triangles.shape[0]) == 2
+        assert int(ground_triangles.shape[1]) == 3
+
+        # The last 4 vertices should form a quadrilateral
+        ground_vertices = with_ground.vertices[int(mesh.vertices.shape[0]) :, :]
+        assert int(ground_vertices.shape[0]) == 4
+        assert int(ground_vertices.shape[1]) == 3
+
+    def test_add_ground_centered(self) -> None:
+        # Test that the ground plane is centered on the mesh
+        # Create a simple mesh without using translate to avoid type errors
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [
+                    [1.0, 2.0, 1.0],
+                    [3.0, 2.0, 1.0],
+                    [1.0, 4.0, 1.0],
+                    [3.0, 4.0, 1.0],
+                ],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2], [1, 3, 2]], dtype=jnp.int32),
+        )
+        with_ground = mesh.add_ground()
+
+        # The mesh center should match the ground center (in x, y)
+        mesh_center_x = (
+            jnp.min(mesh.vertices[:, 0]) + jnp.max(mesh.vertices[:, 0])
+        ) / 2
+        mesh_center_y = (
+            jnp.min(mesh.vertices[:, 1]) + jnp.max(mesh.vertices[:, 1])
+        ) / 2
+
+        ground_vertices = with_ground.vertices[mesh.vertices.shape[0] :, :]
+        ground_center_x = (
+            jnp.min(ground_vertices[:, 0]) + jnp.max(ground_vertices[:, 0])
+        ) / 2
+        ground_center_y = (
+            jnp.min(ground_vertices[:, 1]) + jnp.max(ground_vertices[:, 1])
+        ) / 2
+
+        assert jnp.allclose(mesh_center_x, ground_center_x, atol=1e-6)
+        assert jnp.allclose(mesh_center_y, ground_center_y, atol=1e-6)
+
+    def test_add_ground_custom_z(self) -> None:
+        # Test adding a ground plane at a custom z coordinate
+        # Create a mesh at a higher altitude
+        mesh = TriangleMesh(
+            vertices=jnp.array(
+                [
+                    [0.0, 0.0, 2.0],
+                    [2.0, 0.0, 2.0],
+                    [0.0, 2.0, 2.0],
+                    [2.0, 2.0, 2.0],
+                ],
+                dtype=float,
+            ),
+            triangles=jnp.array([[0, 1, 2], [1, 3, 2]], dtype=jnp.int32),
+        )
+        custom_z = -5.0
+        with_ground = mesh.add_ground(z=custom_z)
+
+        # All ground vertices should be at custom_z
+        ground_vertices = with_ground.vertices[int(mesh.vertices.shape[0]) :, :]
+        assert jnp.allclose(ground_vertices[:, 2], custom_z, atol=1e-6)
+
+    def test_add_ground_custom_scale(self) -> None:
+        # Test adding a ground plane with custom scaling
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        with_ground_default = mesh.add_ground(x_scale=1.0, y_scale=1.0)
+        with_ground_scaled = mesh.add_ground(x_scale=2.0, y_scale=2.0)
+
+        # The scaled ground should be larger
+        ground_default = with_ground_default.vertices[int(mesh.vertices.shape[0]) :, :]
+        ground_scaled = with_ground_scaled.vertices[int(mesh.vertices.shape[0]) :, :]
+
+        default_width = jnp.max(ground_default[:, 0]) - jnp.min(ground_default[:, 0])
+        scaled_width = jnp.max(ground_scaled[:, 0]) - jnp.min(ground_scaled[:, 0])
+        assert scaled_width > default_width
+
+    def test_add_ground_custom_color(self) -> None:
+        # Test adding a ground plane with custom color
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        custom_color = jnp.array([0.0, 1.0, 0.0], dtype=float)  # Green
+        with_ground = mesh.add_ground(face_color=custom_color)
+
+        # The ground face colors should be set to custom color
+        face_colors = with_ground.face_colors
+        assert face_colors is not None
+        ground_colors = face_colors[int(mesh.triangles.shape[0]) :, :]
+        chex.assert_trees_all_close(
+            ground_colors, jnp.array([custom_color, custom_color], dtype=float)
+        )
+
+    def test_add_ground_custom_material(self) -> None:
+        # Test adding a ground plane with custom material name
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        custom_material = "custom_ground"
+        with_ground = mesh.add_ground(material_name=custom_material)
+
+        # The material name should be included
+        assert custom_material in with_ground.material_names
+
+    def test_add_ground_is_quad(self) -> None:
+        # Test that the ground plane itself is a valid quadrilateral
+        # Create a mesh that has assume_quads set
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0).set_assume_quads()
+        with_ground = mesh.add_ground()
+
+        # The resulting mesh should have assume_quads set since both original mesh and ground have it
+        assert with_ground.assume_quads is True
+        # The total number of triangles should be even (compatible with quads)
+        assert (with_ground.num_triangles % 2) == 0
+
+    def test_add_ground_preserves_original_mesh(self) -> None:
+        # Test that the original mesh is preserved when adding ground
+        original_vertices = jnp.array(
+            [
+                [0.0, 0.0, 1.0],
+                [2.0, 0.0, 1.0],
+                [0.0, 2.0, 1.0],
+                [2.0, 2.0, 1.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2], [1, 3, 2]], dtype=jnp.int32)
+        mesh = TriangleMesh(vertices=original_vertices, triangles=triangles)
+
+        with_ground = mesh.add_ground()
+
+        # The original mesh vertices should be the same
+        chex.assert_trees_all_close(
+            with_ground.vertices[: original_vertices.shape[0], :],
+            original_vertices,
+            atol=1e-6,
+        )
+
+    def test_add_ground_object_bounds(self) -> None:
+        # Test that object bounds are set for the ground plane
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        with_ground = mesh.add_ground()
+
+        # Object bounds should be set for the ground
+        assert with_ground.object_bounds is not None
+        # The added object bounds should reference the ground triangles
+        # which are at the end
+        assert int(with_ground.object_bounds.shape[0]) >= 1
+
+    def test_add_ground_chaining(self) -> None:
+        # Test that add_ground can be chained with other methods
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        result = mesh.center().add_ground()
+
+        assert result.num_triangles == mesh.num_triangles + 2
+
+    def test_add_ground_small_mesh(self) -> None:
+        # Test adding ground to a small degenerate mesh
+        vertices = jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [0.001, 0.0, 0.0],
+                [0.0, 0.001, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.array([[0, 1, 2]], dtype=jnp.int32)
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        with_ground = mesh.add_ground()
+
+        # Should still add ground without issues
+        assert with_ground.num_triangles == 3
+
+    def test_add_ground_multiple_times(self) -> None:
+        # Test adding ground multiple times
+        mesh = TriangleMesh.box(length=2.0, width=2.0, height=1.0)
+        with_ground_once = mesh.add_ground()
+        with_ground_twice = with_ground_once.add_ground()
+
+        # Each call adds 2 triangles
+        assert with_ground_once.num_triangles == mesh.num_triangles + 2
+        assert with_ground_twice.num_triangles == mesh.num_triangles + 4
+
+    def test_add_ground_after_filtering(self) -> None:
+        # Test adding ground after filtering operations
+        mesh = TriangleMesh.box(length=4.0, width=2.0, height=1.0)
+        # Filter and then add ground
+        filtered = mesh.keep_all_within(x_max=2.0, preserve_objects=False)
+        with_ground = filtered.masked().add_ground()
+
+        # Should successfully add ground to filtered mesh
+        assert (
+            with_ground.num_triangles > mesh.num_triangles
+        )  # At least 2 triangles for ground
