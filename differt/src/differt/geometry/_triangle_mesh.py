@@ -1,5 +1,4 @@
 import typing
-import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
@@ -1971,13 +1970,6 @@ class TriangleMesh(eqx.Module):
         keep_any: bool = False,
         clip: bool = False,
     ) -> Self:
-        if preserve_objects and self.object_bounds is not None:
-            warnings.warn(
-                "Preserving objects is not fully supported yet, and some bugs may occur. Use with caution.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         triangle_vertices = self.triangle_vertices
         xs, ys, zs = jnp.unstack(triangle_vertices, axis=-1)
 
@@ -2007,8 +1999,16 @@ class TriangleMesh(eqx.Module):
             object_ids = jnp.searchsorted(
                 object_ends, jnp.arange(self.num_triangles), side="right"
             )
-            object_counts = (
-                jnp.zeros(self.object_bounds.shape[0], dtype=int).at[object_ids].add(1)
+            active_mask = (
+                self.mask
+                if self.mask is not None
+                else jnp.ones(self.num_triangles, dtype=bool)
+            )
+            object_active_counts = (
+                jnp
+                .zeros(self.object_bounds.shape[0], dtype=int)
+                .at[object_ids]
+                .add(active_mask.astype(int))
             )
             object_kept_counts = (
                 jnp
@@ -2019,7 +2019,8 @@ class TriangleMesh(eqx.Module):
             object_mask = (
                 object_kept_counts > 0
                 if keep_any
-                else object_kept_counts == object_counts
+                else (object_active_counts > 0)
+                & (object_kept_counts == object_active_counts)
             )
             mask = object_mask[object_ids]
             if self.mask is not None:
@@ -2056,9 +2057,6 @@ class TriangleMesh(eqx.Module):
         :data:`None`, then all triangles belonging to the same object as a triangle with all
         vertices within the given bounds are kept, but only if all triangles in that object
         satisfy the bounds.
-
-        Warning:
-            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
 
         Args:
             x_min: The minimum x coordinate.
@@ -2146,9 +2144,6 @@ class TriangleMesh(eqx.Module):
         If ``preserve_objects`` is set to :data:`True`, and :attr:`object_bounds` is not
         :data:`None`, then all triangles belonging to the same object as a triangle with at
         least one vertex within the given bounds are kept.
-
-        Warning:
-            Using setting ``preserve_objects`` to :data:`True` with this method may lead to unexpected results, as it is not fully supported yet. Use with caution.
 
         Args:
             x_min: The minimum x coordinate.
