@@ -22,6 +22,14 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...HEAD)
 
+### Changed
+
+- Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
+
+### Fixed
+
+- Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
+
 ## [0.8.2](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...v0.8.2)
 
 ### Added
