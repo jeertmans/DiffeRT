@@ -24,11 +24,13 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
+- Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gr-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 
 ### Fixed
 
+- Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
+- Fixed a bug in `_keep_within` (used by `keep_all_within` and `keep_any_within`) where the calculation of the active triangles count per object counted all triangles instead of active ones when checking if an object was fully kept/removed (by <gh-user:jeertmans>, in <gh-pr:456>).
 
 ## [0.8.2](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...v0.8.2)
 

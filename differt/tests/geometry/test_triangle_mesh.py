@@ -240,11 +240,7 @@ class TestTriangleMesh:
             == 1
         )
 
-        with pytest.warns(
-            UserWarning,
-            match="Preserving objects is not fully supported yet",
-        ):
-            preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
+        preserved = mesh.keep_any_within(x_min=0.75, preserve_objects=True)
         chex.assert_trees_all_equal(
             preserved.mask, jnp.array([False, True, True], dtype=bool)
         )
@@ -261,11 +257,7 @@ class TestTriangleMesh:
         assert filtered.num_active_triangles == 1
         assert filtered.masked().num_triangles == 1
 
-        with pytest.warns(
-            UserWarning,
-            match="Preserving objects is not fully supported yet",
-        ):
-            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
         chex.assert_trees_all_equal(
             preserved.mask, jnp.array([False, False, False], dtype=bool)
         )
@@ -282,16 +274,82 @@ class TestTriangleMesh:
             is_leaf=lambda x: x is None,
         )
 
-        with pytest.warns(
-            UserWarning,
-            match="Preserving objects is not fully supported yet",
-        ):
-            preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
+        preserved = mesh.keep_all_within(x_min=0.75, preserve_objects=True)
 
         chex.assert_trees_all_equal(
-            preserved.mask, jnp.array([False, False, False], dtype=bool)
+            preserved.mask, jnp.array([False, False, True], dtype=bool)
         )
-        assert preserved.masked().num_triangles == 0
+        assert preserved.num_active_triangles == 1
+        assert preserved.masked().num_triangles == 1
+
+    def test_keep_within_preserve_objects_complex(self) -> None:
+        # Create a mesh with 3 objects:
+        # Object 0: triangles [0, 1]
+        # Object 1: triangles [2, 3, 4]
+        # Object 2: triangles [5, 6]
+        vertices = jnp.array(
+            [
+                # Object 0, Triangle 0: x in [1.0, 2.0]
+                [1.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [1.5, 1.0, 0.0],
+                # Object 0, Triangle 1: x in [-1.0, 0.0]
+                [-1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [-0.5, 1.0, 0.0],
+                # Object 1, Triangle 2: x in [1.5, 2.5]
+                [1.5, 0.0, 0.0],
+                [2.5, 0.0, 0.0],
+                [2.0, 1.0, 0.0],
+                # Object 1, Triangle 3: x in [2.0, 3.0]
+                [2.0, 0.0, 0.0],
+                [3.0, 0.0, 0.0],
+                [2.5, 1.0, 0.0],
+                # Object 1, Triangle 4: x in [-2.0, -1.0]
+                [-2.0, 0.0, 0.0],
+                [-1.0, 0.0, 0.0],
+                [-1.5, 1.0, 0.0],
+                # Object 2, Triangle 5: x in [1.0, 2.0]
+                [1.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [1.5, 1.0, 0.0],
+                # Object 2, Triangle 6: x in [0.2, 0.5]
+                [0.2, 0.0, 0.0],
+                [0.5, 0.0, 0.0],
+                [0.3, 1.0, 0.0],
+            ],
+            dtype=float,
+        )
+        triangles = jnp.arange(21, dtype=int).reshape(7, 3)
+        object_bounds = jnp.array([[0, 2], [2, 5], [5, 7]], dtype=int)
+
+        mesh = TriangleMesh(
+            vertices=vertices,
+            triangles=triangles,
+            object_bounds=object_bounds,
+        )
+
+        # Set an initial mask
+        mesh = eqx.tree_at(
+            lambda m: m.mask,
+            mesh,
+            jnp.array([True, False, True, True, False, True, True], dtype=bool),
+            is_leaf=lambda x: x is None,
+        )
+
+        preserved_all = mesh.keep_all_within(x_min=1.0, preserve_objects=True)
+
+        chex.assert_trees_all_equal(
+            preserved_all.mask,
+            jnp.array([True, False, True, True, False, False, False], dtype=bool),
+        )
+
+        preserved_any = mesh.keep_any_within(x_min=1.0, preserve_objects=True)
+
+        chex.assert_trees_all_equal(
+            preserved_any.mask,
+            jnp.array([True, False, True, True, False, True, True], dtype=bool),
+        )
 
     @pytest.mark.parametrize("method_name", ["keep_all_within", "keep_any_within"])
     def test_keep_within_preserve_objects_without_bounds(
