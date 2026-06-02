@@ -900,11 +900,17 @@ class TriangleMesh(eqx.Module):
         vertices = self.vertices
 
         if x_min is not None or x_max is not None:
-            vertices = vertices.at[:, 0].apply(lambda x: x.clip(min=x_min, max=x_max))
+            vertices = vertices.at[:, 0].apply(
+                lambda x: jnp.clip(x, min=x_min, max=x_max)
+            )
         if y_min is not None or y_max is not None:
-            vertices = vertices.at[:, 1].apply(lambda y: y.clip(min=y_min, max=y_max))
+            vertices = vertices.at[:, 1].apply(
+                lambda y: jnp.clip(y, min=y_min, max=y_max)
+            )
         if z_min is not None or z_max is not None:
-            vertices = vertices.at[:, 2].apply(lambda z: z.clip(min=z_min, max=z_max))
+            vertices = vertices.at[:, 2].apply(
+                lambda z: jnp.clip(z, min=z_min, max=z_max)
+            )
 
         return eqx.tree_at(lambda m: m.vertices, self, vertices)
 

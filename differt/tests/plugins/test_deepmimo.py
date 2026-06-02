@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em import materials
+from differt.em import materials, z_0
 from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
 from differt.scene import TriangleScene
@@ -88,8 +88,12 @@ def test_export(key: PRNGKeyArray) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("polarization", ["V", "H"])
-def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -> None:
+@pytest.mark.parametrize("tx_polarization", ["V", "H"])
+@pytest.mark.parametrize("rx_polarization", ["V", "H"])
+def test_match_sionna_on_simple_street_canyon(
+    tx_polarization: Literal["V", "H"],
+    rx_polarization: Literal["V", "H"],
+) -> None:
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
@@ -107,7 +111,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         vertical_spacing=0.5,
         horizontal_spacing=0.5,
         pattern="iso",
-        polarization=polarization,
+        polarization=tx_polarization,
     )
 
     sionna_scene.rx_array = sionna.rt.PlanarArray(
@@ -116,7 +120,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         vertical_spacing=0.5,
         horizontal_spacing=0.5,
         pattern="iso",
-        polarization="V",
+        polarization=rx_polarization,
     )
 
     tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
@@ -144,6 +148,11 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_order, refraction=False)
 
+    custom_materials = {
+        name: eqx.tree_at(lambda m: m.thickness, mat, replace=0.1)
+        for name, mat in materials.items()
+    }
+
     dm = deepmimo.export(
         paths=(
             paths.masked()
@@ -157,6 +166,8 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         scene=differt_scene,
         frequency=sionna_scene.frequency.jax().item(0),
         include_primitives=True,
+        polarization=(tx_polarization, rx_polarization),
+        radio_materials=custom_materials,
     )
     assert isinstance(dm.power, jax.Array)
     dm = dm.numpy()
@@ -223,16 +234,18 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
     a = a[:, 0, :, 0, :, :]  # Take only the first TX and RX polarization
     a = a[..., 0]  # Take only the first time instant
 
-    # TODO: Understand why phase and power are not matching
+    # Only compare phase and power for paths with non-negligible power (e.g., > -150 dBW)
+    # to avoid numerical instabilities and undefined phases on zero-power paths.
+    valid = dm.power > -150.0
 
-    del a
+    chex.assert_trees_all_close(
+        dm.phase[valid],
+        jnp.angle(a, deg=True)[valid],
+        atol=5e-2,
+    )
 
-    # chex.assert_trees_all_equal(
-    #     dm.phase,
-    #     jnp.angle(a, deg=True)
-    # )
-
-    # chex.assert_trees_all_equal(
-    #     dm.power,
-    #     10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
-    # )
+    chex.assert_trees_all_close(
+        dm.power[valid],
+        10.0 * jnp.log10(jnp.abs(a) ** 2 / z_0)[valid],
+        atol=1e-3,
+    )
