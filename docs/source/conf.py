@@ -229,7 +229,7 @@ def linkcode_resolve(domain: str, info: dict[str, str]) -> str | None:
     if info["module"].split(".", 1)[0] not in {"differt", "differt_core"}:
         return None
 
-    try:
+    try:  # noqa: PLW0717
         mod = sys.modules.get(info["module"])
         obj = operator.attrgetter(info["fullname"])(mod)
         if isinstance(obj, property):
