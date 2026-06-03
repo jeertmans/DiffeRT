@@ -855,48 +855,22 @@ def first_triangles_hit_by_rays(
         )
 
     def reduce_fn(
-        left: tuple[
-            Int[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *#batch"],
-        ],
-        right: tuple[
-            Int[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *#batch"],
-        ],
-    ) -> tuple[
-        Int[Array, " *batch"],
-        Float[Array, " *batch"],
-        Float[Array, " *batch"],
-        Float[Array, " *#batch"],
-    ]:
-        left_indices, left_t, left_center_distances, eps = left
-        right_indices, right_t, right_center_distances, _ = right
-        cond: Array = jnp.where(
-            jnp.abs(left_t - right_t) < eps,
-            left_center_distances < right_center_distances,
-            left_t < right_t,
-        )
+        left: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+        right: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+        left_indices, left_t = left
+        right_indices, right_t = right
+        cond = left_t < right_t
         t = jnp.where(cond, left_t, right_t)
         indices = jnp.where(cond, left_indices, right_indices)
-        t = jnp.minimum(left_t, right_t)
-        center_distances = jnp.where(
-            cond, left_center_distances, right_center_distances
-        )
-        is_finite = jnp.isfinite(t)
-        indices = jnp.where(is_finite, indices, -1)
-        t = jnp.where(is_finite, t, jnp.inf)
-        return indices, t, center_distances, eps
+        return indices, t
 
     def map_fn(
         ray_origins: Float[Array, "*#batch 3"],
         ray_directions: Float[Array, "*#batch 3"],
         triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
         t, hit = rays_intersect_triangles(
             ray_origins[..., None, :],
             ray_directions[..., None, :],
@@ -906,26 +880,17 @@ def first_triangles_hit_by_rays(
         if active_triangles is not None:
             hit &= active_triangles
         t = jnp.where(hit, t, jnp.inf)
-        indices = jnp.arange(triangle_vertices.shape[-3])
-        indices = jnp.broadcast_to(indices, t.shape)
-        center_distances = jnp.linalg.norm(
-            triangle_vertices.mean(axis=-2) - ray_origins[..., None, :], axis=-1
-        )
-        center_distances = jnp.broadcast_to(center_distances, t.shape)
-        eps = jnp.broadcast_to(epsilon, t.shape)
-        return jax.lax.reduce(
-            (indices, t, center_distances, eps),
-            (-1, jnp.inf, jnp.inf, epsilon),
-            reduce_fn,
-            dimensions=(t.ndim - 1,),
-        )[:3]
+
+        min_idx = jnp.argmin(t, axis=-1)
+        min_t = jnp.min(t, axis=-1)
+
+        min_idx = jnp.where(jnp.isinf(min_t), -1, min_idx)
+        return min_idx, min_t
 
     def body_fun(
         batch_index: Int[Array, ""],
-        carry: tuple[
-            Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
-        ],
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
+        carry: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
             triangle_vertices, start_index, batch_size, axis=-3
@@ -937,17 +902,16 @@ def first_triangles_hit_by_rays(
             if active_triangles is not None
             else None
         )
-        indices, t, center_distances = map_fn(
+        indices, t = map_fn(
             ray_origins,
             ray_directions,
             batch_of_triangle_vertices,
             batch_of_active_triangles,
         )
-        # TODO: use *carry when ty supports starred expressions
         return reduce_fn(
-            (carry[0], carry[1], carry[2], epsilon),
-            (indices + start_index, t, center_distances, epsilon),
-        )[:3]
+            carry,
+            (indices + start_index, t),
+        )
 
     init_val = (
         -jnp.ones(batch, dtype=jnp.int32),
@@ -956,14 +920,9 @@ def first_triangles_hit_by_rays(
             jnp.inf,
             dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
         ),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
     )
 
-    indices, t, center_distances = jax.lax.fori_loop(
+    indices, t = jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
@@ -971,19 +930,21 @@ def first_triangles_hit_by_rays(
     )
 
     if rem > 0:
-        rem_indices, rem_t, rem_center_distances = map_fn(
+        rem_indices, rem_t = map_fn(
             ray_origins,
             ray_directions,
             triangle_vertices[..., -rem:, :, :],
             active_triangles[..., -rem:] if active_triangles is not None else None,
         )
-        return reduce_fn(
-            (indices, t, center_distances, epsilon),
+        indices, t = reduce_fn(
+            (indices, t),
             (
                 rem_indices + num_batches * batch_size,
                 rem_t,
-                rem_center_distances,
-                epsilon,
             ),
-        )[:2]
+        )
+
+    is_finite = jnp.isfinite(t)
+    indices = jnp.where(is_finite, indices, -1)
+    t = jnp.where(is_finite, t, jnp.inf)
     return (indices, t)
