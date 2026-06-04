@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import TriangleMesh
+from differt.geometry import TriangleMesh, normalize
 from differt.scene import (
     TriangleScene,
     get_sionna_scene,
@@ -17,7 +17,7 @@ from ..rt.utils import PlanarMirrorsSetup
 
 @pytest.fixture
 def large_random_planar_mirrors_setup(key: PRNGKeyArray) -> PlanarMirrorsSetup:
-    num_mirrors = 3
+    num_mirrors = 8
     num_path_candidates = 10_000
 
     key_from, key_to, key_m_vertices, key_m_normals, key_paths = jax.random.split(
@@ -29,9 +29,9 @@ def large_random_planar_mirrors_setup(key: PRNGKeyArray) -> PlanarMirrorsSetup:
     mirror_vertices = jax.random.uniform(
         key_m_vertices, (num_path_candidates, num_mirrors, 3)
     )
-    mirror_normals = jax.random.uniform(
-        key_m_normals, (num_path_candidates, num_mirrors, 3)
-    )
+    mirror_normals = normalize(
+        jax.random.normal(key_m_normals, (num_path_candidates, num_mirrors, 3))
+    )[0]
     paths = jax.random.uniform(key_paths, (num_path_candidates, num_mirrors, 3))
 
     return PlanarMirrorsSetup(
