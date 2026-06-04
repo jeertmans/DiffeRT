@@ -24,7 +24,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gr-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
+- Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 
 ### Fixed
 
