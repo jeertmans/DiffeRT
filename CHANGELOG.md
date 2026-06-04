@@ -25,6 +25,10 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added an automatically generated ITU radio materials summary table in Sphinx documentation using a custom Sphinx extension and directive `.. itu-materials-table::` (by <gh-user:jeertmans>, in <gh-pr:504>).
+- Added topology-aware diffraction edge detection properties (`_connectivity`, `diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`Mesh<differt.geometry.Mesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:Antigravity>).
+- Added a reusable, JAX-compatible EM pipeline ({func}`compute_received_fields<differt.em.compute_received_fields>`, {func}`compute_received_power<differt.em.compute_received_power>`, {func}`compute_cir<differt.em.compute_cir>`) under {mod}`differt.em` to calculate received fields, received power, and Channel Impulse Response (CIR) (by <gh-user:Antigravity>).
+- Added comparative integration tests verifying DiffeRT's computed received power against Sionna's RT solver (by <gh-user:Antigravity>).
+- Added UTD {func}`diffraction_coefficients<differt.em.diffraction_coefficients>` implementing soft ($D_s$) and hard ($D_h$) diffraction coefficients for PEC and lossy dielectric wedges (Luebbers' heuristic model), including a NaN-safe transition helper across shadow and reflection boundaries (by <gh-user:Antigravity>).
 
 ### Changed
 
@@ -32,6 +36,11 @@ with one *slight* but **important** difference:
 - **Breaking change**: The {func}`get_sionna_scene<differt.geometry.get_sionna_scene>` function now returns a {class}`pathlib.Path`, instead of a {class}`str` (by <gh-user:jeertmans>, in <gh-pr:517>).
 - Updated built-in ITU radio materials list in ``materials`` to **Recommendation ITU-R P.2040-4** (09/2025), including updated electrical parameters ($a, b, c, d, \text{frequency range}$) and default Sionna-RT RGB color mappings (by <gh-user:jeertmans>, in <gh-pr:504>).
 - Improved {class}`Material<differt.em._material.Material>` and ``materials`` string representations (`__repr__`) to display clean summaries with registered aliases instead of internal JIT function pointers (by <gh-user:jeertmans>, in <gh-pr:504>).
+- Refactored {func}`deepmimo.export<differt.plugins.deepmimo.export>` to leverage the new unified JAX-compatible `compute_received_fields` pipeline, reducing duplicate code and improving consistency (by <gh-user:Antigravity>).
+
+### Fixed
+
+- Fixed the `mode == "-"` branch in the UTD `_N` helper function in `differt/em/_utd.py` to use `(beta - jnp.pi)` instead of `(beta + jnp.pi)` (by <gh-user:Antigravity>).
 
 ## [0.10.0](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...v0.10.0)
 
@@ -99,7 +108,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` method to only renumber triangles to refer to the first occurrence of each unique vertex coordinate, thus preserving the original vertices and their ordering (by <gh-user:jeertmans>, in <gh-pr:463>).
+- Added {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` method to only renumber triangles to refer to the first occurrence of each unique vertex coordinate, thrust preserving the original vertices and their ordering (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.Mesh.drop_unused_vertices>` method to remove vertices that are not referenced by any triangle (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added diffraction edge detection properties (`diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`TriangleMesh<differt.geometry.Mesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.Mesh>` to significantly improve performance of ray-triangle intersections, first hit search, and visibility checks when smoothing is disabled (by <gh-user:jeertmans>, in <gh-pr:467>).
@@ -115,6 +124,7 @@ with one *slight* but **important** difference:
 - Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed a bug in `_keep_within` (used by `keep_all_within` and `keep_any_within`) where the calculation of the active triangles count per object counted all triangles instead of active ones when checking if an object was fully kept/removed (by <gh-user:jeertmans>, in <gh-pr:456>).
+- Fixed the `mode == "-"` branch in the UTD `_N` helper function in `differt/em/_utd.py` to use `(beta - jnp.pi)` instead of `(beta + jnp.pi)` (by <gh-user:Antigravity>).
 
 ### Removed
 
