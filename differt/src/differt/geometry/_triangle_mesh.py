@@ -1,4 +1,6 @@
+import functools
 import typing
+import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
@@ -22,6 +24,86 @@ import differt_core.geometry
 from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
 from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
+
+
+@functools.partial(jax.jit, static_argnames=("assume_quads",))
+def _connectivity_jax(
+    triangles: Int[Array, "num_triangles 3"], assume_quads: bool
+) -> tuple[Int[Array, "num_triangles 3"], Int[Array, "num_triangles 3"]]:
+    num_triangles = triangles.shape[0]
+    if num_triangles == 0:
+        return jnp.empty((0, 3), dtype=int), jnp.empty((0, 3), dtype=int)
+
+    edges_0 = triangles[:, [0, 2]]
+    edges_1 = triangles[:, [1, 0]]
+    edges_2 = triangles[:, [2, 1]]
+    all_edges = jnp.stack((edges_0, edges_1, edges_2), axis=1)  # (num_triangles, 3, 2)
+
+    sorted_edges = jnp.sort(all_edges, axis=-1)
+    flat_edges = sorted_edges.reshape(-1, 2)  # (N, 2)
+    n_half_edges = flat_edges.shape[0]
+
+    # Lexicographically sort the edges
+    keys = (flat_edges[:, 0], flat_edges[:, 1])
+    sorted_indices = jnp.lexsort(keys)
+    sorted_flat_edges = flat_edges[sorted_indices]
+
+    # Find identical adjacent elements
+    matches_left = jnp.concatenate([
+        jnp.array([False]),
+        jnp.all(sorted_flat_edges[1:] == sorted_flat_edges[:-1], axis=-1),
+    ])
+
+    # Identify groups of identical edges
+    is_start = ~matches_left
+    group_ids = jnp.cumsum(is_start) - 1
+
+    # Count the number of elements in each group
+    group_counts = jnp.bincount(group_ids, length=n_half_edges)
+    element_counts = group_counts[group_ids]
+
+    # A half-edge has a valid manifold match if its group size is exactly 2
+    manifold_count = 2
+    is_manifold = element_counts == manifold_count
+
+    # For a manifold pair at sorted indices k and k', one has matches_left and the other does not.
+    # So if matches_left[k] is True, its match is k - 1.
+    # Otherwise, its match is k + 1.
+    match_sorted_idx = jnp.where(
+        matches_left, jnp.arange(n_half_edges) - 1, jnp.arange(n_half_edges) + 1
+    )
+    match_orig_idx = sorted_indices[match_sorted_idx]
+
+    # Exclude non-manifold and boundary edges
+    adj_idx = jnp.full(n_half_edges, -1)
+    adj_idx = adj_idx.at[sorted_indices].set(jnp.where(is_manifold, match_orig_idx, -1))
+
+    adj_t = jnp.where(adj_idx != -1, adj_idx // 3, -1)
+    adj_e = jnp.where(adj_idx != -1, adj_idx % 3, -1)
+
+    adj_t = adj_t.reshape(num_triangles, 3)
+    adj_e = adj_e.reshape(num_triangles, 3)
+
+    # Warning for non-manifold edges
+    def warn_callback(has_non_manifold: Any) -> None:
+        if bool(has_non_manifold):
+            warnings.warn(
+                "The mesh contains non-manifold edges (edges shared by more than two triangles). "
+                "These edges will be excluded from diffraction calculations.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    jax.debug.callback(warn_callback, jnp.any(element_counts > manifold_count))
+
+    if assume_quads:
+        t_idx = jnp.arange(num_triangles)[:, None]
+        is_diagonal = jnp.where(t_idx % 2 == 0, adj_t == t_idx + 1, adj_t == t_idx - 1)
+        adj_t = jnp.where(is_diagonal, -1, adj_t)
+        adj_e = jnp.where(is_diagonal, -1, adj_e)
+
+    return adj_t, adj_e
+
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -604,19 +686,44 @@ class TriangleMesh(eqx.Module):
         )
 
     @property
+    def _connectivity(
+        self,
+    ) -> tuple[Int[Array, "num_triangles 3"], Int[Array, "num_triangles 3"]]:
+        return _connectivity_jax(self.triangles, self.assume_quads)
+
+    @property
     def diffraction_edges_mask(self) -> Bool[Array, "num_triangles 3"]:
-        """
-        The mask to select valid diffraction edges from :attr:`triangle_edges`.
+        """The mask to select valid diffraction edges from :attr:`triangle_edges`."""
+        num_triangles = self.num_triangles
+        if num_triangles == 0:
+            return jnp.empty((0, 3), dtype=bool)
 
-        .. warning::
+        adj_t, _ = self._connectivity
 
-            The current return value is a placeholder and should be implemented properly.
+        # Basic mask: has an adjacent triangle
+        mask = adj_t != -1
 
-            If you are interested in contributing to this function, please reach out
-            on GitHub.
-        """
-        # TODO: implement this properly
-        return jnp.ones((self.num_triangles, 3), dtype=bool)
+        # Apply self.mask if present
+        if self.mask is not None:
+            # Triangle i must be active
+            mask = mask & self.mask[:, None]
+            # Adjacent triangle must also be active
+            adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+            padded_mask = jnp.append(self.mask, False)
+            mask = mask & padded_mask[adj_t_safe]
+
+        # Non-coplanar check
+        normals = self.normals
+        adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+        padded_normals = jnp.vstack((normals, jnp.zeros((1, 3))))
+        normals_2 = padded_normals[adj_t_safe]
+        normals_1 = normals[:, None, :]
+
+        cos_phi = jnp.sum(normals_1 * normals_2, axis=-1)
+        cos_phi = jnp.clip(cos_phi, -1.0, 1.0)
+        is_coplanar = cos_phi > 1.0 - 1e-5
+
+        return mask & (~is_coplanar)
 
     @property
     def diffraction_edges(self) -> Float[Array, "num_edges 2 3"]:
@@ -624,16 +731,56 @@ class TriangleMesh(eqx.Module):
         The diffraction edges.
 
         If you need just-in-time compilation, use :attr:`diffraction_edges_mask` directly.
-
-        .. warning::
-
-            The current return value is a placeholder and should be implemented properly.
-
-            If you are interested in contributing to this function, please reach out
-            on GitHub.
         """
         mask = self.diffraction_edges_mask.reshape(-1)
         return self.triangle_edges.reshape(-1, 2, 3)[mask]
+
+    @property
+    def wedge_angles(self) -> Float[Array, "num_triangles 3"]:
+        """Compute the wedge parameter n (where exterior angle is n * pi) for each edge.
+
+        Returns 1.0 for non-diffraction edges.
+        """
+        num_triangles = self.num_triangles
+        if num_triangles == 0:
+            return jnp.empty((0, 3))
+
+        normals = self.normals  # (num_triangles, 3)
+        adj_t, adj_e = self._connectivity
+
+        adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+        padded_normals = jnp.vstack((normals, jnp.zeros((1, 3))))
+        normals_2 = padded_normals[adj_t_safe]
+        normals_1 = normals[:, None, :]
+
+        cos_phi = jnp.sum(normals_1 * normals_2, axis=-1)
+        cos_phi = jnp.clip(cos_phi, -1.0, 1.0)
+        phi = jnp.arccos(cos_phi)
+
+        vertices = self.triangle_vertices  # (num_triangles, 3, 3)
+        v_a = vertices
+
+        opp_vertex_map = jnp.array([1, 2, 0])
+        adj_e_safe = jnp.where(adj_e != -1, adj_e, 0)
+        opp_v_idx = opp_vertex_map[adj_e_safe]
+
+        padded_vertices = jnp.vstack((vertices, jnp.zeros((1, 3, 3))))
+        v_opp2 = padded_vertices[adj_t_safe, opp_v_idx]
+
+        u2 = v_opp2 - v_a
+        dot_u2 = jnp.sum(normals_1 * u2, axis=-1)
+        s = jnp.sign(dot_u2)
+
+        n = 1.0 - s * phi / jnp.pi
+
+        mask = self.diffraction_edges_mask
+        return jnp.where(mask, n, 1.0)
+
+    @property
+    def wedge_parameters(self) -> Float[Array, " num_edges"]:
+        """The wedge parameter n for each diffraction edge."""
+        mask = self.diffraction_edges_mask.reshape(-1)
+        return self.wedge_angles.reshape(-1)[mask]
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
