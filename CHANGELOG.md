@@ -24,20 +24,20 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added topology-aware diffraction edge detection properties (`_connectivity`, `diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`TriangleMesh<differt.geometry.TriangleMesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:Antigravity>).
-- Added a reusable, JAX-compatible EM pipeline ({func}`compute_received_fields<differt.em.compute_received_fields>`, {func}`compute_received_power<differt.em.compute_received_power>`, {func}`compute_cir<differt.em.compute_cir>`) under {mod}`differt.em` to calculate received fields, received power, and Channel Impulse Response (CIR) (by <gh-user:Antigravity>).
+- Added topology-aware diffraction edge detection properties (`_connectivity`, `diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`TriangleMesh<differt.geometry.TriangleMesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:jeertmans>).
+- Added a reusable, JAX-compatible EM pipeline ({func}`compute_received_fields<differt.em.compute_received_fields>`, {func}`compute_received_power<differt.em.compute_received_power>`, {func}`compute_cir<differt.em.compute_cir>`) under {mod}`differt.em` to calculate received fields, received power, and Channel Impulse Response (CIR) (by <gh-user:jeertmans>).
 
 ### Changed
 
-- Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gr-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 - Refactored {func}`deepmimo.export<differt.plugins.deepmimo.export>` to leverage the new unified JAX-compatible `compute_received_fields` pipeline, reducing duplicate code and improving consistency (by <gh-user:Antigravity>).
+- Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 
 ### Fixed
 
 - Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed a bug in `_keep_within` (used by `keep_all_within` and `keep_any_within`) where the calculation of the active triangles count per object counted all triangles instead of active ones when checking if an object was fully kept/removed (by <gh-user:jeertmans>, in <gh-pr:456>).
-- Fixed the `mode == "-"` branch in the UTD `_N` helper function in `differt/em/_utd.py` to use `(beta - jnp.pi)` instead of `(beta + jnp.pi)` (by <gh-user:Antigravity>).
+- Fixed the `mode == "-"` branch in the UTD `_N` helper function in `differt/em/_utd.py` to use `(beta - jnp.pi)` instead of `(beta + jnp.pi)` (by <gh-user:jeertmans>).
 
 ## [0.8.2](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...v0.8.2)
 
