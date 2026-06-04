@@ -28,7 +28,7 @@ def _N(
 ) -> Float[Array, " *batch"]:
     if mode == "+":
         return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
-    return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
+    return jnp.round((beta - jnp.pi) / (2 * n * jnp.pi))
 
 
 @jax.jit(inline=True, static_argnames=("mode"))
