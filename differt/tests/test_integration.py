@@ -7,7 +7,11 @@ import numpy as np
 import pytest
 from pytest_subtests import SubTests
 
-from differt.em import materials
+from differt.em import (
+    compute_received_fields,
+    compute_received_power,
+    materials,
+)
 from differt.geometry import (
     TriangleMesh,
     assemble_paths,
@@ -248,3 +252,104 @@ def test_itu_materials(subtests: SubTests) -> None:
                     sionna_mat_conductivity,
                     custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
                 )
+
+
+@pytest.mark.slow
+def test_received_power_matches_sionna() -> None:
+    sionna = pytest.importorskip("sionna", reason="sionna not installed")
+
+    # Load simple street canyon scene
+    file = sionna.rt.scene.simple_street_canyon
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = TriangleScene.load_xml(file).set_assume_quads()
+
+    # Configure transmitter and receiver antenna array
+    # We use isotropic pattern with vertical polarization (V)
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+
+    # Position Transmitter and Receiver
+    tx_pos = [-33.0, 0.0, 32.0]
+    rx_pos = [20.0, 0.0, 2.0]
+    tx = sionna.rt.Transmitter(name="tx", position=tx_pos)
+    rx = sionna.rt.Receiver(name="rx", position=rx_pos)
+    sionna_scene.add(tx)
+    sionna_scene.add(rx)
+
+    # Solve paths using Sionna
+    # Limit to specular reflections only and match max depth
+    max_depth = 2
+    sionna_solver = sionna.rt.PathSolver()
+    sionna_paths = sionna_solver(sionna_scene, max_depth=max_depth)
+    a_real, a_imag = sionna_paths.a
+    a_sionna = a_real.numpy() + 1j * a_imag.numpy()
+    a_sionna = a_sionna[0, 0, 0, 0, :]
+
+    # Calculate received power using Sionna (coherent and non-coherent)
+    power_coherent_sionna = 10.0 * jnp.log10(jnp.abs(jnp.sum(a_sionna)) ** 2)
+    power_non_coherent_sionna = 10.0 * jnp.log10(jnp.sum(jnp.abs(a_sionna) ** 2))
+
+    # Setup matching scenario in DiffeRT
+    differt_scene = eqx.tree_at(
+        lambda s: s.transmitters,
+        differt_scene,
+        replace=jnp.asarray([tx_pos]),
+    )
+    differt_scene = eqx.tree_at(
+        lambda s: s.receivers,
+        differt_scene,
+        replace=jnp.asarray([rx_pos]),
+    )
+
+    # Compute paths in DiffeRT
+    fields_list = []
+    for order in range(max_depth + 1):
+        paths = differt_scene.compute_paths(order=order)
+        f = compute_received_fields(
+            paths,
+            differt_scene.mesh,
+            frequency=3.5e9,
+            tx_polarization="V",
+            rx_polarization="V",
+        )
+        fields_list.append(f.reshape(-1))
+
+    all_fields = jnp.concatenate(fields_list)
+    # Remove invalid paths (zero fields)
+    all_fields = all_fields[jnp.abs(all_fields) > 1e-12]
+
+    # Calculate received power in DiffeRT with z_0=1.0 to match normalization
+    power_coherent_differt = compute_received_power(
+        all_fields, coherent=True, axis=0, z_0=1.0
+    )
+    power_non_coherent_differt = compute_received_power(
+        all_fields, coherent=False, axis=0, z_0=1.0
+    )
+
+    # Verify that they are very close
+    # Non-coherent power matches within 1.0 dB
+    chex.assert_trees_all_close(
+        power_non_coherent_differt,
+        power_non_coherent_sionna,
+        atol=1.0,
+    )
+    # Coherent power matches within 4.0 dB (minor differences due to phase/reflections definition)
+    chex.assert_trees_all_close(
+        power_coherent_differt,
+        power_coherent_sionna,
+        atol=4.0,
+    )
