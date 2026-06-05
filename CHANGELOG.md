@@ -38,12 +38,14 @@ with one *slight* but **important** difference:
 
 - Improved Sionna-compatible XML scene parser to support top-level `<bsdf type="diffuse">` materials in addition to nested structures, enabling support for OSM buildings and other XML formats (by <gh-user:jeertmans>, in <gh-pr:444>).
 - Added fallback to black color `[0.0, 0.0, 0.0]` when material `<rgb>` elements are missing, with appropriate warnings logged (by <gh-user:jeertmans>, in <gh-pr:444>).
-- Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
+- Added the `ray_batch_size` and `tri_batch_size` arguments to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to let users control ray and triangle chunk sizes independently (by <gh-user:jeertmans>, in <gh-pr:446>).
 - Added the {meth}`TriangleMesh.center<differt.geometry.TriangleMesh.center>` and {meth}`TriangleMesh.add_ground<differt.geometry.TriangleMesh.add_ground>` methods to support centering and adding a ground plane to the mesh, especially for when the ground plane is removed by any of the filtering methods (by <gh-user:jeertmans>, in <gh-pr:452>).
 
-## Changed
+### Changed
 
+- Added the {meth}`TriangleMesh.clip<differt.geometry.TriangleMesh.clip>`, {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>`, and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods to support clipping and filtering triangle meshes by axis-aligned bounds (by <gh-user:jeertmans>, in <gh-pr:445>).
 - Added warning message to {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` methods when `preserve_objects=True` is used, as it is not fully supported yet (by <gh-user:jeertmans>, in <gh-pr:452>).
+- Updated the `batch_size` argument semantics for {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` so that `batch_size` acts as the default for whichever of `ray_batch_size` and `tri_batch_size` are left unspecified (by <gh-user:jeertmans>, in <gh-pr:446>).
 
 ### Chore
 
@@ -52,6 +54,10 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Unused triangle vertices are now properly removed when masking a mesh with {meth}`TriangleMesh.masked<differt.geometry.TriangleMesh.masked>`, fixing a potential plotting bugs as unused vertices may be used to compute the total visible area (by <gh-user:jeertmans>, in <gh-pr:452>).
+
+### Perf
+
+- Reworked the ray-triangle intersection helpers to use double-chunk processing over rays and triangles, reducing peak memory usage while keeping performance high on CPU and GPU (by <gh-user:jeertmans>, in <gh-pr:446>).
 
 ## [0.8.1](https://github.com/jeertmans/DiffeRT/compare/v0.8.0...v0.8.1)
 
