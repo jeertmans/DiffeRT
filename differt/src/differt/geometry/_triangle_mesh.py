@@ -1,4 +1,5 @@
 import typing
+import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
@@ -365,6 +366,12 @@ class TriangleMesh(eqx.Module):
     :attr:`num_triangles` is even, but each two consecutive
     triangles are assumed to represent a quadrilateral surface.
     """
+    assume_unique_vertices: bool = eqx.field(default=False)
+    """Flag indicating whether vertices in the mesh are assumed to be unique.
+
+    If set to :data:`False`, methods that rely on unique vertices (like diffraction edge detection)
+    will automatically call :meth:`dedup_vertices` first.
+    """
     mask: Bool[Array, " num_triangles"] | None = eqx.field(default=None)
     """An optional mask to indicate which triangles are active.
 
@@ -473,6 +480,53 @@ class TriangleMesh(eqx.Module):
                     ),
                     is_leaf=lambda x: x is None,
                 )
+
+    @eqx.filter_jit
+    def dedup_vertices(self, num_decimals: int | None = None) -> Self:
+        """
+        Deduplicate vertices by renumbering triangles to point to the first occurrence.
+
+        This method does not reduce the number of vertices or change their ordering, but
+        simply renumbers the triangle indices to refer to the first occurrence of each
+        duplicate vertex. Unreferenced vertices will remain in :attr:`vertices`.
+
+        Args:
+            num_decimals: The number of decimals to round the vertices to before checking for duplicates.
+                If :data:`None`, then no rounding is performed.
+
+        Returns:
+            A new mesh with :attr:`assume_unique_vertices` set to :data:`True`.
+            If it was already :data:`True`, then this is a no-op and returns ``self``.
+        """
+        if self.assume_unique_vertices:
+            return self
+
+        if self.vertices.shape[0] == 0:
+            return eqx.tree_at(lambda m: m.assume_unique_vertices, self, replace=True)
+
+        if num_decimals is None:
+            rounded = self.vertices
+        else:
+            rounded = jnp.round(self.vertices, decimals=num_decimals)
+
+        # Find unique vertices
+        _, unique_indices, inverse_indices = jnp.unique(
+            rounded,
+            axis=0,
+            return_index=True,
+            return_inverse=True,
+            size=self.vertices.shape[0],
+        )
+
+        first_occurrence = unique_indices[inverse_indices]
+        new_triangles = first_occurrence[self.triangles]
+
+        # Update triangles and set assume_unique_vertices to True
+        return eqx.tree_at(
+            lambda m: (m.triangles, m.assume_unique_vertices),
+            self,
+            (new_triangles, True),
+        )
 
     @property
     def num_triangles(self) -> int:
@@ -603,20 +657,217 @@ class TriangleMesh(eqx.Module):
             (triangle_vertices, jnp.roll(triangle_vertices, 1, axis=-2)), axis=-2
         )
 
+    @eqx.filter_jit
+    def _connectivity(
+        self,
+    ) -> tuple[Int[Array, "num_triangles 3"], Int[Array, "num_triangles 3"]]:
+        """
+        Compute the edge-to-triangle connectivity of the mesh.
+
+        For each of the 3 edges of each triangle, computes the adjacent triangle index
+        and the local edge index of that adjacent triangle.
+
+        Returns:
+            A tuple of (adj_t, adj_e):
+            - adj_t: Adjacent triangle index (or -1 if none).
+            - adj_e: Adjacent edge index (or -1 if none).
+        """
+        triangles = self.triangles
+        assume_quads = self.assume_quads
+        num_triangles = triangles.shape[0]
+        if num_triangles == 0:
+            return jnp.empty((0, 3), dtype=int), jnp.empty((0, 3), dtype=int)
+
+        # For each triangle, the 3 edges are defined by pairs of vertices:
+        # Edge 0: vertex 0 -> vertex 2
+        # Edge 1: vertex 1 -> vertex 0
+        # Edge 2: vertex 2 -> vertex 1
+        edges_0 = triangles[:, [0, 2]]
+        edges_1 = triangles[:, [1, 0]]
+        edges_2 = triangles[:, [2, 1]]
+        all_edges = jnp.stack(
+            (edges_0, edges_1, edges_2), axis=1
+        )  # (num_triangles, 3, 2)
+
+        # Sort the vertices of each edge to make orientation-independent
+        sorted_edges = jnp.sort(all_edges, axis=-1)
+        flat_edges = sorted_edges.reshape(-1, 2)  # (N, 2)
+        n_half_edges = flat_edges.shape[0]
+
+        # Lexicographically sort all half-edges to bring adjacent ones together
+        keys = (flat_edges[:, 0], flat_edges[:, 1])
+        sorted_indices = jnp.lexsort(keys)
+        sorted_flat_edges = flat_edges[sorted_indices]
+
+        # Find adjacent half-edges that are identical (share the same two vertices)
+        matches_left = jnp.concatenate([
+            jnp.array([False]),
+            jnp.all(sorted_flat_edges[1:] == sorted_flat_edges[:-1], axis=-1),
+        ])
+
+        # Group identical half-edges
+        is_start = ~matches_left
+        group_ids = jnp.cumsum(is_start) - 1
+
+        # Count the number of half-edges in each group.
+        # A group size of 2 represents a manifold edge (shared by exactly two triangles).
+        # A group size greater than 2 represents a non-manifold edge.
+        # A group size of 1 is a boundary edge.
+        group_counts = jnp.bincount(group_ids, length=n_half_edges)
+        element_counts = group_counts[group_ids]
+
+        manifold_count = 2
+        is_manifold = element_counts == manifold_count
+
+        # For a manifold pair, match the two half-edges with each other
+        match_sorted_idx = jnp.where(
+            matches_left, jnp.arange(n_half_edges) - 1, jnp.arange(n_half_edges) + 1
+        )
+        match_orig_idx = sorted_indices[match_sorted_idx]
+
+        # Initialize adjacency index array with -1
+        adj_idx = jnp.full(n_half_edges, -1)
+        adj_idx = adj_idx.at[sorted_indices].set(
+            jnp.where(is_manifold, match_orig_idx, -1)
+        )
+
+        # Convert the matched flat half-edge index back to triangle and local edge indices
+        adj_t = jnp.where(adj_idx != -1, adj_idx // 3, -1)
+        adj_e = jnp.where(adj_idx != -1, adj_idx % 3, -1)
+
+        adj_t = adj_t.reshape(num_triangles, 3)
+        adj_e = adj_e.reshape(num_triangles, 3)
+
+        # Emit warning if any non-manifold edges are found
+        def warn_callback(has_non_manifold: Any) -> None:
+            if bool(has_non_manifold):
+                warnings.warn(
+                    "The mesh contains non-manifold edges (edges shared by more than two triangles). "
+                    "These edges will be excluded from diffraction calculations.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+        jax.debug.callback(warn_callback, jnp.any(element_counts > manifold_count))
+
+        # If assume_quads is True, we filter out the diagonal edges within each quad
+        if assume_quads:
+            t_idx = jnp.arange(num_triangles)[:, None]
+            is_diagonal = jnp.where(
+                t_idx % 2 == 0, adj_t == t_idx + 1, adj_t == t_idx - 1
+            )
+            adj_t = jnp.where(is_diagonal, -1, adj_t)
+            adj_e = jnp.where(is_diagonal, -1, adj_e)
+
+        return adj_t, adj_e
+
     @property
     def diffraction_edges_mask(self) -> Bool[Array, "num_triangles 3"]:
+        """The mask to select valid diffraction edges from :attr:`triangle_edges`."""
+        if not self.assume_unique_vertices:
+            return self.dedup_vertices().diffraction_edges_mask
+
+        num_triangles = self.num_triangles
+        if num_triangles == 0:
+            return jnp.empty((0, 3), dtype=bool)
+
+        adj_t, _ = self._connectivity()
+
+        # Basic mask: has an adjacent triangle
+        mask = adj_t != -1
+
+        # Apply self.mask if present
+        if self.mask is not None:
+            # Triangle i must be active
+            mask = mask & self.mask[:, None]
+            # Adjacent triangle must also be active
+            adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+            padded_mask = jnp.append(self.mask, False)
+            mask = mask & padded_mask[adj_t_safe]
+
+        # Non-coplanar check
+        normals = self.normals
+        adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+        padded_normals = jnp.vstack((normals, jnp.zeros((1, 3))))
+        normals_2 = padded_normals[adj_t_safe]
+        normals_1 = normals[:, None, :]
+
+        cos_phi = jnp.sum(normals_1 * normals_2, axis=-1)
+        is_coplanar = cos_phi > 1.0 - (10.0 * jnp.finfo(cos_phi.dtype).eps)
+
+        return mask & (~is_coplanar)
+
+    def _diffraction_edges_info(
+        self,
+    ) -> tuple[
+        Float[Array, "num_unique_edges 2 3"],
+        Int[Array, "num_unique_edges 2"],
+        Float[Array, " num_unique_edges"],
+    ]:
         """
-        The mask to select valid diffraction edges from :attr:`triangle_edges`.
+        Compute coordinates, adjacent triangles, and wedge parameters for unique diffraction edges.
 
-        .. warning::
-
-            The current return value is a placeholder and should be implemented properly.
-
-            If you are interested in contributing to this function, please reach out
-            on GitHub.
+        Returns:
+            A tuple of (unique_edges, adj_triangles, wedge_params):
+            - unique_edges: Coordinates of unique diffraction edges.
+            - adj_triangles: Adjacent triangle indices.
+            - wedge_params: Wedge parameters for each unique edge.
         """
-        # TODO: implement this properly
-        return jnp.ones((self.num_triangles, 3), dtype=bool)
+        t_idx, e_idx = jnp.where(self.diffraction_edges_mask)
+        num_half_edges = t_idx.shape[0]
+
+        # Handle the empty case
+        if num_half_edges == 0:
+            return (
+                jnp.empty((0, 2, 3)),
+                jnp.empty((0, 2), dtype=int),
+                jnp.empty((0,)),
+            )
+
+        v_start = self.triangles[t_idx, e_idx]
+        v_end = self.triangles[t_idx, (e_idx - 1) % 3]
+
+        v_min = jnp.minimum(v_start, v_end)
+        v_max = jnp.maximum(v_start, v_end)
+        keys = jnp.stack((v_min, v_max), axis=-1)
+
+        unique_keys, unique_indices, inverse_indices = jnp.unique(
+            keys, axis=0, return_index=True, return_inverse=True
+        )
+        num_unique_edges = unique_keys.shape[0]
+
+        # Extract coordinates of unique edges
+        flat_half_edge_indices = t_idx * 3 + e_idx
+        unique_flat_indices = flat_half_edge_indices[unique_indices]
+        unique_edges = self.triangle_edges.reshape(-1, 2, 3)[unique_flat_indices]
+
+        # Sort the half-edges by their unique edge index to group them
+        sort_idx = jnp.argsort(inverse_indices)
+        sorted_inverse = inverse_indices[sort_idx]
+        sorted_t_idx = t_idx[sort_idx]
+
+        # Group and assign adjacent triangle indices
+        is_second = jnp.concatenate([
+            jnp.array([False]),
+            sorted_inverse[1:] == sorted_inverse[:-1],
+        ])
+
+        adj_triangles = jnp.full((num_unique_edges, 2), -1, dtype=int)
+
+        first_mask = ~is_second
+        adj_triangles = adj_triangles.at[sorted_inverse[first_mask], 0].set(
+            sorted_t_idx[first_mask]
+        )
+
+        second_mask = is_second
+        adj_triangles = adj_triangles.at[sorted_inverse[second_mask], 1].set(
+            sorted_t_idx[second_mask]
+        )
+
+        # Extract wedge parameters for each unique edge
+        wedge_params = self.wedge_angles[t_idx[unique_indices], e_idx[unique_indices]]
+
+        return unique_edges, adj_triangles, wedge_params
 
     @property
     def diffraction_edges(self) -> Float[Array, "num_edges 2 3"]:
@@ -624,20 +875,84 @@ class TriangleMesh(eqx.Module):
         The diffraction edges.
 
         If you need just-in-time compilation, use :attr:`diffraction_edges_mask` directly.
-
-        .. warning::
-
-            The current return value is a placeholder and should be implemented properly.
-
-            If you are interested in contributing to this function, please reach out
-            on GitHub.
         """
-        mask = self.diffraction_edges_mask.reshape(-1)
-        return self.triangle_edges.reshape(-1, 2, 3)[mask]
+        if not self.assume_unique_vertices:
+            return self.dedup_vertices().diffraction_edges
+
+        edges, _, _ = self._diffraction_edges_info()
+        return edges
+
+    @property
+    def diffraction_edges_to_triangles(self) -> Int[Array, "num_edges 2"]:
+        """
+        The indices of the triangles adjacent to each diffraction edge.
+
+        If the edge is isolated (i.e., attached to only one face), the second index is -1.
+        """
+        if not self.assume_unique_vertices:
+            return self.dedup_vertices().diffraction_edges_to_triangles
+
+        _, adj_triangles, _ = self._diffraction_edges_info()
+        return adj_triangles
+
+    @property
+    def wedge_angles(self) -> Float[Array, "num_triangles 3"]:
+        """
+        The wedge parameter n (where exterior angle is n * pi) for each edge.
+
+        Returns 1.0 for non-diffraction edges.
+        """
+        if not self.assume_unique_vertices:
+            return self.dedup_vertices().wedge_angles
+
+        num_triangles = self.num_triangles
+        if num_triangles == 0:
+            return jnp.empty((0, 3))
+
+        normals = self.normals  # (num_triangles, 3)
+        adj_t, adj_e = self._connectivity()
+
+        adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
+        padded_normals = jnp.vstack((normals, jnp.zeros((1, 3))))
+        normals_2 = padded_normals[adj_t_safe]
+        normals_1 = normals[:, None, :]
+
+        cos_phi = jnp.sum(normals_1 * normals_2, axis=-1)
+        cos_phi = jnp.clip(cos_phi, -1.0, 1.0)
+        phi = jnp.arccos(cos_phi)
+
+        vertices = self.triangle_vertices  # (num_triangles, 3, 3)
+        v_a = vertices
+
+        opp_vertex_map = jnp.array([1, 2, 0])
+        adj_e_safe = jnp.where(adj_e != -1, adj_e, 0)
+        opp_v_idx = opp_vertex_map[adj_e_safe]
+
+        padded_vertices = jnp.vstack((vertices, jnp.zeros((1, 3, 3))))
+        v_opp2 = padded_vertices[adj_t_safe, opp_v_idx]
+
+        u2 = v_opp2 - v_a
+        dot_u2 = jnp.sum(normals_1 * u2, axis=-1)
+        s = jnp.sign(dot_u2)
+
+        n = 1.0 - s * phi / jnp.pi
+
+        mask = self.diffraction_edges_mask
+        return jnp.where(mask, n, 1.0)
+
+    @property
+    def wedge_parameters(self) -> Float[Array, " num_edges"]:
+        """The wedge parameter n for each diffraction edge."""
+        if not self.assume_unique_vertices:
+            return self.dedup_vertices().wedge_parameters
+
+        _, _, params = self._diffraction_edges_info()
+        return params
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
-        """The bounding box (min. and max. coordinates).
+        """
+        The bounding box (min. and max. coordinates).
 
         .. important::
 
@@ -741,7 +1056,8 @@ class TriangleMesh(eqx.Module):
               vertices=f32[8,3],
               triangles=i32[10,3],
               material_names=(),
-              object_bounds=i32[5,2]
+              object_bounds=i32[5,2],
+              assume_unique_vertices=True
             ))
             >>> index = jnp.array([True, False])
             >>> mesh.at[index]
@@ -749,7 +1065,8 @@ class TriangleMesh(eqx.Module):
               vertices=f32[8,3],
               triangles=i32[10,3],
               material_names=(),
-              object_bounds=i32[5,2]
+              object_bounds=i32[5,2],
+              assume_unique_vertices=True
             ), Array([ True, False], dtype=bool))
             >>> mesh.at[index].add(1.0)  # doctest: +IGNORE_EXCEPTION_DETAIL
             Traceback (most recent call last):
@@ -759,7 +1076,8 @@ class TriangleMesh(eqx.Module):
         return _TriangleMeshVerticesUpdateHelper(self)
 
     def masked(self) -> Self:
-        """Return a new instance of this object that only keeps masked (i.e., active) triangles.
+        """
+        Return a new instance of this object that only keeps masked (i.e., active) triangles.
 
         .. important::
             This method does not preserve the :attr:`object_bounds` attribute.
@@ -922,7 +1240,11 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new empty scene.
         """
-        return cls(vertices=jnp.empty((0, 3)), triangles=jnp.empty((0, 3), dtype=int))
+        return cls(
+            vertices=jnp.empty((0, 3)),
+            triangles=jnp.empty((0, 3), dtype=int),
+            assume_unique_vertices=True,
+        )
 
     def append(self, other: "TriangleMesh") -> Self:
         """
@@ -1083,7 +1405,12 @@ class TriangleMesh(eqx.Module):
             mask = None
 
         assume_quads = self.assume_quads and other.assume_quads
-        mesh = replace(self, material_names=material_names, assume_quads=assume_quads)
+        mesh = replace(
+            self,
+            material_names=material_names,
+            assume_quads=assume_quads,
+            assume_unique_vertices=False,
+        )
         return eqx.tree_at(
             lambda m: (
                 m.vertices,
@@ -1100,24 +1427,38 @@ class TriangleMesh(eqx.Module):
 
     __add__ = append
 
+    def drop_unused_vertices(self) -> Self:
+        """
+        Return a new mesh with unused vertices (not referenced by any triangle) removed.
+
+        Returns:
+            A new mesh with unused vertices removed.
+        """
+        if self.vertices.shape[0] == 0:
+            return self
+
+        unique_referenced = jnp.unique(self.triangles)
+        new_vertices = self.vertices[unique_referenced]
+        new_triangles = jnp.searchsorted(unique_referenced, self.triangles)
+
+        return eqx.tree_at(
+            lambda m: (m.vertices, m.triangles),
+            self,
+            (new_vertices, new_triangles),
+        )
+
     def drop_duplicates(self) -> Self:
         """
         Return a new mesh with duplicate vertices removed.
 
-        Vertices are also sorted in ascending order
+        This method first deduplicates the vertices by calling :meth:`dedup_vertices`
+        to renumber triangle indices, and then removes any unused vertices by calling
+        :meth:`drop_unused_vertices`.
 
         Returns:
             A new mesh with duplicate vertices removed.
         """
-        vertices, unique_inverse = jnp.unique(
-            self.vertices, axis=0, return_inverse=True
-        )
-        triangles = jnp.take(unique_inverse, self.triangles, axis=0)
-        return eqx.tree_at(
-            lambda m: (m.vertices, m.triangles),
-            self,
-            (vertices, triangles),
-        )
+        return self.dedup_vertices().drop_unused_vertices()
 
     @overload
     def set_face_colors(
@@ -1455,7 +1796,7 @@ class TriangleMesh(eqx.Module):
         vertices += vertex_a
 
         triangles = jnp.array([[0, 1, 2], [0, 2, 3]], dtype=int)
-        return cls(vertices=vertices, triangles=triangles)
+        return cls(vertices=vertices, triangles=triangles, assume_unique_vertices=True)
 
     @classmethod
     def box(
@@ -1560,7 +1901,12 @@ class TriangleMesh(eqx.Module):
 
         indices = jnp.arange(0, triangles.shape[0] + 1, 2)
         object_bounds = jnp.column_stack((indices[:-1], indices[+1:]))
-        return cls(vertices=vertices, triangles=triangles, object_bounds=object_bounds)
+        return cls(
+            vertices=vertices,
+            triangles=triangles,
+            object_bounds=object_bounds,
+            assume_unique_vertices=True,
+        )
 
     @property
     def is_empty(self) -> bool:

@@ -101,7 +101,7 @@ def _compute_paths(
 ) -> Paths[_M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, rx_vertices)
-        min_len = 10 * jnp.finfo(dtype).eps
+        min_len = 10.0 * jnp.finfo(dtype).eps
 
     min_len = jnp.asarray(min_len)
 
