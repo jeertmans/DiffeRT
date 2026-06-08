@@ -492,10 +492,16 @@ def rays_intersect_any_triangle(
             return (left + right).clip(max=1.0)
         return left | right
 
+    intersect_ref = jax.new_ref(
+        jnp.zeros(batch)
+        if smoothing_factor is not None
+        else jnp.zeros(batch, dtype=bool)
+    )
+
     def body_fun(
         batch_index: Int[Array, ""],
-        intersect: Bool[Array, " *batch"] | Float[Array, " *batch"],
-    ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
+        _carry: None,
+    ) -> None:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
             triangle_vertices, start_index, batch_size, axis=-3
@@ -507,28 +513,22 @@ def rays_intersect_any_triangle(
             if active_triangles is not None
             else None
         )
-        return reduce_fn(
-            intersect,
-            map_fn(
-                ray_origins=ray_origins,
-                ray_directions=ray_directions,
-                triangle_vertices=batch_of_triangle_vertices,
-                active_triangles=batch_of_active_triangles,
-            ),
+        res = map_fn(
+            ray_origins=ray_origins,
+            ray_directions=ray_directions,
+            triangle_vertices=batch_of_triangle_vertices,
+            active_triangles=batch_of_active_triangles,
         )
+        intersect_ref[...] = reduce_fn(intersect_ref[...], res)
 
-    init_val = (
-        jnp.zeros(batch)
-        if smoothing_factor is not None
-        else jnp.zeros(batch, dtype=jnp.bool)
-    )
-
-    intersect = jax.lax.fori_loop(
+    jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
-        init_val=init_val,
+        init_val=None,
     )
+
+    intersect = jax.freeze(intersect_ref)
 
     if rem > 0:
         return reduce_fn(
@@ -737,10 +737,14 @@ def triangles_visible_from_vertices(
         )
         return indices
 
+    visible_triangles_ref = jax.new_ref(
+        jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=bool)
+    )
+
     def body_fun(
         batch_index: Int[Array, ""],
-        visible_triangles: Bool[Array, "*batch num_triangles"],
-    ) -> Bool[Array, "*batch num_triangles"]:
+        _carry: None,
+    ) -> None:
         start_index = batch_index * batch_size
         batch_of_ray_directions = jax.lax.dynamic_slice_in_dim(
             ray_directions, start_index, batch_size, axis=-2
@@ -751,16 +755,18 @@ def triangles_visible_from_vertices(
             triangle_vertices,
             active_triangles,
         )
-        return update_visible_triangles(visible_triangles, visible_indices)
+        visible_triangles_ref[...] = update_visible_triangles(
+            visible_triangles_ref[...], visible_indices
+        )
 
-    init_val = jnp.zeros((*batch, triangle_vertices.shape[-3]), dtype=jnp.bool)
-
-    visible_triangles = jax.lax.fori_loop(
+    jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
-        init_val=init_val,
+        init_val=None,
     )
+
+    visible_triangles = jax.freeze(visible_triangles_ref)
 
     if rem > 0:
         visible_indices = map_fn(
@@ -920,12 +926,26 @@ def first_triangles_hit_by_rays(
             dimensions=(t.ndim - 1,),
         )[:3]
 
+    indices_ref = jax.new_ref(jnp.full(batch, -1, dtype=jnp.int32))
+    t_ref = jax.new_ref(
+        jnp.full(
+            batch,
+            jnp.inf,
+            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
+        )
+    )
+    center_distances_ref = jax.new_ref(
+        jnp.full(
+            batch,
+            jnp.inf,
+            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
+        )
+    )
+
     def body_fun(
         batch_index: Int[Array, ""],
-        carry: tuple[
-            Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
-        ],
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
+        _carry: None,
+    ) -> None:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
             triangle_vertices, start_index, batch_size, axis=-3
@@ -943,32 +963,30 @@ def first_triangles_hit_by_rays(
             batch_of_triangle_vertices,
             batch_of_active_triangles,
         )
-        # TODO: use *carry when ty supports starred expressions
-        return reduce_fn(
-            (carry[0], carry[1], carry[2], epsilon),
+        # Read current carry
+        curr_indices = indices_ref[...]
+        curr_t = t_ref[...]
+        curr_center_distances = center_distances_ref[...]
+
+        new_indices, new_t, new_center_distances, _ = reduce_fn(
+            (curr_indices, curr_t, curr_center_distances, epsilon),
             (indices + start_index, t, center_distances, epsilon),
-        )[:3]
+        )
 
-    init_val = (
-        -jnp.ones(batch, dtype=jnp.int32),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
-    )
+        indices_ref[...] = new_indices
+        t_ref[...] = new_t
+        center_distances_ref[...] = new_center_distances
 
-    indices, t, center_distances = jax.lax.fori_loop(
+    jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
-        init_val=init_val,
+        init_val=None,
     )
+
+    indices = jax.freeze(indices_ref)
+    t = jax.freeze(t_ref)
+    center_distances = jax.freeze(center_distances_ref)
 
     if rem > 0:
         rem_indices, rem_t, rem_center_distances = map_fn(
