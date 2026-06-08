@@ -275,7 +275,7 @@ def rays_intersect_triangles(
 
     if epsilon is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        epsilon = 10 * jnp.finfo(dtype).eps
+        epsilon = 10.0 * jnp.finfo(dtype).eps
 
     epsilon = jnp.asarray(epsilon)
 
@@ -821,10 +821,10 @@ def first_triangles_hit_by_rays(
     triangle_vertices = jnp.asarray(triangle_vertices)
 
     if epsilon := kwargs.get("epsilon"):
-        epsilon = 10 * jnp.asarray(epsilon)
+        epsilon = 10.0 * jnp.asarray(epsilon)
     else:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        epsilon = jnp.asarray(100 * jnp.finfo(dtype).eps)
+        epsilon = jnp.asarray(100.0 * jnp.finfo(dtype).eps)
 
     num_triangles = triangle_vertices.shape[-3]
     if batch_size is None:

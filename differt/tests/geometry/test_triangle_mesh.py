@@ -886,16 +886,13 @@ class TestTriangleMesh:
         ).drop_duplicates()
         expected_mesh = sort_mesh(mesh)
 
-        chex.assert_trees_all_equal(got_mesh, expected_mesh)
+        chex.assert_trees_all_equal(sort_mesh(got_mesh), expected_mesh)
 
-        # .sort() is a no-op after .drop_duplicates()
-        chex.assert_trees_all_equal(sort_mesh(got_mesh), got_mesh)
-
-        mesh = TriangleMesh.box().drop_duplicates()
-        got_mesh = sort_mesh(
-            mesh.sample(size=mesh.num_triangles, preserve=True, key=key)
+        mesh_dup = TriangleMesh.box().drop_duplicates()
+        got_mesh_sampled = sort_mesh(
+            mesh_dup.sample(size=mesh_dup.num_triangles, preserve=True, key=key)
         )
-        chex.assert_trees_all_equal(got_mesh, mesh)
+        chex.assert_trees_all_equal(got_mesh_sampled, sort_mesh(mesh_dup))
 
     @pytest.mark.parametrize(
         ("shape", "expectation"),
@@ -1758,3 +1755,268 @@ class TestTriangleMesh:
         assert (
             with_ground.num_triangles > mesh.num_triangles
         )  # At least 2 triangles for ground
+
+
+class TestTriangleMeshDiffraction:
+    def test_boundary_edges(self) -> None:
+        # A single triangle has 3 boundary edges, 0 diffraction edges
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ])
+        triangles = jnp.array([[0, 1, 2]])
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        assert mesh.diffraction_edges.shape[0] == 0
+
+    def test_diffraction_edges_isolated(self) -> None:
+        # A single triangle, but we mock diffraction_edges_mask to return True for one edge
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ])
+        triangles = jnp.array([[0, 1, 2]])
+
+        class MockTriangleMesh(TriangleMesh):
+            @property
+            def diffraction_edges_mask(self) -> Array:
+                return jnp.array([[True, False, False]])
+
+        mesh = MockTriangleMesh(
+            vertices=vertices, triangles=triangles, assume_unique_vertices=True
+        )
+
+        # There should be 1 unique diffraction edge
+        assert mesh.diffraction_edges.shape[0] == 1
+
+        # Its adjacent triangles should be [[0, -1]] because it's isolated!
+        adj_t = mesh.diffraction_edges_to_triangles
+        assert adj_t.shape == (1, 2)
+        chex.assert_trees_all_close(adj_t, jnp.array([[0, -1]]))
+
+    def test_coplanar_edges(self) -> None:
+        # Two coplanar triangles forming a quad
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0],
+        ])
+        # Triangle 1: 0, 1, 2. Triangle 2: 1, 3, 2.
+        # Shared edge between 1 and 2 is [1, 2] which is sorted (1, 2)
+        triangles = jnp.array([
+            [0, 1, 2],
+            [1, 3, 2],
+        ])
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=False)
+
+        # They share an edge but they are coplanar, so they should NOT be diffraction edges.
+        assert not jnp.any(mesh.diffraction_edges_mask)
+
+    def test_convex_and_concave_wedges(self) -> None:
+        # A right-angle convex wedge (like a building corner)
+        # Triangle 1 on the top face (z = 0, normal [0, 0, 1])
+        # Triangle 2 on the side face (x = 1, normal [1, 0, 0])
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],  # 0
+            [1.0, 0.0, 0.0],  # 1
+            [1.0, 1.0, 0.0],  # 2
+            [1.0, 0.0, -1.0],  # 3
+        ])
+        # Triangle 1: (0, 1, 2) -> normal [0, 0, 1]
+        # Triangle 2: (1, 3, 2) -> normal [1, 0, 0]
+        triangles = jnp.array([
+            [0, 1, 2],
+            [1, 3, 2],
+        ])
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=False)
+
+        # Edge (1, 2) is shared.
+        # Normal 1 = [0, 0, 1], Normal 2 = [1, 0, 0].
+        # Cos angle is 0, so angle phi is pi/2.
+        # The corner is convex, so exterior angle is 1.5 * pi. n = 1.5.
+        mask = mesh.diffraction_edges_mask
+        assert (
+            jnp.sum(mask) == 2
+        )  # shared edge is represented once for each of the two adjacent triangles
+
+        n = mesh.wedge_parameters
+        assert n.shape == (1,)
+        chex.assert_trees_all_close(n, jnp.array([1.5]))
+
+        # Check adjacent triangles matrix
+        adj_t = mesh.diffraction_edges_to_triangles
+        assert adj_t.shape == (1, 2)
+        assert set(adj_t[0].tolist()) == {0, 1}
+
+    def test_assume_quads(self) -> None:
+        # Two coplanar triangles forming a quad
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0],
+        ])
+        triangles = jnp.array([
+            [0, 1, 2],
+            [1, 3, 2],
+        ])
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=True)
+
+        # The shared diagonal should be ignored because assume_quads=True.
+        adj_t, _ = mesh._connectivity()  # noqa: SLF001
+        assert jnp.all(adj_t == -1)
+
+    def test_non_manifold_edges(self) -> None:
+        # Three triangles sharing a single edge
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],  # 0
+            [1.0, 0.0, 0.0],  # 1
+            [0.0, 1.0, 0.0],  # 2
+            [0.0, 0.0, 1.0],  # 3
+            [0.0, -1.0, 0.0],  # 4
+        ])
+        triangles = jnp.array([
+            [0, 1, 2],
+            [0, 1, 3],
+            [0, 1, 4],
+        ])
+
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+        with pytest.warns(UserWarning, match="The mesh contains non-manifold edges"):
+            _ = mesh.diffraction_edges_mask
+
+    def test_duplicate_vertices(self) -> None:
+        box = TriangleMesh.box(with_top=True, with_bottom=True)
+        mesh = TriangleMesh.empty()
+        for plane in box.iter_objects():
+            mesh += plane
+
+        assert not mesh.assume_unique_vertices
+
+        # Check that diffraction edges are correctly identified
+        edges = mesh.diffraction_edges
+        assert edges.shape[0] == 12
+
+        # Check adjacent triangles matrix
+        adj_t = mesh.diffraction_edges_to_triangles
+        assert adj_t.shape == (12, 2)
+
+        # We can also check that dedup_vertices itself works as expected.
+        deduped = mesh.dedup_vertices()
+        assert deduped.assume_unique_vertices
+        assert deduped.vertices.shape[0] == mesh.vertices.shape[0]
+
+        # And after dropping unused vertices, the number of vertices is reduced.
+        dropped = deduped.drop_unused_vertices()
+        assert dropped.vertices.shape[0] < mesh.vertices.shape[0]
+
+    def test_dedup_vertices_coverage(self) -> None:
+        # 1. No-op if assume_unique_vertices is already True
+        mesh_unique = TriangleMesh(
+            vertices=jnp.array([[0.0, 0.0, 0.0]]),
+            triangles=jnp.array([[0, 0, 0]]),
+            assume_unique_vertices=True,
+        )
+        chex.assert_trees_all_equal(mesh_unique.dedup_vertices(), mesh_unique)
+
+        # 2. Empty mesh with len(vertices) == 0 and assume_unique_vertices=False
+        mesh_empty = TriangleMesh(
+            vertices=jnp.empty((0, 3)),
+            triangles=jnp.empty((0, 3), dtype=int),
+            assume_unique_vertices=False,
+        )
+        dedup_empty = mesh_empty.dedup_vertices()
+        assert dedup_empty.assume_unique_vertices
+        assert dedup_empty.vertices.shape[0] == 0
+
+        # 3. Rounding effect check
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [0.0001, 0.0, 0.0],
+        ])
+        triangles = jnp.array([
+            [0, 0, 1],
+        ])
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        # Without decimals, they are not merged
+        dedup_no_decimals = mesh.dedup_vertices()
+        chex.assert_trees_all_equal(dedup_no_decimals.triangles, triangles)
+
+        # With num_decimals=2, they round to the same coordinates and are merged
+        dedup_decimals = mesh.dedup_vertices(num_decimals=2)
+        expected_triangles = jnp.array([
+            [0, 0, 0],
+        ])
+        chex.assert_trees_all_equal(dedup_decimals.triangles, expected_triangles)
+
+    def test_empty_mesh_diffraction_properties(self) -> None:
+        # Create an empty mesh with assume_unique_vertices=True
+        mesh = TriangleMesh.empty()
+
+        # This will call _connectivity() with num_triangles == 0
+        adj_t, adj_e = mesh._connectivity()  # noqa: SLF001
+        assert adj_t.shape == (0, 3)
+        assert adj_e.shape == (0, 3)
+
+        # This will call diffraction_edges_mask with num_triangles == 0
+        mask = mesh.diffraction_edges_mask
+        assert mask.shape == (0, 3)
+
+        # This will call wedge_angles with num_triangles == 0
+        angles = mesh.wedge_angles
+        assert angles.shape == (0, 3)
+
+    def test_wedge_angles_non_unique_vertices(self) -> None:
+        # A box split into planes (so duplicate vertices and assume_unique_vertices=False)
+        box = TriangleMesh.box()
+        mesh = TriangleMesh.empty()
+        for plane in box.iter_objects():
+            mesh += plane
+
+        assert not mesh.assume_unique_vertices
+
+        # This will call wedge_angles when assume_unique_vertices is False
+        angles = mesh.wedge_angles
+        # Since it dedups first, it should run successfully and return wedge angles
+        assert angles.shape == (mesh.dedup_vertices().num_triangles, 3)
+
+    def test_diffraction_edges_with_mask(self) -> None:
+        # Two adjacent triangles sharing an edge (not coplanar)
+        vertices = jnp.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        triangles = jnp.array([
+            [0, 1, 2],
+            [0, 3, 1],
+        ])
+        mesh = TriangleMesh(
+            vertices=vertices, triangles=triangles, assume_unique_vertices=True
+        )
+
+        # By default, both triangles are active, and edge (0, 1) is a diffraction edge.
+        assert mesh.diffraction_edges.shape[0] == 1
+
+        # Now apply a mask where only triangle 0 is active (triangle 1 is inactive)
+        masked_mesh = eqx.tree_at(
+            lambda m: m.mask,
+            mesh,
+            jnp.array([True, False]),
+            is_leaf=lambda x: x is None,
+        )
+
+        # Since triangle 1 is inactive, the shared edge (0, 1) is no longer a valid diffraction edge
+        assert masked_mesh.diffraction_edges.shape[0] == 0
+
+    def test_drop_unused_vertices_empty(self) -> None:
+        mesh = TriangleMesh(
+            vertices=jnp.empty((0, 3)),
+            triangles=jnp.empty((0, 3), dtype=int),
+        )
+        assert mesh.drop_unused_vertices().vertices.shape[0] == 0

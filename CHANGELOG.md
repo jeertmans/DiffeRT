@@ -22,9 +22,16 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...HEAD)
 
+### Added
+
+- Added {meth}`TriangleMesh.dedup_vertices<differt.geometry.TriangleMesh.dedup_vertices>` method to only renumber triangles to refer to the first occurrence of each unique vertex coordinate, thus preserving the original vertices and their ordering (by <gh-user:jeertmans>, in <gh-pr:463>).
+- Added {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.TriangleMesh.drop_unused_vertices>` method to remove vertices that are not referenced by any triangle (by <gh-user:jeertmans>, in <gh-pr:463>).
+- Added diffraction edge detection properties (`diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`TriangleMesh<differt.geometry.TriangleMesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:jeertmans>, in <gh-pr:463>).
+
 ### Changed
 
 - Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
+- Updated {meth}`TriangleMesh.drop_duplicates<differt.geometry.TriangleMesh.drop_duplicates>` to call both {meth}`TriangleMesh.dedup_vertices<differt.geometry.TriangleMesh.dedup_vertices>` and {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.TriangleMesh.drop_unused_vertices>` in sequence (by <gh-user:jeertmans>, in <gh-pr:463>).
 
 ### Fixed
 
