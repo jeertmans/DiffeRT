@@ -498,11 +498,19 @@ def rays_intersect_any_triangle(
     ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
+            triangle_vertices,
+            start_index,
+            batch_size,
+            axis=-3,
+            allow_negative_indices=False,
         )
         batch_of_active_triangles = (
             jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+                active_triangles,
+                start_index,
+                batch_size,
+                axis=-1,
+                allow_negative_indices=False,
             )
             if active_triangles is not None
             else None
@@ -743,7 +751,11 @@ def triangles_visible_from_vertices(
     ) -> Bool[Array, "*batch num_triangles"]:
         start_index = batch_index * batch_size
         batch_of_ray_directions = jax.lax.dynamic_slice_in_dim(
-            ray_directions, start_index, batch_size, axis=-2
+            ray_directions,
+            start_index,
+            batch_size,
+            axis=-2,
+            allow_negative_indices=False,
         )
         visible_indices = map_fn(
             ray_origins,
@@ -893,11 +905,19 @@ def first_triangles_hit_by_rays(
     ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
+            triangle_vertices,
+            start_index,
+            batch_size,
+            axis=-3,
+            allow_negative_indices=False,
         )
         batch_of_active_triangles = (
             jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+                active_triangles,
+                start_index,
+                batch_size,
+                axis=-1,
+                allow_negative_indices=False,
             )
             if active_triangles is not None
             else None
