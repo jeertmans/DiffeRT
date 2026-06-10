@@ -12,6 +12,9 @@ from differt.geometry import fibonacci_lattice, viewing_frustum
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph
 
+# Toggleable AABB prefilter for benchmarking/comparison
+ENABLE_AABB_PREFILTER = True
+
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
@@ -431,6 +434,47 @@ def rays_intersect_any_triangle(
     ray_directions = jnp.asarray(ray_directions)
     triangle_vertices = jnp.asarray(triangle_vertices)
 
+    def _ray_intersects_aabbs(
+        ray_origins: Float[Array, "*#batch 3"],
+        ray_directions: Float[Array, "*#batch 3"],
+        aabb_min: Float[Array, "*#batch num_triangles 3"],
+        aabb_max: Float[Array, "*#batch num_triangles 3"],
+    ) -> Bool[Array, " *batch num_triangles"]:
+        """Vectorized ray vs axis-aligned bounding box test (slab method).
+
+        Returns boolean array indicating which boxes intersect each ray.
+        The ray parameterization uses the same convention as triangle tests
+        (t such that point = origin + t * direction).
+        """
+        # Shapes: ray_origins: *batch 3, ray_directions: *batch 3,
+        # aabb_*: *batch num_triangles 3 -> we'll broadcast ray axes
+        origins = ray_origins[..., None, :]
+        dirs = ray_directions[..., None, :]
+
+        # Handle zero-direction components robustly
+        dir_zero = jnp.isclose(dirs, 0.0)
+
+        inv_dirs = jnp.where(dir_zero, jnp.inf, 1.0 / dirs)
+
+        t0 = (aabb_min - origins) * inv_dirs
+        t1 = (aabb_max - origins) * inv_dirs
+
+        tmin_axis = jnp.minimum(t0, t1)
+        tmax_axis = jnp.maximum(t0, t1)
+
+        # If a direction component is (approximately) zero, ray is parallel to that slab.
+        # If the origin coordinate lies outside the slab, there is no intersection.
+        origin_in_slab = (origins >= aabb_min) & (origins <= aabb_max)
+        tmin_axis = jnp.where(dir_zero, jnp.where(origin_in_slab, -jnp.inf, jnp.inf), tmin_axis)
+        tmax_axis = jnp.where(dir_zero, jnp.where(origin_in_slab, jnp.inf, -jnp.inf), tmax_axis)
+
+        tmin = jnp.max(tmin_axis, axis=-1)
+        tmax = jnp.min(tmax_axis, axis=-1)
+
+        # Intersection exists if intervals overlap and tmax >= max(tmin, 0)
+        return tmax >= jnp.maximum(tmin, 0.0)
+
+
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
         hit_tol = 10.0 * jnp.finfo(dtype).eps
@@ -478,6 +522,17 @@ def rays_intersect_any_triangle(
             smoothing_factor=smoothing_factor,
             **kwargs,
         )
+        # AABB prefilter: compute per-triangle AABB and cull quickly
+        if ENABLE_AABB_PREFILTER:
+            aabb_min = jnp.min(triangle_vertices, axis=-2)
+            aabb_max = jnp.max(triangle_vertices, axis=-2)
+            aabb_mask = _ray_intersects_aabbs(ray_origins, ray_directions, aabb_min, aabb_max)
+        else:
+            aabb_mask = jnp.ones_like(hit, dtype=bool)
+
+        # Apply AABB mask: no intersection if AABB test failed
+        t = jnp.where(aabb_mask, t, jnp.inf)
+        hit = hit & aabb_mask
         if smoothing_factor is not None:
             return jnp.minimum(
                 hit, smoothing_function(hit_threshold - t, smoothing_factor)
@@ -903,6 +958,30 @@ def first_triangles_hit_by_rays(
             triangle_vertices,
             **kwargs,
         )
+        # AABB prefilter: compute triangle AABB and quickly discard misses
+        if ENABLE_AABB_PREFILTER:
+            aabb_min = jnp.min(triangle_vertices, axis=-2)
+            aabb_max = jnp.max(triangle_vertices, axis=-2)
+            # Reuse helper logic inline to avoid circular references
+            origins = ray_origins[..., None, :]
+            dirs = ray_directions[..., None, :]
+            dir_zero = jnp.isclose(dirs, 0.0)
+            inv_dirs = jnp.where(dir_zero, jnp.inf, 1.0 / dirs)
+            t0 = (aabb_min - origins) * inv_dirs
+            t1 = (aabb_max - origins) * inv_dirs
+            tmin_axis = jnp.minimum(t0, t1)
+            tmax_axis = jnp.maximum(t0, t1)
+            origin_in_slab = (origins >= aabb_min) & (origins <= aabb_max)
+            tmin_axis = jnp.where(dir_zero, jnp.where(origin_in_slab, -jnp.inf, jnp.inf), tmin_axis)
+            tmax_axis = jnp.where(dir_zero, jnp.where(origin_in_slab, jnp.inf, -jnp.inf), tmax_axis)
+            tmin = jnp.max(tmin_axis, axis=-1)
+            tmax = jnp.min(tmax_axis, axis=-1)
+            aabb_mask = tmax >= jnp.maximum(tmin, 0.0)
+        else:
+            aabb_mask = jnp.ones_like(hit, dtype=bool)
+
+        t = jnp.where(aabb_mask, t, jnp.inf)
+        hit = hit & aabb_mask
         if active_triangles is not None:
             hit &= active_triangles
         t = jnp.where(hit, t, jnp.inf)
