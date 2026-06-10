@@ -79,6 +79,7 @@ nitpick_ignore = (
     ("py:obj", "differt.rt.utils._T"),
     ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
+    ("py:class", "setup.<locals>.ArrayLike"),
 )
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
