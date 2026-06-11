@@ -1,3 +1,4 @@
+import copy
 import typing
 import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -11,23 +12,37 @@ from typing import (
     TypedDict,
     TypeVar,
     Unpack,
+    no_type_check,
     overload,
 )
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
+import warp as wp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
 from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
-from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
+from ._utils import (
+    fibonacci_lattice,
+    normalize,
+    orthogonal_basis,
+    rotation_matrix_along_axis,
+    viewing_frustum,
+)
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+
+
+# TODO: still allow setting log level and initialization from environ variable?
+wp.config.log_level = wp.LOG_ERROR
+wp.init()
 
 
 class _AtIndexingKwargs(TypedDict):
@@ -114,6 +129,128 @@ def triangles_contain_vertices_assuming_inside_same_plane(
     return all_pos | all_neg
 
 
+@no_type_check
+@wp.kernel
+def _rays_intersect_any_triangle_kernel(
+    mesh_id: wp.uint64,
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    max_t: wp.array[float],
+    output: wp.array[bool],
+) -> None:
+    tid = wp.tid()
+    output[tid] = wp.mesh_query_ray_anyhit(
+        mesh_id,
+        ray_origins[tid],
+        ray_directions[tid],
+        max_t[tid],
+    )
+
+
+_rays_intersect_any_triangle_cuda_impl = wp.jax_kernel(
+    _rays_intersect_any_triangle_kernel
+)
+
+
+def _rays_intersect_any_triangle_cpu_impl(
+    mesh_id: np.uint64,
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+    max_t: Float[Array, " num_rays"],
+) -> Bool[Array, " num_rays"]:
+    def callback(
+        jax_ray_origins: Float[Array, "num_rays 3"],
+        jax_ray_directions: Float[Array, "num_rays 3"],
+        jax_max_t: Float[Array, " num_rays"],
+    ) -> Bool[Array, " num_rays"]:
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+        wp_max_t = wp.from_jax(jax_max_t)
+
+        output = wp.empty(
+            n=jax_ray_origins.shape[0], dtype=bool, device=wp_ray_origins.device
+        )
+
+        wp.launch(
+            _rays_intersect_any_triangle_kernel,
+            dim=jax_ray_origins.shape[0],
+            inputs=[mesh_id, wp_ray_origins, wp_ray_directions, wp_max_t],
+            outputs=[output],
+            device=wp_ray_origins.device,
+        )
+
+        return wp.to_jax(output)
+
+    return jax.pure_callback(
+        callback,
+        jax.ShapeDtypeStruct((ray_origins.shape[0],), bool),
+        ray_origins,
+        ray_directions,
+        max_t,
+    )
+
+
+@wp.kernel
+@no_type_check
+def _first_triangles_hit_by_rays_kernel(
+    mesh_id: wp.uint64,
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    output_face: wp.array[int],
+    output_dist: wp.array[float],
+) -> None:
+    tid = wp.tid()
+    res = wp.mesh_query_ray(mesh_id, ray_origins[tid], ray_directions[tid], wp.inf)
+    hit = res.result and (res.sign > 0)
+    output_face[tid] = res.face if hit else -1
+    output_dist[tid] = res.t if hit else wp.inf
+
+
+_first_triangles_hit_by_rays_cuda_impl = wp.jax_kernel(
+    _first_triangles_hit_by_rays_kernel, num_outputs=2
+)
+
+
+def _first_triangles_hit_by_rays_cpu_impl(
+    mesh_id: np.uint64,
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+    def callback(
+        jax_ray_origins: Float[Array, "num_rays 3"],
+        jax_ray_directions: Float[Array, "num_rays 3"],
+    ) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+
+        output_faces = wp.empty(
+            n=jax_ray_origins.shape[0], dtype=int, device=wp_ray_origins.device
+        )
+        output_dists = wp.empty(
+            n=jax_ray_origins.shape[0], dtype=float, device=wp_ray_origins.device
+        )
+
+        wp.launch(
+            _first_triangles_hit_by_rays_kernel,
+            dim=jax_ray_origins.shape[0],
+            inputs=[mesh_id, wp_ray_origins, wp_ray_directions],
+            outputs=[output_faces, output_dists],
+            device=wp_ray_origins.device,
+        )
+
+        return wp.to_jax(output_faces), wp.to_jax(output_dists)
+
+    return jax.pure_callback(
+        callback,
+        (
+            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.int32),
+            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.float32),
+        ),
+        ray_origins,
+        ray_directions,
+    )
+
+
 _Index = (
     slice
     | Int[ArrayLike, ""]
@@ -185,7 +322,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].set(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def add(
         self,
@@ -202,7 +339,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].add(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def sub(
         self,
@@ -219,7 +356,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].subtract(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def mul(
         self,
@@ -236,7 +373,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].mul(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def div(
         self,
@@ -253,7 +390,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].divide(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def pow(
         self,
@@ -270,7 +407,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].power(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def min(
         self,
@@ -287,7 +424,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].min(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def max(
         self,
@@ -304,7 +441,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].max(values, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
     def apply(
         self,
@@ -319,7 +456,7 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
             lambda m: m.vertices,
             self.mesh,
             self.mesh.vertices.at[index, :].apply(func, **_AT_INDEXING_KWARGS),
-        )
+        ).refit_bvh()
 
 
 class TriangleMesh(eqx.Module):
@@ -390,6 +527,22 @@ class TriangleMesh(eqx.Module):
         that form the quad are active.
     """
 
+    _wp_mesh: wp.Mesh = eqx.field(init=False, repr=False)
+
+    def _build_wp_mesh(self) -> wp.Mesh:
+        wp_points = wp.from_jax(self.vertices, dtype=wp.vec3)
+        if self.mask is not None:
+            wp_indices = wp.from_jax(
+                self.triangles[self.mask].reshape(-1), dtype=wp.int32
+            )
+        else:
+            wp_indices = wp.from_jax(self.triangles.reshape(-1), dtype=wp.int32)
+
+        return wp.Mesh(points=wp_points, indices=wp_indices)
+
+    def __post_init__(self) -> None:
+        self._wp_mesh = self._build_wp_mesh()
+
     def __check_init__(self) -> None:  # noqa: PLW3201
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
@@ -412,6 +565,12 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new mesh with selected triangles.
         """
+        if (
+            (isinstance(key, slice) and (key.start is None or key.start == 0))
+            and (key.stop is None or key.stop == self.triangles.shape[0])
+            and (key.step is None or key.step == 1)
+        ):
+            return self
         return eqx.tree_at(
             lambda m: (
                 m.vertices,
@@ -431,7 +590,36 @@ class TriangleMesh(eqx.Module):
                 self.mask[key] if self.mask is not None else None,
             ),
             is_leaf=lambda x: x is None,
-        )
+        ).refit_bvh(triangles_changed=True)
+
+    def refit_bvh(self, *, triangles_changed: bool = False) -> Self:
+        """
+        Refit the internal bounding volume hierarchy (BVH) use for ray tracing.
+
+        This method is automatically called upon modification of the mesh. However, it can be called manually to refit the BVH after manual modification of the mesh.
+
+        Args:
+            triangles_changed: Set this to :data:`True` if the triangle indices changed.
+
+        Returns:
+            A new mesh with refitted BVH.
+        """
+        if not triangles_changed and (
+            self._wp_mesh.points.shape[0] == self.vertices.shape[0]
+        ):
+            mesh = eqx.tree_at(
+                lambda m: m._wp_mesh,  # noqa: SLF001
+                self,
+                copy.copy(self._wp_mesh),
+            )
+            mesh._wp_mesh.points = wp.from_jax(mesh.vertices, dtype=wp.vec3)  # noqa: SLF001
+        else:
+            mesh = eqx.tree_at(
+                lambda m: m._wp_mesh,  # noqa: SLF001
+                self,
+                self._build_wp_mesh(),
+            )
+        return mesh
 
     def iter_objects(self) -> Iterator[Self]:
         """
@@ -479,7 +667,7 @@ class TriangleMesh(eqx.Module):
                         else None,
                     ),
                     is_leaf=lambda x: x is None,
-                )
+                ).refit_bvh(triangles_changed=True)
 
     @eqx.filter_jit
     def dedup_vertices(self, num_decimals: int | None = None) -> Self:
@@ -526,7 +714,7 @@ class TriangleMesh(eqx.Module):
             lambda m: (m.triangles, m.assume_unique_vertices),
             self,
             (new_triangles, True),
-        )
+        ).refit_bvh(triangles_changed=True)
 
     @property
     def num_triangles(self) -> int:
@@ -1123,7 +1311,7 @@ class TriangleMesh(eqx.Module):
                 None,
             ),
             is_leaf=lambda x: x is None,
-        )
+        ).refit_bvh(triangles_changed=True)
 
     def rotate(self, rotation_matrix: Float[ArrayLike, "3 3"]) -> Self:
         """
@@ -1139,7 +1327,7 @@ class TriangleMesh(eqx.Module):
             lambda m: m.vertices,
             self,
             (jnp.asarray(rotation_matrix) @ self.vertices.T).T,
-        )
+        ).refit_bvh()
 
     def scale(self, scale_factor: Float[ArrayLike, ""]) -> Self:
         """
@@ -1155,7 +1343,7 @@ class TriangleMesh(eqx.Module):
             lambda m: m.vertices,
             self,
             self.vertices * scale_factor,
-        )
+        ).refit_bvh()
 
     def translate(self, translation: Float[ArrayLike, "3"]) -> Self:
         """
@@ -1171,7 +1359,7 @@ class TriangleMesh(eqx.Module):
             lambda m: m.vertices,
             self,
             self.vertices + jnp.asarray(translation),
-        )
+        ).refit_bvh()
 
     def clip(
         self,
@@ -1230,7 +1418,7 @@ class TriangleMesh(eqx.Module):
                 lambda z: jnp.clip(z, min=z_min, max=z_max)
             )
 
-        return eqx.tree_at(lambda m: m.vertices, self, vertices)
+        return eqx.tree_at(lambda m: m.vertices, self, vertices).refit_bvh()
 
     @classmethod
     def empty(cls) -> Self:
@@ -1423,7 +1611,7 @@ class TriangleMesh(eqx.Module):
             mesh,
             (vertices, triangles, face_colors, face_materials, object_bounds, mask),
             is_leaf=lambda x: x is None,
-        )
+        ).refit_bvh(triangles_changed=True)
 
     __add__ = append
 
@@ -1445,7 +1633,7 @@ class TriangleMesh(eqx.Module):
             lambda m: (m.vertices, m.triangles),
             self,
             (new_vertices, new_triangles),
-        )
+        ).refit_bvh(triangles_changed=True)
 
     def drop_duplicates(self) -> Self:
         """
@@ -2221,7 +2409,7 @@ class TriangleMesh(eqx.Module):
                 self.mask[indices] if self.mask is not None else None,
             ),
             is_leaf=lambda x: x is None,
-        )
+        ).refit_bvh(triangles_changed=True)
 
     @overload
     def shuffle(
@@ -2304,7 +2492,7 @@ class TriangleMesh(eqx.Module):
                 self.mask[indices] if self.mask is not None else None,
             ),
             is_leaf=lambda x: x is None,
-        )
+        ).refit_bvh(triangles_changed=True)
 
         if return_indices:
             return mesh, indices
@@ -2378,7 +2566,9 @@ class TriangleMesh(eqx.Module):
             if self.mask is not None:
                 mask &= self.mask
 
-        mesh = eqx.tree_at(lambda m: m.mask, self, mask, is_leaf=lambda x: x is None)
+        mesh = eqx.tree_at(
+            lambda m: m.mask, self, mask, is_leaf=lambda x: x is None
+        ).refit_bvh()
         if clip:
             mesh = mesh.clip(
                 x_min=x_min,
@@ -2615,7 +2805,9 @@ class TriangleMesh(eqx.Module):
         """
         (x_min, y_min, _), (x_max, y_max, _) = self.bounding_box
         center = jnp.array([(x_min + x_max) * 0.5, (y_min + y_max) * 0.5, 0.0])
-        return eqx.tree_at(lambda m: m.vertices, self, self.vertices - center)
+        return eqx.tree_at(
+            lambda m: m.vertices, self, self.vertices - center
+        ).refit_bvh()
 
     def add_ground(
         self,
@@ -2706,3 +2898,213 @@ class TriangleMesh(eqx.Module):
             assume_quads=True,
         )
         return self.append(ground)
+
+    @eqx.filter_jit
+    def rays_intersect_any_triangle(
+        self,
+        ray_origins: Float[Array, "*#batch 3"],
+        ray_directions: Float[Array, "*#batch 3"],
+        *,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+    ) -> Bool[Array, "*batch"]:
+        """
+        Return whether rays intersect any triangle in the mesh.
+
+        Unlike :func:`differt.rt.ray_intersect_any_triangle`, this method is optimized for :class:`TriangleMesh`
+        objects when smoothing is disabled.
+
+        Args:
+            ray_origins: The origins of the rays to intersect with the triangle mesh.
+            ray_directions: The directions of the rays to intersect with the triangle mesh.
+            hit_tol: The tolerance applied to check if a ray hits another object or not,
+                before it reaches the expected position, i.e., the 'interaction' object.
+
+                Using a non-zero tolerance is required as it would otherwise trigger
+                false positives.
+
+                If not specified, the default is ten times the epsilon value
+                of the currently used floating point dtype.
+
+        Returns:
+            A boolean array indicating whether each ray intersects with any triangle in the mesh.
+        """
+        if self.triangles.shape[0] == 0:
+            batch = jnp.broadcast_shapes(
+                ray_origins.shape[:-1], ray_directions.shape[:-1]
+            )
+            return jax.lax.stop_gradient(jnp.full(batch, fill_value=False))
+
+        ray_origins, ray_directions = jnp.broadcast_arrays(ray_origins, ray_directions)
+
+        if hit_tol is None:
+            dtype = jnp.result_type(ray_origins, ray_directions, self.vertices)
+            hit_tol = 10.0 * jnp.finfo(dtype).eps
+
+        ray_directions, max_t = normalize(ray_directions)
+        max_t *= 1 - hit_tol
+
+        flat_ray_origins = ray_origins.reshape(-1, 3)
+        flat_ray_directions = ray_directions.reshape(-1, 3)
+        flat_max_t = max_t.reshape(-1)
+
+        mesh_id = np.uint64(self._wp_mesh.id)
+
+        def impl(
+            name: str,
+        ) -> Callable[
+            [
+                Float[Array, "num_rays 3"],
+                Float[Array, "num_rays 3"],
+                Float[Array, " num_rays"],
+            ],
+            Bool[Array, " num_rays"],
+        ]:
+            if name == "cuda":
+                return lambda ro, rd, mt: _rays_intersect_any_triangle_cuda_impl(
+                    mesh_id, ro, rd, mt
+                )[0]
+            return lambda ro, rd, mt: _rays_intersect_any_triangle_cpu_impl(
+                mesh_id, ro, rd, mt
+            )
+
+        output = jax.lax.platform_dependent(
+            flat_ray_origins,
+            flat_ray_directions,
+            flat_max_t,
+            cpu=impl("cpu"),
+            cuda=impl("cuda"),
+            default=impl("cpu"),
+        )
+        batch = ray_origins.shape[:-1]
+        return jax.lax.stop_gradient(output.reshape(batch))
+
+    @eqx.filter_jit
+    def first_triangles_hit_by_rays(
+        self,
+        ray_origins: Float[Array, "*#batch 3"],
+        ray_directions: Float[Array, "*#batch 3"],
+    ) -> tuple[Int[Array, "*batch"], Float[Array, "*batch"]]:
+        """
+        Return for each ray, which triangle it intersects first, and if it intersects at all.
+
+        Unlike :func:`differt.rt.first_triangles_hit_by_rays`, this method is optimized for :class:`TriangleMesh`
+        objects when smoothing is disabled.
+
+        Args:
+            ray_origins: The origins of the rays to intersect with the triangle mesh.
+            ray_directions: The directions of the rays to intersect with the triangle mesh.
+
+        Returns:
+            A tuple of two arrays:
+            - The index of the first triangle intersected by each ray.
+            - The distance from the origin to the intersection point.
+        """
+        if self.triangles.shape[0] == 0:
+            batch = jnp.broadcast_shapes(
+                ray_origins.shape[:-1], ray_directions.shape[:-1]
+            )
+            return (
+                jax.lax.stop_gradient(jnp.full(batch, -1, dtype=int)),
+                jax.lax.stop_gradient(jnp.full(batch, jnp.inf, dtype=float)),
+            )
+
+        ray_origins, ray_directions = jnp.broadcast_arrays(ray_origins, ray_directions)
+
+        flat_ray_origins = ray_origins.reshape(-1, 3)
+        flat_ray_directions = ray_directions.reshape(-1, 3)
+
+        mesh_id = np.uint64(self._wp_mesh.id)
+
+        def impl(
+            name: str,
+        ) -> Callable[
+            [Float[Array, "num_rays 3"], Float[Array, "num_rays 3"]],
+            tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]],
+        ]:
+            if name == "cuda":
+                return lambda ro, rd: tuple(
+                    _first_triangles_hit_by_rays_cuda_impl(mesh_id, ro, rd)
+                )
+            return lambda ro, rd: _first_triangles_hit_by_rays_cpu_impl(mesh_id, ro, rd)
+
+        out_faces, out_t = jax.lax.platform_dependent(
+            flat_ray_origins,
+            flat_ray_directions,
+            cpu=impl("cpu"),
+            cuda=impl("cuda"),
+            default=impl("cpu"),
+        )
+        batch = ray_origins.shape[:-1]
+
+        if self.mask is not None:
+            mapping = jnp.argwhere(
+                self.mask, size=self.num_triangles, fill_value=-1
+            ).ravel()
+            out_faces = mapping[out_faces]
+
+        return (
+            jax.lax.stop_gradient(out_faces.reshape(batch)),
+            jax.lax.stop_gradient(out_t.reshape(batch)),
+        )
+
+    @eqx.filter_jit
+    def triangles_visible_from_vertices(
+        self,
+        vertices: Float[Array, "*#batch 3"],
+        num_rays: int = int(1e6),
+    ) -> Bool[Array, "*batch num_triangles"]:
+        """
+        Return whether triangles are visible from vertex positions.
+
+        This method is optimized for :class:`TriangleMesh` objects and uses
+        Warp's BVH acceleration structure to perform ray tracing.
+
+        Args:
+            vertices: An array of vertices, used as origins of the rays.
+            num_rays: The number of rays to launch.
+
+        Returns:
+            A boolean array indicating whether each triangle is visible from each vertex.
+        """
+        if self.triangles.shape[0] == 0:
+            return jax.lax.stop_gradient(
+                jnp.zeros((*vertices.shape[:-1], self.num_triangles), dtype=bool)
+            )
+
+        triangle_vertices = self.triangle_vertices
+        triangle_centers = triangle_vertices.mean(axis=-2, keepdims=True)
+        world_vertices = jnp.concat(
+            (triangle_vertices, triangle_centers), axis=-2
+        ).reshape(*triangle_vertices.shape[:-3], -1, 3)
+
+        active_triangles = self.mask
+        if active_triangles is not None:
+            active_vertices = jnp.repeat(active_triangles, 4, axis=-1)
+        else:
+            active_vertices = None
+
+        # [*batch 3]
+        ray_origins = vertices
+
+        # [*batch 2 3]
+        frustum = viewing_frustum(
+            ray_origins,
+            world_vertices,
+            active_vertices=active_vertices,
+        )
+
+        # [*batch num_rays 3]
+        ray_directions = jnp.vectorize(
+            lambda n, frustum: fibonacci_lattice(n, frustum=frustum),
+            excluded={0},
+            signature="(2,3)->(n,3)",
+        )(num_rays, frustum)
+
+        # [*batch num_rays]
+        triangle_indices, _ = self.first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+        )
+
+        # [*batch num_triangles]
+        return jnp.vectorize(jnp.isin, signature="(i),(n)->(i)")(jnp.arange(self.num_triangles), triangle_indices)

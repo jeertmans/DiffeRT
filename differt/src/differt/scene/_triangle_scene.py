@@ -23,11 +23,9 @@ from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt import (
     SizedIterator,
     consecutive_vertices_are_on_same_side_of_mirrors,
-    first_triangles_hit_by_rays,
     image_method,
     rays_intersect_any_triangle,
     rays_intersect_triangles,
-    triangles_visible_from_vertices,
 )
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
@@ -260,15 +258,10 @@ def _compute_paths(
             smoothing_factor=smoothing_factor,
             batch_size=batch_size,
         ).max(axis=-1, initial=0.0)  # Reduce on 'order'
-    else:
-        blocked = rays_intersect_any_triangle(
+    else:  # Use faster implementation
+        blocked = mesh.rays_intersect_any_triangle(
             ray_origins,
             ray_directions,
-            mesh.triangle_vertices,
-            active_triangles=mesh.mask,
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-            batch_size=batch_size,
         ).any(axis=-1)  # Reduce on 'order'
 
     # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
@@ -353,9 +346,7 @@ def _compute_paths_sbr(
     *,
     order: int,
     num_rays: int,
-    epsilon: Float[ArrayLike, ""] | None,
     max_dist: Float[ArrayLike, ""],
-    batch_size: int | None,
 ) -> SBRPaths:
     # TODO: type annotations for SBRPaths with mask dtype
     # 1 - Prepare arrays
@@ -413,13 +404,9 @@ def _compute_paths_sbr(
         # 1 - Compute next intersection with triangles
 
         # [num_tx_vertices num_rays]
-        triangles, t_hit = first_triangles_hit_by_rays(
+        triangles, t_hit = mesh.first_triangles_hit_by_rays(
             ray_origins,
             ray_directions,
-            triangle_vertices,
-            active_triangles=mesh.mask,
-            epsilon=epsilon,
-            batch_size=batch_size,
         )
 
         # 2 - Check if the rays pass near RX
@@ -1195,9 +1182,7 @@ class TriangleScene(eqx.Module):
                 self.receivers.reshape(-1, 3),
                 order=order,
                 num_rays=num_rays,
-                epsilon=epsilon,
                 max_dist=max_dist,
-                batch_size=batch_size,
             ).reshape(*tx_batch, *rx_batch, -1)
 
         # 0 - Constants arrays of chunks
@@ -1215,22 +1200,14 @@ class TriangleScene(eqx.Module):
                 msg = "Argument 'order' is required when 'method == \"hybrid\"'."
                 raise ValueError(msg)
 
-            triangles_visible_from_tx = triangles_visible_from_vertices(
+            triangles_visible_from_tx = self.mesh.triangles_visible_from_vertices(
                 tx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
                 num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
             ).any(axis=0)  # reduce on all transmitters
 
-            triangles_visible_from_rx = triangles_visible_from_vertices(
+            triangles_visible_from_rx = self.mesh.triangles_visible_from_vertices(
                 rx_vertices,
-                self.mesh.triangle_vertices,
-                active_triangles=self.mesh.mask,
                 num_rays=num_rays,
-                epsilon=epsilon,
-                batch_size=batch_size,
             ).any(axis=0)  # reduce on all receivers
 
             if assume_quads:

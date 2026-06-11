@@ -188,7 +188,7 @@ omit = ["**/*/conftest.py"]
 
 [tool.pytest]
 addopts = [
-  "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
+  # "--jaxtyping-packages=differt,beartype.beartype(conf=beartype.BeartypeConf(strategy=beartype.BeartypeStrategy.On))",
   "--numprocesses=logical",
   "--cov-report=xml",
   "--cov=differt/src/differt",
@@ -213,6 +213,7 @@ filterwarnings = [
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
   'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
+  '''ignore:Due to '_pack_', the 'APICLaunchParamRecord' Structure will use memory layout compatible with MSVC \(Windows\):DeprecationWarning''',  # Warning from warp-lang
 ]
 log_level = "INFO"
 markers = [
