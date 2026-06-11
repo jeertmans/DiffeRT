@@ -677,7 +677,7 @@ def export(
 
         # [num_tx num_rx num_paths]
         mask = jnp.concatenate(
-            (
+            (  # type: ignore[ty:invalid-argument-type]
                 mask,
                 paths.mask
                 if paths.mask is not None
