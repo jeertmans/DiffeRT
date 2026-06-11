@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 import jaxtyping
 import pytest
-from jaxtyping import Array, PRNGKeyArray
+from jaxtyping import Array, Float, PRNGKeyArray
 
+from differt import rt
 from differt.geometry._triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
@@ -2020,3 +2021,147 @@ class TestTriangleMeshDiffraction:
             triangles=jnp.empty((0, 3), dtype=int),
         )
         assert mesh.drop_unused_vertices().vertices.shape[0] == 0
+
+    def test_warp_accelerated_methods_correctness(self, key: PRNGKeyArray) -> None:
+        mesh = TriangleMesh.box(2.0, 2.0, 2.0)
+
+        key_origins, key_directions = jax.random.split(key)
+        ray_origins = jax.random.uniform(key_origins, (10, 3), minval=-5.0, maxval=5.0)
+        ray_directions = jax.random.uniform(
+            key_directions, (10, 3), minval=-1.0, maxval=1.0
+        )
+
+        expected_any = rt.rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+        )
+        got_any = mesh.rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+        )
+        chex.assert_trees_all_equal(got_any, expected_any)
+
+        expected_idx, expected_t = rt.first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+        )
+        got_idx, got_t = mesh.first_triangles_hit_by_rays(
+            ray_origins,
+            ray_directions,
+        )
+        chex.assert_trees_all_equal(got_idx, expected_idx)
+        chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5, atol=1e-5)
+
+        expected_vis = rt.triangles_visible_from_vertices(
+            ray_origins,
+            mesh.triangle_vertices,
+            num_rays=100,
+        )
+        got_vis = mesh.triangles_visible_from_vertices(
+            ray_origins,
+            num_rays=100,
+        )
+        chex.assert_trees_all_equal(got_vis, expected_vis)
+
+    def test_first_triangles_hit_by_rays_gradients(self) -> None:
+        mesh = TriangleMesh.box(2.0, 2.0, 2.0)
+
+        ray_origins = jnp.array([
+            [0.0, 0.0, 3.0],
+            [0.0, 3.0, 0.0],
+            [3.0, 0.0, 0.0],
+        ])
+        ray_directions = jnp.array([
+            [0.0, 0.0, -1.0],
+            [0.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+        ])
+
+        def ref_fun(
+            origins: Float[Array, "num_rays 3"],
+            directions: Float[Array, "num_rays 3"],
+            vertices: Float[Array, "num_vertices 3"],
+        ) -> Float[Array, ""]:
+            triangle_vertices = jnp.take(vertices, mesh.triangles, axis=0)
+            # Find the hit faces first (not differentiated, so jaxtyping is fine)
+            out_faces, _ = rt.first_triangles_hit_by_rays(
+                jax.lax.stop_gradient(origins),
+                jax.lax.stop_gradient(directions),
+                jax.lax.stop_gradient(triangle_vertices),
+            )
+
+            flat_faces = out_faces.reshape(-1)
+            flat_origins = origins.reshape(-1, 3)
+            flat_directions = directions.reshape(-1, 3)
+
+            safe_faces = jnp.clip(flat_faces, 0, mesh.num_triangles - 1)
+            hit_triangle_vertices = triangle_vertices[safe_faces]
+
+            v0 = hit_triangle_vertices[:, 0, :]
+            v1 = hit_triangle_vertices[:, 1, :]
+            v2 = hit_triangle_vertices[:, 2, :]
+
+            edge1 = v1 - v0
+            edge2 = v2 - v0
+
+            h = jnp.cross(flat_directions, edge2)
+            a = jnp.sum(h * edge1, axis=-1)
+
+            # Avoid division by zero
+            a = jnp.where(a == 0.0, jnp.inf, a)
+            f = 1.0 / a
+            s = flat_origins - v0
+            q = jnp.cross(s, edge1)
+
+            t = f * jnp.sum(q * edge2, axis=-1)
+            t = jnp.where(flat_faces == -1, jnp.inf, t)
+
+            return jnp.sum(jnp.where(jnp.isfinite(t), t, 0.0))
+
+        def got_fun(
+            origins: Float[Array, "num_rays 3"],
+            directions: Float[Array, "num_rays 3"],
+            vertices: Float[Array, "num_vertices 3"],
+        ) -> Float[Array, ""]:
+            m = eqx.tree_at(lambda x: x.vertices, mesh, vertices)
+            _, t = m.first_triangles_hit_by_rays(
+                origins,
+                directions,
+            )
+            return jnp.sum(jnp.where(jnp.isfinite(t), t, 0.0))
+
+        v_ref = ref_fun(ray_origins, ray_directions, mesh.vertices)
+        v_got = got_fun(ray_origins, ray_directions, mesh.vertices)
+        chex.assert_trees_all_close(v_got, v_ref, rtol=1e-5, atol=1e-5)
+
+        grad_origins_ref = jax.grad(ref_fun, argnums=0)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        grad_origins_got = jax.grad(got_fun, argnums=0)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        chex.assert_trees_all_close(
+            grad_origins_got, grad_origins_ref, rtol=1e-4, atol=1e-4
+        )
+
+        grad_directions_ref = jax.grad(ref_fun, argnums=1)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        grad_directions_got = jax.grad(got_fun, argnums=1)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        chex.assert_trees_all_close(
+            grad_directions_got, grad_directions_ref, rtol=1e-4, atol=1e-4
+        )
+
+        grad_vertices_ref = jax.grad(ref_fun, argnums=2)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        grad_vertices_got = jax.grad(got_fun, argnums=2)(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        chex.assert_trees_all_close(
+            grad_vertices_got, grad_vertices_ref, rtol=1e-4, atol=1e-4
+        )

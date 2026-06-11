@@ -12,7 +12,7 @@ automatic differentiation (autodiff). And this is where
 an almost identical syntax to NumPy, JAX offers autodiff everywhere
 JAX arrays are used.
 
-Additionally, JAX scales very well on modern architectures, like GPUs and TPUs,
+Additionally, JAX scales very well on modern architectures, like GPUs and TPUs (but see {doc}`tpus` for current Warp-related limitations),
 and provides just-in-time compilation to optimize your code.
 
 ## Where JAX arrays are used

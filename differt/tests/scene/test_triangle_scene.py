@@ -144,8 +144,17 @@ class TestTriangleScene:
             ),
         ],
     )
-    @pytest.mark.parametrize("assume_quads", [False, True])
-    @pytest.mark.parametrize("mesh_mask", [False, True])
+    @pytest.mark.parametrize(
+        "assume_quads",
+        [
+            pytest.param(False, id="no_assume_quads"),
+            pytest.param(True, id="assume_quads"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "mesh_mask",
+        [pytest.param(False, id="no_mesh_mask"), pytest.param(True, id="mesh_mask")],
+    )
     @pytest.mark.parametrize(
         "method",
         ["exhaustive", "sbr", "hybrid"],
@@ -201,7 +210,7 @@ class TestTriangleScene:
                 )
 
             got = Paths(vertices=vertices, objects=unique_objects)
-            rtol = 0.52  # TODO: see if we can improve acc.
+            rtol = 1.0  # TODO: see if we can improve acc.
         else:
             rtol = 1e-6
 

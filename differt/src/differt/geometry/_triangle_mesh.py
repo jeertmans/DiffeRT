@@ -2,6 +2,7 @@ import typing
 import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,23 +12,46 @@ from typing import (
     TypedDict,
     TypeVar,
     Unpack,
+    no_type_check,
     overload,
 )
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
+import warp as wp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
 import differt_core.geometry
 from differt.plotting import PlotOutput, draw_mesh, draw_paths, draw_rays, reuse
 
-from ._utils import normalize, orthogonal_basis, rotation_matrix_along_axis
+from ._utils import (
+    fibonacci_lattice,
+    normalize,
+    orthogonal_basis,
+    rotation_matrix_along_axis,
+    viewing_frustum,
+)
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+
+
+# TODO: still allow setting log level and initialization from environ variable?
+wp.config.log_level = wp.LOG_ERROR
+wp.init()
+
+# NOTE: Cache meshes to avoid re-creating them over and over.
+# A problem with the current implementation is that @eqx.filter_jit
+# creates a new TriangleMesh instance every time the function is recompiled,
+# which creates cache misses. We could create a 'permanent' id for each mesh,
+# e.g., when instantiating the TriangleMesh instance and passing it around,
+# only updating it when it changes. However, this also means that we must keep
+# track of all TriangleMesh instances that point to the same id.
+_WARP_MESHES_CACHE: dict[int, wp.Mesh] = {}
 
 
 class _AtIndexingKwargs(TypedDict):
@@ -112,6 +136,478 @@ def triangles_contain_vertices_assuming_inside_same_plane(
 
     # The vertices are contained if all signs are the same
     return all_pos | all_neg
+
+
+@no_type_check
+@wp.kernel
+def _rays_intersect_any_triangle_kernel(
+    mesh_id: wp.uint64,
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    max_t: wp.array[wp.float32],
+    output: wp.array[wp.bool],
+) -> None:
+    tid = wp.tid()
+    output[tid] = wp.mesh_query_ray_anyhit(
+        mesh_id,
+        ray_origins[tid],
+        ray_directions[tid],
+        max_t[tid],
+    )
+
+
+@no_type_check
+def _rays_intersect_any_triangle_anyhit_func(
+    mesh_id: int,
+    points: wp.array[wp.vec3],
+    indices: wp.array[wp.int32],
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    max_t: wp.array[wp.float32],
+    output: wp.array[wp.bool],
+) -> None:
+    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
+        wp_mesh = wp.Mesh(points=points, indices=indices)
+        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+    wp.launch(
+        _rays_intersect_any_triangle_kernel,
+        dim=ray_origins.shape[0],
+        inputs=[wp_mesh.id, ray_origins, ray_directions, max_t],
+        outputs=[output],
+        device=ray_origins.device,
+    )
+
+
+def _rays_intersect_any_triangle_cuda_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+    max_t: Float[Array, " num_rays"],
+) -> Bool[Array, " num_rays"]:
+    return wp.jax_callable(
+        _rays_intersect_any_triangle_anyhit_func,
+        output_dims=(ray_origins.shape[0],),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
+    )(
+        mesh_id,
+        vertices,
+        triangles.ravel(),
+        ray_origins,
+        ray_directions,
+        max_t,
+    )[0]
+
+
+def _rays_intersect_any_triangle_cpu_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+    max_t: Float[Array, " num_rays"],
+) -> Bool[Array, " num_rays"]:
+    def callback(
+        jax_vertices: Float[Array, "num_vertices 3"],
+        jax_triangles: Int[Array, "num_triangles 3"],
+        jax_ray_origins: Float[Array, "num_rays 3"],
+        jax_ray_directions: Float[Array, "num_rays 3"],
+        jax_max_t: Float[Array, " num_rays"],
+    ) -> Bool[Array, " num_rays"]:
+        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
+        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+        wp_max_t = wp.from_jax(jax_max_t)
+
+        output = wp.empty(
+            jax_ray_origins.shape[0], dtype=bool, device=wp_ray_origins.device
+        )
+
+        _rays_intersect_any_triangle_anyhit_func(
+            int(mesh_id),
+            wp_vertices,
+            wp_triangles,
+            wp_ray_origins,
+            wp_ray_directions,
+            wp_max_t,
+            output,
+        )
+
+        return wp.to_jax(output)
+
+    return jax.pure_callback(
+        callback,
+        jax.ShapeDtypeStruct((ray_origins.shape[0],), bool),
+        vertices,
+        triangles,
+        ray_origins,
+        ray_directions,
+        max_t,
+    )
+
+
+@wp.kernel
+@no_type_check
+def _first_triangles_hit_by_rays_kernel(
+    mesh_id: wp.uint64,
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    epsilon: float,
+    output_face: wp.array[wp.int32],
+    output_dist: wp.array[wp.float32],
+) -> None:
+    tid = wp.tid()
+    origin = ray_origins[tid] + ray_directions[tid] * epsilon
+    res = wp.mesh_query_ray(mesh_id, origin, ray_directions[tid], wp.inf)
+    hit = res.result
+    output_face[tid] = res.face if hit else -1
+    output_dist[tid] = (res.t + epsilon) if hit else wp.inf
+
+
+# TODO: implement caching logic for _first_triangles_hit_by_rays_func
+
+
+@no_type_check
+def _first_triangles_hit_by_rays_func(
+    mesh_id: int,
+    points: wp.array[wp.vec3],
+    indices: wp.array[wp.int32],
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    output_face: wp.array[wp.int32],
+    output_dist: wp.array[wp.float32],
+) -> None:
+    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
+        wp_mesh = wp.Mesh(points=points, indices=indices)
+        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+    epsilon = 1e-5
+    wp.launch(
+        _first_triangles_hit_by_rays_kernel,
+        dim=ray_origins.shape[0],
+        inputs=[wp_mesh.id, ray_origins, ray_directions, epsilon],
+        outputs=[output_face, output_dist],
+        device=ray_origins.device,
+    )
+
+
+def _first_triangles_hit_by_rays_cuda_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+    return tuple(
+        wp.jax_callable(
+            _first_triangles_hit_by_rays_func,
+            num_outputs=2,
+            output_dims=(ray_origins.shape[0],),
+            graph_mode=wp.JaxCallableGraphMode.NONE,
+        )(
+            mesh_id,
+            vertices,
+            triangles.ravel(),
+            ray_origins,
+            ray_directions,
+        )
+    )
+
+
+def _first_triangles_hit_by_rays_cpu_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+    def callback(
+        jax_vertices: Float[Array, "num_vertices 3"],
+        jax_triangles: Int[Array, "num_triangles 3"],
+        jax_ray_origins: Float[Array, "num_rays 3"],
+        jax_ray_directions: Float[Array, "num_rays 3"],
+    ) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
+        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+
+        output_faces = wp.empty(
+            jax_ray_origins.shape[0], dtype=int, device=wp_ray_origins.device
+        )
+        output_dists = wp.empty(
+            jax_ray_origins.shape[0], dtype=float, device=wp_ray_origins.device
+        )
+
+        _first_triangles_hit_by_rays_func(
+            int(mesh_id),
+            wp_vertices,
+            wp_triangles,
+            wp_ray_origins,
+            wp_ray_directions,
+            output_faces,
+            output_dists,
+        )
+
+        return wp.to_jax(output_faces), wp.to_jax(output_dists)
+
+    return jax.pure_callback(
+        callback,
+        (
+            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.int32),
+            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.float32),
+        ),
+        vertices,
+        triangles,
+        ray_origins,
+        ray_directions,
+    )
+
+
+def _differentiable_distance(
+    vertices: Float[Array, "num_vertices 3"],
+    ray_origins: Float[Array, "num_rays 3"],
+    ray_directions: Float[Array, "num_rays 3"],
+    out_faces: Int[Array, " num_rays"],
+    triangles: Int[Array, "num_triangles 3"],
+) -> Float[Array, " num_rays"]:
+    triangle_vertices = vertices[triangles]
+    hit_triangle_vertices = triangle_vertices[out_faces]
+
+    v0 = hit_triangle_vertices[:, 0, :]
+    v1 = hit_triangle_vertices[:, 1, :]
+    v2 = hit_triangle_vertices[:, 2, :]
+
+    edge1 = v1 - v0
+    edge2 = v2 - v0
+
+    h = jnp.cross(ray_directions, edge2)
+    a = jnp.sum(h * edge1, axis=-1)
+
+    a = jnp.where(a == 0.0, jnp.inf, a)
+    f = 1.0 / a
+    s = ray_origins - v0
+    q = jnp.cross(s, edge1)
+
+    t = f * jnp.sum(q * edge2, axis=-1)
+
+    is_hit = out_faces != -1
+
+    return jnp.where(is_hit, t, jnp.inf)
+
+
+@partial(jax.custom_vjp, nondiff_argnums=(0,))
+def _first_triangles_hit_by_rays_helper(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    flat_ray_origins: Float[Array, "num_rays 3"],
+    flat_ray_directions: Float[Array, "num_rays 3"],
+) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
+    out_faces, out_t = jax.lax.platform_dependent(
+        vertices,
+        triangles,
+        flat_ray_origins,
+        flat_ray_directions,
+        cpu=partial(_first_triangles_hit_by_rays_cpu_impl, mesh_id),
+        cuda=partial(_first_triangles_hit_by_rays_cuda_impl, mesh_id),
+    )
+    return out_faces, out_t
+
+
+def _first_triangles_hit_by_rays_helper_fwd(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    flat_ray_origins: Float[Array, "num_rays 3"],
+    flat_ray_directions: Float[Array, "num_rays 3"],
+) -> tuple[
+    tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]],
+    tuple[
+        Float[Array, "num_vertices 3"],
+        Int[Array, "num_triangles 3"],
+        Float[Array, "num_rays 3"],
+        Float[Array, "num_rays 3"],
+        Int[Array, " num_rays"],
+    ],
+]:
+    out_faces, out_t = _first_triangles_hit_by_rays_helper(
+        mesh_id, vertices, triangles, flat_ray_origins, flat_ray_directions
+    )
+    return (out_faces, out_t), (
+        vertices,
+        triangles,
+        flat_ray_origins,
+        flat_ray_directions,
+        out_faces,
+    )
+
+
+def _first_triangles_hit_by_rays_helper_bwd(
+    _mesh_id: np.uint64,
+    res: tuple[
+        Float[Array, "num_vertices 3"],
+        Int[Array, "num_triangles 3"],
+        Float[Array, "num_rays 3"],
+        Float[Array, "num_rays 3"],
+        Int[Array, " num_rays"],
+    ],
+    g: tuple[Any, Float[Array, " num_rays"]],
+) -> tuple[
+    Float[Array, "num_vertices 3"] | None,
+    None,
+    Float[Array, "num_rays 3"] | None,
+    Float[Array, "num_rays 3"] | None,
+]:
+    vertices, triangles, flat_ray_origins, flat_ray_directions, out_faces = res
+    _, grad_t = g
+
+    def diff_fun(
+        v: Float[Array, "num_vertices 3"],
+        ro: Float[Array, "num_rays 3"],
+        rd: Float[Array, "num_rays 3"],
+    ) -> Float[Array, " num_rays"]:
+        return _differentiable_distance(v, ro, rd, out_faces, triangles)
+
+    _, vjp_fn = jax.vjp(diff_fun, vertices, flat_ray_origins, flat_ray_directions)
+
+    grad_vertices, grad_ray_origins, grad_ray_directions = vjp_fn(grad_t)
+
+    return grad_vertices, None, grad_ray_origins, grad_ray_directions
+
+
+_first_triangles_hit_by_rays_helper.defvjp(
+    _first_triangles_hit_by_rays_helper_fwd,
+    _first_triangles_hit_by_rays_helper_bwd,
+)
+
+
+@no_type_check
+@wp.kernel
+def _triangles_visible_kernel(
+    mesh_id: wp.uint64,
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    epsilon: float,
+    num_rays: int,
+    num_triangles: int,
+    output_visible: wp.array[wp.bool],
+) -> None:
+    tid = wp.tid()
+    batch_idx = tid // num_rays
+
+    origin = ray_origins[tid] + ray_directions[tid] * epsilon
+    res = wp.mesh_query_ray(mesh_id, origin, ray_directions[tid], wp.inf)
+
+    if res.result:
+        # Concurrent writes of 'True' to the same address are benign and safe here
+        output_visible[batch_idx * num_triangles + res.face] = True
+
+
+@no_type_check
+def _triangles_visible_func(
+    mesh_id: int,
+    points: wp.array[wp.vec3],
+    indices: wp.array[wp.int32],
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    num_rays: int,
+    num_triangles: int,
+    output_visible: wp.array[wp.bool],
+) -> None:
+    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
+        wp_mesh = wp.Mesh(points=points, indices=indices)
+        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+
+    epsilon = 1e-5
+
+    wp.launch(
+        _triangles_visible_kernel,
+        dim=ray_origins.shape[0],
+        inputs=[
+            wp_mesh.id,
+            ray_origins,
+            ray_directions,
+            epsilon,
+            num_rays,
+            num_triangles,
+        ],
+        outputs=[output_visible],
+        device=ray_origins.device,
+    )
+
+
+def _triangles_visible_cuda_impl(
+    mesh_id: np.uint64,
+    num_rays: int,
+    num_triangles: int,
+    total_batches: int,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "total_rays 3"],
+    ray_directions: Float[Array, "total_rays 3"],
+) -> Bool[Array, "total_batches num_triangles"]:
+    return wp.jax_callable(
+        _triangles_visible_func,
+        output_dims=(total_batches * num_triangles,),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
+    )(
+        mesh_id,
+        vertices,
+        triangles.ravel(),
+        ray_origins,
+        ray_directions,
+        num_rays,
+        num_triangles,
+    )[0].reshape((total_batches, num_triangles))
+
+
+def _triangles_visible_cpu_impl(
+    mesh_id: np.uint64,
+    num_rays: int,
+    num_triangles: int,
+    total_batches: int,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "total_rays 3"],
+    ray_directions: Float[Array, "total_rays 3"],
+) -> Bool[Array, "total_batches num_triangles"]:
+    def callback(
+        jax_vertices: Float[Array, "num_vertices 3"],
+        jax_triangles: Int[Array, "num_triangles 3"],
+        jax_ray_origins: Float[Array, "total_rays 3"],
+        jax_ray_directions: Float[Array, "total_rays 3"],
+    ) -> Bool[Array, " _"]:
+        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
+        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+
+        output_visible = wp.zeros(
+            total_batches * num_triangles, dtype=bool, device=wp_ray_origins.device
+        )
+
+        _triangles_visible_func(
+            int(mesh_id),
+            wp_vertices,
+            wp_triangles,
+            wp_ray_origins,
+            wp_ray_directions,
+            num_rays,
+            num_triangles,
+            output_visible,
+        )
+        return wp.to_jax(output_visible)
+
+    return jax.pure_callback(
+        callback,
+        jax.ShapeDtypeStruct((total_batches * num_triangles,), bool),
+        vertices,
+        triangles,
+        ray_origins,
+        ray_directions,
+    ).reshape((total_batches, num_triangles))
 
 
 _Index = (
@@ -323,7 +819,15 @@ class _TriangleMeshVerticesUpdateRef(Generic[_T]):
 
 
 class TriangleMesh(eqx.Module):
-    """A simple geometry made of triangles."""
+    """
+    A simple geometry made of triangles.
+
+    .. warning::
+
+        The Warp-accelerated methods in this class (such as :meth:`rays_intersect_any_triangle`,
+        :meth:`first_triangles_hit_by_rays`, and :meth:`triangles_visible_from_vertices`)
+        only support CPU and CUDA-enabled GPU platforms. They do not support TPUs or other non-CUDA GPUs.
+    """
 
     vertices: Float[Array, "num_vertices 3"]
     """The array of triangle vertices."""
@@ -398,6 +902,9 @@ class TriangleMesh(eqx.Module):
             msg = f"Material names must be unique, got {self.material_names!r}."
             raise ValueError(msg)
 
+    def __del__(self) -> None:
+        _WARP_MESHES_CACHE.pop(id(self), None)
+
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
         """Return a new instance of this mesh, taking only specific triangles.
 
@@ -412,6 +919,12 @@ class TriangleMesh(eqx.Module):
         Returns:
             A new mesh with selected triangles.
         """
+        if (
+            (isinstance(key, slice) and (key.start is None or key.start == 0))
+            and (key.stop is None or key.stop == self.triangles.shape[0])
+            and (key.step is None or key.step == 1)
+        ):
+            return self
         return eqx.tree_at(
             lambda m: (
                 m.vertices,
@@ -2706,3 +3219,243 @@ class TriangleMesh(eqx.Module):
             assume_quads=True,
         )
         return self.append(ground)
+
+    @eqx.filter_jit
+    def rays_intersect_any_triangle(
+        self,
+        ray_origins: Float[Array, "*#batch 3"],
+        ray_directions: Float[Array, "*#batch 3"],
+        *,
+        hit_tol: Float[ArrayLike, ""] | None = None,
+    ) -> Bool[Array, "*batch"]:
+        """
+        Return whether rays intersect any triangle in the mesh.
+
+        Unlike :func:`differt.rt.rays_intersect_any_triangle`, this method is optimized for :class:`TriangleMesh`
+        objects when smoothing is disabled and uses :func:`warp.mesh_query_ray_anyhit<warp._src.lang.mesh_query_ray_anyhit>` to accelerate the ray tracing.
+
+        .. warning::
+
+            This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
+            It does not support TPUs or other non-CUDA GPUs.
+
+        Args:
+            ray_origins: The origins of the rays to intersect with the triangle mesh.
+            ray_directions: The directions of the rays to intersect with the triangle mesh.
+            hit_tol: The tolerance applied to check if a ray hits another object or not,
+                before it reaches the expected position, i.e., the 'interaction' object.
+
+                Using a non-zero tolerance is required as it would otherwise trigger
+                false positives.
+
+                If not specified, the default is one hundred times the epsilon value
+                of the currently used floating point dtype.
+
+        Returns:
+            A boolean array indicating whether each ray intersects with any triangle in the mesh.
+        """
+        if self.triangles.shape[0] == 0:
+            batch = jnp.broadcast_shapes(
+                ray_origins.shape[:-1], ray_directions.shape[:-1]
+            )
+            return jax.lax.stop_gradient(jnp.full(batch, fill_value=False))
+
+        ray_origins, ray_directions = jnp.broadcast_arrays(ray_origins, ray_directions)
+
+        if hit_tol is None:
+            dtype = jnp.result_type(ray_origins, ray_directions, self.vertices)
+            hit_tol = 100.0 * jnp.finfo(dtype).eps
+
+        ray_directions, max_t = normalize(ray_directions)
+        # NOTE: here, we slightly offset the ray origin so it is not exactly on a face
+        # since that can create self-intersections
+        offset = hit_tol * max_t
+        ray_origins += ray_directions * offset[..., None]
+        max_t *= 1 - 2 * hit_tol
+
+        flat_ray_origins = ray_origins.reshape(-1, 3)
+        flat_ray_directions = ray_directions.reshape(-1, 3)
+        flat_max_t = max_t.reshape(-1)
+
+        triangles = self.triangles
+        if self.mask is not None:
+            triangles = jnp.where(self.mask[:, None], self.triangles, 0)
+
+        mesh_id = np.uint64(id(self))
+
+        output = jax.lax.platform_dependent(
+            self.vertices,
+            triangles,
+            flat_ray_origins,
+            flat_ray_directions,
+            flat_max_t,
+            cpu=partial(_rays_intersect_any_triangle_cpu_impl, mesh_id),
+            cuda=partial(_rays_intersect_any_triangle_cuda_impl, mesh_id),
+        )
+        batch = ray_origins.shape[:-1]
+        return jax.lax.stop_gradient(output.reshape(batch))
+
+    @eqx.filter_jit
+    def first_triangles_hit_by_rays(
+        self,
+        ray_origins: Float[Array, "*#batch 3"],
+        ray_directions: Float[Array, "*#batch 3"],
+    ) -> tuple[Int[Array, "*batch"], Float[Array, "*batch"]]:
+        """
+        Return for each ray, which triangle it intersects first, and if it intersects at all.
+
+        Unlike :func:`differt.rt.first_triangles_hit_by_rays`, this method is optimized for :class:`TriangleMesh`
+        objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
+
+        .. warning::
+
+            This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
+            It does not support TPUs or other non-CUDA GPUs.
+
+        Args:
+            ray_origins: The origins of the rays to intersect with the triangle mesh.
+            ray_directions: The directions of the rays to intersect with the triangle mesh.
+
+        Returns:
+            For each ray, return the index and to distance to the first triangle hit.
+
+            If no triangle is hit, the index is set to ``-1`` and
+            the distance is set to :data:`inf<numpy.inf>`.
+
+        .. note::
+
+            The returned distance is fully differentiable with respect to the ray origins,
+            ray directions, and mesh vertices, using JAX's automatic differentiation.
+        """
+        if self.triangles.shape[0] == 0:
+            batch = jnp.broadcast_shapes(
+                ray_origins.shape[:-1], ray_directions.shape[:-1]
+            )
+            return (
+                jax.lax.stop_gradient(jnp.full(batch, -1, dtype=int)),
+                jnp.full(batch, jnp.inf, dtype=float),
+            )
+
+        ray_origins, ray_directions = jnp.broadcast_arrays(ray_origins, ray_directions)
+
+        flat_ray_origins = ray_origins.reshape(-1, 3)
+        flat_ray_directions = ray_directions.reshape(-1, 3)
+
+        triangles = self.triangles
+        if self.mask is not None:
+            triangles = jnp.where(self.mask[:, None], self.triangles, 0)
+
+        mesh_id = np.uint64(id(self))
+
+        out_faces, out_t = _first_triangles_hit_by_rays_helper(
+            mesh_id,
+            self.vertices,
+            triangles,
+            flat_ray_origins,
+            flat_ray_directions,
+        )
+
+        batch = ray_origins.shape[:-1]
+
+        return (
+            jax.lax.stop_gradient(out_faces.reshape(batch)),
+            out_t.reshape(batch),
+        )
+
+    @eqx.filter_jit
+    def triangles_visible_from_vertices(
+        self,
+        vertices: Float[Array, "*#batch 3"],
+        num_rays: int = int(1e6),
+    ) -> Bool[Array, "*batch num_triangles"]:
+        """
+        Return whether triangles are visible from vertex positions.
+
+        Unlike :func:`differt.rt.triangles_visible_from_vertices`, this method is optimized for :class:`TriangleMesh`
+        objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
+
+        .. warning::
+
+            This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
+            It does not support TPUs or other non-CUDA GPUs.
+
+        Args:
+            vertices: An array of vertices, used as origins of the rays.
+            num_rays: The number of rays to launch.
+
+        Returns:
+            A boolean array indicating whether each triangle is visible from each vertex.
+        """
+        if self.triangles.shape[0] == 0:
+            return jax.lax.stop_gradient(
+                jnp.zeros((*vertices.shape[:-1], self.num_triangles), dtype=bool)
+            )
+
+        triangle_vertices = self.triangle_vertices
+        triangle_centers = triangle_vertices.mean(axis=-2, keepdims=True)
+        world_vertices = jnp.concat(
+            (triangle_vertices, triangle_centers), axis=-2
+        ).reshape(*triangle_vertices.shape[:-3], -1, 3)
+
+        active_triangles = self.mask
+        if active_triangles is not None:
+            active_vertices = jnp.repeat(active_triangles, 4, axis=-1)
+        else:
+            active_vertices = None
+
+        # [*batch 3]
+        ray_origins = vertices
+
+        # [*batch 2 3]
+        frustum = viewing_frustum(
+            ray_origins,
+            world_vertices,
+            active_vertices=active_vertices,
+        )
+
+        # [*batch num_rays 3]
+        ray_directions = jnp.vectorize(
+            lambda n, frustum: fibonacci_lattice(n, frustum=frustum),
+            excluded={0},
+            signature="(2,3)->(n,3)",
+        )(num_rays, frustum)
+
+        ray_origins, ray_directions = jnp.broadcast_arrays(
+            ray_origins[..., None, :], ray_directions
+        )
+
+        flat_ray_origins = ray_origins.reshape(-1, 3)
+        flat_ray_directions = ray_directions.reshape(-1, 3)
+
+        total_batches = flat_ray_origins.shape[0] // num_rays
+        num_triangles = self.num_triangles
+
+        triangles = self.triangles
+        if self.mask is not None:
+            triangles = jnp.where(self.mask[:, None], self.triangles, 0)
+
+        mesh_id = np.uint64(id(self))
+
+        out_visible = jax.lax.platform_dependent(
+            self.vertices,
+            triangles,
+            flat_ray_origins,
+            flat_ray_directions,
+            cpu=partial(
+                _triangles_visible_cpu_impl,
+                mesh_id,
+                num_rays,
+                num_triangles,
+                total_batches,
+            ),
+            cuda=partial(
+                _triangles_visible_cuda_impl,
+                mesh_id,
+                num_rays,
+                num_triangles,
+                total_batches,
+            ),
+        )
+
+        batch_shape = vertices.shape[:-1]
+        return jax.lax.stop_gradient(out_visible.reshape(*batch_shape, num_triangles))
