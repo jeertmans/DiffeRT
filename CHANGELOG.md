@@ -41,6 +41,10 @@ with one *slight* but **important** difference:
 - Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed a bug in `_keep_within` (used by `keep_all_within` and `keep_any_within`) where the calculation of the active triangles count per object counted all triangles instead of active ones when checking if an object was fully kept/removed (by <gh-user:jeertmans>, in <gh-pr:456>).
 
+### Removed
+
+- Temporarily dropped support for free-threaded Python (i.e., `3.13t` and `3.14t`). The main dependency, [NVIDIA Warp](https://github.com/NVIDIA/warp), does not support free-threaded Python builds at this time (by <gh-user:jeertmans>, in <gh-pr:467>).
+
 ## [0.8.2](https://github.com/jeertmans/DiffeRT/compare/v0.8.1...v0.8.2)
 
 ### Added

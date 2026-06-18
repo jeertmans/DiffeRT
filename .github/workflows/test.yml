@@ -64,13 +64,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
+        pyversion: ['3.11', '3.12', '3.13', '3.14']
         resolution: [highest, lowest-direct]
         include:
-        - pyversion: 3.13t      # Qt bindings not available for this version
-          group: tests
-        - pyversion: 3.14t      # Qt bindings not available for this version
-          group: tests
         - pyversion: '3.11'
           group: tests-matplotlib
         - pyversion: '3.11'
@@ -82,17 +78,11 @@ jobs:
           jaxtyping-packages: ''  # Running without type checker
           resolution: highest
         exclude:
-        - os: windows-latest  # jaxlib wheels not available
-          pyversion: 3.13t
-        - os: windows-latest  # jaxlib wheels not available
-          pyversion: 3.14t
         - os: windows-latest  # bugs with NumPy
           pyversion: '3.13'
         - pyversion: '3.11'
           resolution: lowest-direct
         - pyversion: '3.12'
-          resolution: lowest-direct
-        - pyversion: 3.13t
           resolution: lowest-direct
 
     runs-on: ${{ matrix.os }}
@@ -145,7 +135,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
+        pyversion: ['3.11', '3.12', '3.13', '3.14']
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
