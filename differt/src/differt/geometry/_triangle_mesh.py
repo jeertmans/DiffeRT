@@ -3283,11 +3283,11 @@ class TriangleMesh(eqx.Module):
         mesh_id = np.uint64(id(self))
 
         output = jax.lax.platform_dependent(
-            self.vertices,
+            jax.lax.stop_gradient(self.vertices),
             triangles,
-            flat_ray_origins,
-            flat_ray_directions,
-            flat_max_t,
+            jax.lax.stop_gradient(flat_ray_origins),
+            jax.lax.stop_gradient(flat_ray_directions),
+            jax.lax.stop_gradient(flat_max_t),
             cpu=partial(_rays_intersect_any_triangle_cpu_impl, mesh_id),
             cuda=partial(_rays_intersect_any_triangle_cuda_impl, mesh_id),
         )
@@ -3438,10 +3438,10 @@ class TriangleMesh(eqx.Module):
         mesh_id = np.uint64(id(self))
 
         out_visible = jax.lax.platform_dependent(
-            self.vertices,
+            jax.lax.stop_gradient(self.vertices),
             triangles,
-            flat_ray_origins,
-            flat_ray_directions,
+            jax.lax.stop_gradient(flat_ray_origins),
+            jax.lax.stop_gradient(flat_ray_directions),
             cpu=partial(
                 _triangles_visible_cpu_impl,
                 mesh_id,
