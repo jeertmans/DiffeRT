@@ -827,6 +827,7 @@ class TriangleMesh(eqx.Module):
         The Warp-accelerated methods in this class (such as :meth:`rays_intersect_any_triangle`,
         :meth:`first_triangles_hit_by_rays`, and :meth:`triangles_visible_from_vertices`)
         only support CPU and CUDA-enabled GPU platforms. They do not support TPUs or other non-CUDA GPUs.
+        See :doc:`/limitations` for more details.
     """
 
     vertices: Float[Array, "num_vertices 3"]
@@ -3238,6 +3239,7 @@ class TriangleMesh(eqx.Module):
 
             This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
             It does not support TPUs or other non-CUDA GPUs.
+            See :doc:`/limitations` for more details.
 
         Args:
             ray_origins: The origins of the rays to intersect with the triangle mesh.
@@ -3311,6 +3313,7 @@ class TriangleMesh(eqx.Module):
 
             This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
             It does not support TPUs or other non-CUDA GPUs.
+            See :doc:`/limitations` for more details.
 
         Args:
             ray_origins: The origins of the rays to intersect with the triangle mesh.
@@ -3378,6 +3381,7 @@ class TriangleMesh(eqx.Module):
 
             This method is Warp-accelerated and only supports CPU and CUDA-enabled GPU platforms.
             It does not support TPUs or other non-CUDA GPUs.
+            See :doc:`/limitations` for more details.
 
         Args:
             vertices: An array of vertices, used as origins of the rays.

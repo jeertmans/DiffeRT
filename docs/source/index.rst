@@ -21,7 +21,7 @@ Contents
    installation
    conventions
    motivations
-   tpus
+   limitations
 
 .. toctree::
    :caption: Basic Tutorials
