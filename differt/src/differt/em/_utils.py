@@ -4,82 +4,80 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Int
 
-from differt.geometry import normalize, path_lengths, perpendicular_vectors
+from differt.geometry import normalize, path_length, perpendicular_vector
 
 from ._constants import c
 from ._interaction_type import InteractionType
 
 
 @jax.jit
-def lengths_to_delays(
+def length_to_delay(
     lengths: Float[ArrayLike, " *#batch"],
     speed: Float[ArrayLike, " *#batch"] = c,
 ) -> Float[Array, " *batch"]:
     """
-    Compute the delay, in seconds, corresponding to each length.
+    Compute the delay, in seconds, corresponding to the length.
 
     Args:
-        lengths: The array of lengths (in meters).
-        speed: The speed (in meters per second)
-            used to compute the delay. This can be
-            an array of speeds. Default is the speed
-            of light in vacuum.
+        lengths: Input length (in meters).
+        speed: Speed (in m/s).
+            Defaults to the speed of light in vacuum.
 
     Returns:
-        The array of path delays.
+        The path delay.
 
     Examples:
         The following example shows how to compute a delay from a length.
 
         >>> from differt.em import c
         >>> from differt.em import (
-        ...     lengths_to_delays,
+        ...     length_to_delay,
         ... )
         >>>
         >>> lengths = jnp.array([1.0, 2.0, 4.0])
-        >>> lengths_to_delays(lengths) * c
+        >>> length_to_delay(lengths) * c
         Array([1., 2., 4.], dtype=float32)
-        >>> lengths_to_delays(lengths, speed=2.0)
+        >>> length_to_delay(lengths, speed=2.0)
         Array([0.5, 1. , 2. ], dtype=float32)
     """
     return jnp.asarray(lengths) / jnp.asarray(speed)
 
 
 @jax.jit
-def path_delays(
+def path_delay(
     paths: Float[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Float[Array, " *batch"]:
     """
-    Compute the path delay, in seconds, of each path.
+    Compute the path delay, in seconds, of the path.
 
-    Each path is exactly made of ``path_length`` vertices.
+    The path is exactly made of ``path_length`` vertices.
 
     Args:
-        paths: The array of path vertices.
+        paths: Input path.
         kwargs: Keyword arguments passed to
-            :func:`lengths_to_delays`.
+            :func:`length_to_delay`.
 
     Returns:
-        The array of path delays.
+        The path delay.
 
     Examples:
         The following example shows how to compute the delay of a very simple path.
 
         >>> from differt.em import c
         >>> from differt.em import (
-        ...     path_delays,
+        ...     path_delay,
         ... )
         >>>
         >>> path = jnp.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
-        >>> path_delays(path) * c
+        >>> path_delay(path) * c
         Array(1., dtype=float32)
-        >>> path_delays(path, speed=2.0)
+        >>> path_delay(path, speed=2.0)
         Array(0.5, dtype=float32)
     """
-    lengths = path_lengths(paths)
+    lengths = path_length(paths)
 
-    return lengths_to_delays(lengths, **kwargs)
+    return length_to_delay(lengths, **kwargs)
 
 
 @jax.jit
@@ -95,18 +93,18 @@ def sp_directions(
     Compute the directions of the local s and p components, before and after reflection, relative to the propagation direction and a local normal.
 
     Args:
-        k_i: The array of propagation direction of incident fields.
+        k_i: The propagation direction of the incident field.
 
-            Each vector must have a unit length.
-        k_r: The array of propagation direction of reflected fields.
+            The vector must have a unit length.
+        k_r: The propagation direction of the reflected field.
 
-            Each vector must have a unit length.
-        normals: The array of local normals.
+            The vector must have a unit length.
+        normals: The local normal.
 
-            Each vector must have a unit length.
+            The vector must have a unit length.
 
     Returns:
-        The array of s and p directions, before and after reflection.
+        The s and p directions, before and after reflection.
 
     Examples:
         The following example shows how to compute and display the direction of
@@ -190,6 +188,7 @@ def sp_directions(
             >>> k_i = reflection_point - tx
             >>> k_r = rx - reflection_point
             >>> (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, normal)
+            >>> # ... (lines omitted for brevity)
 
             Finally, we draw all the vectors and markers.
 
@@ -255,7 +254,7 @@ def sp_directions(
     normal_incidence = e_i_s_norm == 0.0
     e_i_s: Array = jnp.where(
         normal_incidence,
-        perpendicular_vectors(k_i),
+        perpendicular_vector(k_i),
         e_i_s,
     )
     e_i_p = normalize(jnp.cross(e_i_s, k_i))[0]
@@ -279,13 +278,13 @@ def sp_rotation_matrix(
     The latter is equivalent to ensuring that all four vectors are coplanar.
 
     Args:
-        e_a_s: The array of s component directions of the incident field.
-        e_a_p: The array of p component directions of the incident field.
-        e_b_s: The array of s component directions of the reflected field.
-        e_b_p: The array of p component directions of the reflected field.
+        e_a_s: s-component direction of the first field basis.
+        e_a_p: p-component direction of the first field basis.
+        e_b_s: s-component direction of the second field basis.
+        e_b_p: p-component direction of the second field basis.
 
     Returns:
-        The array of rotation matrices.
+        Rotation matrix from basis ``(e_a_s, e_a_p)`` to ``(e_b_s, e_b_p)``.
     """
     e_a_s = jnp.asarray(e_a_s)
     e_a_p = jnp.asarray(e_a_p)
@@ -304,7 +303,7 @@ def sp_rotation_matrix(
 
 
 @jax.jit
-def transition_matrices(
+def transition_matrix(
     vertices: Float[ArrayLike, "*batch path_length 3"],
     objects: Float[ArrayLike, "*batch path_length"],
     interaction_types: Int[ArrayLike, "*batch path_length-2"],
@@ -355,12 +354,12 @@ def fspl(
     See :cite:`fspl` for more information.
 
     Args:
-        d: The array of distances (in meters).
-        f: The array frequencies (in Hertz).
+        d: Distance (in meters).
+        f: Frequency (in Hertz).
         dB: Whether to return the result in dB.
 
     Returns:
-        The array of free-space path losses.
+        Free-space path loss.
     """
     if dB:
         return 20 * jnp.log10(d) + 20 * jnp.log10(f) - 147.55221677811662

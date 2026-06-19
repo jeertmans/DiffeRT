@@ -17,18 +17,18 @@ Any DiffeRT method that relies on Warp will fail when running JAX on a TPU or a 
 
 The following methods are Warp-accelerated and **require either a CPU or an NVIDIA CUDA GPU** to execute:
 
-* {meth}`TriangleMesh.rays_intersect_any_triangle<differt.geometry.TriangleMesh.rays_intersect_any_triangle>`
-* {meth}`TriangleMesh.first_triangles_hit_by_rays<differt.geometry.TriangleMesh.first_triangles_hit_by_rays>`
-* {meth}`TriangleMesh.triangles_visible_from_vertices<differt.geometry.TriangleMesh.triangles_visible_from_vertices>`
+* {meth}`TriangleMesh.ray_intersect_any_triangle<differt.geometry.TriangleMesh.ray_intersect_any_triangle>`
+* {meth}`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.TriangleMesh.first_triangle_hit_by_ray>`
+* {meth}`TriangleMesh.triangles_visible_from_vertex<differt.geometry.TriangleMesh.triangles_visible_from_vertex>`
 * {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` (which internally utilizes the above methods unless smoothing is enabled)
 
 ### Alternatives
 
 If you need to run your code on a TPU or a non-CUDA GPU, you should use the corresponding non-Warp equivalent functions in {mod}`differt.rt`:
 
-* {func}`differt.rt.rays_intersect_any_triangle`
-* {func}`differt.rt.first_triangles_hit_by_rays`
-* {func}`differt.rt.triangles_visible_from_vertices`
+* {func}`differt.rt.ray_intersect_any_triangle`
+* {func}`differt.rt.first_triangle_hit_by_ray`
+* {func}`differt.rt.triangles_visible_from_vertex`
 
 These functions are written in pure JAX, so they will execute correctly on any backend supported by JAX. However, please note that they may be less memory-efficient and slower than the Warp-accelerated methods on `TriangleMesh`.
 

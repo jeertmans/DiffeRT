@@ -9,7 +9,7 @@ from differt.em._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
     refraction_coefficients,
-    refractive_indices,
+    refractive_index,
 )
 
 
@@ -21,11 +21,11 @@ from differt.em._fresnel import (
     ],
 )
 @jax.enable_x64()
-def test_refractive_indices(mat_name: str, expected: float) -> None:
+def test_refractive_index(mat_name: str, expected: float) -> None:
     frequency = 1e9  # Hz
     mat = materials[mat_name]
     eta = mat.relative_permittivity(frequency)
-    got = refractive_indices(eta)
+    got = refractive_index(eta)
     chex.assert_trees_all_close(got, expected)
 
 

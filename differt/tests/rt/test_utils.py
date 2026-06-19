@@ -10,13 +10,13 @@ from jaxtyping import Array
 
 from differt.geometry import TriangleMesh
 from differt.rt._utils import (
-    first_triangles_hit_by_rays,
+    first_triangle_hit_by_ray,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
     generate_all_path_candidates_iter,
-    rays_intersect_any_triangle,
-    rays_intersect_triangles,
-    triangles_visible_from_vertices,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
+    triangles_visible_from_vertex,
 )
 from differt.scene import TriangleScene
 
@@ -150,13 +150,13 @@ def test_generate_all_path_candidates_chunks_iter(
         (jnp.array([0.5, 0.5, 1.0]), jnp.array([1.0, 1.0, +1.5]), jnp.array([False])),
     ],
 )
-def test_rays_intersect_triangles(
+def test_ray_intersect_triangle(
     ray_orig: Array,
     ray_dest: Array,
     expected: Array,
 ) -> None:
     triangle_vertices = jnp.array([[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]])
-    t, hit = rays_intersect_triangles(
+    t, hit = ray_intersect_triangle(
         ray_orig,
         ray_dest - ray_orig,
         triangle_vertices,
@@ -165,7 +165,7 @@ def test_rays_intersect_triangles(
     chex.assert_trees_all_equal(got, expected)
 
 
-def test_rays_intersect_triangles_t_and_hit() -> None:
+def test_ray_intersect_triangle_t_and_hit() -> None:
     ray_origin = jnp.array([0.5, 0.5, -1.0])
     ray_directions = jnp.array([
         [0.0, 0.0, +1.0],
@@ -185,7 +185,7 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
         [False, False],
     ])
 
-    got_t, got_hit = rays_intersect_triangles(
+    got_t, got_hit = ray_intersect_triangle(
         ray_origin[None, None, :],
         ray_directions[:, None, :],
         triangle_vertices,
@@ -209,14 +209,14 @@ def test_rays_intersect_triangles_t_and_hit() -> None:
     ],
 )
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
-def test_rays_intersect_triangles_random_inputs(
+def test_ray_intersect_triangle_random_inputs(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got_t, got_hit = rays_intersect_triangles(
+        got_t, got_hit = ray_intersect_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
@@ -232,7 +232,7 @@ def test_rays_intersect_triangles_random_inputs(
 
         # Check that large smoothing factor matches no smoothing
 
-        got_t, got_hit = rays_intersect_triangles(
+        got_t, got_hit = ray_intersect_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
@@ -269,7 +269,7 @@ def test_rays_intersect_triangles_random_inputs(
 @pytest.mark.parametrize("hit_tol", [None, 0.0, 0.001, -0.5, 0.5])
 @pytest.mark.parametrize("with_active_triangles", [True, False])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
-def test_rays_intersect_any_triangle(
+def test_ray_intersect_any_triangle(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
@@ -292,7 +292,7 @@ def test_rays_intersect_any_triangle(
 
     hit_threshold = 1.0 - hit_tol_arr
     with expectation:
-        got = rays_intersect_any_triangle(
+        got = ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
@@ -301,7 +301,7 @@ def test_rays_intersect_any_triangle(
             hit_tol=hit_tol,
             batch_size=11,  # will create non-zero remainder
         )
-        expected_t, expected_hit = rays_intersect_triangles(
+        expected_t, expected_hit = ray_intersect_triangle(
             ray_origins[..., None, :],
             ray_directions[..., None, :],
             triangle_vertices,
@@ -314,7 +314,7 @@ def test_rays_intersect_any_triangle(
         # Check that large smoothing factor matches no smoothing
         # TODO: fixme
 
-        got = rays_intersect_any_triangle(
+        got = ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             triangle_vertices,
@@ -360,14 +360,14 @@ def test_rays_intersect_any_triangle(
         ),
     ],
 )
-def test_triangles_visible_from_vertices(
+def test_triangles_visible_from_vertex(
     vertex: Array,
     expected_number: int,
     num_rays: int,
     expectation: AbstractContextManager[Exception],
     cube_vertices: Array,
 ) -> None:
-    visible_triangles = triangles_visible_from_vertices(
+    visible_triangles = triangles_visible_from_vertex(
         vertex,
         cube_vertices,
         num_rays=num_rays,
@@ -380,7 +380,7 @@ def test_triangles_visible_from_vertices(
         )
 
 
-def test_triangles_visible_from_vertices_inside_box() -> None:
+def test_triangles_visible_from_vertex_inside_box() -> None:
     outer_mesh = TriangleMesh.box(4.0, 4.0, 4.0)
     inner_mesh = TriangleMesh.box(1.0, 1.0, 1.0)
     mesh = outer_mesh + inner_mesh
@@ -395,13 +395,13 @@ def test_triangles_visible_from_vertices_inside_box() -> None:
     tx = jnp.array([-1.0, 0.0, 0.0])
     rx = jnp.array([+1.0, 0.0, 0.0])
 
-    visible_triangles_from_tx = triangles_visible_from_vertices(
+    visible_triangles_from_tx = triangles_visible_from_vertex(
         tx,
         mesh.triangle_vertices,
         mesh.mask,
     )
 
-    visible_triangles_from_rx = triangles_visible_from_vertices(
+    visible_triangles_from_rx = triangles_visible_from_vertex(
         rx,
         mesh.triangle_vertices,
         mesh.mask,
@@ -413,13 +413,13 @@ def test_triangles_visible_from_vertices_inside_box() -> None:
     )
     chex.assert_trees_all_equal(visible_triangles_from_tx, mask)
 
-    visible_triangles_from_tx_ignore_mask = triangles_visible_from_vertices(
+    visible_triangles_from_tx_ignore_mask = triangles_visible_from_vertex(
         tx,
         mesh.triangle_vertices,
         None,
     )
 
-    visible_triangles_from_rx_ignore_mask = triangles_visible_from_vertices(
+    visible_triangles_from_rx_ignore_mask = triangles_visible_from_vertex(
         rx,
         mesh.triangle_vertices,
         None,
@@ -439,13 +439,13 @@ def test_triangles_visible_from_vertices_inside_box() -> None:
     )
 
 
-def test_triangles_visible_from_vertices_street_canyon(
+def test_triangles_visible_from_vertex_street_canyon(
     simple_street_canyon_scene: TriangleScene,
 ) -> None:
     scene = simple_street_canyon_scene
     tx = jnp.array([-35, 0, 32.0])
     rx = jnp.array([+35, 0, 1.5])
-    visible_triangles = triangles_visible_from_vertices(
+    visible_triangles = triangles_visible_from_vertex(
         tx,
         scene.mesh.triangle_vertices,
     )
@@ -486,7 +486,7 @@ def test_triangles_visible_from_vertices_street_canyon(
 
     chex.assert_trees_all_equal(got_visible, expected_visible)
 
-    visible_triangles = triangles_visible_from_vertices(
+    visible_triangles = triangles_visible_from_vertex(
         rx,
         scene.mesh.triangle_vertices,
     )
@@ -530,7 +530,7 @@ def test_triangles_visible_from_vertices_street_canyon(
 @pytest.mark.parametrize("epsilon", [None, 1e-2])
 @pytest.mark.parametrize("with_active_triangles", [True, False])
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
-def test_first_triangles_hit_by_rays(
+def test_first_triangle_hit_by_ray(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
@@ -542,7 +542,7 @@ def test_first_triangles_hit_by_rays(
         if with_active_triangles
         else None
     )
-    got_indices, got_t = first_triangles_hit_by_rays(
+    got_indices, got_t = first_triangle_hit_by_ray(
         ray_origins,
         ray_directions,
         triangle_vertices,
@@ -550,7 +550,7 @@ def test_first_triangles_hit_by_rays(
         epsilon=epsilon,
         batch_size=11,  # will create non-zero remainder
     )
-    expected_t, expected_hit = rays_intersect_triangles(
+    expected_t, expected_hit = ray_intersect_triangle(
         ray_origins[..., None, :],
         ray_directions[..., None, :],
         triangle_vertices,

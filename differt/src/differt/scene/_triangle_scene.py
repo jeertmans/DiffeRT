@@ -15,17 +15,17 @@ from differt.geometry import (
     Paths,
     SBRPaths,
     TriangleMesh,
-    assemble_paths,
+    assemble_path,
     fibonacci_lattice,
     viewing_frustum,
 )
 from differt.plotting import PlotOutput, draw_markers, reuse
 from differt.rt import (
     SizedIterator,
-    consecutive_vertices_are_on_same_side_of_mirrors,
+    consecutive_vertices_are_on_same_side_of_mirror,
     image_method,
-    rays_intersect_any_triangle,
-    rays_intersect_triangles,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
 )
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
@@ -165,7 +165,7 @@ def _compute_paths(
             mirror_vertices,
             mirror_normals,
         )
-        full_paths = assemble_paths(
+        full_paths = assemble_path(
             tx_vertices[:, None, None, :],
             paths,
             rx_vertices[None, :, None, :],
@@ -184,7 +184,7 @@ def _compute_paths(
     if mesh.assume_quads:
         if smoothing_factor is not None:
             inside_triangles = (
-                rays_intersect_triangles(
+                ray_intersect_triangle(
                     jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
                     jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
                     triangle_vertices,
@@ -199,7 +199,7 @@ def _compute_paths(
             )  # Reduce on 'order' axis and on the two triangles (per quad)
         else:
             inside_triangles = (
-                rays_intersect_triangles(
+                ray_intersect_triangle(
                     jnp.repeat(ray_origins[..., :-1, :], 2, axis=-2),
                     jnp.repeat(ray_directions[..., :-1, :], 2, axis=-2),
                     triangle_vertices,
@@ -212,7 +212,7 @@ def _compute_paths(
                 .all(axis=-1)
             )  # Reduce on 'order' axis and on the two triangles (per quad)
     elif smoothing_factor is not None:
-        inside_triangles = rays_intersect_triangles(
+        inside_triangles = ray_intersect_triangle(
             ray_origins[..., :-1, :],
             ray_directions[..., :-1, :],
             triangle_vertices,
@@ -220,7 +220,7 @@ def _compute_paths(
             smoothing_factor=smoothing_factor,
         )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
     else:
-        inside_triangles = rays_intersect_triangles(
+        inside_triangles = ray_intersect_triangle(
             ray_origins[..., :-1, :],
             ray_directions[..., :-1, :],
             triangle_vertices,
@@ -231,14 +231,14 @@ def _compute_paths(
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
     if smoothing_factor is not None:
-        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirror(
             full_paths,
             mirror_vertices,
             mirror_normals,
             smoothing_factor=smoothing_factor,
         ).min(axis=-1, initial=1.0)  # Reduce on 'order'
     else:
-        valid_reflections = consecutive_vertices_are_on_same_side_of_mirrors(
+        valid_reflections = consecutive_vertices_are_on_same_side_of_mirror(
             full_paths,
             mirror_vertices,
             mirror_normals,
@@ -248,7 +248,7 @@ def _compute_paths(
 
     # [num_tx_vertices num_rx_vertices num_path_candidates]
     if smoothing_factor is not None:
-        blocked = rays_intersect_any_triangle(
+        blocked = ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             mesh.triangle_vertices,
@@ -259,7 +259,7 @@ def _compute_paths(
             batch_size=batch_size,
         ).max(axis=-1, initial=0.0)  # Reduce on 'order'
     else:  # Use faster implementation
-        blocked = mesh.rays_intersect_any_triangle(
+        blocked = mesh.ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             hit_tol=hit_tol,
@@ -405,7 +405,7 @@ def _compute_paths_sbr(
         # 1 - Compute next intersection with triangles
 
         # [num_tx_vertices num_rays]
-        triangles, t_hit = mesh.first_triangles_hit_by_rays(
+        triangles, t_hit = mesh.first_triangle_hit_by_ray(
             ray_origins,
             ray_directions,
         )
@@ -471,7 +471,7 @@ def _compute_paths_sbr(
 
     # 4 - Generate output paths and reshape
 
-    vertices = assemble_paths(
+    vertices = assemble_path(
         tx_vertices[:, None, None, :],
         vertices[:, None, ...],  # We already excluded last vertex
         rx_vertices[None, :, None, :],  # And replace it with receiver vertices
@@ -1091,9 +1091,9 @@ class TriangleScene(eqx.Module):
 
                 **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
             epsilon: Tolerance for checking ray / objects intersection, see
-                :func:`rays_intersect_triangles<differt.rt.rays_intersect_triangles>`.
+                :func:`ray_intersect_triangle<differt.rt.ray_intersect_triangle>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
-                :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`.
+                :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`.
 
                 Unused if ``method == 'sbr'``.
             min_len: Minimal (squared [#f1]_) length that each path segment must have for a path to be valid.
@@ -1125,9 +1125,9 @@ class TriangleScene(eqx.Module):
                 If :data:`None`, everything is processed in one batch, which can lead to
                 memory issues on large scenes.
 
-                See :func:`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`,
-                :func:`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`,
-                and :func:`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`
+                See :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`,
+                :func:`triangles_visible_from_vertex<differt.rt.triangles_visible_from_vertex>`,
+                and :func:`first_triangle_hit_by_ray<differt.rt.first_triangle_hit_by_ray>`
                 for more details.
             disconnect_inactive_triangles: If :data:`True`, inactive triangles (where
                 the mesh mask is :data:`False`) are disconnected from the graph before
@@ -1206,12 +1206,12 @@ class TriangleScene(eqx.Module):
                 msg = "Argument 'order' is required when 'method == \"hybrid\"'."
                 raise ValueError(msg)
 
-            triangles_visible_from_tx = self.mesh.triangles_visible_from_vertices(
+            triangles_visible_from_tx = self.mesh.triangles_visible_from_vertex(
                 tx_vertices,
                 num_rays=num_rays,
             ).any(axis=0)  # reduce on all transmitters
 
-            triangles_visible_from_rx = self.mesh.triangles_visible_from_vertices(
+            triangles_visible_from_rx = self.mesh.triangles_visible_from_vertex(
                 rx_vertices,
                 num_rays=num_rays,
             ).any(axis=0)  # reduce on all receivers

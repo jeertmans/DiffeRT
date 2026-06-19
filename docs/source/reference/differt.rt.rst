@@ -13,8 +13,8 @@ Image-based path tracing.
    :toctree: _autosummary
 
    image_method
-   image_of_vertices_with_respect_to_mirrors
-   intersection_of_rays_with_planes
+   image_of_vertex_with_respect_to_mirror
+   intersection_of_ray_with_plane
 
 .. rubric:: Fermat path tracing
 
@@ -81,8 +81,8 @@ Utilities to check that ray paths are physically valid.
 .. autosummary::
    :toctree: _autosummary
 
-   consecutive_vertices_are_on_same_side_of_mirrors
-   first_triangles_hit_by_rays
-   rays_intersect_any_triangle
-   rays_intersect_triangles
-   triangles_visible_from_vertices
+   consecutive_vertices_are_on_same_side_of_mirror
+   first_triangle_hit_by_ray
+   ray_intersect_any_triangle
+   ray_intersect_triangle
+   triangles_visible_from_vertex

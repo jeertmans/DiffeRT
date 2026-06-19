@@ -10,14 +10,14 @@ from pytest_subtests import SubTests
 from differt.em import materials
 from differt.geometry import (
     TriangleMesh,
-    assemble_paths,
+    assemble_path,
     fibonacci_lattice,
-    path_lengths,
+    path_length,
 )
 from differt.rt import (
-    first_triangles_hit_by_rays,
-    rays_intersect_any_triangle,
-    rays_intersect_triangles,
+    first_triangle_hit_by_ray,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
 )
 from differt.scene import TriangleScene
 
@@ -67,7 +67,7 @@ def test_ray_casting() -> None:
 
     triangle_vertices = mesh.triangle_vertices
 
-    triangles, t_hit = first_triangles_hit_by_rays(
+    triangles, t_hit = first_triangle_hit_by_ray(
         ray_origins, ray_directions, triangle_vertices
     )
     hit = triangles != -1
@@ -85,7 +85,7 @@ def test_ray_casting() -> None:
         ans["primitive_ids"].numpy(),  # codespell:ignore ans
     )
 
-    got_counts = rays_intersect_triangles(
+    got_counts = ray_intersect_triangle(
         ray_origins[..., None, :], ray_directions[..., None, :], triangle_vertices
     )[1].sum(axis=-1)
 
@@ -98,7 +98,7 @@ def test_ray_casting() -> None:
 
     scale = 100.0
 
-    got_hit = rays_intersect_any_triangle(
+    got_hit = ray_intersect_any_triangle(
         ray_origins,
         scale * ray_directions,
         triangle_vertices,
@@ -182,13 +182,13 @@ def test_simple_street_canyon() -> None:
         select = (sionna_path_objects == -1).sum(axis=0) == (max_depth - order)
         vertices = sionna_path_vertices[:order, select, :]
         vertices = jnp.moveaxis(vertices, 0, -2)
-        vertices = assemble_paths(
+        vertices = assemble_path(
             differt_scene.transmitters,
             vertices,
             differt_scene.receivers,
         )
-        got_path_lengths = path_lengths(paths.masked_vertices)
-        expected_path_lengths = path_lengths(vertices)
+        got_path_lengths = path_length(paths.masked_vertices)
+        expected_path_lengths = path_length(vertices)
         # We check the sum of path lengths because Sionna orders the paths differently,
         # so we cannot compare them directly.
         chex.assert_trees_all_close(

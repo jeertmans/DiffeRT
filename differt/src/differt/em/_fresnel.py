@@ -7,12 +7,12 @@ from differt.utils import safe_divide
 
 
 @eqx.filter_jit
-def refractive_indices(
+def refractive_index(
     epsilon_r: Inexact[ArrayLike, " *#batch"],
     mu_r: Inexact[ArrayLike, " *#batch"] | None = None,
 ) -> Inexact[Array, " *batch"]:
     r"""
-    Compute the refractive indices corresponding to relative permittivities and relative permeabilities.
+    Compute the refractive index corresponding to relative permittivity and relative permeability.
 
     The refractive index :math:`n` is simply defined as
 
@@ -22,12 +22,12 @@ def refractive_indices(
     where :math:`\epsilon_r` is the relative permittivity, and :math:`\mu_r` is the relative permeability.
 
     Args:
-        epsilon_r: The relative permittivities.
-        mu_r: The relative permeabilities. If not provided,
+        epsilon_r: The relative permittivity.
+        mu_r: The relative permeability. If not provided,
             a value of 1 is used.
 
     Returns:
-        The array of refractive indices.
+        The refractive index.
 
         The output dtype will only be complex if any of the provided arguments
         has a complex dtype.
@@ -54,13 +54,13 @@ def fresnel_coefficients(
     r"""
     Compute the Fresnel reflection and refraction coefficients at an interface.
 
-    The Snell's law describes the relationship between the angles of incidence
+    The Snell's law describes the relationship between the angle of incidence
     and refraction:
 
     .. math::
         n_i\sin\theta_i = n_t\sin\theta_t,
 
-    where :math:`n` is the refraction index, :math:`\theta` is the angle of between the ray path
+    where :math:`n` is the refraction index, :math:`\theta` is the angle between the ray path
     and the normal to the interface, and :math:`i` and :math:`t` indicate,
     respectively, the first (i.e., incidence) and the second (i.e., transmission)
     media.
@@ -99,11 +99,11 @@ def fresnel_coefficients(
         n_r\cos\theta_t = \sqrt{n_r^2 + \cos^2\theta_i - 1}.
 
     Args:
-        n_r: The relative refractive indices.
+        n_r: The relative refractive index.
 
-            This is the ratios of the refractive indices of the second
-            media over the refractive indices of the first media.
-        cos_theta_i: The (cosine of the) angles of incidence (or reflection).
+            This is the ratio of the refractive index of the second
+            medium over the refractive index of the first medium.
+        cos_theta_i: The (cosine of the) angle of incidence.
 
     Returns:
         The reflection and refraction coefficients for s and p polarizations.
@@ -114,12 +114,12 @@ def fresnel_coefficients(
 
         :func:`refraction_coefficients`
 
-        :func:`refractive_indices`
+        :func:`refractive_index`
 
     Examples:
         .. plot::
 
-            The following example reproduces the air-to-glass Fresnel coefficient.
+            The following example reproduces the air-to-glass Fresnel coefficients.
             The Brewster angle (defined by :math:`r_p=0`) is indicated by the vertical
             red line.
 
@@ -222,11 +222,11 @@ def reflection_coefficients(
     Compute the Fresnel reflection coefficients at an interface.
 
     Args:
-        n_r: The relative refractive indices.
+        n_r: The relative refractive index.
 
-            This is the ratios of the refractive indices of the second
-            media over the refractive indices of the first media.
-        cos_theta_i: The (cosine of the) angles of incidence (or reflection).
+            This is the ratio of the refractive index of the second
+            medium over the refractive index of the first medium.
+        cos_theta_i: The (cosine of the) angle of incidence.
 
     Returns:
         The reflection coefficients for s and p polarizations.
@@ -237,13 +237,13 @@ def reflection_coefficients(
 
         :func:`refraction_coefficients`
 
-        :func:`refractive_indices`
+        :func:`refractive_index`
 
     Examples:
         .. plot::
            :context: reset
 
-           The following example show how to compute interference
+           The following example shows how to compute interference
            patterns from line of sight and reflection on a glass
            ground.
 
@@ -492,15 +492,15 @@ def refraction_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],
     cos_theta_i: Float[ArrayLike, " *#batch"],
 ) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
-    """
+    r"""
     Compute the Fresnel refraction coefficients at an interface.
 
     Args:
-        n_r: The relative refractive indices.
+        n_r: The relative refractive index.
 
-            This is the ratios of the refractive indices of the second
-            media over the refractive indices of the first media.
-        cos_theta_i: The (cosine of the) angles of incidence (or reflection).
+            This is the ratio of the refractive index of the second
+            medium over the refractive index of the first medium.
+        cos_theta_i: The (cosine of the) angle of incidence.
 
     Returns:
         The refraction coefficients for s and p polarizations.
@@ -511,6 +511,6 @@ def refraction_coefficients(
 
         :func:`reflection_coefficients`
 
-        :func:`refractive_indices`
+        :func:`refractive_index`
     """
     return fresnel_coefficients(n_r, cos_theta_i)[1]

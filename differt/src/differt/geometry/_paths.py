@@ -62,11 +62,11 @@ def merge_cell_ids(
         do with the ones used in individual arrays.
 
     Args:
-        cell_ids_a: The first array of cell indices.
-        cell_ids_b: The second array of cell indices.
+        cell_ids_a: First cell index array.
+        cell_ids_b: Second cell index array.
 
     Returns:
-        The new array group indices.
+        Merged cell indices.
     """
     cell_ids_a = jnp.asarray(cell_ids_a)
     cell_ids_b = jnp.asarray(cell_ids_b)
@@ -141,7 +141,7 @@ class Paths(eqx.Module, Generic[_M]):
         Return a new paths instance with reshaped paths' batch dimensions to match a given shape.
 
         Args:
-            batch: The new batch shapes.
+            batch: New batch shape.
 
         Returns:
             A new paths instance with specified batch dimensions.
@@ -515,7 +515,7 @@ class Paths(eqx.Module, Generic[_M]):
         """Apply a function on all path vertices and accumulate the result into a scalar value (or an array if ``axis`` is provided).
 
         Args:
-            fun: The function to be called on all path vertices.
+            fun: Function to apply on path vertices.
             axis: See :func:`jax.numpy.sum` for allowed values.
 
         Returns:
