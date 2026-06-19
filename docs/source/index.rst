@@ -21,6 +21,7 @@ Contents
    installation
    conventions
    motivations
+   limitations
 
 .. toctree::
    :caption: Basic Tutorials

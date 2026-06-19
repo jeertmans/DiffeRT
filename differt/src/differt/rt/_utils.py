@@ -391,6 +391,12 @@ def rays_intersect_any_triangle(
     A triangle is considered to be intersected if
     ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
 
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.rays_intersect_any_triangle<differt.geometry.TriangleMesh.rays_intersect_any_triangle>`,
+        as long as smoothing is not required.
+
     Args:
         ray_origins: An array of origin vertices.
         ray_directions: An array of ray direction. The ray ends
@@ -406,7 +412,7 @@ def rays_intersect_any_triangle(
             Using a non-zero tolerance is required as it would otherwise trigger
             false positives.
 
-            If not specified, the default is ten times the epsilon value
+            If not specified, the default is one hundred times the epsilon value
             of the currently used floating point dtype.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
             as described in :cite:`fully-eucap2024`, and this argument parameterizes the slope
@@ -433,7 +439,7 @@ def rays_intersect_any_triangle(
 
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol = 10.0 * jnp.finfo(dtype).eps
+        hit_tol = 100.0 * jnp.finfo(dtype).eps
 
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
@@ -574,6 +580,12 @@ def triangles_visible_from_vertices(
     :func:`viewing_frustum<differt.geometry.viewing_frustum>` to only
     launch rays in a spatial region that contains triangles.
 
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.triangles_visible_from_vertices<differt.geometry.TriangleMesh.triangles_visible_from_vertices>`,
+        as long as smoothing is not required.
+
     Args:
         vertices: An array of vertices, used as origins of the rays.
 
@@ -597,7 +609,7 @@ def triangles_visible_from_vertices(
             :func:`rays_intersect_triangles`.
 
     Returns:
-        For each triangle, whether it intersects with any of the rays.
+        A boolean array indicating whether each triangle is visible from each vertex.
 
     Examples:
         The following example shows how to identify triangles as
@@ -802,6 +814,12 @@ def first_triangles_hit_by_rays(
     getting the first triangle hit by the ray.
 
     If two or more triangles are hit at the same distance, the one with the closest center to the ray origin is selected. Two triangles are considered to be hit at the same distance if their distances differ by less than ``100 * eps``, or ten times the ``epsilon`` keyword argument passed to :func:`rays_intersect_triangles`.
+
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.first_triangles_hit_by_rays<differt.geometry.TriangleMesh.first_triangles_hit_by_rays>`,
+        as long as smoothing is not required.
 
     Args:
         ray_origins: An array of origin vertices.
