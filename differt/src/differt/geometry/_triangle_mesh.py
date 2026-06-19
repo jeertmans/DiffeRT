@@ -146,7 +146,7 @@ def _rays_intersect_any_triangle_kernel(
     ray_directions: wp.array[wp.vec3],
     max_t: wp.array[wp.float32],
     output: wp.array[wp.bool],
-) -> None:
+) -> None:  # pragma: no cover
     tid = wp.tid()
     output[tid] = wp.mesh_query_ray_anyhit(
         mesh_id,
@@ -257,16 +257,13 @@ def _first_triangles_hit_by_rays_kernel(
     epsilon: float,
     output_face: wp.array[wp.int32],
     output_dist: wp.array[wp.float32],
-) -> None:
+) -> None:  # pragma: no cover
     tid = wp.tid()
     origin = ray_origins[tid] + ray_directions[tid] * epsilon
     res = wp.mesh_query_ray(mesh_id, origin, ray_directions[tid], wp.inf)
     hit = res.result
     output_face[tid] = res.face if hit else -1
     output_dist[tid] = (res.t + epsilon) if hit else wp.inf
-
-
-# TODO: implement caching logic for _first_triangles_hit_by_rays_func
 
 
 @no_type_check
@@ -493,7 +490,7 @@ def _triangles_visible_kernel(
     num_rays: int,
     num_triangles: int,
     output_visible: wp.array[wp.bool],
-) -> None:
+) -> None:  # pragma: no cover
     tid = wp.tid()
     batch_idx = tid // num_rays
 
