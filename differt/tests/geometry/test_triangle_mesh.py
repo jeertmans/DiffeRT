@@ -10,8 +10,9 @@ import jax
 import jax.numpy as jnp
 import jaxtyping
 import pytest
-from jaxtyping import Array, PRNGKeyArray
+from jaxtyping import Array, Float, PRNGKeyArray
 
+from differt import rt
 from differt.geometry._triangle_mesh import (
     TriangleMesh,
     triangles_contain_vertices_assuming_inside_same_plane,
@@ -2020,3 +2021,113 @@ class TestTriangleMeshDiffraction:
             triangles=jnp.empty((0, 3), dtype=int),
         )
         assert mesh.drop_unused_vertices().vertices.shape[0] == 0
+
+    def test_rays_intersect_any_triangle_correctness(self, key: PRNGKeyArray) -> None:
+        mesh = TriangleMesh.box(2.0, 2.0, 2.0)
+
+        key_origins, key_directions = jax.random.split(key)
+        ray_origins = jax.random.uniform(key_origins, (10, 3), minval=-5.0, maxval=5.0)
+        ray_directions = jax.random.uniform(
+            key_directions, (10, 3), minval=-1.0, maxval=1.0
+        )
+
+        expected = rt.rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+            mesh.triangle_vertices,
+        )
+        got = mesh.rays_intersect_any_triangle(
+            ray_origins,
+            ray_directions,
+        )
+        chex.assert_trees_all_equal(got, expected)
+
+    def test_first_triangles_hit_by_rays_correctness_and_gradients(
+        self, key: PRNGKeyArray
+    ) -> None:
+        mesh = TriangleMesh.box(2.0, 2.0, 2.0)
+
+        key_origins, key_directions = jax.random.split(key)
+        ray_origins_rand = jax.random.uniform(
+            key_origins, (10, 3), minval=-5.0, maxval=5.0
+        )
+        ray_directions_rand = jax.random.uniform(
+            key_directions, (10, 3), minval=-1.0, maxval=1.0
+        )
+
+        expected_idx, expected_t = rt.first_triangles_hit_by_rays(
+            ray_origins_rand,
+            ray_directions_rand,
+            mesh.triangle_vertices,
+        )
+        got_idx, got_t = mesh.first_triangles_hit_by_rays(
+            ray_origins_rand,
+            ray_directions_rand,
+        )
+        chex.assert_trees_all_equal(got_idx, expected_idx)
+        chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5, atol=1e-5)
+
+        ray_origins = jnp.array([
+            [0.0, 0.0, 3.0],
+            [0.0, 3.0, 0.0],
+            [3.0, 0.0, 0.0],
+        ])
+        ray_directions = jnp.array([
+            [0.0, 0.0, -1.0],
+            [0.0, -1.0, 0.0],
+            [-1.0, 0.0, 0.0],
+        ])
+
+        def ref_fun(
+            origins: Float[Array, "num_rays 3"],
+            directions: Float[Array, "num_rays 3"],
+            vertices: Float[Array, "num_vertices 3"],
+        ) -> Float[Array, " num_rays"]:
+            triangle_vertices = jnp.take(vertices, mesh.triangles, axis=0)
+            _, t = rt.first_triangles_hit_by_rays(
+                origins,
+                directions,
+                triangle_vertices,
+            )
+            return t
+
+        def got_fun(
+            origins: Float[Array, "num_rays 3"],
+            directions: Float[Array, "num_rays 3"],
+            vertices: Float[Array, "num_vertices 3"],
+        ) -> Float[Array, " num_rays"]:
+            m = eqx.tree_at(lambda x: x.vertices, mesh, vertices)
+            _, t = m.first_triangles_hit_by_rays(
+                origins,
+                directions,
+            )
+            return t
+
+        jac_ref = jax.jacobian(ref_fun, argnums=(0, 1, 2))(
+            ray_origins, ray_directions, mesh.vertices
+        )
+        jac_got = jax.jacobian(got_fun, argnums=(0, 1, 2))(
+            ray_origins, ray_directions, mesh.vertices
+        )
+
+        for j_got, j_ref in zip(jac_got, jac_ref, strict=True):
+            chex.assert_trees_all_close(j_got, j_ref, rtol=1e-5, atol=1e-5)
+
+    def test_triangles_visible_from_vertices_correctness(
+        self, key: PRNGKeyArray
+    ) -> None:
+        mesh = TriangleMesh.box(2.0, 2.0, 2.0)
+
+        key_origins, _ = jax.random.split(key)
+        ray_origins = jax.random.uniform(key_origins, (10, 3), minval=-5.0, maxval=5.0)
+
+        expected = rt.triangles_visible_from_vertices(
+            ray_origins,
+            mesh.triangle_vertices,
+            num_rays=100,
+        )
+        got = mesh.triangles_visible_from_vertices(
+            ray_origins,
+            num_rays=100,
+        )
+        chex.assert_trees_all_equal(got, expected)

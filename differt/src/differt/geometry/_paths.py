@@ -128,12 +128,7 @@ class Paths(eqx.Module, Generic[_M]):
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """
-        Return the batch shape of the paths.
-
-        Returns:
-            The shape of paths' batch dimensions.
-        """
+        """The batch shape of the paths."""
         return self.vertices.shape[:-2]
 
     def reshape(self, *batch: int) -> Self:
