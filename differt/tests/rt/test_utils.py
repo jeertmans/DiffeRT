@@ -280,7 +280,7 @@ def test_rays_intersect_any_triangle(
 ) -> None:
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol_arr = jnp.finfo(dtype).eps
+        hit_tol_arr = 100.0 * jnp.finfo(dtype).eps
     else:
         hit_tol_arr = jnp.asarray(hit_tol)
 

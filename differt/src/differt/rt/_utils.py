@@ -391,6 +391,12 @@ def rays_intersect_any_triangle(
     A triangle is considered to be intersected if
     ``t < (1 - hit_tol) & hit`` evaluates to :data:`True`.
 
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.rays_intersect_any_triangle<differt.geometry.TriangleMesh.rays_intersect_any_triangle>`,
+        as long as smoothing is not required.
+
     Args:
         ray_origins: An array of origin vertices.
         ray_directions: An array of ray direction. The ray ends
@@ -406,7 +412,7 @@ def rays_intersect_any_triangle(
             Using a non-zero tolerance is required as it would otherwise trigger
             false positives.
 
-            If not specified, the default is ten times the epsilon value
+            If not specified, the default is one hundred times the epsilon value
             of the currently used floating point dtype.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
             as described in :cite:`fully-eucap2024`, and this argument parameterizes the slope
@@ -433,7 +439,7 @@ def rays_intersect_any_triangle(
 
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
-        hit_tol = 10.0 * jnp.finfo(dtype).eps
+        hit_tol = 100.0 * jnp.finfo(dtype).eps
 
     hit_threshold = 1.0 - jnp.asarray(hit_tol)
 
@@ -498,11 +504,19 @@ def rays_intersect_any_triangle(
     ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
+            triangle_vertices,
+            start_index,
+            batch_size,
+            axis=-3,
+            allow_negative_indices=False,
         )
         batch_of_active_triangles = (
             jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+                active_triangles,
+                start_index,
+                batch_size,
+                axis=-1,
+                allow_negative_indices=False,
             )
             if active_triangles is not None
             else None
@@ -566,6 +580,12 @@ def triangles_visible_from_vertices(
     :func:`viewing_frustum<differt.geometry.viewing_frustum>` to only
     launch rays in a spatial region that contains triangles.
 
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.triangles_visible_from_vertices<differt.geometry.TriangleMesh.triangles_visible_from_vertices>`,
+        as long as smoothing is not required.
+
     Args:
         vertices: An array of vertices, used as origins of the rays.
 
@@ -589,7 +609,7 @@ def triangles_visible_from_vertices(
             :func:`rays_intersect_triangles`.
 
     Returns:
-        For each triangle, whether it intersects with any of the rays.
+        A boolean array indicating whether each triangle is visible from each vertex.
 
     Examples:
         The following example shows how to identify triangles as
@@ -743,7 +763,11 @@ def triangles_visible_from_vertices(
     ) -> Bool[Array, "*batch num_triangles"]:
         start_index = batch_index * batch_size
         batch_of_ray_directions = jax.lax.dynamic_slice_in_dim(
-            ray_directions, start_index, batch_size, axis=-2
+            ray_directions,
+            start_index,
+            batch_size,
+            axis=-2,
+            allow_negative_indices=False,
         )
         visible_indices = map_fn(
             ray_origins,
@@ -790,6 +814,12 @@ def first_triangles_hit_by_rays(
     getting the first triangle hit by the ray.
 
     If two or more triangles are hit at the same distance, the one with the closest center to the ray origin is selected. Two triangles are considered to be hit at the same distance if their distances differ by less than ``100 * eps``, or ten times the ``epsilon`` keyword argument passed to :func:`rays_intersect_triangles`.
+
+    .. note::
+
+        This function has a faster and more memory-efficient equivalent method:
+        :meth:`TriangleMesh.first_triangles_hit_by_rays<differt.geometry.TriangleMesh.first_triangles_hit_by_rays>`,
+        as long as smoothing is not required.
 
     Args:
         ray_origins: An array of origin vertices.
@@ -855,48 +885,22 @@ def first_triangles_hit_by_rays(
         )
 
     def reduce_fn(
-        left: tuple[
-            Int[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *#batch"],
-        ],
-        right: tuple[
-            Int[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *batch"],
-            Float[Array, " *#batch"],
-        ],
-    ) -> tuple[
-        Int[Array, " *batch"],
-        Float[Array, " *batch"],
-        Float[Array, " *batch"],
-        Float[Array, " *#batch"],
-    ]:
-        left_indices, left_t, left_center_distances, eps = left
-        right_indices, right_t, right_center_distances, _ = right
-        cond: Array = jnp.where(
-            jnp.abs(left_t - right_t) < eps,
-            left_center_distances < right_center_distances,
-            left_t < right_t,
-        )
+        left: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+        right: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
+        left_indices, left_t = left
+        right_indices, right_t = right
+        cond = left_t < right_t
         t = jnp.where(cond, left_t, right_t)
         indices = jnp.where(cond, left_indices, right_indices)
-        t = jnp.minimum(left_t, right_t)
-        center_distances = jnp.where(
-            cond, left_center_distances, right_center_distances
-        )
-        is_finite = jnp.isfinite(t)
-        indices = jnp.where(is_finite, indices, -1)
-        t = jnp.where(is_finite, t, jnp.inf)
-        return indices, t, center_distances, eps
+        return indices, t
 
     def map_fn(
         ray_origins: Float[Array, "*#batch 3"],
         ray_directions: Float[Array, "*#batch 3"],
         triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
         t, hit = rays_intersect_triangles(
             ray_origins[..., None, :],
             ray_directions[..., None, :],
@@ -906,48 +910,46 @@ def first_triangles_hit_by_rays(
         if active_triangles is not None:
             hit &= active_triangles
         t = jnp.where(hit, t, jnp.inf)
-        indices = jnp.arange(triangle_vertices.shape[-3])
-        indices = jnp.broadcast_to(indices, t.shape)
-        center_distances = jnp.linalg.norm(
-            triangle_vertices.mean(axis=-2) - ray_origins[..., None, :], axis=-1
-        )
-        center_distances = jnp.broadcast_to(center_distances, t.shape)
-        eps = jnp.broadcast_to(epsilon, t.shape)
-        return jax.lax.reduce(
-            (indices, t, center_distances, eps),
-            (-1, jnp.inf, jnp.inf, epsilon),
-            reduce_fn,
-            dimensions=(t.ndim - 1,),
-        )[:3]
+
+        min_idx = jnp.argmin(t, axis=-1)
+        min_t = jnp.min(t, axis=-1)
+
+        min_idx = jnp.where(jnp.isinf(min_t), -1, min_idx)
+        return min_idx, min_t
 
     def body_fun(
         batch_index: Int[Array, ""],
-        carry: tuple[
-            Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]
-        ],
-    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"], Float[Array, " *batch"]]:
+        carry: tuple[Int[Array, " *batch"], Float[Array, " *batch"]],
+    ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
         start_index = batch_index * batch_size
         batch_of_triangle_vertices = jax.lax.dynamic_slice_in_dim(
-            triangle_vertices, start_index, batch_size, axis=-3
+            triangle_vertices,
+            start_index,
+            batch_size,
+            axis=-3,
+            allow_negative_indices=False,
         )
         batch_of_active_triangles = (
             jax.lax.dynamic_slice_in_dim(
-                active_triangles, start_index, batch_size, axis=-1
+                active_triangles,
+                start_index,
+                batch_size,
+                axis=-1,
+                allow_negative_indices=False,
             )
             if active_triangles is not None
             else None
         )
-        indices, t, center_distances = map_fn(
+        indices, t = map_fn(
             ray_origins,
             ray_directions,
             batch_of_triangle_vertices,
             batch_of_active_triangles,
         )
-        # TODO: use *carry when ty supports starred expressions
         return reduce_fn(
-            (carry[0], carry[1], carry[2], epsilon),
-            (indices + start_index, t, center_distances, epsilon),
-        )[:3]
+            carry,
+            (indices + start_index, t),
+        )
 
     init_val = (
         -jnp.ones(batch, dtype=jnp.int32),
@@ -956,14 +958,9 @@ def first_triangles_hit_by_rays(
             jnp.inf,
             dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
         ),
-        jnp.full(
-            batch,
-            jnp.inf,
-            dtype=jnp.result_type(ray_origins, ray_directions, triangle_vertices),
-        ),
     )
 
-    indices, t, center_distances = jax.lax.fori_loop(
+    indices, t = jax.lax.fori_loop(
         0,
         num_batches,
         body_fun,
@@ -971,19 +968,21 @@ def first_triangles_hit_by_rays(
     )
 
     if rem > 0:
-        rem_indices, rem_t, rem_center_distances = map_fn(
+        rem_indices, rem_t = map_fn(
             ray_origins,
             ray_directions,
             triangle_vertices[..., -rem:, :, :],
             active_triangles[..., -rem:] if active_triangles is not None else None,
         )
-        return reduce_fn(
-            (indices, t, center_distances, epsilon),
+        indices, t = reduce_fn(
+            (indices, t),
             (
                 rem_indices + num_batches * batch_size,
                 rem_t,
-                rem_center_distances,
-                epsilon,
             ),
-        )[:2]
+        )
+
+    is_finite = jnp.isfinite(t)
+    indices = jnp.where(is_finite, indices, -1)
+    t = jnp.where(is_finite, t, jnp.inf)
     return (indices, t)

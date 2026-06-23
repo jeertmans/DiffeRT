@@ -127,7 +127,7 @@ jobs:
           target: x86
         python-version:  # Bug: co-install fails (see Maturin's README.md)
         - '3.14'
-        - '3.14t'
+        - 3.14t
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
