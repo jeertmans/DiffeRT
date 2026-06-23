@@ -11,7 +11,7 @@ clean-autosummary:
     rm -f source/reference/_autosummary/*.rst
 
 # Build docs
-build builder="html" *OPTIONS="-W --keep-going":
+build $JAX_PLATFORM="cpu" $CUDA_VISIBLE_DEVICES="" builder="html" *OPTIONS="-W --keep-going":  # TODO: find a way to allow building on GPU
     uv run --group docs sphinx-build -M {{ builder }} source build {{ OPTIONS }}
 
 # Build docs in "draft" mode

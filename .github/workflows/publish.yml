@@ -56,22 +56,15 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v6
       with:
-        python-version: 3.x
+        python-version: |
+          3.14
+          3.14t
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist
-        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        manylinux: auto
-        working-directory: differt-core
-
-    - name: Build free-threaded wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        target: ${{ matrix.platform.target }}
-        args: --release --out dist -i python3.13t -i python3.14t
+        args: --release --out dist --find-interpreter
         sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: auto
         working-directory: differt-core
@@ -103,22 +96,15 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v6
       with:
-        python-version: 3.x
+        python-version: |
+          3.14
+          3.14t
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist
-        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        manylinux: musllinux_1_2
-        working-directory: differt-core
-
-    - name: Build free-threaded wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        target: ${{ matrix.platform.target }}
-        args: --release --out dist -i python3.13t -i python3.14t
+        args: --release --out dist --find-interpreter
         sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         manylinux: musllinux_1_2
         working-directory: differt-core
@@ -139,6 +125,9 @@ jobs:
           target: x64
         - runner: windows-latest
           target: x86
+        python-version:  # Bug: co-install fails (see Maturin's README.md)
+        - '3.14'
+        - 3.14t
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
@@ -146,22 +135,14 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v6
       with:
-        python-version: 3.x
+        python-version: ${{ matrix.platform.python-version }}
         architecture: ${{ matrix.platform.target }}
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist
-        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        working-directory: differt-core
-
-    - name: Build free-threaded wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        target: ${{ matrix.platform.target }}
-        args: --release --out dist -i python3.13t -i python3.14t
+        args: --release --out dist --find-interpreter
         sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
@@ -188,21 +169,15 @@ jobs:
     - name: Install Python
       uses: actions/setup-python@v6
       with:
-        python-version: 3.x
+        python-version: |
+          3.14
+          3.14t
 
     - name: Build wheels
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.platform.target }}
-        args: --release --out dist
-        sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        working-directory: differt-core
-
-    - name: Build free-threaded wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        target: ${{ matrix.platform.target }}
-        args: --release --out dist -i python3.13t -i python3.14t
+        args: --release --out dist --find-interpreter
         sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
         working-directory: differt-core
 
