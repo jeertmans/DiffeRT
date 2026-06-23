@@ -109,8 +109,8 @@ def download_sionna_scenes(
                 # tarfile added 'filter' parameter for security reasons.
                 if (
                     sys.version_info >= (3, 12)
-                    or (sys.version_info.minor == 11 and sys.version_info.micro >= 4)  # noqa: PLR2004
-                    or (sys.version_info.minor == 10 and sys.version_info.micro >= 12)  # noqa: PLR2004
+                    or (sys.version_info.minor == 11 and sys.version_info.micro >= 4)
+                    or (sys.version_info.minor == 10 and sys.version_info.micro >= 12)
                 ):
                     tar.extractall(path=folder, members=members(tar), filter="data")
                 else:  # pragma: no cover

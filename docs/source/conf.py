@@ -96,18 +96,19 @@ numfig = True
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
-    "jax": ("https://jax.readthedocs.io/en/latest", None),
+    "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
-    "matplotlib": ("https://matplotlib.org/stable", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
     "mitsuba": ("https://mitsuba.readthedocs.io/en/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "optax": ("https://optax.readthedocs.io/en/latest", None),
-    "plotly": ("https://plotly.com/python-api-reference", None),
-    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "optax": ("https://optax.readthedocs.io/en/latest/", None),
+    "plotly": ("https://plotly.com/python-api-reference/", None),
+    "python": ("https://docs.python.org/3/", None),
     "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sionna": ("https://nvlabs.github.io/sionna/", None),
     "vispy": ("https://vispy.org", None),
+    "warp": ("https://nvidia.github.io/warp/stable/", None),
 }
 
 # -- OpenGraph settings

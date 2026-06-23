@@ -57,7 +57,7 @@ def cargo_toml(project_dir: Path) -> Path:
     return project_dir.joinpath("Cargo.toml").resolve(strict=True)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True)  # noqa: RUF076
 def close_figure(
     monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
 ) -> Iterator[None]:
