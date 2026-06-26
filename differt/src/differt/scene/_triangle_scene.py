@@ -2,13 +2,16 @@ import math
 import typing
 import warnings
 from collections.abc import Iterator, Mapping
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from functools import partial
+from typing import TYPE_CHECKING, Any, Literal, cast, no_type_check, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+import warp as wp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
+from jaxtyping import UInt as Uint
 
 import differt_core.scene
 from differt.geometry import (
@@ -506,6 +509,397 @@ def _compute_paths_sbr(
         vertices,
         objects,
         masks=masks,
+    )
+
+
+from differt.geometry._triangle_mesh import (  # noqa: E402
+    _WARP_MESHES_CACHE,  # TODO: should we create a separate cache here?
+)
+
+
+@no_type_check
+@wp.func
+def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:
+    return h1 ^ (
+        h2 + wp.uint32(0x9E3779B9) + (h1 << wp.uint32(6)) + (h1 >> wp.uint32(2))
+    )
+
+
+@no_type_check
+@wp.func
+def hash_int(x: wp.uint32) -> wp.uint32:
+    x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
+    x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
+    return (x >> wp.uint32(16)) ^ x
+
+
+@no_type_check
+@wp.kernel
+def _compute_tx_mlm_kernel(
+    mesh_id: wp.uint64,
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
+    ray_origins: wp.array(dtype=wp.vec3, ndim=2),
+    ray_directions: wp.array(dtype=wp.vec3, ndim=2),
+    dim_x: int,
+    dim_y: int,
+    max_order: int,
+    min_order: int,
+    assume_quads: bool,
+    receiver_height: float,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+    output: wp.array3d[wp.uint32],
+) -> None:
+    itx, iray = wp.tid()
+
+    current_origin = ray_origins[itx, iray]
+    current_direction = ray_directions[itx, iray]
+    ray_hash = wp.uint32(2166136261)
+
+    epsilon = wp.float32(1e-4)
+    dx = (wp.float32(max_x) - wp.float32(min_x)) / wp.float32(dim_x)
+    dy = (wp.float32(max_y) - wp.float32(min_y)) / wp.float32(dim_y)
+
+    for t in range(max_order + 1):
+        # Query closest hit along the ray
+        query_origin = current_origin
+        if t > 0:
+            query_origin = current_origin + current_direction * epsilon
+
+        res = wp.mesh_query_ray(mesh_id, query_origin, current_direction, wp.inf)
+
+        # Distance to closest triangle hit (if any)
+        t_hit = wp.inf
+        if res.result:
+            t_hit = res.t + epsilon if t > 0 else res.t
+
+        # Intersection with the receiver plane z = receiver_height
+        if wp.abs(current_direction[2]) > wp.float32(1e-6):
+            u = (wp.float32(receiver_height) - query_origin[2]) / current_direction[2]
+
+            # Intersection point P
+            P = query_origin + current_direction * u  # noqa: N806
+
+            # Check if intersection is valid and unobstructed
+            if u > wp.float32(0.0) and u < t_hit:  # noqa: SIM102
+                if t >= min_order and (
+                    P[0] >= wp.float32(min_x)
+                    and P[0] <= wp.float32(max_x)
+                    and P[1] >= wp.float32(min_y)
+                    and P[1] <= wp.float32(max_y)
+                ):
+                    # It hit the receiver grid!
+                    ix = wp.int32(wp.floor((P[0] - wp.float32(min_x)) / dx))
+                    iy = wp.int32(wp.floor((P[1] - wp.float32(min_y)) / dy))
+
+                    # Clip to bounds
+                    ix = wp.clamp(ix, wp.int32(0), wp.int32(dim_x - 1))
+                    iy = wp.clamp(iy, wp.int32(0), wp.int32(dim_y - 1))
+
+                    # Add path hash to cell
+                    wp.atomic_or(output, itx, ix, iy, ray_hash)
+
+        # If the ray hit a triangle, we bounce it
+        if res.result:
+            # Update origin to hit point
+            current_origin = query_origin + current_direction * res.t
+
+            # TODO: maybe we should pre-calculate the face normals?
+            # Compute face normal
+            face_index = res.face
+            i0 = mesh_indices[face_index * 3 + 0]
+            i1 = mesh_indices[face_index * 3 + 1]
+            i2 = mesh_indices[face_index * 3 + 2]
+            v0 = mesh_points[i0]
+            v1 = mesh_points[i1]
+            v2 = mesh_points[i2]
+
+            # Normal vector
+            normal = wp.normalize(wp.cross(v1 - v0, v2 - v0))
+
+            # Reflected direction
+            current_direction = (
+                current_direction
+                - wp.float32(2.0) * wp.dot(current_direction, normal) * normal
+            )
+
+            # Update path hash
+            hash_face = face_index
+            if assume_quads:
+                hash_face = face_index // 2
+            ray_hash = combine_hashes(ray_hash, hash_int(wp.uint32(hash_face)))
+        else:
+            # No hit, ray goes to infinity
+            break
+
+
+@no_type_check
+def _compute_tx_mlm_func(
+    mesh_id: int,
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
+    ray_origins: wp.array(dtype=wp.vec3, ndim=2),
+    ray_directions: wp.array(dtype=wp.vec3, ndim=2),
+    dim_x: int,
+    dim_y: int,
+    num_rays: int,
+    max_order: int,
+    min_order: int,
+    assume_quads: bool,
+    receiver_height: float,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+    output: wp.array(dtype=wp.uint32, ndim=3),
+) -> None:
+    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
+        wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
+        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
+
+    output.fill_(0)
+
+    num_tx = ray_origins.shape[0]
+
+    wp.launch(
+        _compute_tx_mlm_kernel,
+        dim=(num_tx, num_rays),
+        inputs=[
+            wp_mesh.id,
+            mesh_points,
+            mesh_indices,
+            ray_origins,
+            ray_directions,
+            dim_x,
+            dim_y,
+            max_order,
+            min_order,
+            assume_quads,
+            receiver_height,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+        ],
+        outputs=[output],
+        device=ray_origins.device,
+    )
+
+
+@no_type_check
+def _compute_tx_mlm_cuda_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_tx num_rays 3"],
+    ray_directions: Float[Array, "num_tx num_rays 3"],
+    *,
+    dim_x: int,
+    dim_y: int,
+    num_rays: int,
+    max_order: int,
+    min_order: int,
+    assume_quads: bool,
+    receiver_height: float,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> Uint[Array, "num_tx dim_x dim_y"]:
+    num_tx = ray_origins.shape[0]
+    return wp.jax_callable(
+        _compute_tx_mlm_func,
+        num_outputs=1,
+        output_dims=(num_tx, dim_x, dim_y),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
+    )(
+        mesh_id,
+        vertices,
+        triangles.ravel(),
+        ray_origins,
+        ray_directions,
+        dim_x,
+        dim_y,
+        num_rays,
+        max_order,
+        min_order,
+        assume_quads,
+        receiver_height,
+        min_x,
+        max_x,
+        min_y,
+        max_y,
+    )[0]
+
+
+@no_type_check
+def _compute_tx_mlm_cpu_impl(
+    mesh_id: np.uint64,
+    vertices: Float[Array, "num_vertices 3"],
+    triangles: Int[Array, "num_triangles 3"],
+    ray_origins: Float[Array, "num_tx num_rays 3"],
+    ray_directions: Float[Array, "num_tx num_rays 3"],
+    *,
+    dim_x: int,
+    dim_y: int,
+    num_rays: int,
+    max_order: int,
+    min_order: int,
+    assume_quads: bool,
+    receiver_height: float,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> Uint[Array, "num_tx dim_x dim_y"]:
+    num_tx = ray_origins.shape[0]
+
+    def callback(
+        jax_vertices: Float[Array, "num_vertices 3"],
+        jax_triangles: Int[Array, "num_triangles 3"],
+        jax_ray_origins: Float[Array, "num_tx num_rays 3"],
+        jax_ray_directions: Float[Array, "num_tx num_rays 3"],
+    ) -> Uint[Array, "num_tx dim_x dim_y"]:
+        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
+        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
+        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
+        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
+
+        output = wp.zeros(
+            (num_tx, dim_x, dim_y), dtype=wp.uint32, device=wp_ray_origins.device
+        )
+
+        _compute_tx_mlm_func(
+            int(mesh_id),
+            wp_vertices,
+            wp_triangles,
+            wp_ray_origins,
+            wp_ray_directions,
+            dim_x,
+            dim_y,
+            num_rays,
+            max_order,
+            min_order,
+            assume_quads,
+            receiver_height,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            output,
+        )
+
+        return wp.to_jax(output)
+
+    return jax.pure_callback(
+        callback,
+        jax.ShapeDtypeStruct((num_tx, dim_x, dim_y), jnp.uint32),
+        vertices,
+        triangles,
+        ray_origins,
+        ray_directions,
+    )
+
+
+@eqx.filter_jit
+@no_type_check
+def _compute_tx_mlm(
+    tx: Float[Array, "num_tx 3"],
+    mesh: TriangleMesh,
+    max_order: int,
+    min_order: int,
+    assume_quads: bool,
+    dim_x: int,
+    dim_y: int,
+    num_rays: int,
+    receiver_height: float,
+    min_x: float,
+    max_x: float,
+    min_y: float,
+    max_y: float,
+) -> Uint[Array, "num_tx dim_x dim_y"]:
+    """
+    Compute the multilateration map for transmitters.
+
+    Returns:
+        The multilateration map.
+    """
+    # 1 - Prepare arrays
+    points = mesh.vertices
+    indices = mesh.triangles
+
+    world_vertices = mesh.triangle_vertices.reshape(-1, 3)
+
+    if mesh.mask is not None:
+        active_vertices = jnp.repeat(mesh.mask, 3, axis=0)
+        indices = jnp.where(mesh.mask[:, None], indices, 0)
+    else:
+        active_vertices = None
+
+    # Include the 4 corner points of the receiver plane to expand viewing frustum
+    corners = jnp.array([
+        [min_x, min_y, receiver_height],
+        [max_x, min_y, receiver_height],
+        [max_x, max_y, receiver_height],
+        [min_x, max_y, receiver_height],
+    ])
+    world_vertices = jnp.concatenate((world_vertices, corners), axis=0)
+    if active_vertices is not None:
+        active_vertices = jnp.concatenate(
+            (active_vertices, jnp.ones(4, dtype=jnp.bool_)), axis=0
+        )
+
+    def gen_rays(
+        t: Float[Array, "3"],
+    ) -> tuple[Float[Array, "num_rays 3"], Float[Array, "num_rays 3"]]:
+        f = viewing_frustum(t, world_vertices, active_vertices=active_vertices)
+        f = f.at[1, 1].set(jnp.pi)
+        origins = jnp.repeat(t[None, :], num_rays, axis=0)
+        directions = fibonacci_lattice(num_rays, frustum=f)
+        return origins, directions
+
+    ray_origins, ray_directions = jax.vmap(gen_rays)(tx)
+
+    mesh_id = np.uint64(id(mesh))
+
+    return jax.lax.platform_dependent(
+        points,
+        indices,
+        ray_origins,
+        ray_directions,
+        cpu=partial(
+            _compute_tx_mlm_cpu_impl,
+            mesh_id,
+            dim_x=dim_x,
+            dim_y=dim_y,
+            num_rays=num_rays,
+            max_order=max_order,
+            min_order=min_order,
+            assume_quads=assume_quads,
+            receiver_height=receiver_height,
+            min_x=min_x,
+            max_x=max_x,
+            min_y=min_y,
+            max_y=max_y,
+        ),
+        cuda=partial(
+            _compute_tx_mlm_cuda_impl,
+            mesh_id,
+            dim_x=dim_x,
+            dim_y=dim_y,
+            num_rays=num_rays,
+            max_order=max_order,
+            min_order=min_order,
+            assume_quads=assume_quads,
+            receiver_height=receiver_height,
+            min_x=min_x,
+            max_x=max_x,
+            min_y=min_y,
+            max_y=max_y,
+        ),
     )
 
 
@@ -1318,6 +1712,133 @@ class TriangleScene(eqx.Module):
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
         ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+
+    def compute_tx_mlm(
+        self,
+        max_order: int,
+        dim_x: int,
+        dim_y: int,
+        num_rays: int = int(1e6),
+        min_order: int = 0,
+        height: float | None = None,
+    ) -> Uint[Array, "*transmitters_batch dim_x dim_y"]:
+        """
+        Compute the Multipath Lifetime Map (MLM) from the transmitter(s) for a moving receiver on a 2D grid in the XY plane.
+
+        This method implements the MLM algorithm described in the paper
+        *Comparing Differentiable and Dynamic Ray Tracing: Introducing the
+        Multipath Lifetime Map* :cite:`mlm-eucap2025`.
+
+        Rather than performing exhaustive ray tracing for each grid receiver (which is
+        computationally expensive and has a large memory footprint, as shown in the
+        {ref}`multipath_lifetime_map` tutorial notebook), this function uses a
+        **shooting and bouncing ray (SBR)** approach to efficiently sample paths from
+        the transmitter and resolve which receiver cells they intersect.
+
+        Warning:
+            Because this function relies on a stochastic SBR approach, there is a
+            trade-off between grid density and ray count. When increasing the resolution
+            of the grid (i.e., ``dim_x`` and ``dim_y``), you **must** increase ``num_rays``
+            correspondingly. Otherwise, some grid cells will not be sampled by any rays,
+            leading to "unreached" cells and visible noise/holes in the map.
+
+        Warning:
+            This method is considered experimental and may change in future releases.
+
+        Args:
+            max_order: The maximum path order (number of bounces).
+            dim_x: The number of grid cells along the X-axis.
+            dim_y: The number of grid cells along the Y-axis.
+            num_rays: The number of rays to launch from the transmitter.
+            min_order: The minimum path order (number of bounces).
+            height: The height (altitude) at which the MLM is computed. If None,
+                defaults to the height of the first receiver, or 1.5 if no receivers.
+            assume_quads: Whether to group face indices into quads (pairs of triangles)
+                for path hashing. If None, defaults to the mesh's `assume_quads` setting.
+
+        Returns:
+            A 2D array representing the path hashes for each grid cell.
+
+        Examples:
+            The following example demonstrates how to compute and visualize a 3D MLM
+            for a simple street canyon scene.
+
+            .. plotly::
+
+                >>> from differt.scene import TriangleScene, get_sionna_scene
+                >>> from differt.plotting import draw_image
+                >>> import equinox as eqx
+                >>>
+                >>> # Load the simple street canyon scene
+                >>> scene_path = get_sionna_scene("simple_street_canyon")
+                >>> scene = TriangleScene.load_xml(scene_path)
+                >>> scene = eqx.tree_at(
+                ...     lambda s: s.transmitters, scene, jnp.array([0.0, 0.0, 32.0])
+                ... )
+                >>>
+                >>> # Define grid limits and compute the MLM at height z=1.5
+                >>> bbox = scene.mesh.bounding_box
+                >>> x = jnp.linspace(bbox[0, 0], bbox[1, 0], 100)
+                >>> y = jnp.linspace(bbox[0, 1], bbox[1, 1], 100)
+                >>> mlm = scene.compute_tx_mlm(
+                ...     max_order=3,
+                ...     dim_x=100,
+                ...     dim_y=100,
+                ...     height=1.5,
+                ... )
+                >>>
+                >>> # Map hashes to discrete IDs, masking out the background (ID=0)
+                >>> _, cell_ids = jnp.unique(mlm, return_inverse=True)
+                >>> cell_ids = cell_ids.reshape(mlm.shape).astype(float)
+                >>> cell_ids = jnp.where(cell_ids == 0, jnp.nan, cell_ids)
+                >>>
+                >>> # Plot scene and overlay the computed MLM at the target height
+                >>> fig = scene.plot(backend="plotly")
+                >>> fig = draw_image(
+                ...     cell_ids.T,
+                ...     x=x,
+                ...     y=y,
+                ...     z0=1.5,
+                ...     figure=fig,
+                ...     colorscale="rainbow",
+                ...     showscale=False,
+                ...     backend="plotly",
+                ... )  # doctest: +SKIP
+                >>> fig  # doctest: +SKIP
+        """
+        tx_shape = self.transmitters.shape[:-1]
+        tx_flat = jax.lax.stop_gradient(self.transmitters).reshape(-1, 3)
+        if height is not None:
+            receiver_height = height
+        elif self.receivers.size > 0:
+            receiver_height = float(self.receivers.reshape(-1, 3)[0, 2])
+        else:
+            receiver_height = 1.5
+
+        bbox = self.mesh.bounding_box
+        min_x = float(bbox[0, 0])
+        max_x = float(bbox[1, 0])
+        min_y = float(bbox[0, 1])
+        max_y = float(bbox[1, 1])
+
+        out = _compute_tx_mlm(
+            tx_flat,
+            self.mesh,
+            max_order=max_order,
+            min_order=min_order,
+            assume_quads=self.mesh.assume_quads,
+            dim_x=dim_x,
+            dim_y=dim_y,
+            num_rays=num_rays,
+            receiver_height=receiver_height,
+            min_x=min_x,
+            max_x=max_x,
+            min_y=min_y,
+            max_y=max_y,
+        )
+
+        res = out.reshape(*tx_shape, dim_x, dim_y)
+        return jax.lax.stop_gradient(res)
 
     def plot(
         self,

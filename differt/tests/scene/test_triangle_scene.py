@@ -680,3 +680,134 @@ class TestTriangleScene:
 
         # Should get the same results since hybrid always disconnects inactive triangles
         chex.assert_trees_all_equal(paths_true, paths_false)
+
+    def test_compute_tx_mlm(self) -> None:
+        # Define a simple box mesh: 8 vertices, 12 triangles
+        vertices = jnp.array(
+            [
+                [-1.0, -1.0, -1.0],
+                [1.0, -1.0, -1.0],
+                [1.0, 1.0, -1.0],
+                [-1.0, 1.0, -1.0],
+                [-1.0, -1.0, 1.0],
+                [1.0, -1.0, 1.0],
+                [1.0, 1.0, 1.0],
+                [-1.0, 1.0, 1.0],
+            ],
+            dtype=jnp.float32,
+        )
+        triangles = jnp.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],  # Bottom
+                [4, 5, 6],
+                [4, 6, 7],  # Top
+                [0, 1, 5],
+                [0, 5, 4],  # Front
+                [1, 2, 6],
+                [1, 6, 5],  # Right
+                [2, 3, 7],
+                [2, 7, 6],  # Back
+                [3, 0, 4],
+                [3, 4, 7],  # Left
+            ],
+            dtype=jnp.int32,
+        )
+        mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+
+        tx = jnp.array([0.0, 0.0, 5.0], dtype=jnp.float32)
+
+        scene = TriangleScene(transmitters=tx, receivers=jnp.empty((0, 3)), mesh=mesh)
+        scene = scene.with_receivers_grid(m=10, n=10, height=1.5)
+
+        # Test shape and types of base case
+        mlm = scene.compute_tx_mlm(max_order=1, dim_x=10, dim_y=10, num_rays=500)
+        assert mlm.shape == (10, 10)
+        assert mlm.dtype == jnp.uint32
+
+        # Test custom height
+        mlm_custom_height = scene.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500, height=2.0
+        )
+        assert mlm_custom_height.shape == (10, 10)
+        assert mlm_custom_height.dtype == jnp.uint32
+
+        # Test min_order
+        mlm_min_order = scene.compute_tx_mlm(
+            max_order=1, min_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_min_order.shape == (10, 10)
+        assert mlm_min_order.dtype == jnp.uint32
+
+        # Test min_order > max_order results in all zeros
+        mlm_empty = scene.compute_tx_mlm(
+            max_order=1, min_order=2, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_empty.shape == (10, 10)
+        assert jnp.all(mlm_empty == 0)
+
+        # Test assume_quads
+        scene_quads = scene.set_assume_quads(True)
+        mlm_quads = scene_quads.compute_tx_mlm(max_order=1, dim_x=10, dim_y=10, num_rays=500)
+        assert mlm_quads.shape == (10, 10)
+        assert mlm_quads.dtype == jnp.uint32
+
+        # Test coverage:
+        # A receiver plane completely above the box (height = 1.5) should have direct
+        # line of sight (order 0) covered for some regions (especially corners).
+        mlm_above = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.any(mlm_above > 0), (
+            "Some cells above the box should have direct line of sight (order 0)"
+        )
+        assert mlm_above[0, 0] > 0, "Corners should be covered"
+        assert mlm_above[4, 4] > 0, "Corners should be covered"
+
+        # A receiver plane completely inside the box (height = 0.0) should have NO cells covered
+        # for any order because the box walls are closed and the transmitter is outside.
+        mlm_inside = scene.compute_tx_mlm(
+            max_order=2, dim_x=5, dim_y=5, num_rays=1000, height=0.0
+        )
+        assert jnp.all(mlm_inside == 0), (
+            "Cells inside a closed box should have no coverage"
+        )
+
+        # A receiver plane below the box (height = -2.0) should have:
+        # - Shadow region underneath the box (x in [-1, 1], y in [-1, 1]) is not covered by order 0
+        # since tx is at [0, 0, 5] and box blocks it.
+        mlm_below_shadow = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=1000, height=-2.0
+        )
+        assert jnp.all(mlm_below_shadow == 0), (
+            "Cells directly below the box should be in the shadow for order 0"
+        )
+
+        # Test vectorization over multiple transmitters
+        # 1D batch of transmitters: shape (2, 3)
+        tx_multi = jnp.array([[0.0, 0.0, 5.0], [0.0, 0.0, 6.0]], dtype=jnp.float32)
+        scene_multi = TriangleScene(
+            transmitters=tx_multi, receivers=jnp.empty((0, 3)), mesh=mesh
+        )
+        mlm_multi = scene_multi.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_multi.shape == (2, 10, 10)
+        assert mlm_multi.dtype == jnp.uint32
+
+        # 2D batch of transmitters: shape (2, 3, 3)
+        tx_multi_2d = jnp.array(
+            [
+                [[0.0, 0.0, 5.0], [0.0, 0.0, 6.0], [0.0, 0.0, 7.0]],
+                [[0.0, 0.0, 5.0], [0.0, 0.0, 6.0], [0.0, 0.0, 7.0]],
+            ],
+            dtype=jnp.float32,
+        )
+        scene_multi_2d = TriangleScene(
+            transmitters=tx_multi_2d, receivers=jnp.empty((0, 3)), mesh=mesh
+        )
+        mlm_multi_2d = scene_multi_2d.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_multi_2d.shape == (2, 3, 10, 10)
+        assert mlm_multi_2d.dtype == jnp.uint32

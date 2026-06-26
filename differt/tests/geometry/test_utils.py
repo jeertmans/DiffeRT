@@ -23,6 +23,7 @@ from differt.geometry._utils import (
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
     spherical_to_cartesian,
+    viewing_frustum,
 )
 
 from ..utils import random_inputs
@@ -307,3 +308,127 @@ def test_min_distance_between_cells(key: PRNGKeyArray) -> None:
         expected_dist = jnp.min(dist, where=(cell_id != cell_ids), initial=jnp.inf)
 
         chex.assert_trees_all_close(got_dist, expected_dist)
+
+
+# ---------------------------------------------------------------
+# viewing_frustum tests
+# ---------------------------------------------------------------
+
+
+class TestViewingFrustumAzimuth:
+    """Tests for the azimuth discontinuity handling in viewing_frustum."""
+
+    def test_narrow_span_no_wraparound(self) -> None:
+        """Vertices in a narrow sector away from ±pi should give a tight frustum."""
+        # Place viewer at origin, vertices at ~45° azimuth on the XY-plane.
+        viewer = jnp.array([0.0, 0.0, 0.0])
+        angles = jnp.array([0.6, 0.7, 0.8])  # radians, all in (0, pi)
+        # Build 2D vertices at unit distance on the XY-plane (z=0)
+        verts = jnp.stack(
+            [jnp.cos(angles), jnp.sin(angles), jnp.zeros_like(angles)], axis=-1
+        )
+        frustum = viewing_frustum(viewer, verts)
+        # frustum shape is (2, 3) = [[r_min, p_min, a_min], [r_max, p_max, a_max]]
+        a_min, a_max = frustum[0, 2], frustum[1, 2]
+        a_width = a_max - a_min
+        # Width should be about 0.2 rad, definitely < pi
+        assert a_width < jnp.pi, f"Azimuth span {a_width} should be < pi"
+        chex.assert_trees_all_close(a_min, 0.6, atol=0.05)
+        chex.assert_trees_all_close(a_max, 0.8, atol=0.05)
+
+    def test_wraparound_at_pi_boundary(self) -> None:
+        """Vertices straddling ±pi should use the [0,2pi) domain for a tighter fit."""
+        viewer = jnp.array([0.0, 0.0, 0.0])
+        # Two vertices near +pi and -pi (actual span ~20°)
+        a1 = jnp.pi - 0.15  # ~ +170°
+        a2 = -jnp.pi + 0.15  # ~ -170°
+        verts = jnp.stack(
+            [
+                jnp.array([jnp.cos(a1), jnp.sin(a1), 0.0]),
+                jnp.array([jnp.cos(a2), jnp.sin(a2), 0.0]),
+            ],
+            axis=0,
+        )
+        frustum = viewing_frustum(viewer, verts)
+        a_min, a_max = frustum[0, 2], frustum[1, 2]
+        a_width = a_max - a_min
+        # The naive span would be ~340° (bad); the correct span is ~30° in [0,2pi)
+        assert a_width < jnp.pi, (
+            f"Azimuth span {a_width:.3f} should be < pi "
+            f"(wrap-around should have been handled)"
+        )
+
+    def test_full_circle_fallback_for_surrounding_geometry(self) -> None:
+        """Vertices surrounding the viewer in all azimuthal directions
+        should trigger the full-circle [-pi, pi] fallback."""
+        viewer = jnp.array([0.0, 0.0, 0.0])
+        # Place 8 vertices evenly around the viewer (every 45°)
+        angles = jnp.linspace(-jnp.pi, jnp.pi, 8, endpoint=False)
+        verts = jnp.stack(
+            [jnp.cos(angles), jnp.sin(angles), jnp.zeros_like(angles)], axis=-1
+        )
+        frustum = viewing_frustum(viewer, verts)
+        a_min, a_max = frustum[0, 2], frustum[1, 2]
+        # Should fall back to full circle
+        chex.assert_trees_all_close(a_min, -jnp.pi, atol=1e-5)
+        chex.assert_trees_all_close(a_max, jnp.pi, atol=1e-5)
+
+    def test_full_circle_fallback_with_corridor_geometry(self) -> None:
+        """Simulate a corridor-like scene (vertices on both sides)
+        where the TX is inside."""
+        viewer = jnp.array([5.0, 0.0, 1.5])
+        # Long corridor: walls on +y and -y side, extending far on both +x and -x.
+        wall_y_pos = jnp.array([
+            [0.0, 2.0, 0.0],
+            [10.0, 2.0, 0.0],
+            [0.0, 2.0, 3.0],
+            [10.0, 2.0, 3.0],
+        ])
+        wall_y_neg = jnp.array([
+            [0.0, -2.0, 0.0],
+            [10.0, -2.0, 0.0],
+            [0.0, -2.0, 3.0],
+            [10.0, -2.0, 3.0],
+        ])
+        verts = jnp.concatenate([wall_y_pos, wall_y_neg], axis=0)
+        frustum = viewing_frustum(viewer, verts)
+        a_min, a_max = frustum[0, 2], frustum[1, 2]
+        a_width = a_max - a_min
+        # The corridor spans > 270° in azimuth, should trigger full circle
+        assert a_width >= 1.9 * jnp.pi, (
+            f"Azimuth span {a_width:.3f} should be ~2*pi for corridor geometry"
+        )
+
+
+# ---------------------------------------------------------------
+# fibonacci_lattice precision test (hatching artifact guard)
+# ---------------------------------------------------------------
+
+
+def test_fibonacci_lattice_large_n_unique_fractions() -> None:
+    """At large n, the two-stage decomposition should preserve enough
+    precision so that the last 10k points still have many unique
+    azimuthal fractions (i.e. no hatching artifacts)."""
+    n = 10_000_000
+    i = jnp.arange(n - 10_000, n, dtype=jnp.float32)
+
+    inv_phi = 0.6180339887498949
+    m1 = 262144.0
+    m2 = 512.0
+    inv_phi_m1 = (inv_phi * m1) % 1.0
+    inv_phi_m2 = (inv_phi * m2) % 1.0
+
+    q1 = jnp.floor(i / m1)
+    rem = i - q1 * m1
+    q2 = jnp.floor(rem / m2)
+    r = rem - q2 * m2
+    frac = (q1 * inv_phi_m1 + q2 * inv_phi_m2 + r * inv_phi) % 1.0
+
+    # With 10k samples, we should get at least 5000 unique fractional
+    # values.  Without the fix, float32 (i * inv_phi) % 1.0 collapses
+    # to ~100 unique values at i ~ 10^7.
+    unique_count = jnp.unique(frac, size=10_000).shape[0]
+    assert unique_count > 5000, (
+        f"Only {unique_count} unique fractions in last 10k samples; "
+        f"expected >5000 (possible precision regression)"
+    )
