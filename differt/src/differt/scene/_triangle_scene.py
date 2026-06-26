@@ -1785,21 +1785,22 @@ class TriangleScene(eqx.Module):
                 ...     height=1.5,
                 ... )
                 >>>
-                >>> # Map hashes to discrete IDs, masking out the background (ID=0)
-                >>> _, cell_ids = jnp.unique(mlm, return_inverse=True)
-                >>> cell_ids = cell_ids.reshape(mlm.shape).astype(float)
-                >>> cell_ids = jnp.where(cell_ids == 0, jnp.nan, cell_ids)
+                >>> # Map hashes to random colors, masking out the background (hash=0)
+                >>> mlm = mlm.T  # Transpose to swap x and y axes
+                >>> cell_colors = jnp.vectorize(
+                ...     lambda h: jr.uniform(jr.key(h), shape=(4,)).at[3].set(1),
+                ...     signature="()->(4)",
+                ... )(mlm)
+                >>> cell_colors = jnp.where(mlm[..., None] == 0, 0, cell_colors)
                 >>>
                 >>> # Plot scene and overlay the computed MLM at the target height
                 >>> fig = scene.plot(backend="plotly")
                 >>> fig = draw_image(
-                ...     cell_ids.T,
+                ...     cell_colors,
                 ...     x=x,
                 ...     y=y,
                 ...     z0=1.5,
                 ...     figure=fig,
-                ...     colorscale="rainbow",
-                ...     showscale=False,
                 ...     backend="plotly",
                 ... )  # doctest: +SKIP
                 >>> fig  # doctest: +SKIP
