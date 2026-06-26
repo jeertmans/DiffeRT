@@ -22,6 +22,12 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...HEAD)
 
+
+### Fixed
+
+- Fixed documentation and type annotations for {func}`draw_image<differt.plotting.draw_image>` (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed Plotly implementation of {func}`draw_image<differt.plotting.draw_image>` to support RGB(A) data (by <gh-user:jeertmans>, in <gh-pr:484>).
+
 ## [0.9.0](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...v0.9.0)
 
 ### Added
