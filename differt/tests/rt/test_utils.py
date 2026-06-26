@@ -431,12 +431,12 @@ def test_triangles_visible_from_vertices_inside_box() -> None:
         "TX and RX should see different triangles of the inner mesh when not using the mask"
     )
 
-    # N.B.: the viewing frustum aligns with the inner box so it perfectly hit the edge of one additional triangle for both TX and RX
+    # N.B.: the viewing frustum aligns with the inner box so it perfectly hit the edge of one additional triangle for TX and two for RX
     assert visible_triangles_from_tx_ignore_mask.sum() == 11, (
         "Should see 11 triangles from TX when ignoring mask"
     )
-    assert visible_triangles_from_rx_ignore_mask.sum() == 11, (
-        "Should see 11 triangles from RX when ignoring mask"
+    assert visible_triangles_from_rx_ignore_mask.sum() == 12, (
+        "Should see 12 triangles from RX when ignoring mask"
     )
 
 
