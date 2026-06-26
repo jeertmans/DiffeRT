@@ -1753,8 +1753,6 @@ class TriangleScene(eqx.Module):
             min_order: The minimum path order (number of bounces).
             height: The height (altitude) at which the MLM is computed. If None,
                 defaults to the height of the first receiver, or 1.5 if no receivers.
-            assume_quads: Whether to group face indices into quads (pairs of triangles)
-                for path hashing. If None, defaults to the mesh's `assume_quads` setting.
 
         Returns:
             A 2D array representing the path hashes for each grid cell.

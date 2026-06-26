@@ -28,6 +28,8 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
+- Fixed documentation and type annotations for {func}`draw_image<differt.plotting.draw_image>` (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed Plotly implementation of {func}`draw_image<differt.plotting.draw_image>` to support RGB(A) data (by <gh-user:jeertmans>, in <gh-pr:484>).
 - Fixed a bug in {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>` when viewing frustum was provided and, in some cases, the sampled rays were not uniformly distributed within that viewing frustum (by <gh-user:jeertmans>, in <gh-pr:483>).
 - Fixed {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>`'s azimuthal angle calculation at large `n` that was previously causing hatching artifacts (i.e., precision was insufficient to represent the small changes in angle) (by <gh-user:jeertmans>, in <gh-pr:483>).
 
