@@ -748,7 +748,9 @@ class TestTriangleScene:
 
         # Test assume_quads
         scene_quads = scene.set_assume_quads(True)
-        mlm_quads = scene_quads.compute_tx_mlm(max_order=1, dim_x=10, dim_y=10, num_rays=500)
+        mlm_quads = scene_quads.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
         assert mlm_quads.shape == (10, 10)
         assert mlm_quads.dtype == jnp.uint32
 

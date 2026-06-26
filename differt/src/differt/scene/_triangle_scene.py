@@ -1742,9 +1742,6 @@ class TriangleScene(eqx.Module):
             correspondingly. Otherwise, some grid cells will not be sampled by any rays,
             leading to "unreached" cells and visible noise/holes in the map.
 
-        Warning:
-            This method is considered experimental and may change in future releases.
-
         Args:
             max_order: The maximum path order (number of bounces).
             dim_x: The number of grid cells along the X-axis.
@@ -1779,7 +1776,7 @@ class TriangleScene(eqx.Module):
                 >>> x = jnp.linspace(bbox[0, 0], bbox[1, 0], 100)
                 >>> y = jnp.linspace(bbox[0, 1], bbox[1, 1], 100)
                 >>> mlm = scene.compute_tx_mlm(
-                ...     max_order=3,
+                ...     max_order=2,
                 ...     dim_x=100,
                 ...     dim_y=100,
                 ...     height=1.5,
