@@ -518,7 +518,7 @@ def _triangles_visible_func(
         _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
 
     epsilon = 1e-5
-    output_visible.fill_(False)
+    output_visible.fill_(False)  # noqa: FBT003
 
     wp.launch(
         _triangles_visible_kernel,
