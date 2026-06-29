@@ -20,7 +20,9 @@ with one *slight* but **important** difference:
 
 <!-- start changelog -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...HEAD)
+
+## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
 
 ### Added
 
