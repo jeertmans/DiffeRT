@@ -519,7 +519,7 @@ from differt.geometry._triangle_mesh import (  # noqa: E402
 
 @no_type_check
 @wp.func
-def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:
+def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:  # pragma: no cover
     return h1 ^ (
         h2 + wp.uint32(0x9E3779B9) + (h1 << wp.uint32(6)) + (h1 >> wp.uint32(2))
     )
@@ -527,7 +527,7 @@ def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:
 
 @no_type_check
 @wp.func
-def hash_int(x: wp.uint32) -> wp.uint32:
+def hash_int(x: wp.uint32) -> wp.uint32:  # pragma: no cover
     x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
     x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
     return (x >> wp.uint32(16)) ^ x
@@ -552,7 +552,7 @@ def _compute_tx_mlm_kernel(
     min_y: float,
     max_y: float,
     output: wp.array3d[wp.uint32],
-) -> None:
+) -> None:  # pragma: no cover
     itx, iray = wp.tid()
 
     current_origin = ray_origins[itx, iray]
@@ -768,7 +768,7 @@ def _compute_tx_mlm_cpu_impl(
         wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
         wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
 
-        output = wp.zeros(
+        output = wp.empty(
             (num_tx, dim_x, dim_y), dtype=wp.uint32, device=wp_ray_origins.device
         )
 
@@ -821,13 +821,7 @@ def _compute_tx_mlm(
     min_y: float,
     max_y: float,
 ) -> Uint[Array, "num_tx dim_x dim_y"]:
-    """
-    Compute the multilateration map for transmitters.
-
-    Returns:
-        The multilateration map.
-    """
-    # 1 - Prepare arrays
+    # Prepare arrays
     points = mesh.vertices
     indices = mesh.triangles
 
@@ -849,14 +843,14 @@ def _compute_tx_mlm(
     world_vertices = jnp.concatenate((world_vertices, corners), axis=0)
     if active_vertices is not None:
         active_vertices = jnp.concatenate(
-            (active_vertices, jnp.ones(4, dtype=jnp.bool_)), axis=0
+            (active_vertices, jnp.ones(4, dtype=bool)), axis=0
         )
 
     def gen_rays(
         t: Float[Array, "3"],
     ) -> tuple[Float[Array, "num_rays 3"], Float[Array, "num_rays 3"]]:
         f = viewing_frustum(t, world_vertices, active_vertices=active_vertices)
-        f = f.at[1, 1].set(jnp.pi)
+        f = f.at[1, 1].set(jnp.pi)  # TODO: fixme
         origins = jnp.repeat(t[None, :], num_rays, axis=0)
         directions = fibonacci_lattice(num_rays, frustum=f)
         return origins, directions

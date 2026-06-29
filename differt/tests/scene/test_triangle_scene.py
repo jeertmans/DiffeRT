@@ -813,3 +813,28 @@ class TestTriangleScene:
         )
         assert mlm_multi_2d.shape == (2, 3, 10, 10)
         assert mlm_multi_2d.dtype == jnp.uint32
+
+    def test_compute_tx_mlm_with_masked_mesh(
+        self, simple_street_canyon_scene: TriangleScene
+    ) -> None:
+        # Load the simple street canyon scene and set a valid transmitter
+        scene = simple_street_canyon_scene
+        # Mask out all buildings, leaving only the ground floor (last two triangles: 72 and 73)
+        mask = jnp.zeros((scene.mesh.num_triangles,), dtype=bool).at[72:74].set(True)
+        masked_mesh = eqx.tree_at(
+            lambda m: m.mask, scene.mesh, mask, is_leaf=lambda x: x is None
+        )
+        scene = eqx.tree_at(lambda s: s.mesh, scene, masked_mesh)
+
+        # 1. At max_order = 0, MLM has the same value everywhere (direct path hash 2166136261)
+        mlm_0 = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.all(mlm_0 == jnp.uint32(2166136261))
+
+        # 2. If min_order > 1 (e.g. 2), then we get the default hash value (0) everywhere,
+        # since at most 1 bounce (off the ground) can occur.
+        mlm_min_order_2 = scene.compute_tx_mlm(
+            max_order=2, min_order=2, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.all(mlm_min_order_2 == jnp.uint32(0))
