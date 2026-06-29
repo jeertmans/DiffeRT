@@ -418,17 +418,69 @@ def fibonacci_lattice(
         msg = f"Unsupported dtype {dtype!r}, must be a floating dtype."
         raise ValueError(msg)
 
-    phi = 1.618033988749895  # golden ratio
     i = jnp.arange(0.0, n)  # '0.0' forces floating point values
 
-    lat = jnp.arccos(1 - 2 * i / n)
-    lon = 2 * jnp.pi * i / phi
+    # Compute the fractional part of (i / phi) for the azimuthal angle.
+    #
+    # Naively computing ``(i / phi) % 1.0`` in float32 loses precision for
+    # large i (e.g. i >= 10_000_000), because the float32 mantissa only has
+    # ~7 decimal digits.  At i = 10^7, the product ``i * inv_phi`` is ~6.18e6,
+    # and taking ``% 1.0`` amplifies the rounding error so severely that only
+    # a handful of unique fractional values remain in the last ~10k points,
+    # producing visible "hatching" artifacts in the generated lattice.
+    #
+    # To fix this we decompose i = q1*m1 + q2*m2 + r  with m1 = 2^18 and
+    # m2 = 2^9 (chosen so that every intermediate product stays < 1000),
+    # and exploit the identity:
+    #
+    #     (i * inv_phi) % 1  =  (q1*(inv_phi*m1 % 1)
+    #                           + q2*(inv_phi*m2 % 1)
+    #                           + r * inv_phi           ) % 1
+    #
+    # Each term is small enough to preserve full float32 precision.
+    inv_phi = 0.6180339887498949  # 1 / phi
+    m1 = 262144.0  # 2^18
+    m2 = 512.0  # 2^9
 
-    pa = jnp.stack((lat, lon), axis=-1)
+    # Pre-compute the fractional parts of inv_phi * m1 and inv_phi * m2,
+    # which are constants independent of i.
+    inv_phi_m1 = (inv_phi * m1) % 1.0
+    inv_phi_m2 = (inv_phi * m2) % 1.0
+
+    # Decompose i into a two-stage quotient-remainder representation.
+    q1 = jnp.floor(i / m1)
+    rem = i - q1 * m1
+    q2 = jnp.floor(rem / m2)
+    r = rem - q2 * m2
+
+    # Reconstruct the fractional part with full precision.
+    frac = (q1 * inv_phi_m1 + q2 * inv_phi_m2 + r * inv_phi) % 1.0
 
     if frustum is not None:
-        pa %= frustum[1, -2:] - frustum[0, -2:]
-        pa += frustum[0, -2:]
+        # When a viewing frustum is provided, distribute points uniformly
+        # in solid angle within the frustum's polar and azimuthal bounds.
+        p_min, a_min = frustum[0, -2:]
+        p_max, a_max = frustum[1, -2:]
+
+        # Uniform spacing in cos(polar) ensures equal solid-angle coverage
+        # (the Jacobian of the sphere is sin(p) dp da = -d(cos p) da).
+        cos_p_min = jnp.cos(p_min)
+        cos_p_max = jnp.cos(p_max)
+        denom = jnp.where(n > 1, n - 1, 1.0)
+        cos_lat = cos_p_min - (cos_p_min - cos_p_max) * (i / denom)
+        lat = jnp.arccos(cos_lat)
+
+        # Azimuthal angle uses the quasi-random fractional part to break
+        # lattice alignment, mapped into the frustum's azimuthal range.
+        a_width = a_max - a_min
+        lon = a_min + a_width * frac
+        pa = jnp.stack((lat, lon), axis=-1)
+    else:
+        # Full-sphere Fibonacci lattice: uniform in cos(polar) over [0, pi]
+        # and quasi-random in azimuth over [0, 2*pi].
+        lat = jnp.arccos(1 - 2 * i / n)
+        lon = 2 * jnp.pi * frac
+        pa = jnp.stack((lat, lon), axis=-1)
 
     return spherical_to_cartesian(pa).astype(dtype)
 
@@ -724,9 +776,48 @@ def viewing_frustum(
             ...         showlegend=False,
             ...     )  # doctest: +SKIP
             >>> fig  # doctest: +SKIP
+
+        This fourth example shows how to launch rays in a frustum covering a loaded scene,
+        with the viewing vertex (tx) positioned at the center at height z=32.
+
+        .. plotly::
+            :context:
+
+            >>> from differt.scene import TriangleScene, get_sionna_scene
+            >>> from differt.plotting import draw_rays, reuse, draw_markers
+            >>> from differt.geometry import fibonacci_lattice, viewing_frustum
+            >>>
+            >>> # Load the simple street canyon scene
+            >>> scene_path = get_sionna_scene("simple_street_canyon")
+            >>> scene = TriangleScene.load_xml(scene_path)
+            >>> tx = jnp.array([0.0, 0.0, 32.0])
+            >>>
+            >>> with reuse("plotly") as fig:
+            ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
+            ...     scene.mesh.plot(opacity=0.5)
+            ...
+            ...     frustum = viewing_frustum(
+            ...         tx, scene.mesh.triangle_vertices.reshape(-1, 3)
+            ...     )
+            ...     frustum = frustum.at[1, 1].set(jnp.pi)
+            ...     ray_origins, ray_directions = jnp.broadcast_arrays(
+            ...         tx, fibonacci_lattice(200, frustum=frustum)
+            ...     )
+            ...     ray_origins += 0.5 * ray_directions
+            ...     ray_directions *= 40.0  # Scale rays length before plotting
+            ...     draw_rays(
+            ...         ray_origins,
+            ...         ray_directions,
+            ...         color="red",
+            ...         showlegend=False,
+            ...     )  # doctest: +SKIP
+            >>> fig  # doctest: +SKIP
     """
     world_vertices = jnp.asarray(world_vertices)
     viewing_vertex = jnp.asarray(viewing_vertex)
+
+    # Convert all world vertices to spherical coordinates (r, polar, azimuth)
+    # relative to the viewing vertex.
     xyz = world_vertices - viewing_vertex[..., None, :]
     rpa = cartesian_to_spherical(xyz)
 
@@ -737,23 +828,38 @@ def viewing_frustum(
 
     axis = None if reduce else -1
 
+    # ------------------------------------------------------------------
+    # Radial and polar bounds: straightforward min/max over active verts.
+    # ------------------------------------------------------------------
     r_min = jnp.min(r, axis=axis, where=active_vertices, initial=jnp.inf)
     r_max = jnp.max(r, axis=axis, where=active_vertices, initial=0)
     p_min = jnp.min(p, axis=axis, where=active_vertices, initial=jnp.pi)
     p_max = jnp.max(p, axis=axis, where=active_vertices, initial=0)
+
+    # ------------------------------------------------------------------
+    # Azimuthal bounds — handling the -pi / +pi discontinuity.
+    #
+    # cartesian_to_spherical returns azimuth in [-pi, pi).  When geometry
+    # straddles the -pi/+pi boundary (e.g. angles {-170°, +170°}), a
+    # naive min/max would give [-170°, +170°] = 340° span, even though
+    # the actual span is only 20° across the boundary.
+    #
+    # Strategy: compute bounds in TWO domains, then keep the tighter one.
+    # ------------------------------------------------------------------
+
+    # Domain 1: native [-pi, pi) range.
     a_min = jnp.min(a, axis=axis, where=active_vertices, initial=jnp.pi)
     a_max = jnp.max(a, axis=axis, where=active_vertices, initial=-jnp.pi)
 
-    # The discontinuity for azimuthal angles near -pi;pi can create
-    # issues, leading to a larger angular sector that expected.
-
-    # We map azimuthal angles from [-pi;pi[ to [0;2pi[.
+    # Domain 2: shift to [0, 2*pi) — the discontinuity moves to 0/2*pi,
+    # which is harmless when geometry is near ±pi.
     two_pi = 2 * jnp.pi
-
     a_0 = (a + two_pi) % two_pi
     a_0_min = jnp.min(a_0, axis=axis, where=active_vertices, initial=two_pi)
     a_0_max = jnp.max(a_0, axis=axis, where=active_vertices, initial=0)
 
+    # Compare the angular widths in both domains and keep the narrower one,
+    # since that is the one that avoids the wrap-around discontinuity.
     a_width = a_max - a_min
     a_0_width = a_0_max - a_0_min
 
@@ -763,8 +869,31 @@ def viewing_frustum(
         jnp.stack((a_min, a_max)),
     )
 
-    # For polar angle, we 'try' to fix a similar issue.
-    # TODO: improve this.
+    # ------------------------------------------------------------------
+    # Full-circle fallback.
+    #
+    # When the geometry truly surrounds the viewing vertex (e.g. a TX
+    # placed inside a corridor that extends in all azimuthal directions),
+    # *both* domains produce a large span (> 270°).  Neither domain can
+    # represent the coverage compactly, so we fall back to the full
+    # circle [-pi, pi] to avoid excluding valid angular regions.
+    # ------------------------------------------------------------------
+    min_width = jnp.minimum(a_width, a_0_width)
+    use_full_circle = min_width > 1.5 * jnp.pi  # > 270°
+    a_min = jnp.where(use_full_circle, -jnp.pi, a_min)
+    a_max = jnp.where(use_full_circle, jnp.pi, a_max)
+
+    # ------------------------------------------------------------------
+    # Polar angle special case.
+    #
+    # When all vertices share the same polar angle (p_min == p_max),
+    # the frustum degenerates to a zero-width band.  We expand it so
+    # that rays can still reach the geometry:
+    #   - Option A: expand downward to 0 (keep max, widen upward).
+    #   - Option B: expand upward to pi (keep min, widen downward).
+    # We pick whichever yields the smaller total width.
+    # TODO: improve this heuristic for more general degenerate cases.
+    # ------------------------------------------------------------------
     p_0_min = p_min
     p_0_max = p_max
 

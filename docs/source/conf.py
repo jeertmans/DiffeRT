@@ -195,6 +195,7 @@ html_js_files = [
 plot_pre_code = """
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import matplotlib.pyplot as plt
 import numpy as np
 """
@@ -207,6 +208,7 @@ plot_html_show_formats = False
 plotly_pre_code = """
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import numpy as np
 import plotly
 import plotly.express as px
