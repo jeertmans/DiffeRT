@@ -95,7 +95,7 @@ class Material(eqx.Module):
 
         Args:
             name: The name of the material.
-            itu_properties: The list of material properties and corresponding frequency range.
+            itu_properties: Material properties and corresponding frequency range.
 
                 Each tuple must contain:
 

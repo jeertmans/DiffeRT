@@ -35,6 +35,32 @@ with one *slight* but **important** difference:
 - Fixed a bug in {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>` when viewing frustum was provided and, in some cases, the sampled rays were not uniformly distributed within that viewing frustum (by <gh-user:jeertmans>, in <gh-pr:483>).
 - Fixed {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>`'s azimuthal angle calculation at large `n` that was previously causing hatching artifacts (i.e., precision was insufficient to represent the small changes in angle) (by <gh-user:jeertmans>, in <gh-pr:483>).
 
+### Changed
+
+- **Breaking change**: Renamed multiple functions and methods across the codebase from plural to singular form to improve API consistency and better align with JAX broadcasting semantics:
+  - **Ray tracing (`differt.rt`):**
+    - Renamed `rays_intersect_any_triangle` to {func}`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`
+    - Renamed `first_triangles_hit_by_rays` to {func}`first_triangle_hit_by_ray<differt.rt.first_triangle_hit_by_ray>`
+    - Renamed `triangles_visible_from_vertices` to {func}`triangles_visible_from_vertex<differt.rt.triangles_visible_from_vertex>`
+    - Renamed `rays_intersect_triangles` to {func}`ray_intersect_triangle<differt.rt.ray_intersect_triangle>`
+    - Renamed `consecutive_vertices_are_on_same_side_of_mirrors` to {func}`consecutive_vertices_are_on_same_side_of_mirror<differt.rt.consecutive_vertices_are_on_same_side_of_mirror>`
+    - Renamed `image_of_vertices_with_respect_to_mirrors` to {func}`image_of_vertex_with_respect_to_mirror<differt.rt.image_of_vertex_with_respect_to_mirror>`
+    - Renamed `intersection_of_rays_with_planes` to {func}`intersection_of_ray_with_plane<differt.rt.intersection_of_ray_with_plane>`
+  - **Geometry (`differt.geometry`):**
+    - Renamed `TriangleMesh.rays_intersect_any_triangle` to {meth}`TriangleMesh.ray_intersect_any_triangle<differt.geometry.TriangleMesh.ray_intersect_any_triangle>`
+    - Renamed `TriangleMesh.first_triangles_hit_by_rays` to {meth}`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.TriangleMesh.first_triangle_hit_by_ray>`
+    - Renamed `TriangleMesh.triangles_visible_from_vertices` to {meth}`TriangleMesh.triangles_visible_from_vertex<differt.geometry.TriangleMesh.triangles_visible_from_vertex>`
+    - Renamed `triangles_contain_vertices_assuming_inside_same_plane` to {func}`triangle_contains_vertex_assuming_inside_same_plane<differt.geometry.triangle_contains_vertex_assuming_inside_same_plane>`
+    - Renamed `perpendicular_vectors` to {func}`perpendicular_vector<differt.geometry.perpendicular_vector>`
+    - Renamed `path_lengths` to {func}`path_length<differt.geometry.path_length>`
+    - Renamed `assemble_paths` to {func}`assemble_path<differt.geometry.assemble_path>`
+  - **Electromagnetics (`differt.em`):**
+    - Renamed `refractive_indices` to {func}`refractive_index<differt.em.refractive_index>`
+    - Renamed `lengths_to_delays` to {func}`length_to_delay<differt.em.length_to_delay>`
+    - Renamed `path_delays` to {func}`path_delay<differt.em.path_delay>`
+    - Renamed `transition_matrices` to {func}`transition_matrix<differt.em.transition_matrix>`
+  - Additionally, parameter names in these functions and their docstrings were renamed from plural to singular forms (e.g., `vertices` -> `vertex`, `mirror_vertices` -> `mirror_vertex`, `from_vertices` -> `from_vertex`, etc.) to match the new convention (by <gh-user:jeertmans>, in <gh-pr:477>).
+
 ## [0.9.0](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...v0.9.0)
 
 ### Added
@@ -112,7 +138,7 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
-- Fixed missing type annotations for {func}`assemble_paths<differt.geometry.assemble_paths>` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:jeertmans>).
+- Fixed missing type annotations for `assemble_paths` in the documentation, caused by the `@no_type_check` decorator suppressing `typing.get_type_hints()` (by <gh-user:jeertmans>).
 
 ## [0.7.0](https://github.com/jeertmans/DiffeRT/compare/v0.6.2...v0.7.0)
 
@@ -167,7 +193,7 @@ with one *slight* but **important** difference:
 ### Added
 
 - Added {func}`update_defaults<differt.plotting.update_defaults>`, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
-- [Added the possibility to pass {data}`None` for the `batch_size` argument]{#ray-triangle-batch-size-none} of {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`, to indicate that no batching should be performed, i.e., all operations are executed in a single {func}`jax.vmap` call (by <gh-user:jeertmans>, in <gh-pr:310>).
+- [Added the possibility to pass {data}`None` for the `batch_size` argument]{#ray-triangle-batch-size-none} of `rays_intersect_any_triangle`, `triangles_visible_from_vertices`, and `first_triangles_hit_by_rays`, to indicate that no batching should be performed, i.e., all operations are executed in a single {func}`jax.vmap` call (by <gh-user:jeertmans>, in <gh-pr:310>).
 - Added a `batch_size` argument to {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` to allow users to specify the size of the batch used for ray-triangle intersection tests, see [above](#ray-triangle-batch-size-none) (by <gh-user:jeertmans>, in <gh-pr:310>).
 - Added the {meth}`DiGraph.filter_by_mask<differt_core.rt.DiGraph.filter_by_mask>` to disconnected nodes based on a mask (by <gh-user:jeertmans>, in <gh-pr:322>).
 - Added a `disconnect_inactive_triangles` to {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` to allow reducing the number of path candidates, at the cost of potential recompilations (by <gh-user:jeertmans>, in <gh-pr:322>).
@@ -176,8 +202,8 @@ with one *slight* but **important** difference:
 ### Changed
 
 - Changed {meth}`DiGraph.disconnect_nodes<differt_core.rt.DiGraph.disconnect_nodes>` to raise an {class}`IndexError` when the node indices are out of bounds (by <gh-user:jeertmans>, in <gh-pr:322>).
-- Changed the behavior of {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to select the triangle with the closest center to the ray origin when two or more triangles are hit at the same distance (by <gh-user:jeertmans>, in <gh-pr:322>).
-- Changed the behavior of {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` to include the triangle centers in the world vertices when computing the viewing frustum (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Changed the behavior of `first_triangles_hit_by_rays` to select the triangle with the closest center to the ray origin when two or more triangles are hit at the same distance (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Changed the behavior of `first_triangles_hit_by_rays` to include the triangle centers in the world vertices when computing the viewing frustum (by <gh-user:jeertmans>, in <gh-pr:322>).
 
 ### Chore
 
@@ -209,7 +235,7 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
-- Fixed a shape (and possibly `dtype`) issue in the fast path of {func}`consecutive_vertices_are_on_same_side_of_mirrors<differt.rt.consecutive_vertices_are_on_same_side_of_mirrors>`, that would raise an error when trying to stack arrays in {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` with a non-{data}`None` value for `smoothing_factor` (by <gh-user:jeertmans>, in <gh-pr:303>).
+- Fixed a shape (and possibly `dtype`) issue in the fast path of `consecutive_vertices_are_on_same_side_of_mirrors`, that would raise an error when trying to stack arrays in {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` with a non-{data}`None` value for `smoothing_factor` (by <gh-user:jeertmans>, in <gh-pr:303>).
 
 ### Removed
 
@@ -219,7 +245,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added `batch_size` optional keyword argument to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`, see [below](#ray-triangle-perf-1) (by <gh-user:jeertmans>, in <gh-pr:300>).
+- Added `batch_size` optional keyword argument to `rays_intersect_any_triangle`, `triangles_visible_from_vertices`, and `first_triangles_hit_by_rays`, see [below](#ray-triangle-perf-1) (by <gh-user:jeertmans>, in <gh-pr:300>).
 
 ### Chore
 
@@ -234,7 +260,7 @@ with one *slight* but **important** difference:
 
 ### Perf
 
-- [Improved performance for ray-triangle intersection tests]{#ray-triangle-perf-1} (i.e., {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>`) by implementing a custom, batched, scan-like check. This avoids having to loop over all triangles (or rays) sequentially while preventing out-of-memory issues. A new `batch_size` argument is now available for these functions, allowing users to customize the size of each batch (by <gh-user:jeertmans>, in <gh-pr:300>).
+- [Improved performance for ray-triangle intersection tests]{#ray-triangle-perf-1} (i.e., `rays_intersect_any_triangle`, `triangles_visible_from_vertices`, and `first_triangles_hit_by_rays`) by implementing a custom, batched, scan-like check. This avoids having to loop over all triangles (or rays) sequentially while preventing out-of-memory issues. A new `batch_size` argument is now available for these functions, allowing users to customize the size of each batch (by <gh-user:jeertmans>, in <gh-pr:300>).
 
 ## [0.4.0](https://github.com/jeertmans/DiffeRT/compare/v0.3.1...v0.4.0)
 
@@ -284,12 +310,12 @@ with one *slight* but **important** difference:
 
 - Added {attr}`TriangleMesh.mask<differt.geometry.TriangleMesh.mask>` attribute to allow triangles to be selected using a mask instead of dropping the inactive ones. This is useful for generating multiple sub-meshes of a mesh without changing the memory allocated to each sub-mesh, thus enabling efficient stacking (by <gh-user:jeertmans>, in <gh-pr:287>).
 - Added a new `by_masking: bool = False` keyword-only parameter to {meth}`TriangleMesh.sample<differt.geometry.TriangleMesh.sample>` to allow sampling sub-meshes by setting the mask array, instead of dropping triangles (by <gh-user:jeertmans>, in <gh-pr:287>).
-- Added a new optional `active_triangles: Array | None = None` parameter to {func}`rays_intersect_any_triangle<differt.rt.rays_intersect_any_triangle>`, {func}`triangles_visible_from_vertices<differt.rt.triangles_visible_from_vertices>`, and {func}`first_triangles_hit_by_rays<differt.rt.first_triangles_hit_by_rays>` (by <gh-user:jeertmans>, in <gh-pr:287>).
+- Added a new optional `active_triangles: Array | None = None` parameter to `rays_intersect_any_triangle`, `triangles_visible_from_vertices`, and `first_triangles_hit_by_rays` (by <gh-user:jeertmans>, in <gh-pr:287>).
 - Added `__version_info__` tuple to {mod}`differt` and {mod}`differt_core` (by <gh-user:jeertmans>, in <gh-pr:288>).
 
 ### Changed
 
-- Simplified {func}`assemble_paths<differt.geometry.assemble_paths>`'s signature to assume a 2- (TX-RX) or 3-argument (TX-PATH-RX) form is actually sufficient, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:289>).
+- Simplified `assemble_paths`'s signature to assume a 2- (TX-RX) or 3-argument (TX-PATH-RX) form is actually sufficient, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:289>).
 
 ### Fixed
 

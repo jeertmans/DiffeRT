@@ -10,14 +10,14 @@ import pytest
 from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry._utils import (
-    assemble_paths,
+    assemble_path,
     cartesian_to_spherical,
     fibonacci_lattice,
     min_distance_between_cells,
     normalize,
     orthogonal_basis,
-    path_lengths,
-    perpendicular_vectors,
+    path_length,
+    perpendicular_vector,
     rotation_matrix_along_axis,
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
@@ -57,12 +57,12 @@ def test_normalize_random_inputs(
             chex.assert_trees_all_close(u, nu * lu[..., None])
 
 
-def test_perpendicular_vectors() -> None:
+def test_perpendicular_vector() -> None:
     all_vectors = list(product([0.0, 1.0, -1.0], repeat=3))
     # Drop [0, 0, 0] case
     all_vectors = all_vectors[1:]
     u = jnp.array(all_vectors)
-    v = perpendicular_vectors(u)
+    v = perpendicular_vector(u)
 
     chex.assert_trees_all_close(jnp.linalg.norm(v, axis=-1), 1.0)
     chex.assert_trees_all_close(jnp.sum(u * v, axis=-1), 0.0)
@@ -110,12 +110,12 @@ def test_orthogonal_basis(u: Array) -> None:
     ],
 )
 @random_inputs("paths")
-def test_path_lengths_random_inputs(
+def test_path_length_random_inputs(
     paths: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = path_lengths(paths)
+        got = path_length(paths)
         expected = jnp.sum(jnp.linalg.norm(jnp.diff(paths, axis=-2), axis=-1), axis=-1)
 
         chex.assert_trees_all_close(got, expected)
@@ -210,7 +210,7 @@ def test_fibonacci_lattice_neg_n(
         _ = fibonacci_lattice(n)
 
 
-def test_assemble_paths() -> None:
+def test_assemble_path() -> None:
     tx = jnp.ones((5, 3))
     paths = jnp.arange(24.0).reshape(4, 2, 3)
     rx = -jnp.ones((6, 3))
@@ -224,7 +224,7 @@ def test_assemble_paths() -> None:
         axis=-2,
     )
 
-    got = assemble_paths(tx[:, None, None, :], paths, rx[None, :, None, :])
+    got = assemble_path(tx[:, None, None, :], paths, rx[None, :, None, :])
 
     chex.assert_trees_all_equal(got, expected)
 
@@ -247,7 +247,7 @@ def test_assemble_paths() -> None:
         ),
     ],
 )
-def test_assemble_paths_random_inputs(
+def test_assemble_path_random_inputs(
     shapes: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
     | tuple[tuple[int, ...], tuple[int, ...]],
     expectation: AbstractContextManager[Exception],
@@ -264,7 +264,7 @@ def test_assemble_paths_random_inputs(
         to_vertices = None
 
     with expectation:
-        _ = assemble_paths(from_vertices, intermediate_vertices, to_vertices)
+        _ = assemble_path(from_vertices, intermediate_vertices, to_vertices)
 
 
 def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:

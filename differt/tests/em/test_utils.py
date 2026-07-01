@@ -11,8 +11,8 @@ from jaxtyping import Array, PRNGKeyArray
 from differt.em import Dipole, c
 from differt.em._utils import (
     fspl,
-    lengths_to_delays,
-    path_delays,
+    length_to_delay,
+    path_delay,
     sp_directions,
     sp_rotation_matrix,
 )
@@ -51,13 +51,13 @@ from ..utils import random_inputs
     ],
 )
 @random_inputs("lengths", "speed")
-def test_lengths_to__delays_random_inputs(
+def test_length_to_delay_random_inputs(
     lengths: Array,
     speed: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = lengths_to_delays(lengths, speed=speed)
+        got = length_to_delay(lengths, speed=speed)
         expected = lengths / speed
 
         chex.assert_trees_all_close(got, expected)
@@ -78,12 +78,12 @@ def test_lengths_to__delays_random_inputs(
     ],
 )
 @random_inputs("paths")
-def test_path_delays_random_inputs(
+def test_path_delay_random_inputs(
     paths: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = path_delays(paths)
+        got = path_delay(paths)
         expected = (
             jnp.sum(jnp.linalg.norm(jnp.diff(paths, axis=-2), axis=-1), axis=-1) / c
         )

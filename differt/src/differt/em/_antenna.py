@@ -102,8 +102,8 @@ class Antenna(BaseAntenna):
         Compute electric and magnetic fields in vacuum at given position and (optional) time.
 
         Args:
-            r: The array of positions.
-            t: The array of time instants.
+            r: Position vector relative to the antenna center.
+            t: Time instant.
 
                 If not provided, initial time instant
                 is assumed.
@@ -124,8 +124,8 @@ class Antenna(BaseAntenna):
         Compute the Poynting vector in vacuum at given position and (optional) time.
 
         Args:
-            r: The array of positions.
-            t: The array of time instants.
+            r: Position vector relative to the antenna center.
+            t: Time instant.
 
                 If not provided, initial time instant
                 is assumed.
@@ -530,12 +530,10 @@ class RadiationPattern(BaseAntenna):
         Compute s and p polarization vectors.
 
         Args:
-            r: The array of positions.
+            r: Position vector relative to the antenna center.
 
         Returns:
-            The electric :math:`\vec{E}` and magnetic :math:`\vec{B}` fields.
-
-            Fields can be either real or complex-valued.
+            The s and p polarization unit vectors.
         """
 
     def directivity(

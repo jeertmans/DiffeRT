@@ -49,16 +49,14 @@ def fermat_path_on_linear_objects(
         and the user may need to tune the number of steps to achieve convergence.
 
     Args:
-        from_vertices: An array of ``from`` vertices, i.e., vertices from which the
+        from_vertices: ``from`` vertex, i.e., vertex from which the
             ray paths start. In a radio communications context, this is usually
-            an array of transmitters.
-        to_vertices: An array of ``to`` vertices, i.e., vertices to which the
+            the transmitter position.
+        to_vertices: ``to`` vertex, i.e., vertex to which the
             ray paths end. In a radio communications context, this is usually
-            an array of receivers.
-        object_origins: An array of object origins.
-
-            It is used as the initial guess of the minimization procedure.
-        object_vectors: An array of base vectors describing the objects.
+            the receiver position.
+        object_origins: Object origins, used as the initial guess of the minimization procedure.
+        object_vectors: Base vector(s) describing each object.
         steps: The number of optimization steps to perform.
         unroll: Whether to unroll the optimization loop. Can be a boolean or an integer
             specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
@@ -70,20 +68,20 @@ def fermat_path_on_linear_objects(
             `GitHub page <https://github.com/jeertmans/fpt-jax/tree/v0.1.0>`_ for more details.
 
     Returns:
-        An array of ray paths obtained based on Fermat's principle.
+        Intermediate ray path vertices obtained using Fermat's principle.
 
     .. note::
 
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`assemble_paths<differt.geometry.assemble_paths>`:
+        :func:`assemble_path<differt.geometry.assemble_path>`:
 
         .. code-block:: python
 
             paths = fermat_path_on_linear_objects(...)
 
-            full_paths = assemble_paths(
+            full_paths = assemble_path(
                 from_vertices,
                 paths,
                 to_vertices,
@@ -96,7 +94,7 @@ def fermat_path_on_linear_objects(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_paths
+            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import fermat_path_on_linear_objects
             >>>
@@ -129,7 +127,7 @@ def fermat_path_on_linear_objects(
             ...         name="Edge",
             ...     )
             ...
-            ...     full_path = assemble_paths(
+            ...     full_path = assemble_path(
             ...         from_vertex,
             ...         path,
             ...         to_vertex,
@@ -198,16 +196,16 @@ def fermat_path_on_planar_mirrors(
     Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
 
     Args:
-        from_vertices: An array of ``from`` vertices, i.e., vertices from which the
+        from_vertices: ``from`` vertex, i.e., vertex from which the
             ray paths start. In a radio communications context, this is usually
-            an array of transmitters.
-        to_vertices: An array of ``to`` vertices, i.e., vertices to which the
+            the transmitter position.
+        to_vertices: ``to`` vertex, i.e., vertex to which the
             ray paths end. In a radio communications context, this is usually
-            an array of receivers.
-        mirror_vertices: An array of mirror vertices. For each mirror, any
+            the receiver position.
+        mirror_vertices: Mirror vertices. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: An array of mirror normals, where each normal has a unit
+        mirror_normals: Mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
 
             .. note::
@@ -219,20 +217,20 @@ def fermat_path_on_planar_mirrors(
             :func:`fermat_path_on_linear_objects`.
 
     Returns:
-        An array of ray paths obtained using Fermat's principle.
+        Intermediate ray path vertices obtained using Fermat's principle.
 
     .. note::
 
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`assemble_paths<differt.geometry.assemble_paths>`:
+        :func:`assemble_path<differt.geometry.assemble_path>`:
 
         .. code-block:: python
 
             paths = fermat_path_on_planar_mirrors(...)
 
-            full_paths = assemble_paths(
+            full_paths = assemble_path(
                 from_vertices,
                 paths,
                 to_vertices,
@@ -244,7 +242,7 @@ def fermat_path_on_planar_mirrors(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_paths
+            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import fermat_path_on_planar_mirrors
             >>>
@@ -273,7 +271,7 @@ def fermat_path_on_planar_mirrors(
             ...         mirror_vertices[1], normal=mirror_normals[1]
             ...     ).plot(color="red")
             ...
-            ...     full_path = assemble_paths(
+            ...     full_path = assemble_path(
             ...         from_vertex,
             ...         path,
             ...         to_vertex,

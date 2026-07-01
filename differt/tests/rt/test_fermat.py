@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import assemble_paths, normalize
+from differt.geometry import assemble_path, normalize
 from differt.rt._fermat import (
     fermat_path_on_linear_objects,
     fermat_path_on_planar_mirrors,
@@ -89,7 +89,7 @@ def test_fermat_path_diffraction_keller_cone(num_dims: int) -> None:
         chex.assert_trees_all_close(paths, jnp.broadcast_to(edge_origins, (5, 1, 3)))
         return
 
-    paths = assemble_paths(
+    paths = assemble_path(
         transmitters,
         paths,
         receivers,
