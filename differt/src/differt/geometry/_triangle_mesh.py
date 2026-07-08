@@ -518,6 +518,7 @@ def _triangles_visible_from_vertex_func(
         _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
 
     epsilon = 1e-5
+    output_visible.fill_(False)  # noqa: FBT003
 
     wp.launch(
         _triangles_visible_from_vertex_kernel,
@@ -581,7 +582,7 @@ def _triangles_visible_from_vertex_cpu_impl(
         wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
         wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
 
-        output_visible = wp.zeros(
+        output_visible = wp.empty(
             total_batches * num_triangles, dtype=bool, device=wp_ray_origins.device
         )
 
@@ -1473,7 +1474,7 @@ class TriangleMesh(eqx.Module):
         # Using self.triangle_vertices is important because, e.g., as a result of using
         # __getitem__, some vertices in 'self.vertices' may no longer be used by this mesh.
         vertices = self.triangle_vertices
-        where = self.mask[:, None] if self.mask is not None else None
+        where = self.mask[:, None, None] if self.mask is not None else None
         return jnp.vstack(
             (
                 jnp.min(vertices, axis=(0, 1), initial=+jnp.inf, where=where),

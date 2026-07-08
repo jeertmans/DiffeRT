@@ -92,9 +92,14 @@ def test_draw_markers(
     "pass_xy",
     [True, False],
 )
+@pytest.mark.parametrize(
+    "channels",
+    [None, 3, 4],
+)
 def test_draw_image(
     backend: LiteralString,
     pass_xy: bool,
+    channels: int | None,
 ) -> None:
     # VisPY does not support float64 and will complain if provided
     x = np.linspace(0, 1, 10, dtype=np.float32)
@@ -102,7 +107,15 @@ def test_draw_image(
     X, Y = np.meshgrid(x, y)  # noqa: N806
     data = X * Y
 
-    with use(backend):
+    if channels is not None:
+        data = (np.stack([data] * channels, axis=-1)) / data.max()
+
+    if backend == "matplotlib" and channels is not None:
+        expectation = pytest.raises(TypeError, match="Input z must be 2D")
+    else:
+        expectation = does_not_raise()
+
+    with use(backend), expectation:
         _ = draw_image(data, x=x if pass_xy else None, y=y if pass_xy else None)
 
 

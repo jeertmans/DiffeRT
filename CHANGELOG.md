@@ -20,7 +20,20 @@ with one *slight* but **important** difference:
 
 <!-- start changelog -->
 
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...HEAD)
+
+## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
+
+### Added
+
+- Added Warp-accelerated {meth}`TriangleScene.compute_tx_mlm<differt.scene.TriangleScene.compute_tx_mlm>` method to compute the Multipath Lifetime Map (MLM) from transmitter locations using a shooting and bouncing ray (SBR) approach, providing a much faster and lower-memory alternative to the exhaustive ray tracing approach (by <gh-user:jeertmans>, in <gh-pr:483>).
+
+### Fixed
+
+- Fixed documentation and type annotations for {func}`draw_image<differt.plotting.draw_image>` (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed Plotly implementation of {func}`draw_image<differt.plotting.draw_image>` to support RGB(A) data (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed a bug in {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>` when viewing frustum was provided and, in some cases, the sampled rays were not uniformly distributed within that viewing frustum (by <gh-user:jeertmans>, in <gh-pr:483>).
+- Fixed {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>`'s azimuthal angle calculation at large `n` that was previously causing hatching artifacts (i.e., precision was insufficient to represent the small changes in angle) (by <gh-user:jeertmans>, in <gh-pr:483>).
 
 ### Changed
 

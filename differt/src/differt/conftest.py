@@ -3,6 +3,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import numpy as np
 import pytest
 
@@ -19,6 +20,7 @@ if sys.platform.startswith("darwin"):
 @pytest.fixture(autouse=True)  # noqa: RUF076
 def add_doctest_modules(doctest_namespace: dict[str, Any]) -> None:
     doctest_namespace["jax"] = jax
+    doctest_namespace["jr"] = jr
     doctest_namespace["jnp"] = jnp
     doctest_namespace["np"] = np
 
