@@ -17,7 +17,7 @@ if sys.platform.startswith("darwin"):
     collect_ignore_glob = ["*", "**/*"]
 
 
-@pytest.fixture(autouse=True)  # noqa: RUF076
+@pytest.fixture(autouse=True)
 def add_doctest_modules(doctest_namespace: dict[str, Any]) -> None:
     doctest_namespace["jax"] = jax
     doctest_namespace["jr"] = jr
@@ -29,7 +29,7 @@ def add_doctest_modules(doctest_namespace: dict[str, Any]) -> None:
     doctest_namespace["plt"] = plt
 
 
-@pytest.fixture(autouse=True)  # noqa: RUF076
+@pytest.fixture(autouse=True)
 def set_printoptions() -> None:
     # We need to do that because floats seem to vary across OSes:
     # https://github.com/numpy/numpy/issues/21209.

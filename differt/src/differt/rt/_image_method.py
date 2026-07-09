@@ -354,9 +354,7 @@ def image_method(
             mirror_vertices.shape[:-2],
             mirror_normals.shape[:-2],
         )
-        dtype = jnp.result_type(
-            from_vertex, to_vertex, mirror_vertices, mirror_normals
-        )
+        dtype = jnp.result_type(from_vertex, to_vertex, mirror_vertices, mirror_normals)
         return jnp.empty((*batch, 0, 3), dtype=dtype)
 
     return jnp.vectorize(

@@ -159,9 +159,7 @@ def fermat_path_on_linear_objects(
             object_origins.shape[:-2],
             object_vectors.shape[:-3],
         )
-        dtype = jnp.result_type(
-            from_vertex, to_vertex, object_origins, object_vectors
-        )
+        dtype = jnp.result_type(from_vertex, to_vertex, object_origins, object_vectors)
         if num_objects == 0:
             return jnp.empty((*batch, 0, 3), dtype=dtype)
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
