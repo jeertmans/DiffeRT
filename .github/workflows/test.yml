@@ -125,7 +125,7 @@ jobs:
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }} --durations=10
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
@@ -178,7 +178,7 @@ jobs:
       run: cargo tarpaulin --verbose --timeout 120 --out xml
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
