@@ -15,7 +15,11 @@ from differt.rt import (
     ray_intersect_any_triangle,
     triangles_visible_from_vertex,
 )
-from differt.scene._triangle_scene import TriangleScene
+from differt.scene import (
+    ExhaustivePathSolver,
+    HybridPathSolver,
+    TriangleScene,
+)
 
 from ..rt.utils import PlanarMirrorsSetup
 
@@ -173,11 +177,16 @@ def test_compute_paths(
             0,
             1,
         ]:  # TODO: add higher orders once the implementation is faster / uses less memory
-            paths = scene.compute_paths(
+            if method == "hybrid":
+                solver = HybridPathSolver(num_rays=10_000)
+            else:
+                solver = ExhaustivePathSolver(
+                    disconnect_inactive_triangles=disconnect_inactive_triangles
+                )
+
+            paths = scene.trace_paths(
                 order=order,
-                method=method,
-                num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
-                disconnect_inactive_triangles=disconnect_inactive_triangles,
+                solver=solver,
             )
             num_valid_paths += paths.num_valid_paths
         return num_valid_paths

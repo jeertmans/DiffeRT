@@ -2,7 +2,6 @@ import math
 import typing
 import warnings
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import KW_ONLY
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, Generic, TypeGuard, TypeVar, overload
 
@@ -45,7 +44,7 @@ def merge_cell_ids(
     cell_ids_b: Int[ArrayLike, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
-    Merge two arrays of cell indices as returned by :meth:`Paths.multipath_cells`.
+    Merge two arrays of cell indices as returned by :meth:`TracePaths.multipath_cells`.
 
     Let the returned array be ``cell_ids``,
     then ``cell_ids[i] == cell_ids[j]`` for all ``i``,
@@ -79,7 +78,7 @@ def merge_cell_ids(
 _M = TypeVar("_M", bound=Bool[Array, "*batch"] | Float[Array, "*batch"] | None)
 
 
-class Paths(eqx.Module, Generic[_M]):
+class TracePaths(eqx.Module, Generic[_M]):
     """
     A convenient wrapper class around path vertices and object indices.
 
@@ -226,7 +225,7 @@ class Paths(eqx.Module, Generic[_M]):
                 It defaults to the last axis, which is the axis where
                 different path candidates are stored when generating
                 paths with
-                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+                :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
 
         Returns:
             A new paths instance with masked duplicate objects.
@@ -332,7 +331,7 @@ class Paths(eqx.Module, Generic[_M]):
             return objects[mask, ...]
         return objects
 
-    def masked(self) -> "Paths[None]":
+    def masked(self) -> "TracePaths[None]":
         """Return a flattened version of this object that only keeps valid paths.
 
         The returned object has all batch dimensions flattened into one,
@@ -405,7 +404,7 @@ class Paths(eqx.Module, Generic[_M]):
 
                 By default, the last axis is used to match the
                 ``num_path_candidates`` axis as returned by
-                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+                :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
 
         Returns:
             The array of group indices.
@@ -445,7 +444,7 @@ class Paths(eqx.Module, Generic[_M]):
             denoted by indices ``0`` and ``1``, and each path is made
             of three vertices.
 
-            >>> from differt.geometry import Paths
+            >>> from differt.geometry import TracePaths
             >>>
             >>> objects = jnp.array([
             ...     [[1, 1, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0], [1, 1, 1], [1, 1, 1]],
@@ -453,7 +452,7 @@ class Paths(eqx.Module, Generic[_M]):
             ... ])
             >>> key = jax.random.key(1234)
             >>> vertices = jax.random.uniform(key, (*objects.shape, 3))
-            >>> paths = Paths(vertices, objects)
+            >>> paths = TracePaths(vertices, objects)
             >>> groups = paths.group_by_objects()
             >>> groups
             Array([[0, 1, 2, 3, 4, 4],
@@ -464,10 +463,10 @@ class Paths(eqx.Module, Generic[_M]):
         objects = self.objects.reshape((-1, path_length))
         return _cell_ids(objects).reshape(batch)
 
-    def __iter__(self) -> Iterator["Paths[None]"]:
+    def __iter__(self) -> Iterator["TracePaths[None]"]:
         """Return an iterator over masked paths.
 
-        Each item of the iterator is itself an instance :class:`Paths`,
+        Each item of the iterator is itself an instance :class:`TracePaths`,
         so you can still benefit from convenient methods like :meth:`plot`.
 
         Yields:
@@ -480,7 +479,7 @@ class Paths(eqx.Module, Generic[_M]):
             masked.objects,
             masked.interaction_types or [],
         ):
-            yield Paths(
+            yield TracePaths(
                 vertices=vertices,
                 objects=objects,
                 mask=None,
@@ -537,52 +536,87 @@ class Paths(eqx.Module, Generic[_M]):
 
 
 def _is_masked_paths(
-    paths: Paths[_M],
-) -> TypeGuard[Paths[Bool[Array, "..."] | Float[Array, "..."]]]:
+    paths: TracePaths[_M],
+) -> TypeGuard[TracePaths[Bool[Array, "..."] | Float[Array, "..."]]]:
     return paths.mask is not None
 
 
-class SBRPaths(Paths[Float[Array, "*batch"]]):
+# Deprecated alias
+class Paths(TracePaths[_M], Generic[_M]):
     """
-    Paths method generated with shooting-and-bouncing method.
+    Deprecated alias for :class:`TracePaths`.
 
-    Like :class:`Paths`, but holds information of lower-order
-    paths too.
-
-    E.g., second-order paths also contain information for line-of-sight (``order = 0``)
-    and first-order paths.
-
-    Warning:
-        The ``mask`` argument is ignored as it will automatically
-        be overwritten with the last array in :attr:`masks`.
+    .. deprecated:: 0.10
+        Use :class:`TracePaths` instead.
     """
 
-    _: KW_ONLY
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "Paths is deprecated, use TracePaths instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class LaunchPaths(eqx.Module):
+    """
+    Paths method generated with ray launching methods.
+
+    Holds information of lower-order paths too, and holds multi-order mask information.
+    Not a subclass of TracePaths.
+    """
+
+    vertices: Float[Array, "*batch path_length 3"]
+    """The array of path vertices."""
+    objects: Int[Array, "*batch path_length"]
+    """The array of object indices.
+
+    To every path vertex corresponds one object (e.g., a triangle).
+    A placeholder value of ``-1`` can be used in specific cases,
+    like for transmitter and receiver positions.
+    """
     masks: Bool[Array, " *batch path_length-1"]
     """An array of masks.
 
-    Extends :attr:`mask`, with one mask for each path order.
+    Holds one mask for each path order.
     """
+    interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
+        default=None
+    )
+    """An optional array to indicate the type of each interaction."""
+    confidence_threshold: Float[ArrayLike, " "] = 0.5
+    """A threshold used to decide whether a given path is valid or not."""
 
-    def __post_init__(self) -> None:
-        if self.mask is not None:
-            msg = (
-                "Setting 'mask' argument is ignored for this class, "
-                "as it is overwritten by 'masks' argument."
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """The batch shape of the paths."""
+        return self.vertices.shape[:-2]
 
-        self.mask = self.masks[..., -1]
+    @property
+    def path_length(self) -> int:
+        """The length (i.e., number of vertices) of each individual path."""
+        return self.objects.shape[-1]
 
-    def get_paths(self, order: int) -> Paths:
+    @property
+    def order(self) -> int:
+        """The length (i.e., number of vertices) of each individual path, excluding start and end vertices."""
+        return self.path_length - 2
+
+    @property
+    def mask(self) -> Bool[Array, " *batch"]:
+        """Alias property to the highest-order mask for backwards compatibility."""
+        return self.masks[..., -1]
+
+    def get_paths(self, order: int) -> TracePaths:
         """
-        Return the :class:`Paths` class instance corresponding to the given path order.
+        Return the :class:`TracePaths` class instance corresponding to the given path order.
 
         Args:
             order: The order of the path to index.
 
         Returns:
-            The corresponding paths class.
+            The corresponding trace paths class.
 
         Raises:
             ValueError: If the provided order is out-of-bounds.
@@ -602,18 +636,153 @@ class SBRPaths(Paths[Float[Array, "*batch"]]):
             (self.objects[..., : order + 1], self.objects[..., -1:]),
             axis=-1,
         )
-        return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
-
-    def reshape(self, *batch: int) -> Self:
-        return eqx.tree_at(
-            lambda p: p.masks,
-            super().reshape(*batch),
-            self.masks.reshape(*batch, self.masks.shape[-1]),
+        return TracePaths(
+            vertices=vertices,
+            objects=objects,
+            mask=self.masks[..., order],
+            confidence_threshold=self.confidence_threshold,
+            interaction_types=self.interaction_types[..., :order]
+            if self.interaction_types is not None
+            else None,
         )
 
+    def reshape(self, *batch: int) -> Self:
+        """
+        Return a new paths instance with reshaped paths' batch dimensions to match a given shape.
+
+        Args:
+            batch: New batch shape.
+
+        Returns:
+            A new paths instance with specified batch dimensions.
+        """
+        vertices = self.vertices.reshape(*batch, self.path_length, 3)
+        objects = self.objects.reshape(*batch, self.path_length)
+        masks = self.masks.reshape(*batch, self.masks.shape[-1])
+        interaction_types = (
+            self.interaction_types.reshape(*batch, self.path_length - 2)
+            if self.interaction_types is not None
+            else None
+        )
+
+        return eqx.tree_at(
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.masks,
+                p.interaction_types,
+            ),
+            self,
+            (vertices, objects, masks, interaction_types),
+            is_leaf=lambda x: x is None,
+        )
+
+    def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
+        """
+        Return a new paths instance by squeezing one or more axes of paths' batch dimensions.
+
+        Args:
+            axis: See :func:`jax.numpy.squeeze` for allowed values.
+
+        Returns:
+            A new paths instance with squeezed batch dimensions.
+
+        Raises:
+            ValueError: If one of the provided axes is out-of-bounds,
+                or if trying to squeeze a 0-dimensional batch.
+        """
+        ndim = self.vertices.ndim - 2
+        if axis is not None and ndim == 0:
+            msg = "Cannot squeeze a 0-dimensional batch!"
+            raise ValueError(msg)
+        if isinstance(axis, int):
+            axis = (axis,)
+        if isinstance(axis, Sequence):
+            axis = tuple(a + ndim if a < 0 else a for a in axis)
+
+            if any(ax >= ndim or ax < 0 for ax in axis):
+                msg = "One of the provided axes is out-of-bounds!"
+                raise ValueError(msg)
+
+        vertices = self.vertices.squeeze(axis)
+        objects = self.objects.squeeze(axis)
+        masks = self.masks.squeeze(axis)
+        interaction_types = (
+            self.interaction_types.squeeze(axis)
+            if self.interaction_types is not None
+            else None
+        )
+
+        return eqx.tree_at(
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.masks,
+                p.interaction_types,
+            ),
+            self,
+            (vertices, objects, masks, interaction_types),
+            is_leaf=lambda x: x is None,
+        )
+
+    def __iter__(self) -> Iterator["TracePaths[None]"]:
+        """
+        Return an iterator over the highest-order masked paths.
+
+        Yields:
+            The highest-order masked paths.
+        """
+        yield from self.get_paths(self.order)
+
+    def masked(self) -> TracePaths[None]:
+        """
+        Return a flattened :class:`TracePaths` instance keeping only valid highest-order paths.
+
+        Returns:
+            A flattened trace paths instance with only valid paths.
+        """
+        return self.get_paths(self.order).masked()
+
+    @property
+    def masked_vertices(self) -> Float[Array, "num_valid_paths path_length 3"]:
+        """The array of masked vertices of the highest-order paths, with batched dimensions flattened into one."""
+        return self.get_paths(self.order).masked_vertices
+
+    @property
+    def masked_objects(self) -> Int[Array, "num_valid_paths path_length"]:
+        """The array of masked objects of the highest-order paths, with batched dimensions flattened into one."""
+        return self.get_paths(self.order).masked_objects
+
     def plot(self, **kwargs: Any) -> PlotOutput:
+        """
+        Plot the paths on a 3D scene.
+
+        Args:
+            kwargs: Keyword arguments passed to plotting backend.
+
+        Returns:
+            The resulting plot output.
+        """
         with reuse(**kwargs, pass_all_kwargs=True) as output:
             for order in range(self.order + 1):
                 self.get_paths(order).plot()
 
         return output
+
+
+# Deprecated alias
+class SBRPaths(LaunchPaths):
+    """
+    Deprecated alias for :class:`LaunchPaths`.
+
+    .. deprecated:: 0.10
+        Use :class:`LaunchPaths` instead.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "SBRPaths is deprecated, use LaunchPaths instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

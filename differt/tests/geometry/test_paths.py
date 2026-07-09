@@ -11,7 +11,13 @@ import pytest
 from jaxtyping import Array, Bool, PRNGKeyArray
 
 from differt.geometry import TriangleMesh, path_length
-from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
+from differt.geometry._paths import (
+    LaunchPaths,
+    Paths,
+    SBRPaths,
+    TracePaths,
+    merge_cell_ids,
+)
 from differt.scene import TriangleScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -30,9 +36,24 @@ def test_merge_cell_ids() -> None:
     chex.assert_trees_all_equal(got, expected)
 
 
+def test_aliases() -> None:
+    assert issubclass(Paths, TracePaths)
+    assert issubclass(SBRPaths, LaunchPaths)
+
+    with pytest.deprecated_call():
+        _ = Paths(jnp.empty((1, 2, 3)), jnp.empty((1, 2), dtype=int))
+
+    with pytest.deprecated_call():
+        _ = SBRPaths(
+            jnp.empty((1, 2, 3)),
+            jnp.empty((1, 2), dtype=int),
+            masks=jnp.empty((1, 1), dtype=bool),
+        )
+
+
 def random_paths(
     path_length: int, *batch: int, num_objects: int, with_mask: bool, key: PRNGKeyArray
-) -> Paths[Bool[Array, "*batch"] | None]:
+) -> TracePaths[Bool[Array, "*batch"] | None]:
     if with_mask:
         key_vertices, key_objects, key_mask = jax.random.split(key, 3)
         mask = jax.random.uniform(key_mask, batch) > 0.5
@@ -45,10 +66,10 @@ def random_paths(
         key_objects, (*batch, path_length), minval=0, maxval=num_objects
     )
 
-    return Paths(vertices, objects, mask)
+    return TracePaths(vertices, objects, mask)
 
 
-class TestPaths:
+class TestTracePaths:
     def test_init(self, key: PRNGKeyArray) -> None:
         path_length = 6
         batch = (13, 7)
@@ -134,7 +155,7 @@ class TestPaths:
             mesh=mesh,
         )
 
-        paths = scene.compute_paths(path_candidates=path_candidates)
+        paths = scene.trace_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
         mask = paths.mask
@@ -173,7 +194,7 @@ class TestPaths:
 
         batch_size = scene.num_transmitters * scene.num_receivers
 
-        paths = scene.compute_paths(path_candidates=path_candidates)
+        paths = scene.trace_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
         mask = paths.mask
@@ -314,7 +335,7 @@ class TestPaths:
         for path in paths:
             got += 1
 
-            assert isinstance(path, Paths)
+            assert isinstance(path, TracePaths)
             assert path.num_valid_paths == 1
 
         assert got == paths.num_valid_paths
@@ -352,7 +373,7 @@ class TestPaths:
         _ = paths.plot(backend=backend)
 
 
-class TestSBRPaths:
+class TestLaunchPaths:
     def test_init(self, key: PRNGKeyArray) -> None:
         key_paths, key_masks = jax.random.split(key, 2)
 
@@ -364,30 +385,17 @@ class TestSBRPaths:
         )
         assert paths.shape == batch
 
-        assert paths.mask is not None
-        mask = paths.mask
-
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        launch_paths = LaunchPaths(paths.vertices, paths.objects, masks=masks)
 
-        assert sbr_paths.vertices.shape == (*batch, path_length, 3)
-        assert sbr_paths.objects.shape == (*batch, path_length)
-        assert sbr_paths.mask is not None
-        assert sbr_paths.mask.shape == batch
-        assert sbr_paths.masks.shape == (*batch, path_length - 1)
+        assert launch_paths.vertices.shape == (*batch, path_length, 3)
+        assert launch_paths.objects.shape == (*batch, path_length)
+        assert launch_paths.mask is not None
+        assert launch_paths.mask.shape == batch
+        assert launch_paths.masks.shape == (*batch, path_length - 1)
 
-        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
-
-        with pytest.warns(
-            UserWarning, match="Setting 'mask' argument is ignored for this class"
-        ):
-            sbr_paths = SBRPaths(paths.vertices, paths.objects, mask=mask, masks=masks)
-
-        with pytest.raises(AssertionError):  # Check that mask param is not used
-            chex.assert_trees_all_equal(sbr_paths.mask, mask)
-
-        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
+        chex.assert_trees_all_equal(launch_paths.masks[..., -1], launch_paths.mask)
 
     def test_get_paths(self, key: PRNGKeyArray) -> None:
         key_paths, key_masks = jax.random.split(key, 2)
@@ -402,19 +410,19 @@ class TestSBRPaths:
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        launch_paths = LaunchPaths(paths.vertices, paths.objects, masks=masks)
         del paths
 
         for i in range(path_length - 1):
-            paths = sbr_paths.get_paths(i)
-            chex.assert_trees_all_equal(paths.mask, sbr_paths.masks[..., i])
+            paths = launch_paths.get_paths(i)
+            chex.assert_trees_all_equal(paths.mask, launch_paths.masks[..., i])
 
         for i in [-1, path_length - 1]:
             with pytest.raises(
                 ValueError,
                 match=f"Paths order must be strictly between 0 and {path_length - 2}",
             ):
-                _ = sbr_paths.get_paths(i)
+                _ = launch_paths.get_paths(i)
 
     @pytest.mark.parametrize("backend", [plotly, matplotlib, vispy])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
@@ -433,5 +441,50 @@ class TestSBRPaths:
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
-        _ = sbr_paths.plot(backend=backend)
+        launch_paths = LaunchPaths(paths.vertices, paths.objects, masks=masks)
+        _ = launch_paths.plot(backend=backend)
+
+    def test_additional_methods(self, key: PRNGKeyArray) -> None:
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 4
+        batch = (2, 3)
+
+        paths = random_paths(
+            path_length, *batch, num_objects=10, with_mask=False, key=key_paths
+        )
+        masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
+
+        launch_paths = LaunchPaths(paths.vertices, paths.objects, masks=masks)
+
+        # Test shape, path_length, order
+        assert launch_paths.shape == batch
+        assert launch_paths.path_length == path_length
+        assert launch_paths.order == path_length - 2
+
+        # Test reshape
+        reshaped = launch_paths.reshape(6)
+        assert reshaped.shape == (6,)
+        assert reshaped.vertices.shape == (6, path_length, 3)
+
+        # Test squeeze
+        squeezed_launch_paths = LaunchPaths(
+            paths.vertices.reshape(2, 1, 3, path_length, 3),
+            paths.objects.reshape(2, 1, 3, path_length),
+            masks=masks.reshape(2, 1, 3, path_length - 1),
+        )
+        squeezed = squeezed_launch_paths.squeeze(axis=1)
+        assert squeezed.shape == (2, 3)
+
+        # Test __iter__
+        got_iter = list(launch_paths)
+        assert len(got_iter) == launch_paths.masked().num_valid_paths
+
+        # Test masked, masked_vertices, masked_objects
+        masked_paths = launch_paths.masked()
+        assert isinstance(masked_paths, TracePaths)
+        chex.assert_trees_all_equal(launch_paths.masked_vertices, masked_paths.vertices)
+        chex.assert_trees_all_equal(
+            launch_paths.masked_objects,
+            launch_paths.get_paths(launch_paths.order).masked_objects,
+        )

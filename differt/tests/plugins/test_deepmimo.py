@@ -13,7 +13,11 @@ from jaxtyping import PRNGKeyArray
 from differt.em import materials, z_0
 from differt.geometry import TriangleMesh
 from differt.plugins import deepmimo
-from differt.scene import TriangleScene
+from differt.scene import (
+    ExhaustivePathSolver,
+    HybridPathSolver,
+    TriangleScene,
+)
 from differt.utils import sample_points_in_bounding_box
 
 
@@ -30,21 +34,21 @@ def test_export(key: PRNGKeyArray) -> None:
     with pytest.raises(
         ValueError, match="Scene must contain information about face materials"
     ):
-        deepmimo.export(
-            paths=scene.compute_paths(order=0), scene=scene, frequency=2.4e9
-        )
+        deepmimo.export(paths=scene.trace_paths(order=0), scene=scene, frequency=2.4e9)
 
     mesh = mesh.set_materials("itu_concrete")
     scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     frequency = 2.4e9  # 2.4 GHz
     for order in [0, 1, 2]:
-        paths = scene.compute_paths(order=order)
+        paths = scene.trace_paths(order=order)
         dm = deepmimo.export(paths=paths, scene=scene, frequency=frequency)
         assert dm.num_tx == num_tx
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
-        paths_iter = scene.compute_paths(order=order, chunk_size=100)
+        paths_iter = scene.trace_paths(
+            order=order, solver=ExhaustivePathSolver(chunk_size=100)
+        )
         dm = deepmimo.export(
             paths=paths_iter,
             scene=scene,
@@ -55,13 +59,14 @@ def test_export(key: PRNGKeyArray) -> None:
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
 
-    paths_iter = (scene.compute_paths(order=order) for order in [0, 1, 2])
+    paths_iter = (scene.trace_paths(order=order) for order in [0, 1, 2])
     dm = deepmimo.export(paths=paths_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
     assert dm.num_rx == num_rx
     num_paths = dm.num_paths
     paths_iter_iter = chain.from_iterable(
-        scene.compute_paths(order=order, chunk_size=100) for order in [0, 1, 2]
+        scene.trace_paths(order=order, solver=ExhaustivePathSolver(chunk_size=100))
+        for order in [0, 1, 2]
     )
     dm = deepmimo.export(paths=paths_iter_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
@@ -157,10 +162,9 @@ def test_match_sionna_on_simple_street_canyon(
         paths=(
             paths.masked()
             for order in range(max_order + 1)
-            for paths in differt_scene.compute_paths(
+            for paths in differt_scene.trace_paths(
                 order=order,
-                method="hybrid",
-                chunk_size=100_000,
+                solver=HybridPathSolver(chunk_size=100_000),
             )
         ),
         scene=differt_scene,

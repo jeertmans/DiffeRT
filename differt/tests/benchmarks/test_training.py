@@ -95,7 +95,7 @@ class LOSModel(eqx.Module):
 
 @eqx.filter_jit(donate="all-except-first")
 def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
-    paths = scene.compute_paths(order=0)
+    paths = scene.trace_paths(order=0)
     f = model
 
     for _ in range(paths.vertices.ndim - 2):

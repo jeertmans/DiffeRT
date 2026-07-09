@@ -120,7 +120,18 @@ ogp_use_first_image = True
 
 always_document_param_types = False
 always_use_bars_union = True
+autoclass_content = "both"
 autodoc_preserve_defaults = True
+autodoc_type_aliases = {
+    "differt.geometry._paths.TracePaths": "differt.geometry.TracePaths",
+    "differt.geometry._paths.LaunchPaths": "differt.geometry.LaunchPaths",
+    "differt.geometry._triangle_mesh.TriangleMesh": "differt.geometry.TriangleMesh",
+    "differt.scene._solvers.PathSolverConfig": "differt.scene.PathSolverConfig",
+    "differt.scene._solvers.ExhaustivePathSolver": "differt.scene.ExhaustivePathSolver",
+    "differt.scene._solvers.HybridPathSolver": "differt.scene.HybridPathSolver",
+    "differt.scene._solvers.SBRPathSolver": "differt.scene.SBRPathSolver",
+    "differt.scene._triangle_scene.TriangleScene": "differt.scene.TriangleScene",
+}
 
 # -- MyST-nb settings
 myst_url_schemes = {

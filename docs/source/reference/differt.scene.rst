@@ -11,6 +11,11 @@
    :toctree: _autosummary
 
    TriangleScene
+   PathSolverConfig
+   ExhaustivePathSolver
+   HybridPathSolver
+   SBRPathSolver
+
 
 .. rubric:: Reusing scenes from Sionna
 

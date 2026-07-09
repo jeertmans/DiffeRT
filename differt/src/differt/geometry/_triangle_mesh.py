@@ -2248,7 +2248,7 @@ class TriangleMesh(eqx.Module):
         Note:
             The mesh satisfies the guarantees
             expected when setting
-            :attr:`assume_quads` to :data:`True`.
+            ``assume_quads`` to :data:`True`.
 
         Args:
             vertex_a: The center of the plane.
@@ -2326,7 +2326,7 @@ class TriangleMesh(eqx.Module):
         Note:
             The mesh satisfies the guarantees
             expected when setting
-            :attr:`assume_quads` to :data:`True`.
+            ``assume_quads`` to :data:`True`.
 
         Args:
             length: The length of the box (along x-axis).
