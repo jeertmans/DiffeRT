@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Bool, PRNGKeyArray
 
-from differt.geometry import TriangleMesh, path_lengths
+from differt.geometry import TriangleMesh, path_length
 from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
 from differt.scene import TriangleScene
 
@@ -338,9 +338,9 @@ class TestPaths:
         paths = random_paths(4, *batch, num_objects=3, with_mask=True, key=key)
         assert paths.shape == batch
 
-        expected = path_lengths(paths.vertices).sum(axis=axis, where=paths.mask)
+        expected = path_length(paths.vertices).sum(axis=axis, where=paths.mask)
 
-        got = paths.reduce(path_lengths, axis=axis)
+        got = paths.reduce(path_length, axis=axis)
 
         chex.assert_shape(got, expected_shape)
         chex.assert_trees_all_equal(got, expected)

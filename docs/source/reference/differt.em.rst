@@ -64,7 +64,7 @@ where :math:`\boldsymbol{D}` is the dyadic matrix with the diffraction coefficie
    fresnel_coefficients
    reflection_coefficients
    refraction_coefficients
-   refractive_indices
+   refractive_index
 
 .. rubric:: Antennas
 
@@ -111,8 +111,8 @@ Utility functions, mostly used internally for computing EM fields.
    :toctree: _autosummary
 
    fspl
-   lengths_to_delays
-   path_delays
+   length_to_delay
+   path_delay
    poynting_vector
    sp_directions
    sp_rotation_matrix
@@ -127,7 +127,7 @@ The following utilities are still under development, and using them is not recom
    :toctree: _autosummary
 
    diffraction_coefficients
-   transition_matrices
+   transition_matrix
    ShortDipole
    RadiationPattern
    HWDipolePattern

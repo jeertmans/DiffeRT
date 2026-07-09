@@ -10,10 +10,10 @@ from pytest_codspeed import BenchmarkFixture
 from differt.geometry import fibonacci_lattice
 from differt.rt import (
     fermat_path_on_planar_mirrors,
-    first_triangles_hit_by_rays,
+    first_triangle_hit_by_ray,
     image_method,
-    rays_intersect_any_triangle,
-    triangles_visible_from_vertices,
+    ray_intersect_any_triangle,
+    triangles_visible_from_vertex,
 )
 from differt.scene._triangle_scene import TriangleScene
 
@@ -71,8 +71,8 @@ def test_fermat(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="rays_intersect_any_triangle")
-def test_rays_intersect_any_triangle(
+@pytest.mark.benchmark(group="ray_intersect_any_triangle")
+def test_ray_intersect_any_triangle(
     bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
@@ -85,7 +85,7 @@ def test_rays_intersect_any_triangle(
 
     @jax.block_until_ready
     def bench_fun() -> Array:
-        return rays_intersect_any_triangle(
+        return ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             scene.mesh.triangle_vertices,
@@ -97,7 +97,7 @@ def test_rays_intersect_any_triangle(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="triangles_visible_from_vertices")
+@pytest.mark.benchmark(group="triangles_visible_from_vertex")
 def test_transmitter_visibility(
     bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
@@ -107,7 +107,7 @@ def test_transmitter_visibility(
 
     @jax.block_until_ready
     def bench_fun() -> Array:
-        return triangles_visible_from_vertices(
+        return triangles_visible_from_vertex(
             scene.transmitters,
             scene.mesh.triangle_vertices,
             active_triangles=scene.mesh.mask,
@@ -119,8 +119,8 @@ def test_transmitter_visibility(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="first_triangles_hit_by_rays")
-def test_first_triangles_hit_by_rays(
+@pytest.mark.benchmark(group="first_triangle_hit_by_ray")
+def test_first_triangle_hit_by_ray(
     bench_scene: TriangleScene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
@@ -133,7 +133,7 @@ def test_first_triangles_hit_by_rays(
 
     @jax.block_until_ready
     def bench_fun() -> tuple[Array, Array]:
-        return first_triangles_hit_by_rays(
+        return first_triangle_hit_by_ray(
             ray_origins,
             ray_directions,
             scene.mesh.triangle_vertices,

@@ -1,6 +1,6 @@
 # NaN and Infinite Values
 
-When performing floating-point operations, it's common to encounter Not-a-Number (NaN) or infinite values if you're not careful. In some cases, these values can be deliberately used to convey specific information. For instance, our function {func}`intersection_of_rays_with_planes<differt.rt.intersection_of_rays_with_planes>` returns `jnp.inf` coordinates when rays are parallel to the corresponding planes, since no intersection point exists.
+When performing floating-point operations, it's common to encounter Not-a-Number (NaN) or infinite values if you're not careful. In some cases, these values can be deliberately used to convey specific information. For instance, our function {func}`intersection_of_ray_with_plane<differt.rt.intersection_of_ray_with_plane>` returns `jnp.inf` coordinates when rays are parallel to the corresponding planes, since no intersection point exists.
 
 However, infinite values (`jnp.inf`) must be used with caution. They can sometimes lead to `jnp.nan`, for example, when subtracting two infinite values. Once NaNs appear, they can quickly propagate through the computation, corrupting otherwise valid results.
 

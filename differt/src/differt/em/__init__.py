@@ -17,17 +17,17 @@ __all__ = (
     "epsilon_0",
     "fresnel_coefficients",
     "fspl",
-    "lengths_to_delays",
+    "length_to_delay",
     "materials",
     "mu_0",
-    "path_delays",
+    "path_delay",
     "poynting_vector",
     "reflection_coefficients",
     "refraction_coefficients",
-    "refractive_indices",
+    "refractive_index",
     "sp_directions",
     "sp_rotation_matrix",
-    "transition_matrices",
+    "transition_matrix",
     "z_0",
 )
 
@@ -46,16 +46,16 @@ from ._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
     refraction_coefficients,
-    refractive_indices,
+    refractive_index,
 )
 from ._interaction_type import InteractionType
 from ._material import Material, materials
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
     fspl,
-    lengths_to_delays,
-    path_delays,
+    length_to_delay,
+    path_delay,
     sp_directions,
     sp_rotation_matrix,
-    transition_matrices,
+    transition_matrix,
 )

@@ -15,7 +15,7 @@ from jaxtyping import Array, Float, PRNGKeyArray
 from differt import rt
 from differt.geometry._triangle_mesh import (
     TriangleMesh,
-    triangles_contain_vertices_assuming_inside_same_plane,
+    triangle_contains_vertex_assuming_inside_same_plane,
 )
 from differt.geometry._utils import rotation_matrix_along_x_axis
 
@@ -74,19 +74,19 @@ def medium_random_mesh(key: PRNGKeyArray) -> TriangleMesh:
     ],
 )
 @random_inputs("triangle_vertices", "vertices")
-def test_triangles_contain_vertices_assuming_inside_same_planes_random_inputs(
+def test_triangle_contains_vertex_assuming_inside_same_planes_random_inputs(
     triangle_vertices: Array,
     vertices: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        _ = triangles_contain_vertices_assuming_inside_same_plane(
+        _ = triangle_contains_vertex_assuming_inside_same_plane(
             triangle_vertices,
             vertices,
         )
 
 
-def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
+def test_triangle_contains_vertex_assuming_inside_same_planes() -> None:
     triangle_vertices = jnp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
     vertices = jnp.array(
         [
@@ -109,7 +109,7 @@ def test_triangles_contain_vertices_assuming_inside_same_planes() -> None:
     )
     n = vertices.shape[0]
     triangle_vertices = jnp.tile(triangle_vertices, (n, 1, 1))
-    got = triangles_contain_vertices_assuming_inside_same_plane(
+    got = triangle_contains_vertex_assuming_inside_same_plane(
         triangle_vertices,
         vertices,
     )
@@ -2022,7 +2022,7 @@ class TestTriangleMeshDiffraction:
         )
         assert mesh.drop_unused_vertices().vertices.shape[0] == 0
 
-    def test_rays_intersect_any_triangle_correctness(self, key: PRNGKeyArray) -> None:
+    def test_ray_intersect_any_triangle_correctness(self, key: PRNGKeyArray) -> None:
         mesh = TriangleMesh.box(2.0, 2.0, 2.0)
 
         key_origins, key_directions = jax.random.split(key)
@@ -2031,18 +2031,18 @@ class TestTriangleMeshDiffraction:
             key_directions, (10, 3), minval=-1.0, maxval=1.0
         )
 
-        expected = rt.rays_intersect_any_triangle(
+        expected = rt.ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             mesh.triangle_vertices,
         )
-        got = mesh.rays_intersect_any_triangle(
+        got = mesh.ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
         )
         chex.assert_trees_all_equal(got, expected)
 
-    def test_first_triangles_hit_by_rays_correctness_and_gradients(
+    def test_first_triangle_hit_by_ray_correctness_and_gradients(
         self, key: PRNGKeyArray
     ) -> None:
         mesh = TriangleMesh.box(2.0, 2.0, 2.0)
@@ -2055,12 +2055,12 @@ class TestTriangleMeshDiffraction:
             key_directions, (10, 3), minval=-1.0, maxval=1.0
         )
 
-        expected_idx, expected_t = rt.first_triangles_hit_by_rays(
+        expected_idx, expected_t = rt.first_triangle_hit_by_ray(
             ray_origins_rand,
             ray_directions_rand,
             mesh.triangle_vertices,
         )
-        got_idx, got_t = mesh.first_triangles_hit_by_rays(
+        got_idx, got_t = mesh.first_triangle_hit_by_ray(
             ray_origins_rand,
             ray_directions_rand,
         )
@@ -2084,7 +2084,7 @@ class TestTriangleMeshDiffraction:
             vertices: Float[Array, "num_vertices 3"],
         ) -> Float[Array, " num_rays"]:
             triangle_vertices = jnp.take(vertices, mesh.triangles, axis=0)
-            _, t = rt.first_triangles_hit_by_rays(
+            _, t = rt.first_triangle_hit_by_ray(
                 origins,
                 directions,
                 triangle_vertices,
@@ -2097,7 +2097,7 @@ class TestTriangleMeshDiffraction:
             vertices: Float[Array, "num_vertices 3"],
         ) -> Float[Array, " num_rays"]:
             m = eqx.tree_at(lambda x: x.vertices, mesh, vertices)
-            _, t = m.first_triangles_hit_by_rays(
+            _, t = m.first_triangle_hit_by_ray(
                 origins,
                 directions,
             )
@@ -2113,20 +2113,18 @@ class TestTriangleMeshDiffraction:
         for j_got, j_ref in zip(jac_got, jac_ref, strict=True):
             chex.assert_trees_all_close(j_got, j_ref, rtol=1e-5, atol=1e-5)
 
-    def test_triangles_visible_from_vertices_correctness(
-        self, key: PRNGKeyArray
-    ) -> None:
+    def test_triangles_visible_from_vertex_correctness(self, key: PRNGKeyArray) -> None:
         mesh = TriangleMesh.box(2.0, 2.0, 2.0)
 
         key_origins, _ = jax.random.split(key)
         ray_origins = jax.random.uniform(key_origins, (10, 3), minval=-5.0, maxval=5.0)
 
-        expected = rt.triangles_visible_from_vertices(
+        expected = rt.triangles_visible_from_vertex(
             ray_origins,
             mesh.triangle_vertices,
             num_rays=100,
         )
-        got = mesh.triangles_visible_from_vertices(
+        got = mesh.triangles_visible_from_vertex(
             ray_origins,
             num_rays=100,
         )

@@ -9,24 +9,24 @@ from differt.utils import smoothing_function
 
 
 @jax.jit(inline=True)
-def image_of_vertices_with_respect_to_mirrors(
-    vertices: Float[ArrayLike, "*#batch 3"],
-    mirror_vertices: Float[ArrayLike, "*#batch 3"],
-    mirror_normals: Float[ArrayLike, "*#batch 3"],
+def image_of_vertex_with_respect_to_mirror(
+    vertex: Float[ArrayLike, "*#batch 3"],
+    mirror_vertex: Float[ArrayLike, "*#batch 3"],
+    mirror_normal: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Return the image of vertices with respect to mirrors.
+    Return the image of the vertex with respect to the mirror.
 
     Args:
-        vertices: An array of vertices that will be mirrored.
-        mirror_vertices: An array of mirror vertices. For each mirror, any
+        vertex: Vertex that will be mirrored.
+        mirror_vertex: Mirror vertex. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: An array of mirror normals, where each normal has a unit
+        mirror_normal: Mirror normal, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
 
     Returns:
-        An array of image vertices.
+        The image of the vertex.
 
     Examples:
         In the following example, we show how to compute the images of
@@ -34,7 +34,7 @@ def image_of_vertices_with_respect_to_mirrors(
         but they should have if you want an interpretable result.
 
         >>> from differt.rt import (
-        ...     image_of_vertices_with_respect_to_mirrors,
+        ...     image_of_vertex_with_respect_to_mirror,
         ... )
         >>>
         >>> key = jax.random.key(0)
@@ -56,7 +56,7 @@ def image_of_vertices_with_respect_to_mirrors(
         ...     key2,
         ...     (num_mirrors, 3),
         ... )
-        >>> images = image_of_vertices_with_respect_to_mirrors(
+        >>> images = image_of_vertex_with_respect_to_mirror(
         ...     vertices,
         ...     mirror_vertices,
         ...     mirror_normals,
@@ -65,29 +65,29 @@ def image_of_vertices_with_respect_to_mirrors(
         (10, 20, 30, 3)
 
     """
-    vertices = jnp.asarray(vertices)
-    mirror_vertices = jnp.asarray(mirror_vertices)
-    mirror_normals = jnp.asarray(mirror_normals)
+    vertex = jnp.asarray(vertex)
+    mirror_vertex = jnp.asarray(mirror_vertex)
+    mirror_normal = jnp.asarray(mirror_normal)
 
     # [*batch num_mirrors ]
-    incident = vertices - mirror_vertices  # incident vectors
+    incident = vertex - mirror_vertex  # incident vectors
     return (
-        vertices
+        vertex
         - 2.0
-        * jnp.sum(incident * mirror_normals, axis=-1, keepdims=True)
-        * mirror_normals
+        * jnp.sum(incident * mirror_normal, axis=-1, keepdims=True)
+        * mirror_normal
     )
 
 
 @jax.jit(inline=True)
-def intersection_of_rays_with_planes(
-    ray_origins: Float[ArrayLike, "*#batch 3"],
-    ray_directions: Float[ArrayLike, "*#batch 3"],
-    plane_vertices: Float[ArrayLike, "*#batch 3"],
-    plane_normals: Float[ArrayLike, "*#batch 3"],
+def intersection_of_ray_with_plane(
+    ray_origin: Float[ArrayLike, "*#batch 3"],
+    ray_direction: Float[ArrayLike, "*#batch 3"],
+    plane_vertex: Float[ArrayLike, "*#batch 3"],
+    plane_normal: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch 3"]:
     """
-    Return the intersection points between rays and (infinite) planes.
+    Return the intersection point between the ray and the (infinite) plane.
 
     Warning:
         If a ray is parallel to the corresponding plane,
@@ -96,42 +96,42 @@ def intersection_of_rays_with_planes(
         the plane, then ``ray_origins`` is returned.
 
     Args:
-        ray_origins: An array of origin vertices.
-        ray_directions: An array of ray directions. The ray ends
-            should be equal to ``ray_origins + ray_directions``.
-        plane_vertices: An array of plane vertices. For each plane, any
+        ray_origin: Origin vertex.
+        ray_direction: Ray direction. The ray end
+            should be equal to ``ray_origin + ray_direction``.
+        plane_vertex: Plane vertex. For each plane, any
             vertex on this plane can be used.
-        plane_normals: an array of plane normals, where each normal has a unit
+        plane_normal: Plane normal, where each normal has a unit
             length and is perpendicular to the corresponding plane.
 
     Returns:
-        An array of intersection vertices.
+        Intersection point with the (infinite) plane.
     """
-    ray_origins = jnp.asarray(ray_origins)
-    ray_directions = jnp.asarray(ray_directions)
-    plane_vertices = jnp.asarray(plane_vertices)
-    plane_normals = jnp.asarray(plane_normals)
+    ray_origin = jnp.asarray(ray_origin)
+    ray_direction = jnp.asarray(ray_direction)
+    plane_vertex = jnp.asarray(plane_vertex)
+    plane_normal = jnp.asarray(plane_normal)
 
     # [*batch 3]
-    u = ray_directions
-    v = plane_vertices - ray_origins
+    u = ray_direction
+    v = plane_vertex - ray_origin
     # [*batch 1]
-    un = jnp.sum(u * plane_normals, axis=-1, keepdims=True)
+    un = jnp.sum(u * plane_normal, axis=-1, keepdims=True)
     # [*batch 1]
-    vn = jnp.sum(v * plane_normals, axis=-1, keepdims=True)
+    vn = jnp.sum(v * plane_normal, axis=-1, keepdims=True)
 
     parallel = un == 0.0
     un = jnp.where(parallel, jnp.ones_like(un), un)
 
     t = vn / un
 
-    shape = jnp.broadcast_shapes(ray_origins.shape, ray_directions.shape, t.shape)
-    dtype = jnp.result_type(ray_origins, ray_directions, t)
+    shape = jnp.broadcast_shapes(ray_origin.shape, ray_direction.shape, t.shape)
+    dtype = jnp.result_type(ray_origin, ray_direction, t)
 
     return jnp.where(
         parallel & (vn != 0.0),
         jnp.full(shape, jnp.inf, dtype=dtype),
-        ray_origins + ray_directions * t,
+        ray_origin + ray_direction * t,
     )
 
 
@@ -141,7 +141,7 @@ def _forward(
 ) -> tuple[Float[Array, "3"], Float[Array, "3"]]:
     # Perform forward pass on vertices by computing consecutive images.
     mirror_vertex, mirror_normal = mirror_vertex_and_normal
-    image = image_of_vertices_with_respect_to_mirrors(
+    image = image_of_vertex_with_respect_to_mirror(
         previous_image,
         mirror_vertex,
         mirror_normal,
@@ -168,7 +168,7 @@ def _backward(
         jnp.zeros_like(previous_intersection),
         previous_intersection,
     )
-    intersection = intersection_of_rays_with_planes(
+    intersection = intersection_of_ray_with_plane(
         previous_intersection,
         image - previous_intersection,
         mirror_vertex,
@@ -205,13 +205,13 @@ def _image_method(
 
 @jax.jit
 def image_method(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
-    to_vertices: Float[ArrayLike, "*#batch 3"],
+    from_vertex: Float[ArrayLike, "*#batch 3"],
+    to_vertex: Float[ArrayLike, "*#batch 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
-    Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
+    Return the ray path between a pair of vertices, that reflects on a given list of mirrors in between.
 
     The Image Method is a very simple but effective path tracing technique
     that can rapidly compute a ray path undergoing a series
@@ -231,41 +231,41 @@ def image_method(
         is parallel to a ray segment that it is supposed to reflect.
 
     Args:
-        from_vertices: An array of ``from`` vertices, i.e., vertices from which the
-            ray paths start. In a radio communications context, this is usually
-            an array of transmitters.
-        to_vertices: An array of ``to`` vertices, i.e., vertices to which the
-            ray paths end. In a radio communications context, this is usually
-            an array of receivers.
-        mirror_vertices: An array of mirror vertices. For each mirror, any
+        from_vertex: ``from`` vertex, i.e., vertex from which the
+            ray path starts. In a radio communications context, this is usually
+            the transmitter position.
+        to_vertex: ``to`` vertex, i.e., vertex to which the
+            ray path ends. In a radio communications context, this is usually
+            the receiver position.
+        mirror_vertices: Mirror vertex. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: An array of mirror normals, where each normal has a unit
+        mirror_normals: Mirror normal, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
 
     Returns:
-        An array of ray paths obtained with the image method.
+        Intermediate ray path vertices obtained with the image method.
 
     .. note::
 
         The paths do not contain the starting and ending vertices.
 
         You can easily create the complete ray paths using
-        :func:`assemble_paths<differt.geometry.assemble_paths>`:
+        :func:`assemble_path<differt.geometry.assemble_path>`:
 
         .. code-block:: python
 
-            paths = image_method(
-                from_vertices,
-                to_vertices,
+            path = image_method(
+                from_vertex,
+                to_vertex,
                 mirror_vertices,
                 mirror_normals,
             )
 
-            full_paths = assemble_paths(
-                from_vertices,
-                paths,
-                to_vertices,
+            full_path = assemble_path(
+                from_vertex,
+                path,
+                to_vertex,
             )
 
     Examples:
@@ -290,7 +290,7 @@ def image_method(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_paths
+            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import image_method
             >>>
@@ -319,7 +319,7 @@ def image_method(
             ...         mirror_vertices[1], normal=mirror_normals[1]
             ...     ).plot(color="red")
             ...
-            ...     full_path = assemble_paths(
+            ...     full_path = assemble_path(
             ...         from_vertex,
             ...         path,
             ...         to_vertex,
@@ -341,32 +341,30 @@ def image_method(
             >>> fig  # doctest: +SKIP
 
     """
-    from_vertices = jnp.asarray(from_vertices)
-    to_vertices = jnp.asarray(to_vertices)
+    from_vertex = jnp.asarray(from_vertex)
+    to_vertex = jnp.asarray(to_vertex)
     mirror_vertices = jnp.asarray(mirror_vertices)
     mirror_normals = jnp.asarray(mirror_normals)
 
     if mirror_vertices.shape[-2] == 0:
         # If there are no mirrors, return empty array.
         batch = jnp.broadcast_shapes(
-            from_vertices.shape[:-1],
-            to_vertices.shape[:-1],
+            from_vertex.shape[:-1],
+            to_vertex.shape[:-1],
             mirror_vertices.shape[:-2],
             mirror_normals.shape[:-2],
         )
-        dtype = jnp.result_type(
-            from_vertices, to_vertices, mirror_vertices, mirror_normals
-        )
+        dtype = jnp.result_type(from_vertex, to_vertex, mirror_vertices, mirror_normals)
         return jnp.empty((*batch, 0, 3), dtype=dtype)
 
     return jnp.vectorize(
         _image_method,
         signature="(3),(3),(n,3),(n,3)->(n,3)",
-    )(from_vertices, to_vertices, mirror_vertices, mirror_normals)
+    )(from_vertex, to_vertex, mirror_vertices, mirror_normals)
 
 
 @overload
-def consecutive_vertices_are_on_same_side_of_mirrors(
+def consecutive_vertices_are_on_same_side_of_mirror(
     vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
@@ -376,7 +374,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
 
 
 @overload
-def consecutive_vertices_are_on_same_side_of_mirrors(
+def consecutive_vertices_are_on_same_side_of_mirror(
     vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
@@ -386,7 +384,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
 
 
 @jax.jit
-def consecutive_vertices_are_on_same_side_of_mirrors(
+def consecutive_vertices_are_on_same_side_of_mirror(
     vertices: Float[ArrayLike, "*#batch num_vertices 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
@@ -401,11 +399,11 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
     mirror, and is something we want to avoid.
 
     Args:
-        vertices: An array of vertices, usually describing ray paths.
-        mirror_vertices: An array of mirror vertices. For each mirror, any
+        vertices: Vertices, usually describing the ray path.
+        mirror_vertices: Mirror vertices. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: An array of mirror normals, where each normal has a unit
+        mirror_normals: Mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
             as described in :cite:`fully-eucap2024`, and this argument parameters the slope
@@ -415,8 +413,7 @@ def consecutive_vertices_are_on_same_side_of_mirrors(
             For more details, refer to :ref:`smoothing`.
 
     Returns:
-        A boolean array indicating whether pairs of consecutive vertices
-        are on the same side of the corresponding mirror.
+        Boolean mask, ``True`` if both vertices on either side of each mirror are on the same side.
     """
     vertices = jnp.asarray(vertices)
     mirror_vertices = jnp.asarray(mirror_vertices)

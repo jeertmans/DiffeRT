@@ -36,13 +36,13 @@ Miscellaneous utilities.
 .. autosummary::
    :toctree: _autosummary
 
-   assemble_paths
+   assemble_path
    fibonacci_lattice
    merge_cell_ids
    min_distance_between_cells
    normalize
-   perpendicular_vectors
+   perpendicular_vector
    orthogonal_basis
-   path_lengths
-   triangles_contain_vertices_assuming_inside_same_plane
+   path_length
+   triangle_contains_vertex_assuming_inside_same_plane
    viewing_frustum

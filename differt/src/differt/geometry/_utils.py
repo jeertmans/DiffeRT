@@ -35,12 +35,12 @@ def normalize(
     with zero-length, dividing by one instead.
 
     Args:
-        vectors: An array of vectors.
+        vectors: Input vector.
         keepdims: If set to :data:`True`, the array of lengths
             will have the same number of dimensions as the input.
 
     Returns:
-        The normalized vector and their length.
+        The normalized vector and its length.
 
     Examples:
         The following examples shows how normalization works and
@@ -68,28 +68,28 @@ def normalize(
 
 
 @jax.jit(inline=True)
-def perpendicular_vectors(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*batch 3"]:
+def perpendicular_vector(u: Float[ArrayLike, "*batch 3"]) -> Float[Array, "*batch 3"]:
     """
-    Generate a vector perpendicular to the input vectors.
+    Generate a vector perpendicular to the input vector.
 
     Args:
-        u: The array of input vectors.
+        u: The input vector.
 
     Returns:
-        An array of vectors perpendicular to the input vectors.
+        Vector perpendicular to the input vector.
 
     Examples:
         The following example shows how this function works on basic input vectors.
 
         >>> from differt.geometry import (
-        ...     perpendicular_vectors,
+        ...     perpendicular_vector,
         ... )
         >>>
         >>> u = jnp.array([1.0, 0.0, 0.0])
-        >>> perpendicular_vectors(u)
+        >>> perpendicular_vector(u)
         Array([ 0., -0.,  1.], dtype=float32)
         >>> u = jnp.array([1.0, 1.0, 1.0])
-        >>> perpendicular_vectors(u)
+        >>> perpendicular_vector(u)
         Array([ 0.8164966, -0.4082483, -0.4082483], dtype=float32)
     """
     u = jnp.asarray(u)
@@ -108,7 +108,7 @@ def orthogonal_basis(
     u: Float[ArrayLike, "*batch 3"],
 ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
     """
-    Generate ``v`` and ``w``, two other arrays of unit vectors that form with input ``u`` an orthogonal basis.
+    Generate ``v`` and ``w``, two other unit vectors that form with input ``u`` an orthogonal basis.
 
     Args:
         u: The first direction of the orthogonal basis.
@@ -134,7 +134,7 @@ def orthogonal_basis(
          Array([ 0.8164966, -0.4082483, -0.4082483], dtype=float32))
     """
     u = jnp.asarray(u)
-    w = perpendicular_vectors(u)
+    w = perpendicular_vector(u)
     v = jnp.cross(w, u)
     v = normalize(v)[0]
 
@@ -142,35 +142,35 @@ def orthogonal_basis(
 
 
 @jax.jit(inline=True)
-def path_lengths(
-    paths: Float[ArrayLike, "*batch path_length 3"],
+def path_length(
+    path: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, " *batch"]:
     """
-    Compute the path length of each path.
+    Compute the path length of the path.
 
-    Each path is exactly made of ``path_length`` vertices.
+    The path is exactly made of ``path_length`` vertices.
 
     Args:
-        paths: The array of path vertices.
+        path: Input path.
 
     Returns:
-        The array of path lengths.
+        The path length.
 
     Examples:
         The following example shows how to compute the length of a very simple path.
 
         >>> from differt.geometry import (
-        ...     path_lengths,
+        ...     path_length,
         ... )
         >>>
         >>> path = jnp.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0]])
-        >>> path_lengths(path)
+        >>> path_length(path)
         Array(1., dtype=float32)
-        >>> path_lengths(jnp.vstack((path, path[::-1, :])))
+        >>> path_length(jnp.vstack((path, path[::-1, :])))
         Array(2., dtype=float32)
     """
-    paths = jnp.asarray(paths)
-    vectors = jnp.diff(paths, axis=-2)
+    path = jnp.asarray(path)
+    vectors = jnp.diff(path, axis=-2)
     lengths = jnp.linalg.norm(vectors, axis=-1)
 
     return jnp.sum(lengths, axis=-1)
@@ -388,7 +388,7 @@ def fibonacci_lattice(
             as the distance of from sampled points to origin is always 1.
 
     Returns:
-        The array of vertices.
+        Lattice vertices on the unit sphere.
 
     Raises:
         ValueError: If the provided dtype is not a floating dtype, or if ``n`` is not strictly positive.
@@ -486,18 +486,18 @@ def fibonacci_lattice(
 
 
 @overload
-def assemble_paths(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
+def assemble_path(
+    from_vertex: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"],
-    to_vertices: Float[ArrayLike, "*#batch 3"],
+    to_vertex: Float[ArrayLike, "*#batch 3"],
 ) -> Float[Array, "*batch num_inter_vertices+2 3"]: ...
 
 
 @overload
-def assemble_paths(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
+def assemble_path(
+    from_vertex: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#batch 3"],
-    to_vertices: None = ...,
+    to_vertex: None = ...,
 ) -> Float[Array, "*batch 2 3"]: ...
 
 
@@ -506,62 +506,62 @@ def assemble_paths(
 #       This is why we need to disable type checking here. However, the `no_type_check` decorator also
 #       suppresses `typing.get_type_hints()`, which is used by Sphinx to extract type annotations for
 #       documentation. To work around this, we use `no_type_check` when not generating documentation.
-def assemble_paths(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
+def assemble_path(
+    from_vertex: Float[ArrayLike, "*#batch 3"],
     intermediate_vertices: Float[ArrayLike, "*#batch num_inter_vertices 3"]
     | Float[ArrayLike, "*#batch 3"],
-    to_vertices: Float[ArrayLike, "*#batch 3"] | None = None,
+    to_vertex: Float[ArrayLike, "*#batch 3"] | None = None,
 ) -> Float[Array, "*batch num_vertices+2 3"] | Float[Array, "*batch 2 3"]:
     """
-    Assemble paths vertices by concatenating start-, intermediate, and end-vertices.
+    Assemble path vertices by concatenating start-, intermediate, and end-vertices.
 
     Arrays broadcasting is automatically performed, and the total
     number of vertices per path is simply ``num_inter_vertices+2``.
 
     Args:
-        from_vertices: The starting vertices of the paths.
-        intermediate_vertices: The intermediate vertices of the paths.
-            If ``to_vertices`` is not provided, then this argument is interpreted
-            as the end vertices of the paths.
-        to_vertices: The ending vertices of the paths.
+        from_vertex: The starting vertex of the path.
+        intermediate_vertices: The intermediate vertices of the path.
+            If ``to_vertex`` is not provided, then this argument is interpreted
+            as the end vertex of the path.
+        to_vertex: The ending vertex of the path.
 
     Returns:
-        The assembled path vertices.
+        Assembled path vertices.
     """
-    from_vertices = jnp.asarray(from_vertices)
+    from_vertex = jnp.asarray(from_vertex)
     intermediate_vertices = jnp.asarray(intermediate_vertices)
-    if to_vertices is None:
-        to_vertices = intermediate_vertices
+    if to_vertex is None:
+        to_vertex = intermediate_vertices
         del intermediate_vertices
-        batch = jnp.broadcast_shapes(from_vertices.shape[:-1], to_vertices.shape[:-1])
+        batch = jnp.broadcast_shapes(from_vertex.shape[:-1], to_vertex.shape[:-1])
         return jnp.concatenate(
             (
-                jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
-                jnp.broadcast_to(to_vertices[..., None, :], (*batch, 1, 3)),
+                jnp.broadcast_to(from_vertex[..., None, :], (*batch, 1, 3)),
+                jnp.broadcast_to(to_vertex[..., None, :], (*batch, 1, 3)),
             ),
             axis=-2,
         )
-    to_vertices = jnp.asarray(to_vertices)
+    to_vertex = jnp.asarray(to_vertex)
     batch = jnp.broadcast_shapes(
-        from_vertices.shape[:-1],
+        from_vertex.shape[:-1],
         intermediate_vertices.shape[:-2],
-        to_vertices.shape[:-1],
+        to_vertex.shape[:-1],
     )
 
     return jnp.concatenate(
         (
-            jnp.broadcast_to(from_vertices[..., None, :], (*batch, 1, 3)),
+            jnp.broadcast_to(from_vertex[..., None, :], (*batch, 1, 3)),
             jnp.broadcast_to(
                 intermediate_vertices, (*batch, *intermediate_vertices.shape[-2:])
             ),
-            jnp.broadcast_to(to_vertices[..., None, :], (*batch, 1, 3)),
+            jnp.broadcast_to(to_vertex[..., None, :], (*batch, 1, 3)),
         ),
         axis=-2,
     )
 
 
 if not TYPE_CHECKING and not hasattr(typing, "GENERATING_DOCS"):
-    assemble_paths = no_type_check(assemble_paths)
+    assemble_path = no_type_check(assemble_path)
 
 
 @jax.jit
@@ -578,11 +578,11 @@ def min_distance_between_cells(
     For an actual application example, see :ref:`multipath_lifetime_map`.
 
     Args:
-        cell_vertices: The array of vertex coordinates.
-        cell_ids: The array of corresponding cell indices.
+        cell_vertices: Vertex coordinates.
+        cell_ids: Cell index for each vertex.
 
     Returns:
-        The array of minimal distances.
+        Minimal (Euclidean) distance to a vertex in a different cell.
     """
     cell_vertices = jnp.asarray(cell_vertices)
     cell_ids = jnp.asarray(cell_ids)
@@ -654,7 +654,7 @@ def viewing_frustum(
 
     Args:
         viewing_vertex: The coordinates of the viewer (i.e., camera).
-        world_vertices: The array of world coordinates.
+        world_vertices: World vertex coordinates.
         active_vertices: An optional mask to select which vertices
             to consider when computing the frustum.
         reduce: Whether to reduce batch dimensions.
@@ -932,10 +932,10 @@ def cartesian_to_spherical(
     See :ref:`conventions` for details.
 
     Args:
-        xyz: The array of Cartesian coordinates.
+        xyz: Cartesian coordinates.
 
     Returns:
-        The array of corresponding spherical coordinates.
+        Corresponding spherical coordinates.
 
     .. seealso::
 
@@ -960,12 +960,12 @@ def spherical_to_cartesian(
     See :ref:`conventions` for details.
 
     Args:
-        rpa: The array of spherical coordinates.
+        rpa: Spherical coordinates.
 
             If the radial component is missing, a radius of 1 is assumed.
 
     Returns:
-        The array of corresponding Cartesian coordinates.
+        Corresponding Cartesian coordinates.
 
     .. seealso::
 

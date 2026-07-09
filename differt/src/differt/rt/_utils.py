@@ -152,7 +152,7 @@ def generate_all_path_candidates_chunks_iter(
 
 
 @overload
-def rays_intersect_triangles(
+def ray_intersect_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
@@ -163,7 +163,7 @@ def rays_intersect_triangles(
 
 
 @overload
-def rays_intersect_triangles(
+def ray_intersect_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
@@ -174,7 +174,7 @@ def rays_intersect_triangles(
 
 
 @eqx.filter_jit
-def rays_intersect_triangles(
+def ray_intersect_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
@@ -188,10 +188,10 @@ def rays_intersect_triangles(
     The current implementation closely follows the C++ code from Wikipedia.
 
     Args:
-        ray_origins: An array of origin vertices.
-        ray_directions: An array of ray directions. The ray ends
+        ray_origins: Origin vertex.
+        ray_directions: Ray direction. The ray end
             should be equal to ``ray_origins + ray_directions``.
-        triangle_vertices: An array of triangle vertices.
+        triangle_vertices: Triangle vertices.
         epsilon: A small tolerance threshold that allows rays
             to hit the triangles slightly outside the actual area.
             A positive value virtually increases the size of the triangles,
@@ -225,7 +225,7 @@ def rays_intersect_triangles(
             >>> from differt.geometry import fibonacci_lattice
             >>> from differt.plotting import draw_rays
             >>> from differt.rt import (
-            ...     rays_intersect_triangles,
+            ...     ray_intersect_triangle,
             ... )
             >>> from differt.scene import (
             ...     get_sionna_scene,
@@ -243,7 +243,7 @@ def rays_intersect_triangles(
             ...     scene.transmitters, fibonacci_lattice(25)
             ... )
             >>> # [num_rays=25 num_triangles]
-            >>> t, hit = rays_intersect_triangles(
+            >>> t, hit = ray_intersect_triangle(
             ...     ray_origins[:, None, :],
             ...     ray_directions[:, None, :],
             ...     scene.mesh.triangle_vertices,
@@ -342,7 +342,7 @@ def rays_intersect_triangles(
 
 
 @overload
-def rays_intersect_any_triangle(
+def ray_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
@@ -356,7 +356,7 @@ def rays_intersect_any_triangle(
 
 
 @overload
-def rays_intersect_any_triangle(
+def ray_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
@@ -370,7 +370,7 @@ def rays_intersect_any_triangle(
 
 
 @eqx.filter_jit
-def rays_intersect_any_triangle(
+def ray_intersect_any_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
@@ -394,18 +394,15 @@ def rays_intersect_any_triangle(
     .. note::
 
         This function has a faster and more memory-efficient equivalent method:
-        :meth:`TriangleMesh.rays_intersect_any_triangle<differt.geometry.TriangleMesh.rays_intersect_any_triangle>`,
+        :meth:`TriangleMesh.ray_intersect_any_triangle<differt.geometry.TriangleMesh.ray_intersect_any_triangle>`,
         as long as smoothing is not required.
 
     Args:
-        ray_origins: An array of origin vertices.
-        ray_directions: An array of ray direction. The ray ends
+        ray_origins: Origin vertex.
+        ray_directions: Ray direction. The ray end
             should be equal to ``ray_origins + ray_directions``.
-        triangle_vertices: An array of triangle vertices.
-        active_triangles: An optional array of boolean values indicating
-            which triangles are active, i.e., should be considered for intersection.
-
-            If not specified, all triangles are considered active.
+        triangle_vertices: Triangle vertices.
+        active_triangles: Optional active triangle mask.
         hit_tol: The tolerance applied to check if a ray hits another object or not,
             before it reaches the expected position, i.e., the 'interaction' object.
 
@@ -428,7 +425,7 @@ def rays_intersect_any_triangle(
 
             If :data:`None`, the batch size is set to the number of triangles.
         kwargs: Keyword arguments passed to
-            :func:`rays_intersect_triangles`.
+            :func:`ray_intersect_triangle`.
 
     Returns:
         For each ray, whether it intersects with any of the triangles.
@@ -477,7 +474,7 @@ def rays_intersect_any_triangle(
         triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
     ) -> Bool[Array, " *batch"] | Float[Array, " *batch"]:
-        t, hit = rays_intersect_triangles(
+        t, hit = ray_intersect_triangle(
             ray_origins[..., None, :],
             ray_directions[..., None, :],
             triangle_vertices,
@@ -560,8 +557,8 @@ def rays_intersect_any_triangle(
 
 
 @eqx.filter_jit
-def triangles_visible_from_vertices(
-    vertices: Float[ArrayLike, "*#batch 3"],
+def triangles_visible_from_vertex(
+    vertex: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
     active_triangles: Bool[ArrayLike, "*#batch num_triangles"] | None = None,
     num_rays: int = int(1e6),
@@ -582,19 +579,16 @@ def triangles_visible_from_vertices(
 
     .. note::
 
-        This function has a faster and more memory-efficient equivalent method:
-        :meth:`TriangleMesh.triangles_visible_from_vertices<differt.geometry.TriangleMesh.triangles_visible_from_vertices>`,
-        as long as smoothing is not required.
+         This function has a faster and more memory-efficient equivalent method:
+         :meth:`TriangleMesh.triangles_visible_from_vertex<differt.geometry.TriangleMesh.triangles_visible_from_vertex>`,
+         as long as smoothing is not required.
 
     Args:
-        vertices: An array of vertices, used as origins of the rays.
+        vertex: Vertex, used as origin of the rays.
 
-            Usually, this would be an array of transmitter positions.
-        triangle_vertices: An array of triangle vertices.
-        active_triangles: An optional array of boolean values indicating
-            which triangles are active, i.e., should be considered for intersection.
-
-            If not specified, all triangles are considered active.
+            Usually, this would be transmitter position.
+        triangle_vertices: Triangle vertices.
+        active_triangles: Optional active triangle mask.
         num_rays: The number of rays to launch.
 
             The larger, the more accurate.
@@ -606,10 +600,10 @@ def triangles_visible_from_vertices(
 
             If :data:`None`, the batch size is set to the number of rays.
         kwargs: Keyword arguments passed to
-            :func:`rays_intersect_triangles`.
+            :func:`ray_intersect_triangle`.
 
     Returns:
-        A boolean array indicating whether each triangle is visible from each vertex.
+        Boolean mask, ``True`` if each triangle is visible from the corresponding vertex.
 
     Examples:
         The following example shows how to identify triangles as
@@ -620,7 +614,7 @@ def triangles_visible_from_vertices(
 
             >>> import equinox as eqx
             >>> from differt.rt import (
-            ...     triangles_visible_from_vertices,
+            ...     triangles_visible_from_vertex,
             ... )
             >>> from differt.scene import (
             ...     TriangleScene,
@@ -634,7 +628,7 @@ def triangles_visible_from_vertices(
             >>> scene = eqx.tree_at(
             ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
             ... )
-            >>> visible_triangles = triangles_visible_from_vertices(
+            >>> visible_triangles = triangles_visible_from_vertex(
             ...     scene.transmitters,
             ...     scene.mesh.triangle_vertices,
             ... )
@@ -657,7 +651,7 @@ def triangles_visible_from_vertices(
             >>> scene = eqx.tree_at(
             ...     lambda s: s.receivers, scene, jnp.array([33, 0, 1.5])
             ... )
-            >>> visible_triangles = triangles_visible_from_vertices(
+            >>> visible_triangles = triangles_visible_from_vertex(
             ...     jnp.stack((scene.transmitters, scene.receivers)),
             ...     scene.mesh.triangle_vertices,
             ... )
@@ -690,7 +684,7 @@ def triangles_visible_from_vertices(
             >>> fig = scene.plot(backend="plotly")
             >>> fig  # doctest: +SKIP
     """
-    vertices = jnp.asarray(vertices)
+    vertex = jnp.asarray(vertex)
     triangle_vertices = jnp.asarray(triangle_vertices)
     triangle_centers = triangle_vertices.mean(axis=-2, keepdims=True)
     world_vertices = jnp.concat((triangle_vertices, triangle_centers), axis=-2).reshape(
@@ -704,7 +698,7 @@ def triangles_visible_from_vertices(
         active_vertices = None
 
     # [*batch 3]
-    ray_origins = vertices
+    ray_origins = vertex
 
     # [*batch 2 3]
     frustum = viewing_frustum(
@@ -745,7 +739,7 @@ def triangles_visible_from_vertices(
         triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
     ) -> Int[Array, "*batch batch_size"]:
-        indices, _ = first_triangles_hit_by_rays(
+        indices, _ = first_triangle_hit_by_ray(
             ray_origins[..., None, :],
             ray_directions,
             triangle_vertices[..., None, :, :, :],
@@ -798,7 +792,7 @@ def triangles_visible_from_vertices(
 
 
 @eqx.filter_jit
-def first_triangles_hit_by_rays(
+def first_triangle_hit_by_ray(
     ray_origins: Float[ArrayLike, "*#batch 3"],
     ray_directions: Float[ArrayLike, "*#batch 3"],
     triangle_vertices: Float[ArrayLike, "*#batch num_triangles 3 3"],
@@ -813,23 +807,20 @@ def first_triangles_hit_by_rays(
     ``*batch num_triangles 3`` (or bigger) is not possible, and you are only interested in
     getting the first triangle hit by the ray.
 
-    If two or more triangles are hit at the same distance, the one with the closest center to the ray origin is selected. Two triangles are considered to be hit at the same distance if their distances differ by less than ``100 * eps``, or ten times the ``epsilon`` keyword argument passed to :func:`rays_intersect_triangles`.
+    If two or more triangles are hit at the same distance, the one with the closest center to the ray origin is selected. Two triangles are considered to be hit at the same distance if their distances differ by less than ``100 * eps``, or ten times the ``epsilon`` keyword argument passed to :func:`ray_intersect_triangle`.
 
     .. note::
 
         This function has a faster and more memory-efficient equivalent method:
-        :meth:`TriangleMesh.first_triangles_hit_by_rays<differt.geometry.TriangleMesh.first_triangles_hit_by_rays>`,
+        :meth:`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.TriangleMesh.first_triangle_hit_by_ray>`,
         as long as smoothing is not required.
 
     Args:
-        ray_origins: An array of origin vertices.
-        ray_directions: An array of ray direction. The ray ends
+        ray_origins: Origin vertex.
+        ray_directions: Ray direction. The ray end
             should be equal to ``ray_origins + ray_directions``.
-        triangle_vertices: An array of triangle vertices.
-        active_triangles: An optional array of boolean values indicating
-            which triangles are active, i.e., should be considered for intersection.
-
-            If not specified, all triangles are considered active.
+        triangle_vertices: Triangle vertices.
+        active_triangles: Optional active triangle mask.
         batch_size: The number of triangles to process in a single batch.
             This allows to make a trade-off between memory usage and performance.
 
@@ -838,10 +829,10 @@ def first_triangles_hit_by_rays(
 
             If :data:`None`, the batch size is set to the number of triangles.
         kwargs: Keyword arguments passed to
-            :func:`rays_intersect_triangles`.
+            :func:`ray_intersect_triangle`.
 
     Returns:
-        For each ray, return the index and to distance to the first triangle hit.
+        Index of and distance to the first triangle hit by each ray.
 
         If no triangle is hit, the index is set to ``-1`` and
         the distance is set to :data:`inf<numpy.inf>`.
@@ -901,7 +892,7 @@ def first_triangles_hit_by_rays(
         triangle_vertices: Float[Array, "*#batch num_triangles 3 3"],
         active_triangles: Bool[Array, "*#batch num_triangles"] | None = None,
     ) -> tuple[Int[Array, " *batch"], Float[Array, " *batch"]]:
-        t, hit = rays_intersect_triangles(
+        t, hit = ray_intersect_triangle(
             ray_origins[..., None, :],
             ray_directions[..., None, :],
             triangle_vertices,

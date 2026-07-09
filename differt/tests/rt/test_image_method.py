@@ -9,22 +9,22 @@ from jaxtyping import Array, PRNGKeyArray
 
 from differt.geometry import normalize
 from differt.rt._image_method import (
-    consecutive_vertices_are_on_same_side_of_mirrors,
+    consecutive_vertices_are_on_same_side_of_mirror,
     image_method,
-    image_of_vertices_with_respect_to_mirrors,
-    intersection_of_rays_with_planes,
+    image_of_vertex_with_respect_to_mirror,
+    intersection_of_ray_with_plane,
 )
 
 from ..utils import random_inputs
 from .utils import PlanarMirrorsSetup
 
 
-def test_image_of_vertices_with_respect_to_mirrors() -> None:
+def test_image_of_vertex_with_respect_to_mirror() -> None:
     vertices = jnp.array([[+0.0, +0.0, +1.0], [+1.0, +2.0, +3.0]])
     expected = jnp.array([[+0.0, +0.0, -1.0], [+1.0, +2.0, -3.0]])
     mirror_vertices = jnp.array([[0.0, 0.0, 0.0]])
     mirror_normals = jnp.array([[0.0, 0.0, 1.0]])
-    got = image_of_vertices_with_respect_to_mirrors(
+    got = image_of_vertex_with_respect_to_mirror(
         vertices,
         mirror_vertices,
         mirror_normals,
@@ -65,14 +65,14 @@ def test_image_of_vertices_with_respect_to_mirrors() -> None:
     ],
 )
 @random_inputs("vertices", "mirror_vertices", "mirror_normals")
-def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
+def test_image_of_vertex_with_respect_to_mirror_random_inputs(
     vertices: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = image_of_vertices_with_respect_to_mirrors(
+        got = image_of_vertex_with_respect_to_mirror(
             vertices,
             mirror_vertices,
             mirror_normals,
@@ -93,7 +93,7 @@ def test_image_of_vertices_with_respect_to_mirrors_random_inputs(
             chex.assert_trees_all_close(got[i, :], expected, rtol=1e-5)
 
 
-def test_intersection_of_rays_with_planes() -> None:
+def test_intersection_of_ray_with_plane() -> None:
     ray_origins = jnp.array(
         [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
     )
@@ -106,7 +106,7 @@ def test_intersection_of_rays_with_planes() -> None:
     ray_directions = ray_ends - ray_origins
     plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
     plane_normals = jnp.array([[0.0, 1.0, 0.0]])
-    got = intersection_of_rays_with_planes(
+    got = intersection_of_ray_with_plane(
         ray_origins,
         ray_directions,
         plane_vertices,
@@ -115,7 +115,7 @@ def test_intersection_of_rays_with_planes() -> None:
     chex.assert_trees_all_close(got, expected)
 
 
-def test_intersection_of_rays_with_planes_parallel() -> None:
+def test_intersection_of_ray_with_plane_parallel() -> None:
     ray_origins = jnp.array(
         [[-1.0, +1.0, +0.0], [-2.0, +1.0, +0.0], [-3.0, +1.0, +0.0]],
     )
@@ -123,7 +123,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     ray_directions = ray_ends - ray_origins
     plane_vertices = jnp.array([[0.0, 0.0, -1.0]])
     plane_normals = jnp.array([[0.0, 0.0, 1.0]])
-    got = intersection_of_rays_with_planes(
+    got = intersection_of_ray_with_plane(
         ray_origins,
         ray_directions,
         plane_vertices,
@@ -133,7 +133,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     chex.assert_trees_all_close(got, expected)
 
     # Check that we have non-NaNs gradient
-    grads = jax.grad(lambda *args: intersection_of_rays_with_planes(*args).sum())(
+    grads = jax.grad(lambda *args: intersection_of_ray_with_plane(*args).sum())(
         ray_origins,
         ray_directions,
         plane_vertices,
@@ -145,7 +145,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     # Ray origins are on the plane
 
     plane_vertices = jnp.array([[0.0, 0.0, 0.0]])
-    got = intersection_of_rays_with_planes(
+    got = intersection_of_ray_with_plane(
         ray_origins,
         ray_directions,
         plane_vertices,
@@ -186,7 +186,7 @@ def test_intersection_of_rays_with_planes_parallel() -> None:
     ],
 )
 @random_inputs("ray_origins", "ray_directions", "plane_vertices", "plane_normals")
-def test_intersection_of_rays_with_planes_random_inputs(
+def test_intersection_of_ray_with_plane_random_inputs(
     ray_origins: Array,
     ray_directions: Array,
     plane_vertices: Array,
@@ -194,7 +194,7 @@ def test_intersection_of_rays_with_planes_random_inputs(
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        _ = intersection_of_rays_with_planes(
+        _ = intersection_of_ray_with_plane(
             ray_origins,
             ray_directions,
             plane_vertices,
@@ -234,24 +234,24 @@ def test_image_method(
 
 
 @pytest.mark.parametrize(
-    ("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals"),
+    ("from_vertex", "to_vertex", "mirror_vertices", "mirror_normals"),
     [
         ((3), (3,), (1, 3), (1, 3)),
         ((3), (3,), (10, 3), (10, 3)),
         ((5, 3), (3,), (10, 3), (10, 3)),
     ],
 )
-@random_inputs("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals")
+@random_inputs("from_vertex", "to_vertex", "mirror_vertices", "mirror_normals")
 def test_image_method_return_vertices_on_mirrors(
-    from_vertices: Array,
-    to_vertices: Array,
+    from_vertex: Array,
+    to_vertex: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
 ) -> None:
     mirror_normals = normalize(mirror_normals)[0]
     paths = image_method(
-        from_vertices,
-        to_vertices,
+        from_vertex,
+        to_vertex,
         mirror_vertices,
         mirror_normals,
     )
@@ -294,14 +294,14 @@ def test_image_method_return_vertices_on_mirrors(
     ],
 )
 @random_inputs("vertices", "mirror_vertices", "mirror_normals")
-def test_consecutive_vertices_are_on_same_side_of_mirrors(
+def test_consecutive_vertices_are_on_same_side_of_mirror(
     vertices: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = consecutive_vertices_are_on_same_side_of_mirrors(
+        got = consecutive_vertices_are_on_same_side_of_mirror(
             vertices,
             mirror_vertices,
             mirror_normals,
@@ -313,7 +313,7 @@ def test_consecutive_vertices_are_on_same_side_of_mirrors(
 
         # Check that large smoothing factor matches no smoothing
 
-        got = consecutive_vertices_are_on_same_side_of_mirrors(
+        got = consecutive_vertices_are_on_same_side_of_mirror(
             vertices,
             mirror_vertices,
             mirror_normals,

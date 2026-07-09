@@ -15,7 +15,7 @@ from pytest_subtests import SubTests
 from differt.geometry import (
     Paths,
     TriangleMesh,
-    assemble_paths,
+    assemble_path,
     normalize,
     rotation_matrix_along_x_axis,
 )
@@ -170,7 +170,7 @@ class TestTriangleScene:
         advanced_path_tracing_example_scene: TriangleScene,
     ) -> None:
         scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
-        expected_path_vertices = assemble_paths(
+        expected_path_vertices = assemble_path(
             scene.transmitters,
             expected_path_vertices,
             scene.receivers,
@@ -272,7 +272,7 @@ class TestTriangleScene:
         simple_street_canyon_scene: TriangleScene,
     ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
-        expected_path_vertices = assemble_paths(
+        expected_path_vertices = assemble_path(
             scene.transmitters,
             expected_path_vertices,
             scene.receivers,
@@ -454,7 +454,7 @@ class TestTriangleScene:
         scene = TriangleScene(
             transmitters=transmitters, receivers=receivers
         ).set_assume_quads(assume_quads)
-        expected_path_vertices = assemble_paths(
+        expected_path_vertices = assemble_path(
             transmitters[:, None, None, :],
             receivers[None, :, None, :],
         )
