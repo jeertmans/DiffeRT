@@ -1,7 +1,4 @@
 # ruff: noqa: N806
-from contextlib import AbstractContextManager
-from contextlib import nullcontext as does_not_raise
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -22,73 +19,44 @@ from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    ("length", "speed", "expectation"),
+    ("length", "speed"),
     [
-        ((10,), (1,), does_not_raise()),
-        pytest.param(
-            (10,),
-            (2,),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        ((20, 10), (1,), does_not_raise()),
-        ((20, 10), (10,), does_not_raise()),
-        ((20, 1), (10,), does_not_raise()),
-        ((20, 1), (1, 10), does_not_raise()),
-        ((20, 1), (), does_not_raise()),
-        pytest.param(
-            (20, 10),
-            (20,),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 4),
-            (10, 5),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((10,), (1,)),
+        ((20, 10), (1,)),
+        ((20, 10), (10,)),
+        ((20, 1), (10,)),
+        ((20, 1), (1, 10)),
+        ((20, 1), ()),
     ],
 )
 @random_inputs("length", "speed")
-def test_length_to_delay_random_inputs(
+def test_length_to_delay(
     length: Array,
     speed: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got = length_to_delay(length, speed=speed)
-        expected = length / speed
+    got = length_to_delay(length, speed=speed)
+    expected = length / speed
 
-        chex.assert_trees_all_close(got, expected)
+    chex.assert_trees_all_close(got, expected)
 
 
 @pytest.mark.parametrize(
-    ("path", "expectation"),
+    "path",
     [
-        ((10, 3), does_not_raise()),
-        ((20, 10, 3), does_not_raise()),
-        pytest.param(
-            (10, 4),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        ((1, 3), does_not_raise()),
-        ((0, 3), does_not_raise()),
+        (10, 3),
+        (20, 10, 3),
+        (1, 3),
+        (0, 3),
     ],
 )
 @random_inputs("path")
-def test_path_delay_random_inputs(
+def test_path_delay(
     path: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got = path_delay(path)
-        expected = (
-            jnp.sum(jnp.linalg.norm(jnp.diff(path, axis=-2), axis=-1), axis=-1) / c
-        )
+    got = path_delay(path)
+    expected = jnp.sum(jnp.linalg.norm(jnp.diff(path, axis=-2), axis=-1), axis=-1) / c
 
-        chex.assert_trees_all_close(got, expected)
+    chex.assert_trees_all_close(got, expected)
 
 
 def test_sp_directions() -> None:

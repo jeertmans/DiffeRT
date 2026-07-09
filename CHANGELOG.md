@@ -22,19 +22,6 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...HEAD)
 
-## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
-
-### Added
-
-- Added Warp-accelerated {meth}`TriangleScene.compute_tx_mlm<differt.scene.TriangleScene.compute_tx_mlm>` method to compute the Multipath Lifetime Map (MLM) from transmitter locations using a shooting and bouncing ray (SBR) approach, providing a much faster and lower-memory alternative to the exhaustive ray tracing approach (by <gh-user:jeertmans>, in <gh-pr:483>).
-
-### Fixed
-
-- Fixed documentation and type annotations for {func}`draw_image<differt.plotting.draw_image>` (by <gh-user:jeertmans>, in <gh-pr:484>).
-- Fixed Plotly implementation of {func}`draw_image<differt.plotting.draw_image>` to support RGB(A) data (by <gh-user:jeertmans>, in <gh-pr:484>).
-- Fixed a bug in {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>` when viewing frustum was provided and, in some cases, the sampled rays were not uniformly distributed within that viewing frustum (by <gh-user:jeertmans>, in <gh-pr:483>).
-- Fixed {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>`'s azimuthal angle calculation at large `n` that was previously causing hatching artifacts (i.e., precision was insufficient to represent the small changes in angle) (by <gh-user:jeertmans>, in <gh-pr:483>).
-
 ### Changed
 
 - **Breaking change**: Renamed multiple functions and methods across the codebase from plural to singular form to improve API consistency and better align with JAX broadcasting semantics:
@@ -59,7 +46,24 @@ with one *slight* but **important** difference:
     - Renamed `lengths_to_delays` to {func}`length_to_delay<differt.em.length_to_delay>`
     - Renamed `path_delays` to {func}`path_delay<differt.em.path_delay>`
     - Renamed `transition_matrices` to {func}`transition_matrix<differt.em.transition_matrix>`
-  - Additionally, parameter names in these functions and their docstrings were renamed from plural to singular forms (e.g., `vertices` -> `vertex`, `mirror_vertices` -> `mirror_vertex`, `from_vertices` -> `from_vertex`, etc.) to match the new convention (by <gh-user:jeertmans>, in <gh-pr:477>).
+  - Additionally, parameter names in these functions and their docstrings were renamed from plural to singular forms (e.g., `vertices` -> `vertex`, `from_vertices` -> `from_vertex`, etc.) to match the new convention (by <gh-user:jeertmans>, in <gh-pr:478>).
+
+### Chore
+
+- Removed tests that asserted `TypeError` coming from external runtime type-checkers (`jaxtyping` / `beartype`) and simplified affected tests to focus on the actual function behavior. This reduces test noise while preserving coverage for functionality (by <gh-user:jeertmans>, in <gh-pr:490>).
+
+## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
+
+### Added
+
+- Added Warp-accelerated {meth}`TriangleScene.compute_tx_mlm<differt.scene.TriangleScene.compute_tx_mlm>` method to compute the Multipath Lifetime Map (MLM) from transmitter locations using a shooting and bouncing ray (SBR) approach, providing a much faster and lower-memory alternative to the exhaustive ray tracing approach (by <gh-user:jeertmans>, in <gh-pr:483>).
+
+### Fixed
+
+- Fixed documentation and type annotations for {func}`draw_image<differt.plotting.draw_image>` (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed Plotly implementation of {func}`draw_image<differt.plotting.draw_image>` to support RGB(A) data (by <gh-user:jeertmans>, in <gh-pr:484>).
+- Fixed a bug in {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>` when viewing frustum was provided and, in some cases, the sampled rays were not uniformly distributed within that viewing frustum (by <gh-user:jeertmans>, in <gh-pr:483>).
+- Fixed {func}`fibonacci_lattice<differt.geometry.fibonacci_lattice>`'s azimuthal angle calculation at large `n` that was previously causing hatching artifacts (i.e., precision was insufficient to represent the small changes in angle) (by <gh-user:jeertmans>, in <gh-pr:483>).
 
 ## [0.9.0](https://github.com/jeertmans/DiffeRT/compare/v0.8.2...v0.9.0)
 

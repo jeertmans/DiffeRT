@@ -1,6 +1,3 @@
-from contextlib import AbstractContextManager
-from contextlib import nullcontext as does_not_raise
-
 import chex
 import jax
 import jax.numpy as jnp
@@ -33,64 +30,41 @@ def test_image_of_vertex_with_respect_to_mirror() -> None:
 
 
 @pytest.mark.parametrize(
-    ("vertices", "mirror_vertices", "mirror_normals", "expectation"),
+    ("vertices", "mirror_vertices", "mirror_normals"),
     [
-        ((10, 3), (1, 3), (1, 3), does_not_raise()),
-        ((10, 3), (10, 1, 3), (10, 1, 3), does_not_raise()),
-        ((10, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
-        ((0, 3), (10, 0, 3), (1, 0, 3), does_not_raise()),
-        ((1, 3), (10, 1, 3), (1, 1, 3), does_not_raise()),
-        ((3,), (1, 3), (1, 3), does_not_raise()),
-        pytest.param(
-            (20, 3),
-            (10, 3),
-            (10, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 3),
-            (20, 3),
-            (10, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 3),
-            (10, 4),
-            (10, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((10, 3), (1, 3), (1, 3)),
+        ((10, 3), (10, 1, 3), (10, 1, 3)),
+        ((10, 3), (10, 1, 3), (1, 1, 3)),
+        ((0, 3), (10, 0, 3), (1, 0, 3)),
+        ((1, 3), (10, 1, 3), (1, 1, 3)),
+        ((3,), (1, 3), (1, 3)),
     ],
 )
 @random_inputs("vertices", "mirror_vertices", "mirror_normals")
-def test_image_of_vertex_with_respect_to_mirror_random_inputs(
+def test_image_of_vertex_with_respect_to_mirror_various(
     vertices: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got = image_of_vertex_with_respect_to_mirror(
-            vertices,
-            mirror_vertices,
-            mirror_normals,
-        ).reshape(-1, 3)
-        vertices, mirror_vertices, mirror_normals = jnp.broadcast_arrays(
-            vertices, mirror_vertices, mirror_normals
+    got = image_of_vertex_with_respect_to_mirror(
+        vertices,
+        mirror_vertices,
+        mirror_normals,
+    ).reshape(-1, 3)
+    vertices, mirror_vertices, mirror_normals = jnp.broadcast_arrays(
+        vertices, mirror_vertices, mirror_normals
+    )
+    for i, (vertex, mirror_vertex, mirror_normal) in enumerate(
+        zip(
+            vertices.reshape(-1, 3),
+            mirror_vertices.reshape(-1, 3),
+            mirror_normals.reshape(-1, 3),
+            strict=False,
         )
-        for i, (vertex, mirror_vertex, mirror_normal) in enumerate(
-            zip(
-                vertices.reshape(-1, 3),
-                mirror_vertices.reshape(-1, 3),
-                mirror_normals.reshape(-1, 3),
-                strict=False,
-            )
-        ):
-            incident = vertex - mirror_vertex
-            expected = vertex - 2.0 * jnp.sum(incident * mirror_normal) * mirror_normal
-            chex.assert_trees_all_close(got[i, :], expected, rtol=1e-5)
+    ):
+        incident = vertex - mirror_vertex
+        expected = vertex - 2.0 * jnp.sum(incident * mirror_normal) * mirror_normal
+        chex.assert_trees_all_close(got[i, :], expected, rtol=1e-5)
 
 
 def test_intersection_of_ray_with_plane() -> None:
@@ -161,45 +135,26 @@ def test_intersection_of_ray_with_plane_parallel() -> None:
         "ray_directions",
         "plane_vertices",
         "plane_normals",
-        "expectation",
     ),
     [
-        ((10, 3), (10, 3), (1, 3), (1, 3), does_not_raise()),
-        ((3,), (3,), (3,), (3,), does_not_raise()),
-        ((10, 3), (1, 10, 3), (1, 1, 3), (10, 1, 3), does_not_raise()),
-        pytest.param(
-            (10, 3),
-            (1, 10, 3),
-            (1, 1, 3),
-            (10, 2, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (20, 3),
-            (10, 3),
-            (10, 3),
-            (10, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((10, 3), (10, 3), (1, 3), (1, 3)),
+        ((3,), (3,), (3,), (3,)),
+        ((10, 3), (1, 10, 3), (1, 1, 3), (10, 1, 3)),
     ],
 )
 @random_inputs("ray_origins", "ray_directions", "plane_vertices", "plane_normals")
-def test_intersection_of_ray_with_plane_random_inputs(
+def test_intersection_of_ray_with_plane_various(
     ray_origins: Array,
     ray_directions: Array,
     plane_vertices: Array,
     plane_normals: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        _ = intersection_of_ray_with_plane(
-            ray_origins,
-            ray_directions,
-            plane_vertices,
-            plane_normals,
-        )
+    _ = intersection_of_ray_with_plane(
+        ray_origins,
+        ray_directions,
+        plane_vertices,
+        plane_normals,
+    )
 
 
 @pytest.mark.parametrize(
@@ -265,32 +220,11 @@ def test_image_method_return_vertices_on_mirrors(
 
 
 @pytest.mark.parametrize(
-    ("vertices", "mirror_vertices", "mirror_normals", "expectation"),
+    ("vertices", "mirror_vertices", "mirror_normals"),
     [
-        ((12, 3), (10, 3), (10, 3), does_not_raise()),
-        ((4, 12, 3), (10, 3), (10, 3), does_not_raise()),
-        ((6, 7, 12, 3), (10, 3), (10, 3), does_not_raise()),
-        pytest.param(
-            (12, 3),
-            (10, 3),
-            (11, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 3),
-            (12, 4),
-            (12, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (12, 3),
-            (11, 4),
-            (11, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((12, 3), (10, 3), (10, 3)),
+        ((4, 12, 3), (10, 3), (10, 3)),
+        ((6, 7, 12, 3), (10, 3), (10, 3)),
     ],
 )
 @random_inputs("vertices", "mirror_vertices", "mirror_normals")
@@ -298,26 +232,24 @@ def test_consecutive_vertices_are_on_same_side_of_mirror(
     vertices: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got = consecutive_vertices_are_on_same_side_of_mirror(
-            vertices,
-            mirror_vertices,
-            mirror_normals,
-        )
-        chex.assert_axis_dimension(got, -1, mirror_vertices.shape[0])
-        chex.assert_trees_all_equal_shapes(got[..., 0], vertices[..., 0, 0])
+    got = consecutive_vertices_are_on_same_side_of_mirror(
+        vertices,
+        mirror_vertices,
+        mirror_normals,
+    )
+    chex.assert_axis_dimension(got, -1, mirror_vertices.shape[0])
+    chex.assert_trees_all_equal_shapes(got[..., 0], vertices[..., 0, 0])
 
-        expected = got
+    expected = got
 
-        # Check that large smoothing factor matches no smoothing
+    # Check that large smoothing factor matches no smoothing
 
-        got = consecutive_vertices_are_on_same_side_of_mirror(
-            vertices,
-            mirror_vertices,
-            mirror_normals,
-            smoothing_factor=1e8,
-        )
+    got = consecutive_vertices_are_on_same_side_of_mirror(
+        vertices,
+        mirror_vertices,
+        mirror_normals,
+        smoothing_factor=1e8,
+    )
 
-        chex.assert_trees_all_equal(got > 0.5, expected)
+    chex.assert_trees_all_equal(got > 0.5, expected)

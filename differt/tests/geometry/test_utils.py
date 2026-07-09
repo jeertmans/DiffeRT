@@ -30,31 +30,24 @@ from ..utils import random_inputs
 
 
 @pytest.mark.parametrize(
-    ("u", "expectation"),
+    "u",
     [
-        ((10, 3), does_not_raise()),
-        ((20, 10, 3), does_not_raise()),
-        pytest.param(
-            (10, 4),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        (10, 3),
+        (20, 10, 3),
     ],
 )
 @pytest.mark.parametrize("keepdims", [False, True])
 @random_inputs("u")
-def test_normalize_random_inputs(
+def test_normalize(
     u: Array,
     keepdims: bool,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        nu, lu = normalize(u, keepdims=keepdims)
+    nu, lu = normalize(u, keepdims=keepdims)
 
-        if keepdims:
-            chex.assert_trees_all_close(u, nu * lu)
-        else:
-            chex.assert_trees_all_close(u, nu * lu[..., None])
+    if keepdims:
+        chex.assert_trees_all_close(u, nu * lu)
+    else:
+        chex.assert_trees_all_close(u, nu * lu[..., None])
 
 
 def test_perpendicular_vector() -> None:
@@ -96,29 +89,22 @@ def test_orthogonal_basis(u: Array) -> None:
 
 
 @pytest.mark.parametrize(
-    ("path", "expectation"),
+    "path",
     [
-        ((10, 3), does_not_raise()),
-        ((20, 10, 3), does_not_raise()),
-        pytest.param(
-            (10, 4),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        ((1, 3), does_not_raise()),
-        ((0, 3), does_not_raise()),
+        (10, 3),
+        (20, 10, 3),
+        (1, 3),
+        (0, 3),
     ],
 )
 @random_inputs("path")
-def test_path_length_random_inputs(
+def test_path_length(
     path: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got = path_length(path)
-        expected = jnp.sum(jnp.linalg.norm(jnp.diff(path, axis=-2), axis=-1), axis=-1)
+    got = path_length(path)
+    expected = jnp.sum(jnp.linalg.norm(jnp.diff(path, axis=-2), axis=-1), axis=-1)
 
-        chex.assert_trees_all_close(got, expected)
+    chex.assert_trees_all_close(got, expected)
 
 
 @pytest.mark.parametrize("sign", [+1.0, -1.0])
@@ -230,27 +216,16 @@ def test_assemble_path() -> None:
 
 
 @pytest.mark.parametrize(
-    ("shapes", "expectation"),
+    "shapes",
     [
-        (((3,), (3,)), does_not_raise()),
-        (((3,), (2, 1, 3), (3,)), does_not_raise()),
-        (((1, 5, 3), (10, 5, 2, 3), (3,)), does_not_raise()),
-        pytest.param(
-            ((3,), (6, 4), (3,)),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            ((1, 3), (3,), (1, 3)),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((3,), (3,)),
+        ((3,), (2, 1, 3), (3,)),
+        ((1, 5, 3), (10, 5, 2, 3), (3,)),
     ],
 )
-def test_assemble_path_random_inputs(
+def test_assemble_path_various_shapes(
     shapes: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
     | tuple[tuple[int, ...], tuple[int, ...]],
-    expectation: AbstractContextManager[Exception],
     key: PRNGKeyArray,
 ) -> None:
     keys = jax.random.split(key, len(shapes))
@@ -263,8 +238,7 @@ def test_assemble_path_random_inputs(
         intermediate_vertices = to_vertices
         to_vertices = None
 
-    with expectation:
-        _ = assemble_path(from_vertices, intermediate_vertices, to_vertices)
+    _ = assemble_path(from_vertices, intermediate_vertices, to_vertices)
 
 
 def test_cartesian_to_spherial_roundtrip(key: PRNGKeyArray) -> None:

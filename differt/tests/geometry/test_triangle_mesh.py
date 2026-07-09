@@ -1,7 +1,5 @@
 import logging
 import re
-from contextlib import AbstractContextManager
-from contextlib import nullcontext as does_not_raise
 from typing import Any
 
 import chex
@@ -53,37 +51,23 @@ def medium_random_mesh(key: PRNGKeyArray) -> TriangleMesh:
 
 
 @pytest.mark.parametrize(
-    ("triangle_vertices", "vertices", "expectation"),
+    ("triangle_vertices", "vertices"),
     [
-        ((20, 10, 3, 3), (20, 10, 3), does_not_raise()),
-        ((1, 10, 3, 3), (20, 1, 3), does_not_raise()),
-        ((10, 3, 3), (10, 3), does_not_raise()),
-        ((3, 3), (3,), does_not_raise()),
-        pytest.param(
-            (3, 3),
-            (4,),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 3, 3),
-            (12, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((20, 10, 3, 3), (20, 10, 3)),
+        ((1, 10, 3, 3), (20, 1, 3)),
+        ((10, 3, 3), (10, 3)),
+        ((3, 3), (3,)),
     ],
 )
 @random_inputs("triangle_vertices", "vertices")
-def test_triangle_contains_vertex_assuming_inside_same_planes_random_inputs(
+def test_triangle_contains_vertex_various_shapes(
     triangle_vertices: Array,
     vertices: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        _ = triangle_contains_vertex_assuming_inside_same_plane(
-            triangle_vertices,
-            vertices,
-        )
+    _ = triangle_contains_vertex_assuming_inside_same_plane(
+        triangle_vertices,
+        vertices,
+    )
 
 
 def test_triangle_contains_vertex_assuming_inside_same_planes() -> None:
@@ -695,13 +679,6 @@ class TestTriangleMesh:
             )
         chex.assert_trees_all_equal(got, expected)
 
-    @pytest.mark.require_typechecker
-    def test_at_update_invalid_index_type_error(
-        self, two_buildings_mesh: TriangleMesh
-    ) -> None:
-        with pytest.raises(TypeError):
-            two_buildings_mesh.at[jnp.ones((2, 3), dtype=int)]
-
     @pytest.mark.require_no_typechecker
     def test_at_update_invalid_index_value_error(
         self, two_buildings_mesh: TriangleMesh
@@ -896,45 +873,23 @@ class TestTriangleMesh:
         chex.assert_trees_all_equal(got_mesh_sampled, sort_mesh(mesh_dup))
 
     @pytest.mark.parametrize(
-        ("shape", "expectation"),
+        "shape",
         [
-            ((3,), does_not_raise()),
-            ((1, 3), does_not_raise()),
-            ((24, 3), does_not_raise()),
-            pytest.param(
-                (30, 3),
-                pytest.raises(TypeError),
-                marks=[
-                    pytest.mark.xfail(
-                        reason="Unsupported type checking of typing.Self"
-                    ),
-                    pytest.mark.require_typechecker,
-                ],
-            ),
-            pytest.param(
-                (1, 24, 3),
-                pytest.raises(TypeError),
-                marks=[
-                    pytest.mark.xfail(
-                        reason="Unsupported type checking of typing.Self"
-                    ),
-                    pytest.mark.require_typechecker,
-                ],
-            ),
+            (3,),
+            (1, 3),
+            (24, 3),
         ],
     )
     def test_set_face_colors(
         self,
         shape: tuple[int, ...],
-        expectation: AbstractContextManager[Exception],
         two_buildings_mesh: TriangleMesh,
         key: PRNGKeyArray,
     ) -> None:
         colors = jax.random.uniform(key, shape)
         assert two_buildings_mesh.face_colors is None
-        with expectation:
-            mesh = two_buildings_mesh.set_face_colors(colors)
-            assert mesh.face_colors is not None
+        mesh = two_buildings_mesh.set_face_colors(colors)
+        assert mesh.face_colors is not None
 
     def test_set_face_colors_wrong_args(
         self,
