@@ -96,7 +96,7 @@ def test_orthogonal_basis(u: Array) -> None:
 
 
 @pytest.mark.parametrize(
-    ("paths", "expectation"),
+    ("path", "expectation"),
     [
         ((10, 3), does_not_raise()),
         ((20, 10, 3), does_not_raise()),
@@ -109,14 +109,14 @@ def test_orthogonal_basis(u: Array) -> None:
         ((0, 3), does_not_raise()),
     ],
 )
-@random_inputs("paths")
+@random_inputs("path")
 def test_path_length_random_inputs(
-    paths: Array,
+    path: Array,
     expectation: AbstractContextManager[Exception],
 ) -> None:
     with expectation:
-        got = path_length(paths)
-        expected = jnp.sum(jnp.linalg.norm(jnp.diff(paths, axis=-2), axis=-1), axis=-1)
+        got = path_length(path)
+        expected = jnp.sum(jnp.linalg.norm(jnp.diff(path, axis=-2), axis=-1), axis=-1)
 
         chex.assert_trees_all_close(got, expected)
 

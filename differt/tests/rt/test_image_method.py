@@ -234,24 +234,24 @@ def test_image_method(
 
 
 @pytest.mark.parametrize(
-    ("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals"),
+    ("from_vertex", "to_vertex", "mirror_vertices", "mirror_normals"),
     [
         ((3), (3,), (1, 3), (1, 3)),
         ((3), (3,), (10, 3), (10, 3)),
         ((5, 3), (3,), (10, 3), (10, 3)),
     ],
 )
-@random_inputs("from_vertices", "to_vertices", "mirror_vertices", "mirror_normals")
+@random_inputs("from_vertex", "to_vertex", "mirror_vertices", "mirror_normals")
 def test_image_method_return_vertices_on_mirrors(
-    from_vertices: Array,
-    to_vertices: Array,
+    from_vertex: Array,
+    to_vertex: Array,
     mirror_vertices: Array,
     mirror_normals: Array,
 ) -> None:
     mirror_normals = normalize(mirror_normals)[0]
     paths = image_method(
-        from_vertices,
-        to_vertices,
+        from_vertex,
+        to_vertex,
         mirror_vertices,
         mirror_normals,
     )

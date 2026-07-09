@@ -143,7 +143,7 @@ def orthogonal_basis(
 
 @jax.jit(inline=True)
 def path_length(
-    paths: Float[ArrayLike, "*batch path_length 3"],
+    path: Float[ArrayLike, "*batch path_length 3"],
 ) -> Float[Array, " *batch"]:
     """
     Compute the path length of the path.
@@ -151,7 +151,7 @@ def path_length(
     The path is exactly made of ``path_length`` vertices.
 
     Args:
-        paths: Input path.
+        path: Input path.
 
     Returns:
         The path length.
@@ -169,8 +169,8 @@ def path_length(
         >>> path_length(jnp.vstack((path, path[::-1, :])))
         Array(2., dtype=float32)
     """
-    paths = jnp.asarray(paths)
-    vectors = jnp.diff(paths, axis=-2)
+    path = jnp.asarray(path)
+    vectors = jnp.diff(path, axis=-2)
     lengths = jnp.linalg.norm(vectors, axis=-1)
 
     return jnp.sum(lengths, axis=-1)

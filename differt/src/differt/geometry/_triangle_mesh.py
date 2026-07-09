@@ -82,11 +82,11 @@ def triangle_contains_vertex_assuming_inside_same_plane(
     vertex: Float[ArrayLike, "*#batch 3"],
 ) -> Bool[Array, " *#batch"]:
     """
-    Return whether each triangle contains the corresponding vertex, but assuming the vertex lies in the same plane as the triangle.
+    Return whether the triangle contains the corresponding vertex, assuming the vertex lies in the same plane as the triangle.
 
     This is especially useful when combined with the
-    :func:`image_method<differt.rt.image_method>`, as the paths returned
-    will also lie in the same plane as the mirrors, but may be outside of the actual reflector,
+    :func:`image_method<differt.rt.image_method>`, as the path returned
+    will also lie in the same plane as the mirror, but may be outside of the actual reflector,
     e.g., a triangular surface.
 
     Args:
@@ -94,7 +94,7 @@ def triangle_contains_vertex_assuming_inside_same_plane(
         vertex: Vertex that will be checked.
 
     Returns:
-        A boolean array indicating whether vertices are in the corresponding triangles or not.
+        Whether the vertex is inside the triangle.
     """
     triangle_vertices = jnp.asarray(triangle_vertices)
     vertex = jnp.asarray(vertex)

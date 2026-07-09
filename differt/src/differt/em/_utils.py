@@ -12,14 +12,14 @@ from ._interaction_type import InteractionType
 
 @jax.jit
 def length_to_delay(
-    lengths: Float[ArrayLike, " *#batch"],
+    length: Float[ArrayLike, " *#batch"],
     speed: Float[ArrayLike, " *#batch"] = c,
 ) -> Float[Array, " *batch"]:
     """
     Compute the delay, in seconds, corresponding to the length.
 
     Args:
-        lengths: Input length (in meters).
+        length: Input length (in meters).
         speed: Speed (in m/s).
             Defaults to the speed of light in vacuum.
 
@@ -34,18 +34,18 @@ def length_to_delay(
         ...     length_to_delay,
         ... )
         >>>
-        >>> lengths = jnp.array([1.0, 2.0, 4.0])
-        >>> length_to_delay(lengths) * c
+        >>> length = jnp.array([1.0, 2.0, 4.0])
+        >>> length_to_delay(length) * c
         Array([1., 2., 4.], dtype=float32)
-        >>> length_to_delay(lengths, speed=2.0)
+        >>> length_to_delay(length, speed=2.0)
         Array([0.5, 1. , 2. ], dtype=float32)
     """
-    return jnp.asarray(lengths) / jnp.asarray(speed)
+    return jnp.asarray(length) / jnp.asarray(speed)
 
 
 @jax.jit
 def path_delay(
-    paths: Float[ArrayLike, "*batch path_length 3"],
+    path: Float[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Float[Array, " *batch"]:
     """
@@ -54,7 +54,7 @@ def path_delay(
     The path is exactly made of ``path_length`` vertices.
 
     Args:
-        paths: Input path.
+        path: Input path.
         kwargs: Keyword arguments passed to
             :func:`length_to_delay`.
 
@@ -75,9 +75,9 @@ def path_delay(
         >>> path_delay(path, speed=2.0)
         Array(0.5, dtype=float32)
     """
-    lengths = path_length(paths)
+    length = path_length(path)
 
-    return length_to_delay(lengths, **kwargs)
+    return length_to_delay(length, **kwargs)
 
 
 @jax.jit

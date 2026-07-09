@@ -10,8 +10,8 @@ from differt.geometry import orthogonal_basis
 
 @eqx.filter_jit
 def fermat_path_on_linear_objects(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
-    to_vertices: Float[ArrayLike, "*#batch 3"],
+    from_vertex: Float[ArrayLike, "*#batch 3"],
+    to_vertex: Float[ArrayLike, "*#batch 3"],
     object_origins: Float[ArrayLike, "*#batch num_objects 3"],
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
     *,
@@ -22,7 +22,7 @@ def fermat_path_on_linear_objects(
     implicit_diff: bool = True,
 ) -> Float[Array, "*batch num_objects 3"]:
     """
-    Return the ray paths between pairs of vertices, that reflect or diffract on a given list of objects in between.
+    Return the ray path between a pair of vertices, that reflects or diffracts on a given list of objects in between.
 
     Linear objects are defined by a linear combination of zero or more (possibly orthogonal) vectors,
     plus a point in space (i.e., the origin).
@@ -33,8 +33,8 @@ def fermat_path_on_linear_objects(
     Because the size of ``object_vectors`` is determined by the object with the most dimensions,
     objects with fewer dimensions should have the extra vectors set to zero.
 
-    Based on the Fermat principle, this method finds the ray paths
-    between the ``from`` and ``to`` vertices, that minimize the total length of the paths.
+    Based on the Fermat principle, this method finds the ray path
+    between the ``from`` and ``to`` vertices, that minimizes the total length of the path.
 
     While the method assumes that the objects are infinite, as for the
     :func:`image method<differt.rt.image_method>`, choosing an appropriate origin can be important
@@ -49,11 +49,11 @@ def fermat_path_on_linear_objects(
         and the user may need to tune the number of steps to achieve convergence.
 
     Args:
-        from_vertices: ``from`` vertex, i.e., vertex from which the
-            ray paths start. In a radio communications context, this is usually
+        from_vertex: ``from`` vertex, i.e., vertex from which the
+            ray path starts. In a radio communications context, this is usually
             the transmitter position.
-        to_vertices: ``to`` vertex, i.e., vertex to which the
-            ray paths end. In a radio communications context, this is usually
+        to_vertex: ``to`` vertex, i.e., vertex to which the
+            ray path ends. In a radio communications context, this is usually
             the receiver position.
         object_origins: Object origins, used as the initial guess of the minimization procedure.
         object_vectors: Base vector(s) describing each object.
@@ -79,12 +79,12 @@ def fermat_path_on_linear_objects(
 
         .. code-block:: python
 
-            paths = fermat_path_on_linear_objects(...)
+            path = fermat_path_on_linear_objects(...)
 
-            full_paths = assemble_path(
-                from_vertices,
-                paths,
-                to_vertices,
+            full_path = assemble_path(
+                from_vertex,
+                path,
+                to_vertex,
             )
 
     Examples:
@@ -143,8 +143,8 @@ def fermat_path_on_linear_objects(
             ...     fig.update_layout(scene_aspectmode="data")
             >>> fig  # doctest: +SKIP
     """
-    from_vertices = jnp.asarray(from_vertices)
-    to_vertices = jnp.asarray(to_vertices)
+    from_vertex = jnp.asarray(from_vertex)
+    to_vertex = jnp.asarray(to_vertex)
     object_origins = jnp.asarray(object_origins)
     object_vectors = jnp.asarray(object_vectors)
 
@@ -154,13 +154,13 @@ def fermat_path_on_linear_objects(
         # If there are no objects, return empty paths.
         # If there are no dimensions, return origins.
         batch = jnp.broadcast_shapes(
-            from_vertices.shape[:-1],
-            to_vertices.shape[:-1],
+            from_vertex.shape[:-1],
+            to_vertex.shape[:-1],
             object_origins.shape[:-2],
             object_vectors.shape[:-3],
         )
         dtype = jnp.result_type(
-            from_vertices, to_vertices, object_origins, object_vectors
+            from_vertex, to_vertex, object_origins, object_vectors
         )
         if num_objects == 0:
             return jnp.empty((*batch, 0, 3), dtype=dtype)
@@ -170,8 +170,8 @@ def fermat_path_on_linear_objects(
     @no_type_check
     def _call_fpt_jax() -> Array:
         return fpt_jax.trace_rays(
-            from_vertices,
-            to_vertices,
+            from_vertex,
+            to_vertex,
             object_origins,
             object_vectors,
             num_iters=steps,
@@ -186,21 +186,21 @@ def fermat_path_on_linear_objects(
 
 @eqx.filter_jit
 def fermat_path_on_planar_mirrors(
-    from_vertices: Float[ArrayLike, "*#batch 3"],
-    to_vertices: Float[ArrayLike, "*#batch 3"],
+    from_vertex: Float[ArrayLike, "*#batch 3"],
+    to_vertex: Float[ArrayLike, "*#batch 3"],
     mirror_vertices: Float[ArrayLike, "*#batch num_mirrors 3"],
     mirror_normals: Float[ArrayLike, "*#batch num_mirrors 3"],
     **kwargs: Any,
 ) -> Float[Array, "*batch num_mirrors 3"]:
     """
-    Return the ray paths between pairs of vertices, that reflect on a given list of mirrors in between.
+    Return the ray path between a pair of vertices, that reflects on a given list of mirrors in between.
 
     Args:
-        from_vertices: ``from`` vertex, i.e., vertex from which the
-            ray paths start. In a radio communications context, this is usually
+        from_vertex: ``from`` vertex, i.e., vertex from which the
+            ray path starts. In a radio communications context, this is usually
             the transmitter position.
-        to_vertices: ``to`` vertex, i.e., vertex to which the
-            ray paths end. In a radio communications context, this is usually
+        to_vertex: ``to`` vertex, i.e., vertex to which the
+            ray path ends. In a radio communications context, this is usually
             the receiver position.
         mirror_vertices: Mirror vertices. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
@@ -228,12 +228,12 @@ def fermat_path_on_planar_mirrors(
 
         .. code-block:: python
 
-            paths = fermat_path_on_planar_mirrors(...)
+            path = fermat_path_on_planar_mirrors(...)
 
-            full_paths = assemble_path(
-                from_vertices,
-                paths,
-                to_vertices,
+            full_path = assemble_path(
+                from_vertex,
+                path,
+                to_vertex,
             )
 
     Examples:
@@ -299,5 +299,5 @@ def fermat_path_on_planar_mirrors(
     )
 
     return fermat_path_on_linear_objects(
-        from_vertices, to_vertices, object_origins, object_vectors, **kwargs
+        from_vertex, to_vertex, object_origins, object_vectors, **kwargs
     )
