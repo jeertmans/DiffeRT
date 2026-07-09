@@ -30,7 +30,7 @@ If you need to run your code on a TPU or a non-CUDA GPU, you should use the corr
 * {func}`differt.rt.first_triangle_hit_by_ray`
 * {func}`differt.rt.triangles_visible_from_vertex`
 
-These functions are written in pure JAX, so they will execute correctly on any backend supported by JAX. However, please note that they may be less memory-efficient and slower than the Warp-accelerated methods on `TriangleMesh`.
+These functions are written in pure JAX, so they will execute correctly on any backend supported by JAX. However, please note that they may be less memory-efficient and slower than the Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.TriangleMesh>`.
 
 ## Free-Threaded Python Compatibility
 

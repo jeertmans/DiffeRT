@@ -74,7 +74,7 @@ with one *slight* but **important** difference:
 
 - Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.TriangleMesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.TriangleMesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 - Updated {meth}`TriangleMesh.drop_duplicates<differt.geometry.TriangleMesh.drop_duplicates>` to call both {meth}`TriangleMesh.dedup_vertices<differt.geometry.TriangleMesh.dedup_vertices>` and {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.TriangleMesh.drop_unused_vertices>` in sequence (by <gh-user:jeertmans>, in <gh-pr:463>).
-- Documented TPU compatibility limitations due to NVIDIA Warp integration: Warp-accelerated methods on `TriangleMesh` and `TriangleScene` do not support TPUs. Added warning notes across the codebase, updated JAX/TPU references in the documentation, and created a dedicated "Note on TPUs" documentation page detailing JAX/TPU alternatives (by <gh-user:jeertmans>, in <gh-pr:467>).
+- Documented TPU compatibility limitations due to NVIDIA Warp integration: Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.TriangleMesh>` and {class}`TriangleScene<differt.scene.TriangleScene>` do not support TPUs. Added warning notes across the codebase, updated JAX/TPU references in the documentation, and created a dedicated "Note on TPUs" documentation page detailing JAX/TPU alternatives (by <gh-user:jeertmans>, in <gh-pr:467>).
 
 ### Fixed
 
