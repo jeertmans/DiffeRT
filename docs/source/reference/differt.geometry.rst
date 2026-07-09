@@ -12,7 +12,10 @@
 
    Paths
    SBRPaths
+   TracePaths
+   LaunchPaths
    TriangleMesh
+
 
 
 .. rubric:: Transformations

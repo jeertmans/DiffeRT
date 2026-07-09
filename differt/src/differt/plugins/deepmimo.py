@@ -25,7 +25,7 @@ from differt.em import (
     z_0,
 )
 from differt.geometry import (
-    Paths,
+    TracePaths,
     cartesian_to_spherical,
     normalize,
 )
@@ -316,9 +316,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 >>>
                 >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
                 ...     scene.plot()
-                ...     paths = (
-                ...         scene.compute_paths(order=order) for order in [0, 1, 2]
-                ...     )
+                ...     paths = (scene.trace_paths(order=order) for order in [0, 1, 2])
                 ...     dm = deepmimo.export(paths=paths, scene=scene, frequency=2.4e9)
                 ...     dm.plot_paths()
                 >>> fig  # doctest: +SKIP
@@ -409,7 +407,7 @@ def _get_reflection_coefficients(
 
 def export(
     *,
-    paths: Paths | Iterable[Paths],
+    paths: TracePaths | Iterable[TracePaths],
     scene: TriangleScene,
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, ""],
@@ -434,7 +432,7 @@ def export(
 
             You can provide paths with different numbers of interactions by passing an iterable.
 
-            E.g., the return value of :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+            E.g., the return value of :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
 
         scene: The scene that was used to compute the paths.
         radio_materials: The list of materials in the scene.
@@ -463,7 +461,7 @@ def export(
     else:
         tx_polarization = rx_polarization = polarization
 
-    paths_iter = [paths] if isinstance(paths, Paths) else paths
+    paths_iter = [paths] if isinstance(paths, TracePaths) else paths
     del paths
 
     eta_r = jnp.array([

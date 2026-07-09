@@ -22,6 +22,12 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...HEAD)
 
+### Added
+
+- Added path solver configuration classes ({class}`ExhaustivePathSolver<differt.scene.ExhaustivePathSolver>`, {class}`HybridPathSolver<differt.scene.HybridPathSolver>`, and {class}`SBRPathSolver<differt.scene.SBRPathSolver>`) to configure path tracing algorithms (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Added {meth}`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>` (returning {class}`TracePaths<differt.geometry.TracePaths>`) and {meth}`TriangleScene.launch_paths<differt.scene.TriangleScene.launch_paths>` (returning {class}`LaunchPaths<differt.geometry.LaunchPaths>`) as distinct high-level path tracing routines (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Supported passing solver parameters directly as keyword arguments to `trace_paths` and `launch_paths` (with full type-hinting support via `Unpack` and `TypedDict` overloads) to dynamically configure the solver (by <gh-user:jeertmans>, in <gh-pr:491>).
+
 ### Changed
 
 - **Breaking change**: Renamed multiple functions and methods across the codebase from plural to singular form to improve API consistency and better align with JAX broadcasting semantics:
@@ -47,6 +53,8 @@ with one *slight* but **important** difference:
     - Renamed `path_delays` to {func}`path_delay<differt.em.path_delay>`
     - Renamed `transition_matrices` to {func}`transition_matrix<differt.em.transition_matrix>`
   - Additionally, parameter names in these functions and their docstrings were renamed from plural to singular forms (e.g., `vertices` -> `vertex`, `from_vertices` -> `from_vertex`, etc.) to match the new convention (by <gh-user:jeertmans>, in <gh-pr:478>).
+- **Breaking change**: Refactored the monolithic `TriangleScene.compute_paths` method into two distinct methods (`trace_paths` for exact tracing and `launch_paths` for ray launching) and marked `compute_paths` as deprecated (by <gh-user:jeertmans>, in <gh-pr:491>).
+- **Breaking change**: Renamed `Paths` to {class}`TracePaths<differt.geometry.TracePaths>` and `SBRPaths` to {class}`LaunchPaths<differt.geometry.LaunchPaths>`, separating them structurally to avoid inheritance dependencies. Added backwards-compatible aliases and properties (by <gh-user:jeertmans>, in <gh-pr:491>).
 
 ### Chore
 
@@ -160,7 +168,7 @@ with one *slight* but **important** difference:
 - Changed type checker from `pyright` to `ty` (by <gh-user:jeertmans>, in <gh-pr:292>).
 - Slightly improved code coverage (by <gh-user:jeertmans>, in <gh-pr:362>).
 - Bumped minimum required JAX version to [`0.8.1`](https://docs.jax.dev/en/latest/changelog.html#jax-0-8-1-november-18-2025) to use new {func}`jax.jit` syntax as the use of {func}`functools.partial` now raises errors from `ty`, see <ext-gh-issue:jax-ml/jax#34697> (by <gh-user:jeertmans>, in <gh-pr:370>).
-- Added a generic type variable for {attr}`mask<differt.geometry.Paths.mask>` (by <gh-user:jeertmans>, in <gh-pr:349>).
+- Added a generic type variable for `mask` (by <gh-user:jeertmans>, in <gh-pr:349>).
 
 ### Fixed
 
@@ -170,7 +178,7 @@ with one *slight* but **important** difference:
 
 ### Removed
 
-- Removed `confidence` attribute in {class}`Paths<differt.geometry.Paths>` as it is now replaced by {attr}`mask<differt.geometry.Paths.mask>`, possibly holding floating point values. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:349>).
+- Removed `confidence` attribute in `Paths` as it is now replaced by `mask`, possibly holding floating point values. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:349>).
 - Removed `jnp.asarray` field converters from all classes, as it would lead to confusing type hints mismatches between the annotations and the actual types accepted by the classes' `__init__` method. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:383>).
 
 ## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
@@ -340,8 +348,8 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added support for `confidence` attribute in {attr}`Paths.mask_duplicate_objects<differt.geometry.Paths.mask_duplicate_objects>` (by <gh-user:jeertmans>, in <gh-pr:272>).
-- Added the {attr}`Paths.shape<differt.geometry.Paths.shape>` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added support for `confidence` attribute in `Paths.mask_duplicate_objects` (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Added the `Paths.shape` class attribute (by <gh-user:jeertmans>, in <gh-pr:267>).
   The following equality should always hold: `paths.reshape(*batch).shape = batch`.
 - Added the {mod}`differt.plugins` package and {mod}`differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
 - Added export utility to the [DeepMIMO](https://github.com/DeepMIMO) format (by <gh-user:jeertmans>, in <gh-pr:267>).
@@ -355,7 +363,7 @@ with one *slight* but **important** difference:
 ### Fixed
 
 - Fixed potential {class}`IndexError` in {attr}`TriangleScene.num_{transmitters,receivers}<differt.scene.TriangleScene.num_transmitters>` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
-- Fixed potential {class}`IndexError` in {attr}`Paths.num_valid_paths<differt.geometry.Paths.num_valid_paths>` when the {attr}`objects<differt.geometry.Paths.objects>` array has its last axis being of zero size (by <gh-user:jeertmans>, in <gh-pr:273>).
+- Fixed potential `IndexError` in `Paths.num_valid_paths` when the `objects` array has its last axis being of zero size (by <gh-user:jeertmans>, in <gh-pr:273>).
 
 ## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)
 

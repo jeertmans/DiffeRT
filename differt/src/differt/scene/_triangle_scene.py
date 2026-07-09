@@ -1,9 +1,19 @@
+import dataclasses
 import math
 import typing
 import warnings
 from collections.abc import Iterator, Mapping
 from functools import partial
-from typing import TYPE_CHECKING, Any, Literal, cast, no_type_check, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    TypedDict,
+    Unpack,
+    cast,
+    no_type_check,
+    overload,
+)
 
 import equinox as eqx
 import jax
@@ -15,8 +25,8 @@ from jaxtyping import UInt as Uint
 
 import differt_core.scene
 from differt.geometry import (
-    Paths,
-    SBRPaths,
+    LaunchPaths,
+    TracePaths,
     TriangleMesh,
     assemble_path,
     fibonacci_lattice,
@@ -29,6 +39,11 @@ from differt.rt import (
     image_method,
     ray_intersect_any_triangle,
     ray_intersect_triangle,
+)
+from differt.scene._solvers import (
+    ExhaustivePathSolver,
+    HybridPathSolver,
+    SBRPathSolver,
 )
 from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
@@ -67,7 +82,7 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, " "],
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
-) -> Paths[_F]: ...
+) -> TracePaths[_F]: ...
 
 
 @overload
@@ -83,7 +98,7 @@ def _compute_paths(
     smoothing_factor: None,
     confidence_threshold: Float[ArrayLike, " "],
     batch_size: int | None,
-) -> Paths[_B]: ...
+) -> TracePaths[_B]: ...
 
 
 @eqx.filter_jit
@@ -99,7 +114,7 @@ def _compute_paths(
     smoothing_factor: Float[ArrayLike, ""] | None,
     confidence_threshold: Float[ArrayLike, ""],
     batch_size: int | None,
-) -> Paths[_M]:
+) -> TracePaths[_M]:
     if min_len is None:
         dtype = jnp.result_type(mesh.vertices, tx_vertices, rx_vertices)
         min_len = 10.0 * jnp.finfo(dtype).eps
@@ -334,7 +349,7 @@ def _compute_paths(
 
     objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
 
-    return Paths(
+    return TracePaths(
         vertices,
         objects,
         mask=mask,
@@ -351,7 +366,7 @@ def _compute_paths_sbr(
     order: int,
     num_rays: int,
     max_dist: Float[ArrayLike, ""],
-) -> SBRPaths:
+) -> LaunchPaths:
     # TODO: type annotations for SBRPaths with mask dtype
     # 1 - Prepare arrays
 
@@ -505,9 +520,9 @@ def _compute_paths_sbr(
 
     objects = jnp.concatenate((tx_objects, path_candidates, rx_objects), axis=-1)
 
-    return SBRPaths(
-        vertices,
-        objects,
+    return LaunchPaths(
+        vertices=vertices,
+        objects=objects,
         masks=masks,
     )
 
@@ -897,6 +912,33 @@ def _compute_tx_mlm(
     )
 
 
+class ExhaustivePathSolverKwargs(TypedDict, total=False):
+    epsilon: Float[ArrayLike, ""] | None
+    hit_tol: Float[ArrayLike, ""] | None
+    min_len: Float[ArrayLike, ""] | None
+    smoothing_factor: Float[ArrayLike, ""] | None
+    confidence_threshold: Float[ArrayLike, ""]
+    batch_size: int | None
+    disconnect_inactive_triangles: bool
+    chunk_size: int | None
+
+
+class HybridPathSolverKwargs(TypedDict, total=False):
+    num_rays: int
+    epsilon: Float[ArrayLike, ""] | None
+    hit_tol: Float[ArrayLike, ""] | None
+    min_len: Float[ArrayLike, ""] | None
+    smoothing_factor: Float[ArrayLike, ""] | None
+    confidence_threshold: Float[ArrayLike, ""]
+    batch_size: int | None
+    chunk_size: int | None
+
+
+class SBRPathSolverKwargs(TypedDict, total=False):
+    num_rays: int
+    max_dist: Float[ArrayLike, ""]
+
+
 class TriangleScene(eqx.Module):
     """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
@@ -1185,6 +1227,354 @@ class TriangleScene(eqx.Module):
         )
 
     @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: Literal["exhaustive"] = "exhaustive",
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+    ) -> TracePaths[Any]: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: ExhaustivePathSolver,
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+    ) -> TracePaths[Any]: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: Literal["hybrid"],
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+    ) -> TracePaths[Any]: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: HybridPathSolver,
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+    ) -> TracePaths[Any]: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: Literal["exhaustive"] = "exhaustive",
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        **solver_kwargs: Unpack[ExhaustivePathSolverKwargs],
+    ) -> (
+        TracePaths[Any] | SizedIterator[TracePaths[Any]] | Iterator[TracePaths[Any]]
+    ): ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: Literal["hybrid"],
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        **solver_kwargs: Unpack[HybridPathSolverKwargs],
+    ) -> (
+        TracePaths[Any] | SizedIterator[TracePaths[Any]] | Iterator[TracePaths[Any]]
+    ): ...
+
+    def trace_paths(
+        self,
+        order: int | None = None,
+        *,
+        solver: ExhaustivePathSolver
+        | HybridPathSolver
+        | Literal["exhaustive", "hybrid"] = "exhaustive",
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        **solver_kwargs: Any,
+    ) -> TracePaths[Any] | SizedIterator[TracePaths[Any]] | Iterator[TracePaths[Any]]:
+        """
+        Trace paths between all pairs of transmitters and receivers in the scene, using exact methods (image method + validation).
+
+        .. warning::
+
+            This method is Warp-accelerated (via :class:`TriangleMesh<differt.geometry.TriangleMesh>`) and only supports CPU and CUDA-enabled GPU platforms.
+            It does not support TPUs or other non-CUDA GPUs.
+
+        Note:
+            Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
+            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
+            and path tracing methods will be added in the future, so stay tuned!
+
+        Args:
+            order: The number of interactions (bounces).
+                This or ``path_candidates`` must be specified.
+            solver: The solver configuration or string shortcut.
+            path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
+                This is helpful to only generate paths on a subset of the scene.
+                If :attr:`self.mesh.assume_quads<differt.geometry.TriangleMesh.assume_quads>`
+                is :data:`True`, then path candidates are rounded down toward the nearest
+                even value.
+            **solver_kwargs: Parameters to override in the solver configuration.
+
+        Returns:
+            The traced paths.
+
+        Raises:
+            ValueError: If neither or both of ``order`` and ``path_candidates`` are
+                specified, or if the solver shortcut is unknown.
+        """
+        if (order is None) == (path_candidates is None):
+            msg = "You must specify one of 'order' or `path_candidates`, not both."
+            raise ValueError(msg)
+
+        if isinstance(solver, str):
+            if solver == "exhaustive":
+                solver_cls = ExhaustivePathSolver
+            elif solver == "hybrid":
+                solver_cls = HybridPathSolver
+            else:
+                msg = f"Unknown solver: {solver}"
+                raise ValueError(msg)
+            valid_kwargs = {
+                k: v
+                for k, v in solver_kwargs.items()
+                if k in solver_cls.__dataclass_fields__
+            }
+            solver = solver_cls(**valid_kwargs)
+
+        if (
+            isinstance(solver, HybridPathSolver)
+            and getattr(solver, "smoothing_factor", None) is not None
+        ):
+            warnings.warn(
+                "Argument 'smoothing' is currently ignored when using HybridPathSolver.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if (path_candidates is not None) and getattr(
+            solver, "chunk_size", None
+        ) is not None:
+            warnings.warn(
+                "Argument 'chunk_size' is ignored when 'path_candidates' is provided.",
+                UserWarning,
+                stacklevel=2,
+            )
+            solver = dataclasses.replace(solver, chunk_size=None)
+        tx_batch = self.transmitters.shape[:-1]
+        rx_batch = self.receivers.shape[:-1]
+
+        # Extract parameters from solver
+        epsilon = getattr(solver, "epsilon", None)
+        hit_tol = getattr(solver, "hit_tol", None)
+        min_len = getattr(solver, "min_len", None)
+        smoothing_factor = getattr(solver, "smoothing_factor", None)
+        confidence_threshold = getattr(solver, "confidence_threshold", 0.5)
+        batch_size = getattr(solver, "batch_size", 512)
+        chunk_size = getattr(solver, "chunk_size", None)
+
+        assume_quads = self.mesh.assume_quads
+
+        tx_vertices = self.transmitters.reshape(-1, 3)
+        rx_vertices = self.receivers.reshape(-1, 3)
+
+        graph = CompleteGraph(self.mesh.num_primitives)
+
+        if isinstance(solver, HybridPathSolver):
+            if order is None:
+                msg = "Argument 'order' is required when using HybridPathSolver."
+                raise ValueError(msg)
+
+            triangles_visible_from_tx = self.mesh.triangles_visible_from_vertex(
+                tx_vertices,
+                num_rays=solver.num_rays,
+            ).any(axis=0)
+
+            triangles_visible_from_rx = self.mesh.triangles_visible_from_vertex(
+                rx_vertices,
+                num_rays=solver.num_rays,
+            ).any(axis=0)
+
+            if assume_quads:
+                triangles_visible_from_tx = triangles_visible_from_tx.reshape(
+                    -1, 2
+                ).any(axis=-1)
+                triangles_visible_from_rx = triangles_visible_from_rx.reshape(
+                    -1, 2
+                ).any(axis=-1)
+
+            graph = DiGraph.from_complete_graph(graph)
+            from_, to = graph.insert_from_and_to_nodes(
+                from_adjacency=np.asarray(triangles_visible_from_tx),
+                to_adjacency=np.asarray(triangles_visible_from_rx),
+            )
+            if self.mesh.mask is not None:
+                mask = self.mesh.mask
+                if assume_quads:
+                    mask = mask[0::2] & mask[1::2]
+                graph.filter_by_mask(np.asarray(mask), fast_mode=True)
+        else:
+            # ExhaustivePathSolver
+            disconnect_inactive_triangles = getattr(
+                solver, "disconnect_inactive_triangles", False
+            )
+            if disconnect_inactive_triangles and self.mesh.mask is not None:
+                mask = self.mesh.mask
+                if assume_quads:
+                    mask = mask[0::2] & mask[1::2]
+
+                graph = DiGraph.from_complete_graph(graph)
+                from_, to = graph.insert_from_and_to_nodes()
+                graph.filter_by_mask(np.asarray(mask), fast_mode=True)
+            else:
+                from_ = graph.num_nodes
+                to = from_ + 1
+
+        if chunk_size:
+            order = cast("int", order)
+            path_candidates_iter = graph.all_paths_array_chunks(
+                from_=from_,
+                to=to,
+                depth=order + 2,
+                include_from_and_to=False,
+                chunk_size=chunk_size,
+            )
+            it = (
+                _compute_paths(
+                    self.mesh,
+                    tx_vertices,
+                    rx_vertices,
+                    jnp.asarray(
+                        2 * path_candidates if assume_quads else path_candidates,
+                        dtype=int,
+                    ),
+                    epsilon=epsilon,
+                    hit_tol=hit_tol,
+                    min_len=min_len,
+                    smoothing_factor=smoothing_factor,
+                    confidence_threshold=confidence_threshold,
+                    batch_size=batch_size,
+                ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+                for path_candidates in path_candidates_iter
+            )
+
+            if hasattr(path_candidates_iter, "__len__"):
+                return SizedIterator(it, size=path_candidates_iter.__len__)
+            return it
+
+        if path_candidates is None:
+            order = cast("int", order)
+            path_candidates = jnp.asarray(
+                graph.all_paths_array(
+                    from_=from_,
+                    to=to,
+                    depth=order + 2,
+                    include_from_and_to=False,
+                ),
+                dtype=int,
+            )
+
+            if self.mesh.assume_quads:
+                path_candidates = 2 * path_candidates
+        else:
+            path_candidates = jnp.asarray(path_candidates)
+            if self.mesh.assume_quads:
+                path_candidates -= path_candidates % 2
+
+        return _compute_paths(
+            self.mesh,
+            tx_vertices,
+            rx_vertices,
+            path_candidates,
+            epsilon=epsilon,
+            hit_tol=hit_tol,
+            min_len=min_len,
+            smoothing_factor=smoothing_factor,
+            confidence_threshold=confidence_threshold,
+            batch_size=batch_size,
+        ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+
+    @overload
+    def launch_paths(
+        self,
+        order: int,
+        *,
+        solver: Literal["sbr"] = "sbr",
+        **solver_kwargs: Unpack[SBRPathSolverKwargs],
+    ) -> LaunchPaths: ...
+
+    @overload
+    def launch_paths(
+        self,
+        order: int,
+        *,
+        solver: SBRPathSolver,
+    ) -> LaunchPaths: ...
+
+    def launch_paths(
+        self,
+        order: int,
+        *,
+        solver: SBRPathSolver | Literal["sbr"] = "sbr",
+        **solver_kwargs: Any,
+    ) -> LaunchPaths:
+        """
+        Launch paths from transmitters and find which paths are intercepted by receivers.
+
+        .. warning::
+
+            This method is Warp-accelerated (via :class:`TriangleMesh<differt.geometry.TriangleMesh>`) and only supports CPU and CUDA-enabled GPU platforms.
+            It does not support TPUs or other non-CUDA GPUs.
+
+        .. important::
+
+            This SBR method is currently unstable and not yet optimized, and it is likely
+            to change in future releases. Use with caution.
+
+        Args:
+            order: The maximum path order (number of interactions/bounces).
+            solver: The solver configuration or string shortcut.
+            **solver_kwargs: Parameters to override in the solver configuration.
+
+        Returns:
+            The launched paths.
+
+        Raises:
+            ValueError: If ``order`` is missing or the solver shortcut is unknown.
+        """
+        if order is None:
+            msg = "Argument 'order' is required."
+            raise ValueError(msg)
+
+        if isinstance(solver, str):
+            if solver == "sbr":
+                solver_cls = SBRPathSolver
+            else:
+                msg = f"Unknown solver: {solver}"
+                raise ValueError(msg)
+            valid_kwargs = {
+                k: v
+                for k, v in solver_kwargs.items()
+                if k in solver_cls.__dataclass_fields__
+            }
+            solver = solver_cls(**valid_kwargs)
+
+        tx_batch = self.transmitters.shape[:-1]
+        rx_batch = self.receivers.shape[:-1]
+
+        return _compute_paths_sbr(
+            self.mesh,
+            self.transmitters.reshape(-1, 3),
+            self.receivers.reshape(-1, 3),
+            order=order,
+            num_rays=solver.num_rays,
+            max_dist=solver.max_dist,
+        ).reshape(*tx_batch, *rx_batch, -1)
+
+    @overload
     def compute_paths(
         self,
         order: int | None = ...,
@@ -1201,7 +1591,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_F]: ...
+    ) -> TracePaths[_F]: ...
 
     @overload
     def compute_paths(
@@ -1220,7 +1610,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_B]: ...
+    ) -> TracePaths[_B]: ...
 
     @overload
     def compute_paths(
@@ -1239,7 +1629,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_F]: ...
+    ) -> TracePaths[_F]: ...
 
     @overload
     def compute_paths(
@@ -1258,7 +1648,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_B]: ...
+    ) -> TracePaths[_B]: ...
 
     @overload
     def compute_paths(
@@ -1277,7 +1667,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> SizedIterator[Paths[_F]]: ...
+    ) -> SizedIterator[TracePaths[_F]]: ...
 
     @overload
     def compute_paths(
@@ -1296,7 +1686,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> SizedIterator[Paths[_B]]: ...
+    ) -> SizedIterator[TracePaths[_B]]: ...
 
     @overload
     def compute_paths(
@@ -1315,7 +1705,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Iterator[Paths[_F]]: ...
+    ) -> Iterator[TracePaths[_F]]: ...
 
     @overload
     def compute_paths(
@@ -1334,7 +1724,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Iterator[Paths[_B]]: ...
+    ) -> Iterator[TracePaths[_B]]: ...
 
     @overload
     def compute_paths(
@@ -1353,7 +1743,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_F]: ...
+    ) -> TracePaths[_F]: ...
 
     @overload
     def compute_paths(
@@ -1372,7 +1762,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, " "] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> Paths[_B]: ...
+    ) -> TracePaths[_B]: ...
 
     @overload
     def compute_paths(
@@ -1391,7 +1781,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = ...,
         batch_size: int | None = ...,
         disconnect_inactive_triangles: bool = ...,
-    ) -> SBRPaths: ...
+    ) -> LaunchPaths: ...
 
     def compute_paths(
         self,
@@ -1409,9 +1799,17 @@ class TriangleScene(eqx.Module):
         confidence_threshold: Float[ArrayLike, ""] = 0.5,
         batch_size: int | None = 512,
         disconnect_inactive_triangles: bool = False,
-    ) -> Paths[_M] | SizedIterator[Paths[_M]] | Iterator[Paths[_M]] | SBRPaths:
+    ) -> (
+        TracePaths[_M]
+        | SizedIterator[TracePaths[_M]]
+        | Iterator[TracePaths[_M]]
+        | LaunchPaths
+    ):
         """
         Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
+
+        .. deprecated:: 0.10
+            Use :meth:`trace_paths` or :meth:`launch_paths` instead.
 
         .. warning::
 
@@ -1545,167 +1943,52 @@ class TriangleScene(eqx.Module):
             ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
                 or if both have been provided simultaneously.
 
-                If ``method == 'sbr'`` or ``method == 'hybrid'`, and ``order`` is not provided.
+                If ``method == 'sbr'`` or ``method == 'hybrid'``, and ``order`` is not provided.
 
         .. [#f1] Passing the squared length/distance is useful to avoid computing square root values, which is expensive.
         """
-        # TODO: fix overload matching issue with ty
-        if (order is None) == (path_candidates is None):
-            msg = "You must specify one of 'order' or `path_candidates`, not both."
-            raise ValueError(msg)
-        if (chunk_size is not None) and (path_candidates is not None):
-            msg = "Argument 'chunk_size' is ignored when 'path_candidates' is provided."
-            warnings.warn(msg, UserWarning, stacklevel=2)
-            chunk_size = None
-        if (method != "exhaustive") and (smoothing_factor is not None):
-            msg = "Argument 'smoothing' is currently ignored when 'method' is not set to 'exhaustive'."
-            warnings.warn(msg, UserWarning, stacklevel=2)
-            smoothing_factor = None
-
-        tx_batch = self.transmitters.shape[:-1]
-        rx_batch = self.receivers.shape[:-1]
-
+        warnings.warn(
+            "compute_paths is deprecated. Use trace_paths() or launch_paths() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if method == "sbr":
             if order is None:
-                msg = "Argument 'order' is required when 'method == \"sbr\"'."
+                msg = "Argument 'order' is required."
                 raise ValueError(msg)
-
-            return _compute_paths_sbr(
-                self.mesh,
-                self.transmitters.reshape(-1, 3),
-                self.receivers.reshape(-1, 3),
-                order=order,
+            solver = SBRPathSolver(
                 num_rays=num_rays,
                 max_dist=max_dist,
-            ).reshape(*tx_batch, *rx_batch, -1)
-
-        # 0 - Constants arrays of chunks
-        assume_quads = self.mesh.assume_quads
-
-        # [tx_batch_flattened 3]
-        tx_vertices = self.transmitters.reshape(-1, 3)
-        # [rx_batch_flattened 3]
-        rx_vertices = self.receivers.reshape(-1, 3)
-
-        graph = CompleteGraph(self.mesh.num_primitives)
-
-        if method == "hybrid":
-            if order is None:
-                msg = "Argument 'order' is required when 'method == \"hybrid\"'."
-                raise ValueError(msg)
-
-            triangles_visible_from_tx = self.mesh.triangles_visible_from_vertex(
-                tx_vertices,
-                num_rays=num_rays,
-            ).any(axis=0)  # reduce on all transmitters
-
-            triangles_visible_from_rx = self.mesh.triangles_visible_from_vertex(
-                rx_vertices,
-                num_rays=num_rays,
-            ).any(axis=0)  # reduce on all receivers
-
-            if assume_quads:
-                triangles_visible_from_tx = triangles_visible_from_tx.reshape(
-                    -1, 2
-                ).any(axis=-1)  # seeing any triangle of a quad is enough
-                triangles_visible_from_rx = triangles_visible_from_rx.reshape(
-                    -1, 2
-                ).any(axis=-1)  # seeing any triangle of a quad is enough
-
-            graph = DiGraph.from_complete_graph(graph)
-            from_, to = graph.insert_from_and_to_nodes(
-                from_adjacency=np.asarray(triangles_visible_from_tx),
-                to_adjacency=np.asarray(triangles_visible_from_rx),
             )
-            if self.mesh.mask is not None:
-                # The number of path candidates generated by the 'hybrid' method already
-                # depends on the mask, so we will always disconnect nodes in that case.
-                mask = self.mesh.mask
-                if assume_quads:
-                    # For quads, we need both triangles to be active
-                    mask = mask[0::2] & mask[1::2]
-                graph.filter_by_mask(
-                    np.asarray(mask), fast_mode=True
-                )  # Further reduce graph size by removing inactive triangles
-        elif disconnect_inactive_triangles and self.mesh.mask is not None:
-            mask = self.mesh.mask
-            if assume_quads:
-                # For quads, we need both triangles to be active
-                mask = mask[0::2] & mask[1::2]
-
-            graph = DiGraph.from_complete_graph(graph)
-            from_, to = graph.insert_from_and_to_nodes()
-            graph.filter_by_mask(np.asarray(mask), fast_mode=True)
-        else:
-            from_ = graph.num_nodes
-            to = from_ + 1
-
-        if chunk_size:
-            # Type checker not able to infer that order is not None in this branch, even with the previous checks, so we need to cast it
-            order = cast("int", order)
-
-            path_candidates_iter = graph.all_paths_array_chunks(
-                from_=from_,
-                to=to,
-                depth=order + 2,
-                include_from_and_to=False,
+            return self.launch_paths(order=order, solver=solver)
+        if method == "hybrid":
+            solver = HybridPathSolver(
+                num_rays=num_rays,
+                epsilon=epsilon,
+                hit_tol=hit_tol,
+                min_len=min_len,
+                smoothing_factor=smoothing_factor,
+                confidence_threshold=confidence_threshold,
+                batch_size=batch_size,
                 chunk_size=chunk_size,
             )
-            it = (
-                _compute_paths(  # type: ignore[ty:no-matching-overload]
-                    self.mesh,
-                    tx_vertices,
-                    rx_vertices,
-                    jnp.asarray(
-                        2 * path_candidates if assume_quads else path_candidates,
-                        dtype=int,
-                    ),
-                    epsilon=epsilon,
-                    hit_tol=hit_tol,
-                    min_len=min_len,
-                    smoothing_factor=smoothing_factor,
-                    confidence_threshold=confidence_threshold,
-                    batch_size=batch_size,
-                ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
-                for path_candidates in path_candidates_iter
+            return self.trace_paths(
+                order=order, solver=solver, path_candidates=path_candidates
             )
-
-            if hasattr(path_candidates_iter, "__len__"):
-                return SizedIterator(it, size=path_candidates_iter.__len__)
-            return it
-
-        if path_candidates is None:
-            # Type checker not able to infer that order is not None in this branch, even with the previous checks, so we need to cast it
-            order = cast("int", order)
-            path_candidates = jnp.asarray(
-                graph.all_paths_array(
-                    from_=from_,
-                    to=to,
-                    depth=order + 2,  # order not narrowed in this branch
-                    include_from_and_to=False,
-                ),
-                dtype=int,
-            )
-
-            if self.mesh.assume_quads:
-                path_candidates = 2 * path_candidates
-        else:
-            path_candidates = jnp.asarray(path_candidates)
-            if self.mesh.assume_quads:
-                path_candidates -= path_candidates % 2
-
-        return _compute_paths(  # type: ignore[ty:no-matching-overload]
-            self.mesh,
-            tx_vertices,
-            rx_vertices,
-            path_candidates,
+        # exhaustive
+        solver = ExhaustivePathSolver(
             epsilon=epsilon,
             hit_tol=hit_tol,
             min_len=min_len,
             smoothing_factor=smoothing_factor,
             confidence_threshold=confidence_threshold,
             batch_size=batch_size,
-        ).reshape(*tx_batch, *rx_batch, path_candidates.shape[0])
+            disconnect_inactive_triangles=disconnect_inactive_triangles,
+            chunk_size=chunk_size,
+        )
+        return self.trace_paths(
+            order=order, solver=solver, path_candidates=path_candidates
+        )
 
     def compute_tx_mlm(
         self,
