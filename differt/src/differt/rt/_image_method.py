@@ -400,10 +400,10 @@ def consecutive_vertices_are_on_same_side_of_mirror(
 
     Args:
         vertices: Vertices, usually describing the ray path.
-        mirror_vertices: Mirror vertex. For each mirror, any
+        mirror_vertices: Mirror vertices. For each mirror, any
             vertex on the infinite plane that describes the mirror is considered
             to be a valid vertex.
-        mirror_normals: Mirror normal, where each normal has a unit
+        mirror_normals: Mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
             as described in :cite:`fully-eucap2024`, and this argument parameters the slope
