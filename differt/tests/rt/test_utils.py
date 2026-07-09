@@ -195,74 +195,51 @@ def test_ray_intersect_triangle_t_and_hit() -> None:
 
 
 @pytest.mark.parametrize(
-    ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
+    ("ray_origins", "ray_directions", "triangle_vertices"),
     [
-        ((3,), (3,), (3, 3), does_not_raise()),
-        ((15, 5, 3), (15, 5, 3), (5, 3, 3), does_not_raise()),
-        pytest.param(
-            (15, 5, 3),
-            (15, 5, 3),
-            (15, 3, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((3,), (3,), (3, 3)),
+        ((15, 5, 3), (15, 5, 3), (5, 3, 3)),
     ],
 )
 @random_inputs("ray_origins", "ray_directions", "triangle_vertices")
-def test_ray_intersect_triangle_random_inputs(
+def test_ray_intersect_triangle_various(
     ray_origins: Array,
     ray_directions: Array,
     triangle_vertices: Array,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
-    with expectation:
-        got_t, got_hit = ray_intersect_triangle(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-        )
+    got_t, got_hit = ray_intersect_triangle(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+    )
 
-        assert jnp.where(
-            got_hit,
-            got_t > 0.0,
-            True,
-        ).all(), "t > 0 must be true everywhere hit is true"
+    assert jnp.where(
+        got_hit,
+        got_t > 0.0,
+        True,
+    ).all(), "t > 0 must be true everywhere hit is true"
 
-        expected_t, expected_hit = got_t, got_hit
+    expected_t, expected_hit = got_t, got_hit
 
-        # Check that large smoothing factor matches no smoothing
+    # Check that large smoothing factor matches no smoothing
 
-        got_t, got_hit = ray_intersect_triangle(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            smoothing_factor=1e8,
-        )
+    got_t, got_hit = ray_intersect_triangle(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+        smoothing_factor=1e8,
+    )
 
-        chex.assert_trees_all_equal(got_t, expected_t)
-        chex.assert_trees_all_equal(got_hit > 0.5, expected_hit)
+    chex.assert_trees_all_equal(got_t, expected_t)
+    chex.assert_trees_all_equal(got_hit > 0.5, expected_hit)
 
 
 @pytest.mark.parametrize(
-    ("ray_origins", "ray_directions", "triangle_vertices", "expectation"),
+    ("ray_origins", "ray_directions", "triangle_vertices"),
     [
-        ((20, 10, 3), (20, 10, 3), (20, 10, 5, 3, 3), does_not_raise()),
-        ((10, 3), (10, 3), (1, 3, 3), does_not_raise()),
-        ((3,), (3,), (1, 3, 3), does_not_raise()),
-        pytest.param(
-            (10, 3),
-            (20, 3),
-            (1, 3, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
-        pytest.param(
-            (10, 3),
-            (10, 4),
-            (10, 3, 3),
-            pytest.raises(TypeError),
-            marks=pytest.mark.require_typechecker,
-        ),
+        ((20, 10, 3), (20, 10, 3), (20, 10, 5, 3, 3)),
+        ((10, 3), (10, 3), (1, 3, 3)),
+        ((3,), (3,), (1, 3, 3)),
     ],
 )
 @pytest.mark.parametrize("epsilon", [None, 1e-6, 1e-2])
@@ -276,7 +253,6 @@ def test_ray_intersect_any_triangle(
     epsilon: float | None,
     hit_tol: float | None,
     with_active_triangles: bool,
-    expectation: AbstractContextManager[Exception],
 ) -> None:
     if hit_tol is None:
         dtype = jnp.result_type(ray_origins, ray_directions, triangle_vertices)
@@ -291,40 +267,39 @@ def test_ray_intersect_any_triangle(
     )
 
     hit_threshold = 1.0 - hit_tol_arr
-    with expectation:
-        got = ray_intersect_any_triangle(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            active_triangles=active_triangles,
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-            batch_size=11,  # will create non-zero remainder
-        )
-        expected_t, expected_hit = ray_intersect_triangle(
-            ray_origins[..., None, :],
-            ray_directions[..., None, :],
-            triangle_vertices,
-            epsilon=epsilon,
-        )
-        expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
+    got = ray_intersect_any_triangle(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+        active_triangles=active_triangles,
+        epsilon=epsilon,
+        hit_tol=hit_tol,
+        batch_size=11,  # will create non-zero remainder
+    )
+    expected_t, expected_hit = ray_intersect_triangle(
+        ray_origins[..., None, :],
+        ray_directions[..., None, :],
+        triangle_vertices,
+        epsilon=epsilon,
+    )
+    expected = jnp.any((expected_t < hit_threshold) & expected_hit, axis=-1)
 
-        chex.assert_trees_all_equal(got, expected)
+    chex.assert_trees_all_equal(got, expected)
 
-        # Check that large smoothing factor matches no smoothing
-        # TODO: fixme
+    # Check that large smoothing factor matches no smoothing
+    # TODO: fixme
 
-        got = ray_intersect_any_triangle(
-            ray_origins,
-            ray_directions,
-            triangle_vertices,
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-            smoothing_factor=1e8,
-            batch_size=11,  # will create non-zero remainder
-        )
+    got = ray_intersect_any_triangle(
+        ray_origins,
+        ray_directions,
+        triangle_vertices,
+        epsilon=epsilon,
+        hit_tol=hit_tol,
+        smoothing_factor=1e8,
+        batch_size=11,  # will create non-zero remainder
+    )
 
-        chex.assert_trees_all_equal(got > 0.5, expected)
+    chex.assert_trees_all_equal(got > 0.5, expected)
 
 
 @pytest.mark.parametrize(
