@@ -5,7 +5,7 @@ import fpt_jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
-from differt.geometry import orthogonal_basis
+from ._utils import orthogonal_basis
 
 
 @eqx.filter_jit
@@ -37,7 +37,7 @@ def fermat_path_on_linear_objects(
     between the ``from`` and ``to`` vertices, that minimizes the total length of the path.
 
     While the method assumes that the objects are infinite, as for the
-    :func:`image method<differt.rt.image_method>`, choosing an appropriate origin can be important
+    :func:`image method<differt.geometry.image_method>`, choosing an appropriate origin can be important
     as it will be used as the initial point of the minimization procedure.
 
     .. important::
@@ -96,7 +96,7 @@ def fermat_path_on_linear_objects(
 
             >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
-            >>> from differt.rt import fermat_path_on_linear_objects
+            >>> from differt.geometry import fermat_path_on_linear_objects
             >>>
             >>> from_vertex = jnp.array([-2.0, 0.0, 0.0])
             >>> to_vertex = jnp.array([0.0, 0.0, 0.0])
@@ -236,13 +236,13 @@ def fermat_path_on_planar_mirrors(
 
     Examples:
         The following example is the same as for the
-        :func:`image_method<differt.rt.image_method>`, but using the Fermat principle.
+        :func:`image_method<differt.geometry.image_method>`, but using the Fermat principle.
 
         .. plotly::
 
             >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
-            >>> from differt.rt import fermat_path_on_planar_mirrors
+            >>> from differt.geometry import fermat_path_on_planar_mirrors
             >>>
             >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
             >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])

@@ -13,22 +13,20 @@ from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
 from differt.geometry import (
+    ExhaustivePathSolver,
+    HybridPathSolver,
     LaunchPaths,
+    SBRPathSolver,
     TracePaths,
     TriangleMesh,
+    TriangleScene,
     assemble_path,
+    get_sionna_scene,
+    list_sionna_scenes,
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.scene import (
-    ExhaustivePathSolver,
-    HybridPathSolver,
-    SBRPathSolver,
-    get_sionna_scene,
-    list_sionna_scenes,
-)
-from differt.scene._triangle_scene import TriangleScene
-from differt_core.scene import SionnaScene
+from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
 

@@ -76,7 +76,7 @@ nitpick_ignore = (
     ("py:class", "ndarray"),  # From ArrayLike
     ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
-    ("py:obj", "differt.rt.utils._T"),
+    ("py:obj", "differt.geometry._rt_utils._T"),
     ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
 )
@@ -126,11 +126,12 @@ autodoc_type_aliases = {
     "differt.geometry._paths.TracePaths": "differt.geometry.TracePaths",
     "differt.geometry._paths.LaunchPaths": "differt.geometry.LaunchPaths",
     "differt.geometry._triangle_mesh.TriangleMesh": "differt.geometry.TriangleMesh",
-    "differt.scene._solvers.PathSolverConfig": "differt.scene.PathSolverConfig",
-    "differt.scene._solvers.ExhaustivePathSolver": "differt.scene.ExhaustivePathSolver",
-    "differt.scene._solvers.HybridPathSolver": "differt.scene.HybridPathSolver",
-    "differt.scene._solvers.SBRPathSolver": "differt.scene.SBRPathSolver",
-    "differt.scene._triangle_scene.TriangleScene": "differt.scene.TriangleScene",
+    "differt.geometry._solvers.PathSolverConfig": "differt.geometry.PathSolverConfig",
+    "differt.geometry._solvers.ExhaustivePathSolver": "differt.geometry.ExhaustivePathSolver",
+    "differt.geometry._solvers.HybridPathSolver": "differt.geometry.HybridPathSolver",
+    "differt.geometry._solvers.SBRPathSolver": "differt.geometry.SBRPathSolver",
+    "differt.geometry._triangle_scene.TriangleScene": "differt.geometry.TriangleScene",
+    "differt.geometry._rt_utils.SizedIterator": "differt.geometry.SizedIterator",
 }
 
 # -- MyST-nb settings
@@ -424,7 +425,7 @@ def setup(app: Sphinx) -> None:
 
     from typing import TypeVar  # noqa: PLC0415
 
-    from differt.scene import download_sionna_scenes  # noqa: PLC0415
+    from differt.geometry import download_sionna_scenes  # noqa: PLC0415
 
     class ArrayType(jaxtyping.Array):
         def __repr__(self) -> str:

@@ -6,13 +6,14 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import TriangleMesh, normalize
-from differt.scene import (
+from differt.geometry import (
+    TriangleMesh,
     TriangleScene,
     get_sionna_scene,
+    normalize,
 )
 
-from ..rt.utils import PlanarMirrorsSetup
+from ..geometry.rt_utils import PlanarMirrorsSetup
 
 
 @pytest.fixture

@@ -46,7 +46,7 @@ vispy = [
 vispy-backend = ["PyQt6>=6.6.1"]
 
 [project.scripts]
-"download-sionna-scenes" = "differt.scene._sionna:main"
+"download-sionna-scenes" = "differt.geometry._sionna:main"
 
 [project.urls]
 Changelog = "https://github.com/jeertmans/DiffeRT/releases"

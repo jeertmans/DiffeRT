@@ -33,7 +33,7 @@ def image_of_vertex_with_respect_to_mirror(
         a batch of random vertices. Here, normal vectors do not have a unit length,
         but they should have if you want an interpretable result.
 
-        >>> from differt.rt import (
+        >>> from differt.geometry import (
         ...     image_of_vertex_with_respect_to_mirror,
         ... )
         >>>
@@ -292,7 +292,7 @@ def image_method(
 
             >>> from differt.geometry import TriangleMesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
-            >>> from differt.rt import image_method
+            >>> from differt.geometry import image_method
             >>>
             >>> from_vertex = jnp.array([+2.0, -1.0, +0.0])
             >>> to_vertex = jnp.array([+2.0, +4.0, +0.0])

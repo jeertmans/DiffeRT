@@ -8,9 +8,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
-from differt.geometry import fibonacci_lattice, viewing_frustum
+from ._utils import fibonacci_lattice, viewing_frustum
 from differt.utils import smoothing_function
-from differt_core.rt import CompleteGraph
+from differt_core.geometry import CompleteGraph
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -34,7 +34,7 @@ class SizedIterator(Iterator[_T], Sized):
     Examples:
         The following example shows how to create a sized iterator.
 
-        >>> from differt.rt import SizedIterator
+        >>> from differt.geometry import SizedIterator
         >>> l = [1, 2, 3, 4, 5]
         >>> it = SizedIterator(iter=iter(l), size=5)
         >>> len(it)
@@ -224,14 +224,14 @@ def ray_intersect_triangle(
             >>> import equinox as eqx
             >>> from differt.geometry import fibonacci_lattice
             >>> from differt.plotting import draw_rays
-            >>> from differt.rt import (
+            >>> from differt.geometry import (
             ...     ray_intersect_triangle,
             ... )
-            >>> from differt.scene import (
+            >>> from differt.geometry import (
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene import TriangleScene
+            >>> from differt.geometry import TriangleScene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -613,10 +613,10 @@ def triangles_visible_from_vertex(
             :context: reset
 
             >>> import equinox as eqx
-            >>> from differt.rt import (
+            >>> from differt.geometry import (
             ...     triangles_visible_from_vertex,
             ... )
-            >>> from differt.scene import (
+            >>> from differt.geometry import (
             ...     TriangleScene,
             ...     get_sionna_scene,
             ...     download_sionna_scenes,

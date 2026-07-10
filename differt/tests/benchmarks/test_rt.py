@@ -7,21 +7,19 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
 
-from differt.geometry import fibonacci_lattice
-from differt.rt import (
+from differt.geometry import (
+    ExhaustivePathSolver,
+    HybridPathSolver,
+    TriangleScene,
     fermat_path_on_planar_mirrors,
+    fibonacci_lattice,
     first_triangle_hit_by_ray,
     image_method,
     ray_intersect_any_triangle,
     triangles_visible_from_vertex,
 )
-from differt.scene import (
-    ExhaustivePathSolver,
-    HybridPathSolver,
-    TriangleScene,
-)
 
-from ..rt.utils import PlanarMirrorsSetup
+from ..geometry.rt_utils import PlanarMirrorsSetup
 
 
 def random_scene(scene: TriangleScene, *, key: PRNGKeyArray) -> TriangleScene:

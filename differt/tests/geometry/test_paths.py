@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, Bool, PRNGKeyArray
 
-from differt.geometry import TriangleMesh, path_length
+from differt.geometry import TriangleMesh, TriangleScene, path_length
 from differt.geometry._paths import (
     LaunchPaths,
     Paths,
@@ -18,7 +18,6 @@ from differt.geometry._paths import (
     TracePaths,
     merge_cell_ids,
 )
-from differt.scene import TriangleScene
 
 from ..plotting.params import matplotlib, plotly, vispy
 

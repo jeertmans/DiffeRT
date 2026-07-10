@@ -8,8 +8,8 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.geometry import TriangleMesh
-from differt.rt._utils import (
+from differt.geometry import TriangleMesh, TriangleScene
+from differt.geometry._rt_utils import (
     first_triangle_hit_by_ray,
     generate_all_path_candidates,
     generate_all_path_candidates_chunks_iter,
@@ -18,7 +18,6 @@ from differt.rt._utils import (
     ray_intersect_triangle,
     triangles_visible_from_vertex,
 )
-from differt.scene import TriangleScene
 
 from ..utils import random_inputs
 

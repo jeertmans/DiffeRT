@@ -85,7 +85,7 @@ def triangle_contains_vertex_assuming_inside_same_plane(
     Return whether the triangle contains the corresponding vertex, assuming the vertex lies in the same plane as the triangle.
 
     This is especially useful when combined with the
-    :func:`image_method<differt.rt.image_method>`, as the path returned
+    :func:`image_method<differt.geometry.image_method>`, as the path returned
     will also lie in the same plane as the mirror, but may be outside of the actual reflector,
     e.g., a triangular surface.
 
@@ -2027,7 +2027,7 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     TriangleScene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -2945,7 +2945,7 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     TriangleScene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -3032,7 +3032,7 @@ class TriangleMesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     TriangleScene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -3230,7 +3230,7 @@ class TriangleMesh(eqx.Module):
         """
         Return whether rays intersect any triangle in the mesh.
 
-        Unlike :func:`differt.rt.ray_intersect_any_triangle`, this method is optimized for :class:`TriangleMesh`
+        Unlike :func:`differt.geometry.ray_intersect_any_triangle`, this method is optimized for :class:`TriangleMesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray_anyhit<warp._src.lang.mesh_query_ray_anyhit>` to accelerate the ray tracing.
 
         .. warning::
@@ -3304,7 +3304,7 @@ class TriangleMesh(eqx.Module):
         """
         Return for each ray, which triangle it intersects first, and if it intersects at all.
 
-        Unlike :func:`differt.rt.first_triangle_hit_by_ray`, this method is optimized for :class:`TriangleMesh`
+        Unlike :func:`differt.geometry.first_triangle_hit_by_ray`, this method is optimized for :class:`TriangleMesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
 
         .. warning::
@@ -3372,7 +3372,7 @@ class TriangleMesh(eqx.Module):
         """
         Return whether triangles are visible from vertex positions.
 
-        Unlike :func:`differt.rt.triangles_visible_from_vertex`, this method is optimized for :class:`TriangleMesh`
+        Unlike :func:`differt.geometry.triangles_visible_from_vertex`, this method is optimized for :class:`TriangleMesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
 
         .. warning::

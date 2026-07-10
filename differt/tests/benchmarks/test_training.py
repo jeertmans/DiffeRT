@@ -10,7 +10,7 @@ from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
 
-from differt.scene._triangle_scene import TriangleScene
+from differt.geometry._triangle_scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
 
 

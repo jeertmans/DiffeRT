@@ -5,7 +5,7 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 
 from differt.geometry import normalize
-from differt.rt._image_method import (
+from differt.geometry._image_method import (
     consecutive_vertices_are_on_same_side_of_mirror,
     image_method,
     image_of_vertex_with_respect_to_mirror,
@@ -13,7 +13,7 @@ from differt.rt._image_method import (
 )
 
 from ..utils import random_inputs
-from .utils import PlanarMirrorsSetup
+from .rt_utils import PlanarMirrorsSetup
 
 
 def test_image_of_vertex_with_respect_to_mirror() -> None:

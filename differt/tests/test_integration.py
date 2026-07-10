@@ -9,17 +9,16 @@ from pytest_subtests import SubTests
 
 from differt.em import materials
 from differt.geometry import (
+    HybridPathSolver,
     TriangleMesh,
+    TriangleScene,
     assemble_path,
     fibonacci_lattice,
-    path_length,
-)
-from differt.rt import (
     first_triangle_hit_by_ray,
+    path_length,
     ray_intersect_any_triangle,
     ray_intersect_triangle,
 )
-from differt.scene import HybridPathSolver, TriangleScene
 
 
 @pytest.mark.slow

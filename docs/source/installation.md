@@ -32,7 +32,7 @@ which provides the necessary information about how to install JAX with support f
 
 DiffeRT works seamlessly with JAX regardless of the active devices (i.e., CPU, GPU[^hardware-note], or TPU[^hardware-note])
 
-[^hardware-note]: Since v0.9, and particularly {gh-pr}`467`, DiffeRT uses Warp for more efficient ray tracing utilities inside {class}`TriangleMesh<differt.geometry.TriangleMesh>` and, as a result, inside {class}`TriangleScene<differt.scene.TriangleScene>`. Since Warp only supports CPU and CUDA-enabled GPU platforms, DiffeRT will fail to work on TPUs and non-CUDA GPUs (e.g., Apple Silicon or AMD GPUs) when using some methods (which are documented, see {doc}`limitations`).
+[^hardware-note]: Since v0.9, and particularly {gh-pr}`467`, DiffeRT uses Warp for more efficient ray tracing utilities inside {class}`TriangleMesh<differt.geometry.TriangleMesh>` and, as a result, inside {class}`TriangleScene<differt.geometry.TriangleScene>`. Since Warp only supports CPU and CUDA-enabled GPU platforms, DiffeRT will fail to work on TPUs and non-CUDA GPUs (e.g., Apple Silicon or AMD GPUs) when using some methods (which are documented, see {doc}`limitations`).
 
 ### Optional dependencies
 

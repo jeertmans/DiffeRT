@@ -4,7 +4,7 @@ import re
 import numpy as np
 import pytest
 
-from differt_core.rt._graph import (
+from differt_core.geometry import (
     CompleteGraph,
     DiGraph,
 )

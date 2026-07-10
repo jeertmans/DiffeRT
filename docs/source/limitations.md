@@ -4,7 +4,7 @@ While DiffeRT is built on top of JAX and generally supports a wide variety of ha
 
 ## GPU and TPU Compatibility
 
-Since version 0.9 and particularly {gh-pr}`467`, DiffeRT uses NVIDIA Warp to accelerate ray tracing tasks inside {class}`TriangleMesh<differt.geometry.TriangleMesh>` and {class}`TriangleScene<differt.scene.TriangleScene>`.
+Since version 0.9 and particularly {gh-pr}`467`, DiffeRT uses NVIDIA Warp to accelerate ray tracing tasks inside {class}`TriangleMesh<differt.geometry.TriangleMesh>` and {class}`TriangleScene<differt.geometry.TriangleScene>`.
 
 NVIDIA Warp is a high-performance framework for writing GPU/CPU physics kernels in Python. While JAX supports a broad range of accelerator backends, NVIDIA Warp **only supports CPU and NVIDIA CUDA-enabled GPUs**. As a result, when using the Warp-accelerated methods:
 
@@ -20,15 +20,15 @@ The following methods are Warp-accelerated and **require either a CPU or an NVID
 * {meth}`TriangleMesh.ray_intersect_any_triangle<differt.geometry.TriangleMesh.ray_intersect_any_triangle>`
 * {meth}`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.TriangleMesh.first_triangle_hit_by_ray>`
 * {meth}`TriangleMesh.triangles_visible_from_vertex<differt.geometry.TriangleMesh.triangles_visible_from_vertex>`
-* {meth}`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>` (which internally utilizes the above methods unless smoothing is enabled)
+* {meth}`TriangleScene.compute_paths<differt.geometry.TriangleScene.compute_paths>` (which internally utilizes the above methods unless smoothing is enabled)
 
 ### Alternatives
 
-If you need to run your code on a TPU or a non-CUDA GPU, you should use the corresponding non-Warp equivalent functions in {mod}`differt.rt`:
+If you need to run your code on a TPU or a non-CUDA GPU, you should use the corresponding non-Warp equivalent functions in {mod}`differt.geometry`:
 
-* {func}`differt.rt.ray_intersect_any_triangle`
-* {func}`differt.rt.first_triangle_hit_by_ray`
-* {func}`differt.rt.triangles_visible_from_vertex`
+* {func}`differt.geometry.ray_intersect_any_triangle`
+* {func}`differt.geometry.first_triangle_hit_by_ray`
+* {func}`differt.geometry.triangles_visible_from_vertex`
 
 These functions are written in pure JAX, so they will execute correctly on any backend supported by JAX. However, please note that they may be less memory-efficient and slower than the Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.TriangleMesh>`.
 

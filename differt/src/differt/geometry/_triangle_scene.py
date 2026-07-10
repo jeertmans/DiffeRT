@@ -23,30 +23,16 @@ import warp as wp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 from jaxtyping import UInt as Uint
 
-import differt_core.scene
-from differt.geometry import (
-    LaunchPaths,
-    TracePaths,
-    TriangleMesh,
-    assemble_path,
-    fibonacci_lattice,
-    viewing_frustum,
-)
+import differt_core.geometry
+from ._paths import LaunchPaths, TracePaths
+from ._triangle_mesh import TriangleMesh
+from ._utils import assemble_path, fibonacci_lattice, viewing_frustum
+from ._rt_utils import SizedIterator, ray_intersect_any_triangle, ray_intersect_triangle
+from ._image_method import consecutive_vertices_are_on_same_side_of_mirror, image_method
+from ._solvers import ExhaustivePathSolver, HybridPathSolver, SBRPathSolver
 from differt.plotting import PlotOutput, draw_markers, reuse
-from differt.rt import (
-    SizedIterator,
-    consecutive_vertices_are_on_same_side_of_mirror,
-    image_method,
-    ray_intersect_any_triangle,
-    ray_intersect_triangle,
-)
-from differt.scene._solvers import (
-    ExhaustivePathSolver,
-    HybridPathSolver,
-    SBRPathSolver,
-)
 from differt.utils import smoothing_function
-from differt_core.rt import CompleteGraph, DiGraph
+from differt_core.geometry import CompleteGraph, DiGraph
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -1112,7 +1098,7 @@ class TriangleScene(eqx.Module):
         )
 
     @classmethod
-    def from_core(cls, core_scene: differt_core.scene.TriangleScene) -> Self:
+    def from_core(cls, core_scene: differt_core.geometry.TriangleScene) -> Self:
         """
         Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
@@ -1132,7 +1118,7 @@ class TriangleScene(eqx.Module):
         Load a triangle scene from a XML file.
 
         This method uses
-        :meth:`SionnaScene.load_xml<differt_core.scene.SionnaScene.load_xml>`
+        :meth:`SionnaScene.load_xml<differt_core.geometry.SionnaScene.load_xml>`
         internally.
 
         Args:
@@ -1141,7 +1127,7 @@ class TriangleScene(eqx.Module):
         Returns:
             The corresponding scene containing only triangle meshes.
         """
-        core_scene = differt_core.scene.TriangleScene.load_xml(file)
+        core_scene = differt_core.geometry.TriangleScene.load_xml(file)
         return cls.from_core(core_scene)
 
     @classmethod
@@ -1306,7 +1292,7 @@ class TriangleScene(eqx.Module):
 
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
+            using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
@@ -1850,7 +1836,7 @@ class TriangleScene(eqx.Module):
 
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
+            using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
@@ -1909,9 +1895,9 @@ class TriangleScene(eqx.Module):
 
                 **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
             epsilon: Tolerance for checking ray / objects intersection, see
-                :func:`ray_intersect_triangle<differt.rt.ray_intersect_triangle>`.
+                :func:`ray_intersect_triangle<differt.geometry.ray_intersect_triangle>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
-                :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`.
+                :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`.
 
                 Unused if ``method == 'sbr'``.
             min_len: Minimal (squared [#f1]_) length that each path segment must have for a path to be valid.
@@ -1943,9 +1929,9 @@ class TriangleScene(eqx.Module):
                 If :data:`None`, everything is processed in one batch, which can lead to
                 memory issues on large scenes.
 
-                See :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`,
-                :func:`triangles_visible_from_vertex<differt.rt.triangles_visible_from_vertex>`,
-                and :func:`first_triangle_hit_by_ray<differt.rt.first_triangle_hit_by_ray>`
+                See :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`,
+                :func:`triangles_visible_from_vertex<differt.geometry.triangles_visible_from_vertex>`,
+                and :func:`first_triangle_hit_by_ray<differt.geometry.first_triangle_hit_by_ray>`
                 for more details.
             disconnect_inactive_triangles: If :data:`True`, inactive triangles (where
                 the mesh mask is :data:`False`) are disconnected from the graph before
@@ -2074,7 +2060,7 @@ class TriangleScene(eqx.Module):
 
             .. plotly::
 
-                >>> from differt.scene import TriangleScene, get_sionna_scene
+                >>> from differt.geometry import TriangleScene, get_sionna_scene
                 >>> from differt.plotting import draw_image
                 >>> import equinox as eqx
                 >>>

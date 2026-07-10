@@ -12,5 +12,3 @@ Submodules
    :maxdepth: 1
 
    differt_core.geometry
-   differt_core.rt
-   differt_core.scene

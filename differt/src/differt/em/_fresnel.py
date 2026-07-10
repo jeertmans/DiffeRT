@@ -257,7 +257,7 @@ def reflection_coefficients(
            ...     sp_directions,
            ... )
            >>> from differt.geometry import normalize
-           >>> from differt.rt import image_method
+           >>> from differt.geometry import image_method
 
            The first step is to define the antenna and the geometry of the scene.
            Here, we place a dipole antenna above the origin, and generate a
@@ -317,7 +317,7 @@ def reflection_coefficients(
            ...     label="FSPL",
            ... )  # doctest: +SKIP
 
-           After, the :func:`image_method<differt.rt.image_method>`
+           After, the :func:`image_method<differt.geometry.image_method>`
            function is used to compute the reflection points.
 
            >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])

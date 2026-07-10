@@ -783,7 +783,7 @@ def viewing_frustum(
         .. plotly::
             :context:
 
-            >>> from differt.scene import TriangleScene, get_sionna_scene
+            >>> from differt.geometry import TriangleScene, get_sionna_scene
             >>> from differt.plotting import draw_rays, reuse, draw_markers
             >>> from differt.geometry import fibonacci_lattice, viewing_frustum
             >>>

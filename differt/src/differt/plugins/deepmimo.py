@@ -25,13 +25,13 @@ from differt.em import (
     z_0,
 )
 from differt.geometry import (
+    SizedIterator,
     TracePaths,
+    TriangleScene,
     cartesian_to_spherical,
     normalize,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
-from differt.rt import SizedIterator
-from differt.scene import TriangleScene
 from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
@@ -302,7 +302,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
                 >>> import equinox as eqx
                 >>> from differt.plugins import deepmimo
-                >>> from differt.scene import TriangleScene, get_sionna_scene
+                >>> from differt.geometry import TriangleScene, get_sionna_scene
                 >>> from differt.plotting import reuse
                 >>>
                 >>> file = get_sionna_scene("simple_street_canyon")
@@ -432,7 +432,7 @@ def export(
 
             You can provide paths with different numbers of interactions by passing an iterable.
 
-            E.g., the return value of :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
+            E.g., the return value of :meth:`TriangleScene.trace_paths<differt.geometry.TriangleScene.trace_paths>`.
 
         scene: The scene that was used to compute the paths.
         radio_materials: The list of materials in the scene.

@@ -11,13 +11,13 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import materials, z_0
-from differt.geometry import TriangleMesh
-from differt.plugins import deepmimo
-from differt.scene import (
+from differt.geometry import (
     ExhaustivePathSolver,
     HybridPathSolver,
+    TriangleMesh,
     TriangleScene,
 )
+from differt.plugins import deepmimo
 from differt.utils import sample_points_in_bounding_box
 
 
