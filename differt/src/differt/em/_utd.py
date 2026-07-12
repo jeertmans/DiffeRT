@@ -1,6 +1,6 @@
 # ruff: noqa: N802, N806
 # type: ignore  # noqa: PGH003
-from typing import Any, Literal, overload
+from typing import Literal, overload
 
 import equinox as eqx
 import jax
@@ -28,7 +28,7 @@ def _N(
 ) -> Float[Array, " *batch"]:
     if mode == "+":
         return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
-    return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
+    return jnp.round((beta - jnp.pi) / (2 * n * jnp.pi))
 
 
 @jax.jit(inline=True, static_argnames=("mode"))
@@ -222,82 +222,191 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     return 2j * sqrt_z * jnp.exp(1j * z) * (factor * ((1 - 1j) / 2 - c + 1j * s))
 
 
-@jax.jit
-def diffraction_coefficients(
-    *_args: Any,
-) -> None:
-    """
-    Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
+@jax.jit(inline=True, static_argnames=("mode",))
+def _cot_times_F(
+    beta: Float[Array, " *#batch"],
+    n: Float[Array, " *#batch"],
+    k: Float[Array, " *#batch"],
+    L_val: Float[Array, " *#batch"],
+    mode: Literal["+", "-"],
+) -> Complex[Array, " *batch"]:
+    r"""Compute :math:`\cot(x) \cdot F(kLa)` with NaN-safe handling near shadow boundaries.
 
-    Warning:
-        This function is not yet implemented, as we are still thinking of the
-        best API for it. If you want to get involved in the implementation of UTD coefficients,
-        please reach out to us on GitHub!
+    At shadow boundaries (:math:`\delta \to 0`), both :math:`\cot(x)` diverges and
+    :math:`F(kLa) \to 0`, but their product has a well-defined analytical limit:
 
-    The implementation closely follows what is described
-    in :cite:`utd-mcnamara{p. 268-273}`.
+    .. math::
+        \lim_{\delta \to 0} \cot(x) F(kLa) = \pm 2n (1+j) \sqrt{\frac{\pi k L}{2}}
 
-    Unlike :func:`fresnel_coefficients<differt.em.fresnel_coefficients>`, diffraction
-    coefficients depend on the radii of curvature of the incident wave.
+    This helper detects the boundary condition and returns the limit value,
+    avoiding numerical NaN/Inf artifacts that would break gradient computation.
 
     Args:
-        sin_beta_0: ...
-        sin_beta: ...
-        sin_phi: ...
-        rho_1_i: ...
-        rho_1_i: ...
-        rho_e_i: ...
+        beta: The angle argument.
+        n: The wedge parameter.
+        k: The wavenumber.
+        L_val: The distance parameter.
+        mode: ``"+"`` or ``"-"`` determining the sign convention.
 
     Returns:
-        The soft and hard diffraction coefficients.
-
-    Raises:
-        NotImplementedError: The function is not yet implemented.
+        The product :math:`\cot(x) \cdot F(kLa)`.
     """
-    # ruff: noqa: F821, F841
-    raise NotImplementedError
+    mode_sign = 1.0 if mode == "+" else -1.0
+    N = _N(beta, n, mode)
+    beta_boundary = 2 * n * jnp.pi * N - mode_sign * jnp.pi
+    delta = beta - beta_boundary
 
-    # Ensure input vectors are normalized
-    incident_ray = incident_ray / jnp.linalg.norm(incident_ray)
-    diffracted_ray = diffracted_ray / jnp.linalg.norm(diffracted_ray)
-    edge_vector = edge_vector / jnp.linalg.norm(edge_vector)
+    threshold = 1e-5
+    is_near_boundary = jnp.abs(delta) < threshold
 
-    # Compute relevant angles
-    beta_0 = jnp.arccos(jnp.dot(incident_ray, edge_vector))
-    beta = jnp.arccos(jnp.dot(diffracted_ray, edge_vector))
-    phi = jnp.arccos(jnp.dot(-incident_ray, diffracted_ray))
-
-    # Compute L parameters (distance parameters)
-    L = r * jnp.sin(beta) ** 2 / (r + r_prime)
-    L_prime = r_prime * jnp.sin(beta_0) ** 2 / (r + r_prime)
-
-    phi_i = jnp.pi - (jnp.pi - jnp.arccos(dot(-s_t_i, t_o))) * _sign(dot(-s_t_i, n_o))
-    phi_d = jnp.pi - (jnp.pi - jnp.arccos(dot(+s_t_d, t_o))) * _sign(dot(+s_d_i, n_o))
-
-    # Compute the angle differences
-    phi_1 = phi_d - phi_i
-    phi_2 = phi_d + phi_i
-
-    # Compute the diffraction coefficients (without common mul. factor)
-    D_1 = _cot((jnp.pi + phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "+"))
-    D_2 = _cot((jnp.pi - phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "-"))
-    D_3 = _cot((jnp.pi + phi_2) / (2 * n)) * F(k * L_r_n * _a(phi_2, "+"))
-    D_4 = _cot((jnp.pi - phi_2) / (2 * n)) * F(k * L_r_o * _a(phi_2, "-"))
-
-    factor = -jnp.exp(-1j * jnp.pi / 4) / (
-        2 * n * jnp.sqrt(2 * jnp.pi * k) * sin_beta_0
+    # Analytical limit value as delta -> 0
+    limit_val = (
+        mode_sign
+        * _sign(delta)
+        * (2.0 * n)
+        * (1.0 + 1j)
+        * jnp.sqrt(jnp.pi * k * L_val / 2.0)
     )
 
-    # Apply the Keller cone condition
-    # D_s = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_s, 0)
-    # D_h = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_h, 0)
+    # Safe delta to prevent division by zero inside jnp.where's unselected path
+    delta_safe = jnp.where(is_near_boundary, threshold, delta)
+    x_safe = N * jnp.pi + mode_sign * delta_safe / (2 * n)
+    a_safe = 2.0 * jnp.sin(delta_safe / 2.0) ** 2
+    z_safe = k * L_val * a_safe
 
-    # TODO: below are assuming perfectly conducting surfaces
+    prod_safe = _cot(x_safe) * F(z_safe)
+    return jnp.where(is_near_boundary, limit_val, prod_safe)
 
-    D_12 = D_1 + D_2
-    D_34 = D_3 + D_4
 
-    D_s = (D_12 - D_34) * factor
-    D_h = (D_12 + D_34) * factor
+@jax.jit
+def diffraction_coefficients(
+    wavenumber: Float[Array, " *#batch"],
+    n: Float[Array, " *#batch"],
+    phi_i: Float[Array, " *#batch"],
+    phi_d: Float[Array, " *#batch"],
+    L_i: Float[Array, " *#batch"],
+    L_r_n: Float[Array, " *#batch"] | None = None,
+    L_r_o: Float[Array, " *#batch"] | None = None,
+    sin_beta_0: Float[Array, " *#batch"] | None = None,
+    n_r_o: Complex[Array, " *#batch"] | None = None,
+    n_r_n: Complex[Array, " *#batch"] | None = None,
+) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
+    r"""Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
+
+    The implementation closely follows what is described
+    in :cite:`utd-mcnamara{p. 268-273}`, with Luebbers' heuristic extension
+    for lossy (non-PEC) wedge faces.
+
+    Unlike :func:`fresnel_coefficients<differt.em.fresnel_coefficients>`, diffraction
+    coefficients depend on the radii of curvature of the incident wave and the
+    wedge geometry.
+
+    The four terms of the UTD diffraction coefficient are computed using the
+    NaN-safe :func:`_cot_times_F` helper, which handles the singularity
+    at incident and reflection shadow boundaries.
+
+    For a perfectly electrically conducting (PEC) wedge, the soft and hard
+    coefficients are:
+
+    .. math::
+        D_s &= (D_1 + D_2 - D_3 - D_4) \cdot C \\
+        D_h &= (D_1 + D_2 + D_3 + D_4) \cdot C
+
+    For lossy wedges, the PEC reflection coefficients :math:`(\pm 1)` are
+    replaced by the Fresnel reflection coefficients of the respective
+    face materials (Luebbers' model).
+
+    Args:
+        wavenumber: The wavenumber :math:`k = 2\pi / \lambda`.
+        n: The wedge parameter :math:`n` (exterior wedge angle is :math:`n \pi`).
+        phi_i: The incident angle :math:`\phi'` in radians, measured from the o-face.
+        phi_d: The diffracted angle :math:`\phi` in radians, measured from the o-face.
+        L_i: The distance parameter associated with the incident shadow boundary.
+            See :func:`L_i<differt.em.L_i>` for how to compute this.
+        L_r_n: The distance parameter associated with the reflection shadow boundary
+            for the n-face. Defaults to ``L_i``.
+        L_r_o: The distance parameter associated with the reflection shadow boundary
+            for the o-face. Defaults to ``L_i``.
+        sin_beta_0: The sine of the angle of incidence on the edge,
+            :math:`\sin \beta_0`. Defaults to ``1.0`` (broadside / 2D incidence).
+        n_r_o: The relative refractive index of the o-face material.
+            If ``None``, the o-face is assumed to be a Perfect Electric Conductor (PEC).
+        n_r_n: The relative refractive index of the n-face material.
+            If ``None``, the n-face is assumed to be a Perfect Electric Conductor (PEC).
+
+    Returns:
+        A tuple ``(D_s, D_h)`` containing the soft and hard diffraction coefficients.
+
+    Examples:
+        The following example computes diffraction coefficients for a PEC
+        90° wedge (n=1.5) at broadside incidence.
+
+        >>> from differt.em import diffraction_coefficients
+        >>>
+        >>> k = jnp.array(2 * jnp.pi / 0.01)  # 30 GHz
+        >>> n = jnp.array(1.5)  # 270° exterior angle
+        >>> phi_i = jnp.array(jnp.pi / 4)  # 45° incidence
+        >>> phi_d = jnp.linspace(0.01, n * jnp.pi - 0.01, 100)
+        >>> L = jnp.array(1.0)  # 1 m from edge
+        >>> D_s, D_h = diffraction_coefficients(k, n, phi_i, phi_d, L)
+        >>> D_s.shape
+        (100,)
+    """
+    k = jnp.maximum(jnp.asarray(wavenumber), 1e-12)
+    n_arr = jnp.asarray(n)
+    phi_i_arr = jnp.asarray(phi_i)
+    phi_d_arr = jnp.asarray(phi_d)
+    L_i_arr = jnp.maximum(jnp.asarray(L_i), 1e-12)
+
+    L_r_n_arr = L_i_arr if L_r_n is None else jnp.maximum(jnp.asarray(L_r_n), 1e-12)
+    L_r_o_arr = L_i_arr if L_r_o is None else jnp.maximum(jnp.asarray(L_r_o), 1e-12)
+
+    if sin_beta_0 is None:
+        sin_beta_0_safe = jnp.ones_like(k)
+    else:
+        sin_beta_0_safe = jnp.maximum(jnp.asarray(sin_beta_0), 1e-12)
+
+    # Angle differences
+    phi_1 = phi_d_arr - phi_i_arr
+    phi_2 = phi_d_arr + phi_i_arr
+
+    # Compute the four UTD terms using the NaN-safe helper
+    D_1 = _cot_times_F(phi_1, n_arr, k, L_i_arr, "+")
+    D_2 = _cot_times_F(phi_1, n_arr, k, L_i_arr, "-")
+    D_3 = _cot_times_F(phi_2, n_arr, k, L_r_n_arr, "+")
+    D_4 = _cot_times_F(phi_2, n_arr, k, L_r_o_arr, "-")
+
+    # Common multiplicative factor
+    factor = -jnp.exp(-1j * jnp.pi / 4) / (
+        2.0 * n_arr * jnp.sqrt(2.0 * jnp.pi * k) * sin_beta_0_safe
+    )
+
+    # Determine reflection coefficients based on face materials
+    dtype = jnp.result_type(k)
+    complex_dtype = jnp.complex128 if dtype == jnp.float64 else jnp.complex64
+
+    if n_r_o is None:
+        # PEC o-face: r_s = -1, r_p = +1
+        r_s_o = jnp.full_like(k, -1.0, dtype=complex_dtype)
+        r_p_o = jnp.full_like(k, 1.0, dtype=complex_dtype)
+    else:
+        from differt.em import reflection_coefficients
+
+        cos_theta_o = jnp.sin(phi_i_arr)  # Grazing angle on o-face
+        r_s_o, r_p_o = reflection_coefficients(n_r_o, cos_theta_o)
+
+    if n_r_n is None:
+        # PEC n-face: r_s = -1, r_p = +1
+        r_s_n = jnp.full_like(k, -1.0, dtype=complex_dtype)
+        r_p_n = jnp.full_like(k, 1.0, dtype=complex_dtype)
+    else:
+        from differt.em import reflection_coefficients
+
+        cos_theta_n = jnp.sin(n_arr * jnp.pi - phi_i_arr)  # Grazing angle on n-face
+        r_s_n, r_p_n = reflection_coefficients(n_r_n, cos_theta_n)
+
+    # Soft and hard diffraction coefficients (Luebbers' model)
+    D_s = (D_1 + D_2 + r_s_n * D_3 + r_s_o * D_4) * factor
+    D_h = (D_1 + D_2 + r_p_n * D_3 + r_p_o * D_4) * factor
 
     return D_s, D_h

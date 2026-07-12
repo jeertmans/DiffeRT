@@ -13,6 +13,9 @@ __all__ = (
     "ShortDipole",
     "ShortDipolePattern",
     "c",
+    "compute_cir",
+    "compute_received_power",
+    "compute_transition_matrices",
     "diffraction_coefficients",
     "epsilon_0",
     "fresnel_coefficients",
@@ -41,6 +44,7 @@ from ._antenna import (
     ShortDipolePattern,
     poynting_vector,
 )
+from ._cir import compute_cir, compute_received_power, compute_transition_matrices
 from ._constants import c, epsilon_0, mu_0, z_0
 from ._fresnel import (
     fresnel_coefficients,
@@ -59,3 +63,4 @@ from ._utils import (
     sp_rotation_matrix,
     transition_matrix,
 )
+

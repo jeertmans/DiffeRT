@@ -30,6 +30,15 @@ class ExhaustivePathSolver(PathSolverConfig):
     """Whether to filter out inactive triangles first."""
     chunk_size: int | None = None
     """If specified, iterates through chunks of path candidates, yielding an iterator over path chunks."""
+    max_candidates: int | None = None
+    """Maximum number of path candidates to evaluate.
+
+    If the graph produces more candidates than this limit, the array
+    is truncated. This prevents out-of-memory errors on large scenes
+    where the exhaustive :math:`O(N^d)` combinatorics become intractable.
+    When combined with ``disconnect_inactive_triangles`` or the hybrid solver's
+    visibility pruning, this provides a hard upper bound on memory usage.
+    """
 
 
 class HybridPathSolver(PathSolverConfig):

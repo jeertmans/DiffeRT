@@ -7,8 +7,12 @@ __all__ = (
     "TracePaths",
     "TriangleMesh",
     "assemble_path",
+    "cantor_pair",
     "cartesian_to_spherical",
     "fibonacci_lattice",
+    "fuse_ray_bundles",
+    "hash_interaction_sequence",
+    "interception_plane_check",
     "merge_cell_ids",
     "min_distance_between_cells",
     "normalize",
@@ -24,6 +28,8 @@ __all__ = (
     "viewing_frustum",
 )
 
+from ._hashing import cantor_pair, hash_interaction_sequence
+from ._interception import fuse_ray_bundles, interception_plane_check
 from ._paths import LaunchPaths, Paths, SBRPaths, TracePaths, merge_cell_ids
 from ._triangle_mesh import (
     TriangleMesh,
@@ -45,3 +51,4 @@ from ._utils import (
     spherical_to_cartesian,
     viewing_frustum,
 )
+

@@ -1375,6 +1375,7 @@ class TriangleScene(eqx.Module):
         confidence_threshold = getattr(solver, "confidence_threshold", 0.5)
         batch_size = getattr(solver, "batch_size", 512)
         chunk_size = getattr(solver, "chunk_size", None)
+        max_candidates = getattr(solver, "max_candidates", None)
 
         assume_quads = self.mesh.assume_quads
 
@@ -1476,6 +1477,10 @@ class TriangleScene(eqx.Module):
                 ),
                 dtype=int,
             )
+
+            # Apply max_candidates truncation to prevent OOM
+            if max_candidates is not None and path_candidates.shape[0] > max_candidates:
+                path_candidates = path_candidates[:max_candidates]
 
             if self.mesh.assume_quads:
                 path_candidates = 2 * path_candidates
