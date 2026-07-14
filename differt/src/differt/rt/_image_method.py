@@ -290,7 +290,7 @@ def image_method(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
+            >>> from differt.geometry import Mesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import image_method
             >>>
@@ -312,12 +312,12 @@ def image_method(
             ...     mirror_normals,
             ... )
             >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
-            ...     TriangleMesh.plane(
+            ...     Mesh.plane(
             ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
             ...     ).plot(color="red")
-            ...     TriangleMesh.plane(
-            ...         mirror_vertices[1], normal=mirror_normals[1]
-            ...     ).plot(color="red")
+            ...     Mesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
+            ...         color="red"
+            ...     )
             ...
             ...     full_path = assemble_path(
             ...         from_vertex,

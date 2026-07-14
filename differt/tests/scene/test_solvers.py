@@ -1,9 +1,9 @@
-from differt.scene import TriangleScene
+from differt.scene import Scene
 from differt.scene._solvers import ExhaustivePathTracer, SBRPathLauncher
 
 
 def test_generate_path_candidates_chunks_iter(
-    simple_street_canyon_scene: TriangleScene,
+    simple_street_canyon_scene: Scene,
 ) -> None:
     solver = ExhaustivePathTracer(chunk_size=3)
     order = 1

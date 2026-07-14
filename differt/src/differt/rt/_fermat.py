@@ -94,16 +94,16 @@ def fermat_path_on_linear_objects(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
+            >>> from differt.geometry import Mesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import fermat_path_on_linear_objects
             >>>
             >>> from_vertex = jnp.array([-2.0, 0.0, 0.0])
             >>> to_vertex = jnp.array([0.0, 0.0, 0.0])
-            >>> wall = TriangleMesh.plane(
+            >>> wall = Mesh.plane(
             ...     jnp.array([-1.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
             ... )
-            >>> mirror = TriangleMesh.plane(
+            >>> mirror = Mesh.plane(
             ...     jnp.array([1.0, 0.0, 0.0]), normal=jnp.array([1.0, 0.0, 0.0])
             ... )
             >>> object_origins = jnp.array([[-1.0, -0.5, 0.5], [1.0, 0.0, 0.0]])
@@ -240,7 +240,7 @@ def fermat_path_on_planar_mirrors(
 
         .. plotly::
 
-            >>> from differt.geometry import TriangleMesh, normalize, assemble_path
+            >>> from differt.geometry import Mesh, normalize, assemble_path
             >>> from differt.plotting import draw_markers, draw_paths, reuse
             >>> from differt.rt import fermat_path_on_planar_mirrors
             >>>
@@ -262,12 +262,12 @@ def fermat_path_on_planar_mirrors(
             ...     mirror_normals,
             ... )
             >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
-            ...     TriangleMesh.plane(
+            ...     Mesh.plane(
             ...         mirror_vertices[0], normal=mirror_normals[0], rotate=-0.954
             ...     ).plot(color="red")
-            ...     TriangleMesh.plane(
-            ...         mirror_vertices[1], normal=mirror_normals[1]
-            ...     ).plot(color="red")
+            ...     Mesh.plane(mirror_vertices[1], normal=mirror_normals[1]).plot(
+            ...         color="red"
+            ...     )
             ...
             ...     full_path = assemble_path(
             ...         from_vertex,

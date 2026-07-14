@@ -45,7 +45,7 @@ To help structure these algorithms, DiffeRT provides two base classes in {mod}`d
 
 ## Choosing a Solver
 
-When calling {meth}`TriangleScene.trace_paths()<differt.scene.TriangleScene.trace_paths>` or {meth}`TriangleScene.launch_paths()<differt.scene.TriangleScene.launch_paths>`, you configure your solver by directly instantiating the respective solver class.
+When calling {meth}`Scene.trace_paths()<differt.scene.Scene.trace_paths>` or {meth}`Scene.launch_paths()<differt.scene.Scene.launch_paths>`, you configure your solver by directly instantiating the respective solver class.
 
 For example, to configure an exhaustive tracer with chunking:
 

@@ -5,11 +5,12 @@
 
 .. automodule:: differt_core.scene
 
-.. rubric:: Triangle scene
+.. rubric:: Scene
 
 .. autosummary::
    :toctree: _autosummary
 
+   Scene
    TriangleScene
 
 .. rubric:: Sionna compatibility layer
@@ -24,7 +25,7 @@ to reproduce Sionna scenes, and skips the rest (e.g., display information).
 
 As filepaths to shapes are relative to the initial XML config file,
 it is preferred to directly use ``load_xml`` from another scene
-class, like :class:`TriangleScene<differt_core.scene.TriangleScene>`.
+class, like :class:`Scene<differt_core.scene.Scene>`.
 
 .. autosummary::
    :toctree: _autosummary

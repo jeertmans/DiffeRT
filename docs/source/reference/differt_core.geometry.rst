@@ -8,4 +8,5 @@
 .. autosummary::
    :toctree: _autosummary
 
+   Mesh
    TriangleMesh

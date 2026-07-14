@@ -14,25 +14,25 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import materials, z_0
-from differt.geometry import TracedPaths, TriangleMesh
+from differt.geometry import Mesh, TracedPaths
 from differt.plugins import deepmimo
 from differt.scene import (
     ExhaustivePathTracer,
     HybridPathTracer,
-    TriangleScene,
+    Scene,
 )
 from differt.utils import sample_points_in_bounding_box
 
 
 def test_export(key: PRNGKeyArray) -> None:
-    mesh = TriangleMesh.box(with_top=True, with_bottom=True)
+    mesh = Mesh.box(with_top=True, with_bottom=True)
     key_tx, key_rx = jax.random.split(key, 2)
 
     transmitters = sample_points_in_bounding_box(mesh.bounding_box, (1, 2), key=key_tx)
     receivers = sample_points_in_bounding_box(mesh.bounding_box, (4,), key=key_rx)
     num_tx = transmitters[..., 0].size
     num_rx = receivers[..., 0].size
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     with pytest.raises(
         ValueError, match="Scene must contain information about face materials"
@@ -40,7 +40,7 @@ def test_export(key: PRNGKeyArray) -> None:
         deepmimo.export(paths=scene.trace_paths(order=0), scene=scene, frequency=2.4e9)
 
     mesh = mesh.set_materials("itu_concrete")
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     frequency = 2.4e9  # 2.4 GHz
     for order in [0, 1, 2]:
@@ -117,7 +117,7 @@ def test_match_sionna_on_simple_street_canyon(
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,

@@ -673,7 +673,7 @@ def viewing_frustum(
             >>> from differt.geometry import (
             ...     fibonacci_lattice,
             ...     viewing_frustum,
-            ...     TriangleMesh,
+            ...     Mesh,
             ... )
             >>> from differt.plotting import draw_rays, reuse, draw_markers
             >>>
@@ -681,9 +681,7 @@ def viewing_frustum(
             ...     tx = jnp.array([0.0, 0.0, 0.0])
             ...     key = jax.random.key(1234)
             ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
-            ...     for mesh in (
-            ...         TriangleMesh.box(with_top=True).translate(tx).iter_objects()
-            ...     ):
+            ...     for mesh in Mesh.box(with_top=True).translate(tx).iter_objects():
             ...         key, key_color = jax.random.split(key, 2)
             ...         color = r, g, b = jax.random.randint(key_color, (3,), 0, 256)
             ...         center = mesh.bounding_box.mean(axis=0)
@@ -717,7 +715,7 @@ def viewing_frustum(
             ...     world_vertices = jnp.empty((0, 3))
             ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
             ...     for mesh in (
-            ...         TriangleMesh
+            ...         Mesh
             ...         .box(with_top=True)
             ...         .translate(tx)
             ...         .set_face_colors(jnp.array([1.0, 0.0, 0.0]))
@@ -758,7 +756,7 @@ def viewing_frustum(
             >>> with reuse("plotly") as fig:
             ...     tx = jnp.array([30.0, 0.0, 20.0])
             ...     draw_markers(tx.reshape(-1, 3), labels=["tx"], showlegend=False)
-            ...     mesh = TriangleMesh.box(
+            ...     mesh = Mesh.box(
             ...         width=10.0, length=20.0, height=3.0, with_top=True
             ...     ).set_face_colors(jnp.array([1.0, 0.0, 0.0]))
             ...     mesh.plot(opacity=0.5)
@@ -783,13 +781,13 @@ def viewing_frustum(
         .. plotly::
             :context:
 
-            >>> from differt.scene import TriangleScene, get_sionna_scene
+            >>> from differt.scene import Scene, get_sionna_scene
             >>> from differt.plotting import draw_rays, reuse, draw_markers
             >>> from differt.geometry import fibonacci_lattice, viewing_frustum
             >>>
             >>> # Load the simple street canyon scene
             >>> scene_path = get_sionna_scene("simple_street_canyon")
-            >>> scene = TriangleScene.load_xml(scene_path)
+            >>> scene = Scene.load_xml(scene_path)
             >>> tx = jnp.array([0.0, 0.0, 32.0])
             >>>
             >>> with reuse("plotly") as fig:

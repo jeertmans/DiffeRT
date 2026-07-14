@@ -3,7 +3,7 @@ from pathlib import Path
 import jax.numpy as jnp
 import pytest
 
-from differt.geometry._triangle_mesh import TriangleMesh
+from differt.geometry._mesh import Mesh
 
 
 @pytest.fixture(scope="session")
@@ -42,16 +42,16 @@ def cube_ply_file() -> str:
 
 
 @pytest.fixture(scope="session")
-def two_buildings_mesh(two_buildings_obj_file: str) -> TriangleMesh:
-    return TriangleMesh.load_obj(two_buildings_obj_file)
+def two_buildings_mesh(two_buildings_obj_file: str) -> Mesh:
+    return Mesh.load_obj(two_buildings_obj_file)
 
 
 @pytest.fixture(scope="session")
-def sphere_mesh() -> TriangleMesh:
+def sphere_mesh() -> Mesh:
     vsp_geom = pytest.importorskip("vispy.geometry", reason="vispy not installed")
 
     mesh = vsp_geom.create_sphere()
 
     vertices = jnp.asarray(mesh.get_vertices())
     triangles = jnp.asarray(mesh.get_faces(), dtype=jnp.int32)
-    return TriangleMesh(vertices=vertices, triangles=triangles)
+    return Mesh(vertices=vertices, triangles=triangles)

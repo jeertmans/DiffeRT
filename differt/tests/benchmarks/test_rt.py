@@ -18,13 +18,13 @@ from differt.rt import (
 from differt.scene import (
     ExhaustivePathTracer,
     HybridPathTracer,
-    TriangleScene,
+    Scene,
 )
 
 from ..rt.utils import PlanarMirrorsSetup
 
 
-def random_scene(scene: TriangleScene, *, key: PRNGKeyArray) -> TriangleScene:
+def random_scene(scene: Scene, *, key: PRNGKeyArray) -> Scene:
     sample_objects = scene.mesh.object_bounds is not None
     return eqx.tree_at(
         lambda s: s.mesh,
@@ -77,7 +77,7 @@ def test_fermat(
 
 @pytest.mark.benchmark(group="ray_intersect_any_triangle")
 def test_ray_intersect_any_triangle(
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -103,7 +103,7 @@ def test_ray_intersect_any_triangle(
 
 @pytest.mark.benchmark(group="triangles_visible_from_vertex")
 def test_transmitter_visibility(
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -125,7 +125,7 @@ def test_transmitter_visibility(
 
 @pytest.mark.benchmark(group="first_triangle_hit_by_ray")
 def test_first_triangle_hit_by_ray(
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -161,7 +161,7 @@ def test_first_triangle_hit_by_ray(
 def test_compute_paths(
     method: Literal["exhaustive", "hybrid"],
     disconnect_inactive_triangles: bool,
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:

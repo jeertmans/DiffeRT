@@ -3,29 +3,29 @@ use std::path::PathBuf;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 use super::sionna::SionnaScene;
-use crate::geometry::triangle_mesh::TriangleMesh;
+use crate::geometry::triangle_mesh::Mesh;
 
-/// A scene that contains one mesh, usually being the results of multiple call to :meth:`TriangleMesh.append<differt_core.geometry.TriangleMesh.append>`.
+/// A scene that contains one mesh, usually being the results of multiple call to :meth:`Mesh.append<differt_core.geometry.Mesh.append>`.
 ///
 /// This class is only useful to provide a fast constructor for scenes
 /// created using the Sionna file format.
 #[derive(Clone)]
-#[pyclass]
-struct TriangleScene {
-    /// differt_core.geometry.TriangleMesh: The scene mesh.
+#[pyclass(subclass)]
+struct Scene {
+    /// differt_core.geometry.Mesh: The scene mesh.
     #[pyo3(get)]
-    mesh: TriangleMesh,
+    mesh: Mesh,
 }
 
 #[pymethods]
-impl TriangleScene {
+impl Scene {
     /// Load a scene from a Sionna-compatible XML file.
     ///
     /// Args:
     ///     file (str): The path to the XML file.
     ///
     /// Returns:
-    ///     TriangleScene: The corresponding scene.
+    ///     Scene: The corresponding scene.
     #[classmethod]
     fn load_xml(cls: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
         // TODO: create a Rust variant without PyType?
@@ -40,9 +40,9 @@ impl TriangleScene {
             ))
         })?;
 
-        let mut mesh = TriangleMesh::default();
+        let mut mesh = Mesh::default();
 
-        let triangle_mesh_py_type = PyType::new::<TriangleMesh>(cls.py());
+        let mesh_py_type = PyType::new::<Mesh>(cls.py());
 
         for (_, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);
@@ -52,8 +52,8 @@ impl TriangleScene {
                 ))
             })?;
             let mut other_mesh = match shape.r#type.as_str() {
-                "obj" => TriangleMesh::load_obj(&triangle_mesh_py_type, mesh_file)?,
-                "ply" => TriangleMesh::load_ply(&triangle_mesh_py_type, mesh_file)?,
+                "obj" => Mesh::load_obj(&mesh_py_type, mesh_file)?,
+                "ply" => Mesh::load_ply(&mesh_py_type, mesh_file)?,
                 ty => {
                     log::warn!("Unsupported shape type {ty}, skipping.");
                     continue;
@@ -78,6 +78,6 @@ impl TriangleScene {
 #[cfg(not(tarpaulin_include))]
 #[pymodule(gil_used = false)]
 pub(crate) fn triangle_scene(m: Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<TriangleScene>()?;
+    m.add_class::<Scene>()?;
     Ok(())
 }

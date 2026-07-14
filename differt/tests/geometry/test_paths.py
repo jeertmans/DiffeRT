@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import TriangleMesh, path_length
+from differt.geometry import Mesh, path_length
 from differt.geometry._paths import (
     LaunchedPaths,
     Paths,
@@ -18,7 +18,7 @@ from differt.geometry._paths import (
     TracedPaths,
     merge_cell_ids,
 )
-from differt.scene import TriangleScene
+from differt.scene import Scene
 
 from ..plotting.params import matplotlib, plotly, vispy
 
@@ -202,7 +202,7 @@ class TestTracedPaths:
             ).squeeze(axis=axis)
 
     def test_mask_duplicate_objects(self, key: PRNGKeyArray) -> None:
-        mesh = TriangleMesh.box()  # 6 objects
+        mesh = Mesh.box()  # 6 objects
         # 6 path candidates, only 3 are unique
         path_candidates = jnp.array([
             [0, 1, 2],
@@ -217,7 +217,7 @@ class TestTracedPaths:
 
         key_rx, key_tx = jax.random.split(key, 2)
 
-        scene = TriangleScene(
+        scene = Scene(
             transmitters=jax.random.normal(key_tx, (3,)),
             receivers=jax.random.normal(key_rx, (3,)),
             mesh=mesh,

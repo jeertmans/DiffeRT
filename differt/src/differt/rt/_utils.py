@@ -231,11 +231,11 @@ def ray_intersect_triangle(
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
-            >>> from differt.scene import TriangleScene
+            >>> from differt.scene import Scene
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
-            >>> scene = TriangleScene.load_xml(file)
+            >>> scene = Scene.load_xml(file)
             >>> scene = eqx.tree_at(
             ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
             ... )
@@ -394,7 +394,7 @@ def ray_intersect_any_triangle(
     .. note::
 
         This function has a faster and more memory-efficient equivalent method:
-        :meth:`TriangleMesh.ray_intersect_any_triangle<differt.geometry.TriangleMesh.ray_intersect_any_triangle>`,
+        :meth:`Mesh.ray_intersect_any_triangle<differt.geometry.Mesh.ray_intersect_any_triangle>`,
         as long as smoothing is not required.
 
     Args:
@@ -580,7 +580,7 @@ def triangles_visible_from_vertex(
     .. note::
 
          This function has a faster and more memory-efficient equivalent method:
-         :meth:`TriangleMesh.triangles_visible_from_vertex<differt.geometry.TriangleMesh.triangles_visible_from_vertex>`,
+         :meth:`Mesh.triangles_visible_from_vertex<differt.geometry.Mesh.triangles_visible_from_vertex>`,
          as long as smoothing is not required.
 
     Args:
@@ -617,14 +617,14 @@ def triangles_visible_from_vertex(
             ...     triangles_visible_from_vertex,
             ... )
             >>> from differt.scene import (
-            ...     TriangleScene,
+            ...     Scene,
             ...     get_sionna_scene,
             ...     download_sionna_scenes,
             ... )
             >>>
             >>> download_sionna_scenes()
             >>> file = get_sionna_scene("simple_street_canyon")
-            >>> scene = TriangleScene.load_xml(file)
+            >>> scene = Scene.load_xml(file)
             >>> scene = eqx.tree_at(
             ...     lambda s: s.transmitters, scene, jnp.array([-33, 0, 32.0])
             ... )
@@ -812,7 +812,7 @@ def first_triangle_hit_by_ray(
     .. note::
 
         This function has a faster and more memory-efficient equivalent method:
-        :meth:`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.TriangleMesh.first_triangle_hit_by_ray>`,
+        :meth:`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`,
         as long as smoothing is not required.
 
     Args:
