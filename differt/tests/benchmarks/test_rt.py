@@ -7,7 +7,7 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
 
-from differt.geometry import fibonacci_lattice
+from differt.geometry import TracedPaths, fibonacci_lattice
 from differt.rt import (
     fermat_path_on_planar_mirrors,
     first_triangle_hit_by_ray,
@@ -15,7 +15,11 @@ from differt.rt import (
     ray_intersect_any_triangle,
     triangles_visible_from_vertex,
 )
-from differt.scene._triangle_scene import TriangleScene
+from differt.scene import (
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    TriangleScene,
+)
 
 from ..rt.utils import PlanarMirrorsSetup
 
@@ -173,12 +177,18 @@ def test_compute_paths(
             0,
             1,
         ]:  # TODO: add higher orders once the implementation is faster / uses less memory
-            paths = scene.compute_paths(
+            if method == "hybrid":
+                solver = HybridPathTracer(num_rays=10_000)
+            else:
+                solver = ExhaustivePathTracer(
+                    disconnect_inactive_triangles=disconnect_inactive_triangles
+                )
+
+            paths = scene.trace_paths(
                 order=order,
-                method=method,
-                num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
-                disconnect_inactive_triangles=disconnect_inactive_triangles,
+                solver=solver,
             )
+            assert isinstance(paths, TracedPaths)
             num_valid_paths += paths.num_valid_paths
         return num_valid_paths
 

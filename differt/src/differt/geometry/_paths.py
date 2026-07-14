@@ -1,10 +1,8 @@
-import math
 import typing
 import warnings
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import KW_ONLY
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Generic, TypeGuard, TypeVar, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import equinox as eqx
 import jax
@@ -45,7 +43,7 @@ def merge_cell_ids(
     cell_ids_b: Int[ArrayLike, " *batch"],
 ) -> Int[Array, " *batch"]:
     """
-    Merge two arrays of cell indices as returned by :meth:`Paths.multipath_cells`.
+    Merge two arrays of cell indices as returned by :meth:`TracedPaths.multipath_cells`.
 
     Let the returned array be ``cell_ids``,
     then ``cell_ids[i] == cell_ids[j]`` for all ``i``,
@@ -76,20 +74,12 @@ def merge_cell_ids(
     ).reshape(batch)
 
 
-_M = TypeVar("_M", bound=Bool[Array, "*batch"] | Float[Array, "*batch"] | None)
-
-
-class Paths(eqx.Module, Generic[_M]):
+class TracedPaths(eqx.Module):
     """
     A convenient wrapper class around path vertices and object indices.
 
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
-
-    The generic type parameter ``_M`` can be either :data:`None`,
-    indicating that all paths are deemed valid,
-    or a JAX array, filled with either boolean or floating point values,
-    see :attr:`mask` for further details.
     """
 
     vertices: Float[Array, "*batch path_length 3"]
@@ -101,8 +91,8 @@ class Paths(eqx.Module, Generic[_M]):
     A placeholder value of ``-1`` can be used in specific cases,
     like for transmitter and receiver positions.
     """
-    mask: _M = eqx.field(default=None)
-    """An optional mask to indicate which paths are valid and should be used.
+    mask: Bool[Array, " *batch"] | Float[Array, " *batch"]
+    """A mask to indicate which paths are valid and should be used.
 
     The mask is kept separately to :attr:`vertices` so that we can keep information about
     batch ``*batch`` dimensions, which would not be possible if we were to directly
@@ -112,12 +102,11 @@ class Paths(eqx.Module, Generic[_M]):
     values between 0 and 1, where values greater than or equal to :attr:`confidence_threshold`
     are considered valid.
     """
-    interaction_types: Int[Array, "*batch path_length-2"] | None = eqx.field(
-        default=None
-    )
-    """An optional array to indicate the type of each interaction.
+    interaction_types: Int[Array, "*batch path_length-2"]
+    """An array to indicate the type of each interaction.
 
-    If not specified, :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>` is assumed.
+    Values match :attr:`InteractionType<differt.em.InteractionType>`.
+    A value of ``-1`` indicates an inactive or padded interaction.
     """
     confidence_threshold: Float[ArrayLike, " "] = 0.5
     """A threshold used to decide, e.g., when plotting, whether a given path is valid or not.
@@ -142,12 +131,11 @@ class Paths(eqx.Module, Generic[_M]):
             A new paths instance with specified batch dimensions.
         """
         vertices = self.vertices.reshape(*batch, self.path_length, 3)
-        objects = self.objects.reshape(*batch, self.path_length)
-        mask = self.mask.reshape(*batch) if _is_masked_paths(self) else None
-        interaction_types = (
-            self.interaction_types.reshape(*batch, self.path_length - 2)
-            if self.interaction_types is not None
-            else None
+        resolved_batch = vertices.shape[:-2]
+        objects = self.objects.reshape(*resolved_batch, self.path_length)
+        mask = self.mask.reshape(*resolved_batch)
+        interaction_types = self.interaction_types.reshape(
+            *resolved_batch, self.path_length - 2
         )
 
         return eqx.tree_at(
@@ -159,7 +147,6 @@ class Paths(eqx.Module, Generic[_M]):
             ),
             self,
             (vertices, objects, mask, interaction_types),
-            is_leaf=lambda x: x is None,
         )
 
     def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
@@ -189,14 +176,10 @@ class Paths(eqx.Module, Generic[_M]):
                 msg = "One of the provided axes is out-of-bounds!"
                 raise ValueError(msg)
 
-        mask = self.mask.squeeze(axis) if _is_masked_paths(self) else None
+        mask = self.mask.squeeze(axis)
         vertices = self.vertices.squeeze(axis)
         objects = self.objects.squeeze(axis)
-        interaction_types = (
-            self.interaction_types.squeeze(axis)
-            if self.interaction_types is not None
-            else None
-        )
+        interaction_types = self.interaction_types.squeeze(axis)
 
         return eqx.tree_at(
             lambda p: (
@@ -207,7 +190,6 @@ class Paths(eqx.Module, Generic[_M]):
             ),
             self,
             (vertices, objects, mask, interaction_types),
-            is_leaf=lambda x: x is None,
         )
 
     @eqx.filter_jit
@@ -226,7 +208,7 @@ class Paths(eqx.Module, Generic[_M]):
                 It defaults to the last axis, which is the axis where
                 different path candidates are stored when generating
                 paths with
-                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+                :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
 
         Returns:
             A new paths instance with masked duplicate objects.
@@ -263,18 +245,10 @@ class Paths(eqx.Module, Generic[_M]):
         non_duplicates = f(objects)
         non_duplicates = jnp.moveaxis(non_duplicates, -1, axis)
 
-        if _is_masked_paths(self):
-            return eqx.tree_at(
-                lambda p: p.mask,
-                self,
-                self.mask * non_duplicates,
-            )
-
         return eqx.tree_at(
             lambda p: p.mask,
             self,
-            non_duplicates,
-            is_leaf=lambda x: x is None,
+            self.mask * non_duplicates,
         )
 
     @property
@@ -288,33 +262,25 @@ class Paths(eqx.Module, Generic[_M]):
         return self.path_length - 2
 
     @property
-    def num_valid_paths(self) -> int | Int[Array, ""]:
+    def num_valid_paths(self) -> Int[Array, ""]:
         """The number of paths kept by :attr:`mask`.
 
-        If :attr:`mask` is not :data:`None`, then the output value can be traced by JAX.
+        The output value can be traced by JAX.
         """
-        if _is_masked_paths(self):
-            if self.mask.dtype == jnp.bool_:
-                return self.mask.sum()
-            return (self.mask >= self.confidence_threshold).sum()
-        return math.prod(self.objects.shape[:-1])
+        if self.mask.dtype == jnp.bool_:
+            return self.mask.sum()
+        return (self.mask >= self.confidence_threshold).sum()
 
     @property
     def masked_vertices(
         self,
     ) -> Float[Array, "num_valid_paths path_length 3"]:
-        """The array of masked vertices, with batched dimensions flattened into one.
-
-        If :attr:`mask` is :data:`None`, then the returned array is simply
-        :attr:`vertices` with the batch dimensions flattened.
-        """
+        """The array of masked vertices, with batched dimensions flattened into one."""
         vertices = self.vertices.reshape((-1, self.path_length, 3))
-        if _is_masked_paths(self):
-            mask = self.mask.reshape(-1)
-            if mask.dtype == jnp.bool_:
-                mask = mask >= self.confidence_threshold
-            return vertices[mask, ...]
-        return vertices
+        mask = self.mask.reshape(-1)
+        if mask.dtype != jnp.bool_:
+            mask = mask >= self.confidence_threshold
+        return vertices[mask, ...]
 
     @property
     def masked_objects(
@@ -325,30 +291,24 @@ class Paths(eqx.Module, Generic[_M]):
         Similar to :attr:`masked_vertices`, but for :data:`objects`.
         """
         objects = self.objects.reshape((-1, self.path_length))
-        if _is_masked_paths(self):
-            mask = self.mask.reshape(-1)
-            if mask.dtype == jnp.bool_:
-                mask = mask >= self.confidence_threshold
-            return objects[mask, ...]
-        return objects
+        mask = self.mask.reshape(-1)
+        if mask.dtype != jnp.bool_:
+            mask = mask >= self.confidence_threshold
+        return objects[mask, ...]
 
-    def masked(self) -> "Paths[None]":
+    def masked(self) -> "TracedPaths":
         """Return a flattened version of this object that only keeps valid paths.
 
         The returned object has all batch dimensions flattened into one,
-        keeping only the paths where :attr:`mask` is :data:`True` (or where :attr:`mask` is greater than or equal to :attr:`confidence_threshold`), and the :attr:`mask` attribute is then set to :data:`None`.
+        keeping only the paths where :attr:`mask` is :data:`True` (or where :attr:`mask` is greater than or equal to :attr:`confidence_threshold`).
 
         Returns:
             A new paths instance with flattened batch dimensions and only valid paths.
         """
         paths = self.reshape(-1)
 
-        if not _is_masked_paths(paths):
-            # ty is unable to infer that _M & ~Array implies None
-            return paths  # type: ignore[ty:invalid-return-type]
-
         mask = paths.mask
-        if mask.dtype == jnp.bool_:
+        if mask.dtype != jnp.bool_:
             mask = mask >= self.confidence_threshold
 
         return eqx.tree_at(
@@ -362,12 +322,9 @@ class Paths(eqx.Module, Generic[_M]):
             (
                 paths.vertices[mask, ...],
                 paths.objects[mask, ...],
-                None,
-                paths.interaction_types[mask, ...]
-                if paths.interaction_types is not None
-                else None,
+                mask[mask],
+                paths.interaction_types[mask, ...],
             ),
-            is_leaf=lambda x: x is None,
         )
 
     @eqx.filter_jit
@@ -405,20 +362,13 @@ class Paths(eqx.Module, Generic[_M]):
 
                 By default, the last axis is used to match the
                 ``num_path_candidates`` axis as returned by
-                :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+                :meth:`TriangleScene.trace_paths<differt.scene.TriangleScene.trace_paths>`.
 
         Returns:
             The array of group indices.
-
-        Raises:
-            ValueError: If :attr:`mask` is None.
         """
-        if not _is_masked_paths(self):
-            msg = "Cannot create multipath cells from non-existing mask!"
-            raise ValueError(msg)
-
         mask = jnp.moveaxis(self.mask, axis, -1)
-        if mask.dtype == jnp.bool_:
+        if mask.dtype != jnp.bool_:
             mask = mask >= self.confidence_threshold
         *partial_batch, last_axis = mask.shape
 
@@ -445,7 +395,7 @@ class Paths(eqx.Module, Generic[_M]):
             denoted by indices ``0`` and ``1``, and each path is made
             of three vertices.
 
-            >>> from differt.geometry import Paths
+            >>> from differt.geometry import TracedPaths
             >>>
             >>> objects = jnp.array([
             ...     [[1, 1, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0], [1, 1, 1], [1, 1, 1]],
@@ -453,7 +403,13 @@ class Paths(eqx.Module, Generic[_M]):
             ... ])
             >>> key = jax.random.key(1234)
             >>> vertices = jax.random.uniform(key, (*objects.shape, 3))
-            >>> paths = Paths(vertices, objects)
+            >>> mask = jnp.ones(objects.shape[:-1], dtype=bool)
+            >>> interaction_types = jnp.zeros(
+            ...     (*objects.shape[:-1], objects.shape[-1] - 2), dtype=jnp.int32
+            ... )
+            >>> paths = TracedPaths(
+            ...     vertices, objects, mask=mask, interaction_types=interaction_types
+            ... )
             >>> groups = paths.group_by_objects()
             >>> groups
             Array([[0, 1, 2, 3, 4, 4],
@@ -464,10 +420,10 @@ class Paths(eqx.Module, Generic[_M]):
         objects = self.objects.reshape((-1, path_length))
         return _cell_ids(objects).reshape(batch)
 
-    def __iter__(self) -> Iterator["Paths[None]"]:
+    def __iter__(self) -> Iterator["TracedPaths"]:
         """Return an iterator over masked paths.
 
-        Each item of the iterator is itself an instance :class:`Paths`,
+        Each item of the iterator is itself an instance :class:`TracedPaths`,
         so you can still benefit from convenient methods like :meth:`plot`.
 
         Yields:
@@ -478,12 +434,12 @@ class Paths(eqx.Module, Generic[_M]):
         for vertices, objects, interaction_types in zip_longest(
             masked.vertices,
             masked.objects,
-            masked.interaction_types or [],
+            masked.interaction_types,
         ):
-            yield Paths(
+            yield TracedPaths(
                 vertices=vertices,
                 objects=objects,
-                mask=None,
+                mask=jnp.ones((), dtype=jnp.bool_),
                 confidence_threshold=masked.confidence_threshold,
                 interaction_types=interaction_types,
             )
@@ -517,7 +473,7 @@ class Paths(eqx.Module, Generic[_M]):
             The sum of the results, with contributions from
             invalid paths that are set to zero.
         """
-        if _is_masked_paths(self) and self.mask.dtype != jnp.bool_:
+        if self.mask.dtype != jnp.bool_:
             return jnp.sum(fun(self.vertices) * self.mask, axis=axis)
 
         return jnp.sum(fun(self.vertices), axis=axis, where=self.mask)
@@ -536,53 +492,84 @@ class Paths(eqx.Module, Generic[_M]):
         return draw_paths(self.masked_vertices, **kwargs)
 
 
-def _is_masked_paths(
-    paths: Paths[_M],
-) -> TypeGuard[Paths[Bool[Array, "..."] | Float[Array, "..."]]]:
-    return paths.mask is not None
-
-
-class SBRPaths(Paths[Float[Array, "*batch"]]):
+# Deprecated alias
+class Paths(TracedPaths):
     """
-    Paths method generated with shooting-and-bouncing method.
+    Deprecated alias for :class:`TracedPaths`.
 
-    Like :class:`Paths`, but holds information of lower-order
-    paths too.
-
-    E.g., second-order paths also contain information for line-of-sight (``order = 0``)
-    and first-order paths.
-
-    Warning:
-        The ``mask`` argument is ignored as it will automatically
-        be overwritten with the last array in :attr:`masks`.
+    .. deprecated:: 0.10
+        Use :class:`TracedPaths` instead.
     """
 
-    _: KW_ONLY
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "Paths is deprecated, use TracedPaths instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class LaunchedPaths(eqx.Module):
+    """
+    Paths method generated with ray launching methods.
+
+    Holds information of lower-order paths too, and holds multi-order mask information.
+    Not a subclass of TracedPaths.
+    """
+
+    vertices: Float[Array, "*batch path_length 3"]
+    """The array of path vertices."""
+    objects: Int[Array, "*batch path_length"]
+    """The array of object indices.
+
+    To every path vertex corresponds one object (e.g., a triangle).
+    A placeholder value of ``-1`` can be used in specific cases,
+    like for transmitter and receiver positions.
+    """
     masks: Bool[Array, " *batch path_length-1"]
     """An array of masks.
 
-    Extends :attr:`mask`, with one mask for each path order.
+    Holds one mask for each path order.
     """
+    interaction_types: Int[Array, "*batch path_length-2"]
+    """An array to indicate the type of each interaction.
 
-    def __post_init__(self) -> None:
-        if self.mask is not None:
-            msg = (
-                "Setting 'mask' argument is ignored for this class, "
-                "as it is overwritten by 'masks' argument."
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
+    Values match :attr:`InteractionType<differt.em.InteractionType>`.
+    A value of ``-1`` indicates an inactive or padded interaction.
+    """
+    confidence_threshold: Float[ArrayLike, " "] = 0.5
+    """A threshold used to decide whether a given path is valid or not."""
 
-        self.mask = self.masks[..., -1]
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """The batch shape of the paths."""
+        return self.vertices.shape[:-2]
 
-    def get_paths(self, order: int) -> Paths:
+    @property
+    def path_length(self) -> int:
+        """The length (i.e., number of vertices) of each individual path."""
+        return self.objects.shape[-1]
+
+    @property
+    def order(self) -> int:
+        """The length (i.e., number of vertices) of each individual path, excluding start and end vertices."""
+        return self.path_length - 2
+
+    @property
+    def mask(self) -> Bool[Array, " *batch"]:
+        """Alias property to the highest-order mask for backwards compatibility."""
+        return self.masks[..., -1]
+
+    def get_paths(self, order: int) -> TracedPaths:
         """
-        Return the :class:`Paths` class instance corresponding to the given path order.
+        Return the :class:`TracedPaths` class instance corresponding to the given path order.
 
         Args:
             order: The order of the path to index.
 
         Returns:
-            The corresponding paths class.
+            The corresponding trace paths class.
 
         Raises:
             ValueError: If the provided order is out-of-bounds.
@@ -602,18 +589,144 @@ class SBRPaths(Paths[Float[Array, "*batch"]]):
             (self.objects[..., : order + 1], self.objects[..., -1:]),
             axis=-1,
         )
-        return Paths(vertices=vertices, objects=objects, mask=self.masks[..., order])
-
-    def reshape(self, *batch: int) -> Self:
-        return eqx.tree_at(
-            lambda p: p.masks,
-            super().reshape(*batch),
-            self.masks.reshape(*batch, self.masks.shape[-1]),
+        return TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=self.masks[..., order],
+            confidence_threshold=self.confidence_threshold,
+            interaction_types=self.interaction_types[..., :order],
         )
 
+    def reshape(self, *batch: int) -> Self:
+        """
+        Return a new paths instance with reshaped paths' batch dimensions to match a given shape.
+
+        Args:
+            batch: New batch shape.
+
+        Returns:
+            A new paths instance with specified batch dimensions.
+        """
+        vertices = self.vertices.reshape(*batch, self.path_length, 3)
+        resolved_batch = vertices.shape[:-2]
+        objects = self.objects.reshape(*resolved_batch, self.path_length)
+        masks = self.masks.reshape(*resolved_batch, self.masks.shape[-1])
+        interaction_types = self.interaction_types.reshape(
+            *resolved_batch, self.path_length - 2
+        )
+
+        return eqx.tree_at(
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.masks,
+                p.interaction_types,
+            ),
+            self,
+            (vertices, objects, masks, interaction_types),
+        )
+
+    def squeeze(self, axis: int | Sequence[int] | None = None) -> Self:
+        """
+        Return a new paths instance by squeezing one or more axes of paths' batch dimensions.
+
+        Args:
+            axis: See :func:`jax.numpy.squeeze` for allowed values.
+
+        Returns:
+            A new paths instance with squeezed batch dimensions.
+
+        Raises:
+            ValueError: If one of the provided axes is out-of-bounds,
+                or if trying to squeeze a 0-dimensional batch.
+        """
+        ndim = self.vertices.ndim - 2
+        if axis is not None and ndim == 0:
+            msg = "Cannot squeeze a 0-dimensional batch!"
+            raise ValueError(msg)
+        if isinstance(axis, int):
+            axis = (axis,)
+        if isinstance(axis, Sequence):
+            axis = tuple(a + ndim if a < 0 else a for a in axis)
+
+            if any(ax >= ndim or ax < 0 for ax in axis):
+                msg = "One of the provided axes is out-of-bounds!"
+                raise ValueError(msg)
+
+        vertices = self.vertices.squeeze(axis)
+        objects = self.objects.squeeze(axis)
+        masks = self.masks.squeeze(axis)
+        interaction_types = self.interaction_types.squeeze(axis)
+
+        return eqx.tree_at(
+            lambda p: (
+                p.vertices,
+                p.objects,
+                p.masks,
+                p.interaction_types,
+            ),
+            self,
+            (vertices, objects, masks, interaction_types),
+        )
+
+    def __iter__(self) -> Iterator["TracedPaths"]:
+        """
+        Return an iterator over the highest-order masked paths.
+
+        Yields:
+            The highest-order masked paths.
+        """
+        yield from self.get_paths(self.order)
+
+    def masked(self) -> TracedPaths:
+        """
+        Return a flattened :class:`TracedPaths` instance keeping only valid highest-order paths.
+
+        Returns:
+            A flattened trace paths instance with only valid paths.
+        """
+        return self.get_paths(self.order).masked()
+
+    @property
+    def masked_vertices(self) -> Float[Array, "num_valid_paths path_length 3"]:
+        """The array of masked vertices of the highest-order paths, with batched dimensions flattened into one."""
+        return self.get_paths(self.order).masked_vertices
+
+    @property
+    def masked_objects(self) -> Int[Array, "num_valid_paths path_length"]:
+        """The array of masked objects of the highest-order paths, with batched dimensions flattened into one."""
+        return self.get_paths(self.order).masked_objects
+
     def plot(self, **kwargs: Any) -> PlotOutput:
+        """
+        Plot the paths on a 3D scene.
+
+        Args:
+            kwargs: Keyword arguments passed to plotting backend.
+
+        Returns:
+            The resulting plot output.
+        """
         with reuse(**kwargs, pass_all_kwargs=True) as output:
             for order in range(self.order + 1):
                 self.get_paths(order).plot()
 
         return output
+
+
+# Deprecated alias
+class SBRPaths(LaunchedPaths):
+    """
+    Deprecated alias for :class:`LaunchedPaths`.
+
+    .. deprecated:: 0.10
+        Use :class:`LaunchedPaths` instead.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        warnings.warn(
+            "SBRPaths is deprecated, use LaunchedPaths instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

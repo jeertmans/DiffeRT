@@ -1,8 +1,10 @@
 """Geometries for building scenes."""
 
 __all__ = (
+    "LaunchedPaths",
     "Paths",
     "SBRPaths",
+    "TracedPaths",
     "TriangleMesh",
     "assemble_path",
     "cartesian_to_spherical",
@@ -22,7 +24,7 @@ __all__ = (
     "viewing_frustum",
 )
 
-from ._paths import Paths, SBRPaths, merge_cell_ids
+from ._paths import LaunchedPaths, Paths, SBRPaths, TracedPaths, merge_cell_ids
 from ._triangle_mesh import (
     TriangleMesh,
     triangle_contains_vertex_assuming_inside_same_plane,

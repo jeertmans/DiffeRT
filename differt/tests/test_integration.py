@@ -175,9 +175,9 @@ def test_simple_street_canyon() -> None:
     max_depth = sionna_path_objects.shape[0]  # May differ from 'max_order'
 
     for order in range(max_depth + 1):
-        paths = differt_scene.compute_paths(
+        paths = differt_scene.trace_paths(
             order=order,
-            method="hybrid",
+            solver="hybrid",
         )
         select = (sionna_path_objects == -1).sum(axis=0) == (max_depth - order)
         vertices = sionna_path_vertices[:order, select, :]
