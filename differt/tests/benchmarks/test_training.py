@@ -10,7 +10,8 @@ from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
 
-from differt.scene._triangle_scene import TriangleScene
+from differt.geometry import TracedPaths
+from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
 
 
@@ -95,7 +96,8 @@ class LOSModel(eqx.Module):
 
 @eqx.filter_jit(donate="all-except-first")
 def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
-    paths = scene.compute_paths(order=0)
+    paths = scene.trace_paths(order=0, solver="exhaustive")
+    assert isinstance(paths, TracedPaths)
     f = model
 
     for _ in range(paths.vertices.ndim - 2):

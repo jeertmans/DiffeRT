@@ -8,10 +8,16 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import pytest
-from jaxtyping import Array, Bool, PRNGKeyArray
+from jaxtyping import PRNGKeyArray
 
 from differt.geometry import TriangleMesh, path_length
-from differt.geometry._paths import Paths, SBRPaths, merge_cell_ids
+from differt.geometry._paths import (
+    LaunchedPaths,
+    Paths,
+    SBRPaths,
+    TracedPaths,
+    merge_cell_ids,
+)
 from differt.scene import TriangleScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -30,25 +36,88 @@ def test_merge_cell_ids() -> None:
     chex.assert_trees_all_equal(got, expected)
 
 
+def test_aliases() -> None:
+    assert issubclass(Paths, TracedPaths)
+    assert issubclass(SBRPaths, LaunchedPaths)
+
+    with pytest.deprecated_call():
+        _ = Paths(
+            jnp.empty((1, 2, 3)),
+            jnp.empty((1, 2), dtype=int),
+            jnp.empty(1, dtype=bool),
+            jnp.empty((1, 0), dtype=jnp.int32),
+        )
+
+    with pytest.deprecated_call():
+        _ = SBRPaths(
+            jnp.empty((1, 2, 3)),
+            jnp.empty((1, 2), dtype=int),
+            masks=jnp.empty((1, 1), dtype=bool),
+            interaction_types=jnp.empty((1, 0), dtype=jnp.int32),
+        )
+
+    def test_get_paths() -> None:
+        paths = LaunchedPaths(
+            vertices=jnp.empty((1, 4, 3)),
+            objects=jnp.empty((1, 4), dtype=int),
+            masks=jnp.empty((1, 3), dtype=bool),
+            interaction_types=jnp.empty((1, 2), dtype=jnp.int32),
+        )
+
+        got = paths.get_paths(1)
+        assert isinstance(got, TracedPaths)
+
+        with pytest.raises(ValueError, match="strictly between 0 and 2"):
+            paths.get_paths(3)
+        with pytest.raises(ValueError, match="strictly between 0 and 2"):
+            paths.get_paths(-1)
+
+    def test_squeeze() -> None:
+        paths = LaunchedPaths(
+            vertices=jnp.empty((1, 3, 3)),
+            objects=jnp.empty((1, 3), dtype=int),
+            masks=jnp.empty((1, 2), dtype=bool),
+            interaction_types=jnp.empty((1, 1), dtype=jnp.int32),
+        )
+
+        squeezed = paths.squeeze(0)
+        assert squeezed.shape == ()
+
+        with pytest.raises(ValueError, match="out-of-bounds"):
+            paths.squeeze(1)
+
+        paths_0d = LaunchedPaths(
+            vertices=jnp.empty((3, 3)),
+            objects=jnp.empty((3,), dtype=int),
+            masks=jnp.empty((2,), dtype=bool),
+            interaction_types=jnp.empty((1,), dtype=jnp.int32),
+        )
+        with pytest.raises(ValueError, match="Cannot squeeze a 0-dimensional batch!"):
+            paths_0d.squeeze()
+
+
 def random_paths(
     path_length: int, *batch: int, num_objects: int, with_mask: bool, key: PRNGKeyArray
-) -> Paths[Bool[Array, "*batch"] | None]:
+) -> TracedPaths:
     if with_mask:
-        key_vertices, key_objects, key_mask = jax.random.split(key, 3)
+        key_vertices, key_objects, key_mask, key_interactions = jax.random.split(key, 4)
         mask = jax.random.uniform(key_mask, batch) > 0.5
     else:
-        key_vertices, key_objects = jax.random.split(key, 2)
-        mask = None
+        key_vertices, key_objects, key_interactions = jax.random.split(key, 3)
+        mask = jnp.ones(batch, dtype=bool)
 
     vertices = jax.random.uniform(key_vertices, (*batch, path_length, 3))
     objects = jax.random.randint(
         key_objects, (*batch, path_length), minval=0, maxval=num_objects
     )
+    interaction_types = jax.random.randint(
+        key_interactions, (*batch, path_length - 2), minval=0, maxval=2
+    ).astype(jnp.int32)
 
-    return Paths(vertices, objects, mask)
+    return TracedPaths(vertices, objects, mask, interaction_types)
 
 
-class TestPaths:
+class TestTracedPaths:
     def test_init(self, key: PRNGKeyArray) -> None:
         path_length = 6
         batch = (13, 7)
@@ -65,7 +134,27 @@ class TestPaths:
         )
         assert paths.shape == batch
 
-        assert paths.mask is None
+        assert paths.mask is not None
+
+    @pytest.mark.parametrize("with_mask", [False, True])
+    def test_float_mask_properties(self, key: PRNGKeyArray, with_mask: bool) -> None:
+        path_length = 6
+        batch = (5, 4)
+        paths = random_paths(
+            path_length, *batch, num_objects=6, with_mask=with_mask, key=key
+        )
+
+        # Override mask with float to test the threshold branches
+        key_mask = jax.random.split(key, 1)[0]
+        float_mask = jax.random.uniform(key_mask, batch)
+
+        float_paths = eqx.tree_at(lambda p: p.mask, paths, float_mask)
+
+        _ = float_paths.masked_vertices
+        _ = float_paths.masked_objects
+        _ = float_paths.masked()
+        _ = float_paths.multipath_cells()
+        _ = float_paths.reduce(lambda x: jnp.sum(x, axis=(-1, -2)), axis=-1)
 
     @pytest.mark.parametrize("with_mask", [False, True])
     @pytest.mark.parametrize(
@@ -134,7 +223,7 @@ class TestPaths:
             mesh=mesh,
         )
 
-        paths = scene.compute_paths(path_candidates=path_candidates)
+        paths = scene.trace_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
         mask = paths.mask
@@ -144,7 +233,7 @@ class TestPaths:
 
         chex.assert_trees_all_equal(got.num_valid_paths, 3)
 
-        paths = eqx.tree_at(lambda p: p.mask, paths, None)
+        paths = eqx.tree_at(lambda p: p.mask, paths, jnp.ones_like(paths.mask))
 
         got = paths.mask_duplicate_objects()
 
@@ -153,8 +242,7 @@ class TestPaths:
         paths = eqx.tree_at(
             lambda p: p.mask,
             paths,
-            jnp.ones_like(mask, dtype=float),
-            is_leaf=lambda x: x is None,
+            jnp.ones_like(mask, dtype=bool),
         )
 
         got = paths.mask_duplicate_objects()
@@ -173,7 +261,7 @@ class TestPaths:
 
         batch_size = scene.num_transmitters * scene.num_receivers
 
-        paths = scene.compute_paths(path_candidates=path_candidates)
+        paths = scene.trace_paths(path_candidates=path_candidates)
 
         assert paths.mask is not None
         mask = paths.mask
@@ -184,18 +272,17 @@ class TestPaths:
 
         chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
         chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
-
-        paths = eqx.tree_at(lambda p: p.mask, paths, None)
-
-        got = paths.mask_duplicate_objects()
-
-        chex.assert_shape(got.mask, (1, 2, 3, 4, path_candidates.shape[0]))
         chex.assert_trees_all_equal(got.num_valid_paths, 3 * batch_size)
 
         paths = eqx.tree_at(
-            lambda p: (p.vertices, p.objects),
+            lambda p: (p.vertices, p.objects, p.mask, p.interaction_types),
             paths,
-            (jnp.swapaxes(paths.vertices, 0, -3), jnp.swapaxes(paths.objects, 0, -2)),
+            (
+                jnp.swapaxes(paths.vertices, 0, -3),
+                jnp.swapaxes(paths.objects, 0, -2),
+                jnp.swapaxes(paths.mask, 0, -1),
+                jnp.swapaxes(paths.interaction_types, 0, -2),
+            ),
         )
 
         got = paths.mask_duplicate_objects(axis=0)
@@ -229,6 +316,8 @@ class TestPaths:
         paths = random_paths(
             path_length, *batch, num_objects=num_objects, with_mask=with_mask, key=key
         )
+        if with_mask:
+            paths = eqx.tree_at(lambda p: p.mask, paths, paths.mask.astype(jnp.float32))
         assert paths.shape == batch
         got = paths.masked_vertices
 
@@ -280,14 +369,6 @@ class TestPaths:
         assert at_least_one_test, "This test is useless, please remove."
 
     def test_multipath_cells(self, key: PRNGKeyArray) -> None:
-        with pytest.raises(
-            ValueError,
-            match=r"Cannot create multipath cells from non-existing mask!",
-        ):
-            _ = random_paths(
-                6, 3, 2, num_objects=20, with_mask=False, key=key
-            ).multipath_cells()
-
         paths = random_paths(3, 6, 2, num_objects=1, with_mask=True, key=key)
         paths = eqx.tree_at(
             lambda p: p.mask,
@@ -307,6 +388,29 @@ class TestPaths:
 
         chex.assert_trees_all_equal(got, expected)
 
+    def test_multipath_cells_float(self, key: PRNGKeyArray) -> None:
+        paths = random_paths(3, 6, 2, num_objects=1, with_mask=True, key=key)
+        paths = eqx.tree_at(
+            lambda p: p.mask,
+            paths,
+            jnp.array(
+                [
+                    [0.8, 0.2],
+                    [0.9, 0.7],
+                    [0.6, 0.1],
+                    [0.2, 0.3],
+                    [0.4, 0.8],
+                    [0.1, 0.0],
+                ],
+                dtype=jnp.float32,
+            ),
+        )
+
+        got = paths.multipath_cells()
+        expected = jnp.array([0, 1, 0, 3, 4, 3])
+
+        chex.assert_trees_all_equal(got, expected)
+
     def test_iter(self, key: PRNGKeyArray) -> None:
         paths = random_paths(6, 3, 2, num_objects=20, with_mask=True, key=key)
 
@@ -314,7 +418,7 @@ class TestPaths:
         for path in paths:
             got += 1
 
-            assert isinstance(path, Paths)
+            assert isinstance(path, TracedPaths)
             assert path.num_valid_paths == 1
 
         assert got == paths.num_valid_paths
@@ -352,7 +456,7 @@ class TestPaths:
         _ = paths.plot(backend=backend)
 
 
-class TestSBRPaths:
+class TestLaunchedPaths:
     def test_init(self, key: PRNGKeyArray) -> None:
         key_paths, key_masks = jax.random.split(key, 2)
 
@@ -364,30 +468,22 @@ class TestSBRPaths:
         )
         assert paths.shape == batch
 
-        assert paths.mask is not None
-        mask = paths.mask
-
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        launch_paths = LaunchedPaths(
+            paths.vertices,
+            paths.objects,
+            masks=masks,
+            interaction_types=paths.interaction_types,
+        )
 
-        assert sbr_paths.vertices.shape == (*batch, path_length, 3)
-        assert sbr_paths.objects.shape == (*batch, path_length)
-        assert sbr_paths.mask is not None
-        assert sbr_paths.mask.shape == batch
-        assert sbr_paths.masks.shape == (*batch, path_length - 1)
+        assert launch_paths.vertices.shape == (*batch, path_length, 3)
+        assert launch_paths.objects.shape == (*batch, path_length)
+        assert launch_paths.mask is not None
+        assert launch_paths.mask.shape == batch
+        assert launch_paths.masks.shape == (*batch, path_length - 1)
 
-        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
-
-        with pytest.warns(
-            UserWarning, match="Setting 'mask' argument is ignored for this class"
-        ):
-            sbr_paths = SBRPaths(paths.vertices, paths.objects, mask=mask, masks=masks)
-
-        with pytest.raises(AssertionError):  # Check that mask param is not used
-            chex.assert_trees_all_equal(sbr_paths.mask, mask)
-
-        chex.assert_trees_all_equal(sbr_paths.masks[..., -1], sbr_paths.mask)
+        chex.assert_trees_all_equal(launch_paths.masks[..., -1], launch_paths.mask)
 
     def test_get_paths(self, key: PRNGKeyArray) -> None:
         key_paths, key_masks = jax.random.split(key, 2)
@@ -402,19 +498,24 @@ class TestSBRPaths:
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
+        launch_paths = LaunchedPaths(
+            paths.vertices,
+            paths.objects,
+            masks=masks,
+            interaction_types=paths.interaction_types,
+        )
         del paths
 
         for i in range(path_length - 1):
-            paths = sbr_paths.get_paths(i)
-            chex.assert_trees_all_equal(paths.mask, sbr_paths.masks[..., i])
+            paths = launch_paths.get_paths(i)
+            chex.assert_trees_all_equal(paths.mask, launch_paths.masks[..., i])
 
         for i in [-1, path_length - 1]:
             with pytest.raises(
                 ValueError,
                 match=f"Paths order must be strictly between 0 and {path_length - 2}",
             ):
-                _ = sbr_paths.get_paths(i)
+                _ = launch_paths.get_paths(i)
 
     @pytest.mark.parametrize("backend", [plotly, matplotlib, vispy])
     def test_plot(self, backend: str, key: PRNGKeyArray) -> None:
@@ -433,5 +534,67 @@ class TestSBRPaths:
 
         masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
 
-        sbr_paths = SBRPaths(paths.vertices, paths.objects, masks=masks)
-        _ = sbr_paths.plot(backend=backend)
+        launch_paths = LaunchedPaths(
+            paths.vertices,
+            paths.objects,
+            masks=masks,
+            interaction_types=paths.interaction_types,
+        )
+        _ = launch_paths.plot(backend=backend)
+
+    def test_additional_methods(self, key: PRNGKeyArray) -> None:
+        key_paths, key_masks = jax.random.split(key, 2)
+
+        path_length = 4
+        batch = (2, 3)
+
+        paths = random_paths(
+            path_length, *batch, num_objects=10, with_mask=False, key=key_paths
+        )
+        masks = jax.random.uniform(key_masks, (*batch, path_length - 1)) > 0.5
+
+        launch_paths = LaunchedPaths(
+            paths.vertices,
+            paths.objects,
+            masks=masks,
+            interaction_types=paths.interaction_types,
+        )
+
+        # Test shape, path_length, order
+        assert launch_paths.shape == batch
+        assert launch_paths.path_length == path_length
+        assert launch_paths.order == path_length - 2
+
+        # Test reshape
+        reshaped = launch_paths.reshape(6)
+        assert reshaped.shape == (6,)
+        assert reshaped.vertices.shape == (6, path_length, 3)
+
+        # Test squeeze
+        squeezed_launch_paths = LaunchedPaths(
+            paths.vertices.reshape(2, 1, 3, path_length, 3),
+            paths.objects.reshape(2, 1, 3, path_length),
+            masks=masks.reshape(2, 1, 3, path_length - 1),
+            interaction_types=paths.interaction_types.reshape(2, 1, 3, path_length - 2),
+        )
+        squeezed = squeezed_launch_paths.squeeze(axis=1)
+        assert squeezed.shape == (2, 3)
+        squeezed2 = squeezed_launch_paths.squeeze(axis=(1,))
+        assert squeezed2.shape == (2, 3)
+        with pytest.raises(
+            ValueError, match="One of the provided axes is out-of-bounds!"
+        ):
+            squeezed_launch_paths.squeeze(axis=(1, 5))
+
+        # Test __iter__
+        got_iter = list(launch_paths)
+        assert len(got_iter) == launch_paths.masked().num_valid_paths
+
+        # Test masked, masked_vertices, masked_objects
+        masked_paths = launch_paths.masked()
+        assert isinstance(masked_paths, TracedPaths)
+        chex.assert_trees_all_equal(launch_paths.masked_vertices, masked_paths.vertices)
+        chex.assert_trees_all_equal(
+            launch_paths.masked_objects,
+            launch_paths.get_paths(launch_paths.order).masked_objects,
+        )

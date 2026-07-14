@@ -12,3 +12,4 @@ Guides
    notebooks/path_candidates
    notebooks/coherence
    notebooks/smoothing
+   path_tracing_vs_launching.md

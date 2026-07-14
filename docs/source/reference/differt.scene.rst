@@ -12,6 +12,19 @@
 
    TriangleScene
 
+.. rubric:: Path solvers
+
+.. autosummary::
+   :toctree: _autosummary
+
+   AbstractPathSolver
+   AbstractPathTracer
+   AbstractPathLauncher
+   ExhaustivePathTracer
+   HybridPathTracer
+   SBRPathLauncher
+
+
 .. rubric:: Reusing scenes from Sionna
 
 Provide a compatibility layer with Sionna's scenes :cite:`sionna`.

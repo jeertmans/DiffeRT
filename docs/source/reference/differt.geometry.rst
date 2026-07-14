@@ -12,6 +12,8 @@
 
    Paths
    SBRPaths
+   TracedPaths
+   LaunchedPaths
    TriangleMesh
 
 
