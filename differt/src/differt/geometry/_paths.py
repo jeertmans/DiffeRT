@@ -208,7 +208,7 @@ class TracedPaths(eqx.Module):
                 It defaults to the last axis, which is the axis where
                 different path candidates are stored when generating
                 paths with
-                :meth:`Scene.trace_paths<differt.scene.Scene.trace_paths>`.
+                :meth:`Scene.trace_paths<differt.geometry.Scene.trace_paths>`.
 
         Returns:
             A new paths instance with masked duplicate objects.
@@ -362,7 +362,7 @@ class TracedPaths(eqx.Module):
 
                 By default, the last axis is used to match the
                 ``num_path_candidates`` axis as returned by
-                :meth:`Scene.trace_paths<differt.scene.Scene.trace_paths>`.
+                :meth:`Scene.trace_paths<differt.geometry.Scene.trace_paths>`.
 
         Returns:
             The array of group indices.

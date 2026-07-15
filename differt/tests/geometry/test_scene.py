@@ -1,0 +1,1111 @@
+from collections.abc import Iterator
+from contextlib import AbstractContextManager
+from contextlib import nullcontext as does_not_raise
+from pathlib import Path
+from typing import Any, Literal, cast
+
+import chex
+import equinox as eqx
+import jax
+import jax.numpy as jnp
+import pytest
+from jaxtyping import Array, Int, PRNGKeyArray
+from pytest_subtests import SubTests
+
+from differt.geometry import (
+    AbstractPathLauncher,
+    AbstractPathTracer,
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    LaunchedPaths,
+    Mesh,
+    SBRPathLauncher,
+    TracedPaths,
+    assemble_path,
+    get_sionna_scene,
+    list_sionna_scenes,
+    normalize,
+    rotation_matrix_along_x_axis,
+)
+from differt.geometry._scene import Scene
+from differt_core.geometry import SionnaScene
+
+from ..plotting.params import matplotlib, plotly, vispy
+
+
+def test_triangle_scene_deprecated() -> None:
+    from differt.geometry import TriangleScene  # ruff:ignore[import-outside-top-level]
+
+    with pytest.warns(DeprecationWarning, match="TriangleScene is deprecated"):
+        _ = TriangleScene(transmitters=jnp.zeros((1, 3)), receivers=jnp.zeros((1, 3)))
+
+
+class TestScene:
+    def test_load_xml(self, sionna_folder: Path, subtests: SubTests) -> None:
+        # Sionne scenes are all triangle scenes
+        for scene_name in list_sionna_scenes(folder=sionna_folder):
+            with subtests.test(scene_name=scene_name):
+                file = get_sionna_scene(scene_name, folder=sionna_folder)
+                scene = Scene.load_xml(file)
+                sionna_scene = SionnaScene.load_xml(file)
+
+                assert scene.mesh.object_bounds is not None
+                assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
+
+    def test_from_sionna(self, sionna_folder: Path, subtests: SubTests) -> None:
+        sionna = pytest.importorskip("sionna", reason="sionna not installed")
+        for scene_name in list_sionna_scenes(folder=sionna_folder):
+            with subtests.test(scene_name=scene_name):
+                file = get_sionna_scene(scene_name, folder=sionna_folder)
+                sionna_scene = sionna.rt.load_scene(file)
+                differt_scene = Scene.from_sionna(sionna_scene)
+                assert differt_scene.mesh.num_triangles > 0
+                assert differt_scene.mesh.face_colors is not None
+                assert differt_scene.mesh.face_materials is not None
+
+    def test_rotate(
+        self, advanced_path_tracing_example_scene: Scene, key: PRNGKeyArray
+    ) -> None:
+        angle = jax.random.uniform(key, (), minval=0, maxval=2 * jnp.pi)
+
+        got = advanced_path_tracing_example_scene.rotate(
+            rotation_matrix_along_x_axis(angle)
+        ).rotate(rotation_matrix_along_x_axis(-angle))
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene, atol=1e-5)
+
+        got = advanced_path_tracing_example_scene.rotate(
+            rotation_matrix_along_x_axis(angle)
+        ).rotate(rotation_matrix_along_x_axis(2 * jnp.pi - angle))
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene, atol=1e-4)
+
+        got = advanced_path_tracing_example_scene.rotate(
+            rotation_matrix_along_x_axis(0.0)
+        )
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+    def test_scale(
+        self, advanced_path_tracing_example_scene: Scene, key: PRNGKeyArray
+    ) -> None:
+        scale_factor = jax.random.uniform(key, (), minval=1.5, maxval=2)
+
+        got = advanced_path_tracing_example_scene.scale(scale_factor).scale(
+            1 / scale_factor
+        )
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+        got = advanced_path_tracing_example_scene.scale(1.0)
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+    def test_translate(
+        self, advanced_path_tracing_example_scene: Scene, key: PRNGKeyArray
+    ) -> None:
+        translation = jax.random.normal(key, (3,))
+
+        got = advanced_path_tracing_example_scene.translate(translation).translate(
+            -translation
+        )
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+        got = advanced_path_tracing_example_scene.translate(jnp.zeros_like(translation))
+        chex.assert_trees_all_close(got, advanced_path_tracing_example_scene)
+
+    @pytest.mark.parametrize(
+        ("order", "expected_path_vertices", "expected_objects"),
+        [
+            (0, jnp.empty((1, 0, 3)), jnp.array([[0, 0]])),
+            (
+                1,
+                jnp.array([
+                    [[-0.06917738914489746, 14.946798324584961, 8.24851131439209]]
+                ]),
+                jnp.array([[0, 8, 0]]),
+            ),
+            (
+                2,
+                jnp.array([
+                    [
+                        [-0.125960111618042, 14.946202278137207, 13.787875175476074],
+                        [-0.04232808202505112, 5.0, 5.629261016845703],
+                    ]
+                ]),
+                jnp.array([[0, 9, 22, 0]]),
+            ),
+            (
+                3,
+                jnp.array([
+                    [
+                        [-0.17936798930168152, 14.945640563964844, 16.1051082611084],
+                        [-0.14879928529262543, 5.0, 10.249288558959961],
+                        [-0.11822860687971115, 14.946282386779785, 4.393090724945068],
+                    ]
+                ]),
+                jnp.array([[0, 9, 22, 8, 0]]),
+            ),
+            (
+                4,
+                jnp.array([
+                    [
+                        [-0.233406662940979, 14.945074081420898, 17.426870346069336],
+                        [-0.25651583075523376, 5.0, 12.884565353393555],
+                        [-0.2796238660812378, 14.944588661193848, 8.342482566833496],
+                        [-0.09397590905427933, 5.0, 3.799619674682617],
+                    ]
+                ]),
+                jnp.array([[0, 9, 23, 8, 22, 0]]),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "assume_quads",
+        [
+            pytest.param(False, id="no_assume_quads"),
+            pytest.param(True, id="assume_quads"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "mesh_mask",
+        [pytest.param(False, id="no_mesh_mask"), pytest.param(True, id="mesh_mask")],
+    )
+    @pytest.mark.parametrize(
+        "method",
+        ["exhaustive", "sbr", "hybrid"],
+    )
+    def test_compute_paths_on_advanced_path_tracing_example(
+        self,
+        order: int,
+        expected_path_vertices: Array,
+        expected_objects: Array,
+        assume_quads: bool,
+        mesh_mask: bool,
+        method: Literal["exhaustive", "sbr", "hybrid"],
+        advanced_path_tracing_example_scene: Scene,
+    ) -> None:
+        scene = advanced_path_tracing_example_scene.set_assume_quads(assume_quads)
+        expected_path_vertices = assemble_path(
+            scene.transmitters,
+            expected_path_vertices,
+            scene.receivers,
+        )
+
+        if assume_quads:
+            expected_objects -= expected_objects % 2
+
+        if mesh_mask:
+            scene = eqx.tree_at(
+                lambda s: s.mesh.mask,
+                scene,
+                jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
+
+        if method == "sbr":
+            got = scene.launch_paths(order, solver=SBRPathLauncher(max_dist=1e-1))
+        else:
+            got = scene.trace_paths(order, solver=method)
+        if method == "sbr":
+            assert isinstance(got, LaunchedPaths)
+            masked_vertices = got.masked_vertices
+            masked_objects = got.masked_objects
+            masked_objects -= masked_objects % 2
+            expected_objects -= expected_objects % 2
+            unique_objects = jnp.unique(masked_objects, axis=0)
+            vertices = jnp.empty_like(
+                masked_vertices,
+                shape=(unique_objects.shape[0], *masked_vertices.shape[1:]),
+            )
+            for i, path_candidate in enumerate(unique_objects):
+                vertices = vertices.at[i, ...].set(
+                    masked_vertices.mean(
+                        axis=0,
+                        where=(masked_objects == path_candidate).all(axis=-1)[
+                            ..., None, None
+                        ],
+                    )
+                )
+
+            got = TracedPaths(
+                vertices=vertices,
+                objects=unique_objects,
+                mask=jnp.ones(unique_objects.shape[0], dtype=bool),
+                interaction_types=jnp.zeros(
+                    (unique_objects.shape[0], order), dtype=jnp.int32
+                ),
+            )
+            rtol = 1.0  # TODO: see if we can improve acc.
+        else:
+            assert isinstance(got, TracedPaths)
+            rtol = 1e-6
+
+        chex.assert_trees_all_close(
+            got.masked_vertices, expected_path_vertices, rtol=rtol
+        )
+        chex.assert_trees_all_equal(got.masked_objects, expected_objects)
+
+        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
+
+        rays = jnp.diff(got.masked_vertices, axis=-2)
+
+        rays = normalize(rays)[0]
+
+        indicents = rays[..., :-1, :]
+        reflecteds = rays[..., +1:, :]
+
+        dot_incidents = jnp.sum(-indicents * normals, axis=-1)
+        dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
+
+        chex.assert_trees_all_close(dot_incidents, dot_reflecteds, rtol=rtol)
+
+    @pytest.mark.parametrize(
+        ("order", "expected_path_vertices", "expected_objects"),
+        [
+            (0, jnp.empty((1, 0, 3)), jnp.array([[0, 0]])),
+            (
+                1,
+                jnp.array([
+                    [[0.0, -8.613334655761719, 32.0]],
+                    [[0.0, 9.571563720703125, 32.0]],
+                    [[1.9073486328125e-06, 0.0, -0.030788421630859375]],
+                ]),
+                jnp.array([[0, 18, 0], [0, 38, 0], [0, 72, 0]]),
+            ),
+            (
+                2,
+                jnp.array([
+                    [
+                        [-11.579630851745605, -8.613335609436035, 32.0],
+                        [10.420369148254395, 9.571564674377441, 32.0],
+                    ],
+                    [
+                        [-10.420370101928711, 9.571562767028809, 32.0],
+                        [11.579629898071289, -8.613335609436035, 32.0],
+                    ],
+                ]),
+                jnp.array([[0, 19, 39, 0], [0, 38, 18, 0]]),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_on_simple_street_canyon(
+        self,
+        order: int,
+        expected_path_vertices: Array,
+        expected_objects: Array,
+        assume_quads: bool,
+        simple_street_canyon_scene: Scene,
+    ) -> None:
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
+        expected_path_vertices = assemble_path(
+            scene.transmitters,
+            expected_path_vertices,
+            scene.receivers,
+        )
+
+        if assume_quads:
+            expected_objects -= expected_objects % 2
+
+        got = scene.trace_paths(order)
+        if isinstance(got, Iterator):
+            got = next(got)
+        assert isinstance(got, TracedPaths)
+
+        chex.assert_trees_all_close(
+            got.masked_vertices, expected_path_vertices, atol=1e-5
+        )
+        chex.assert_trees_all_equal(got.masked_objects, expected_objects)
+
+        normals = jnp.take(scene.mesh.normals, got.masked_objects[..., 1:-1], axis=0)
+
+        rays = jnp.diff(got.masked_vertices, axis=-2)
+
+        rays = normalize(rays)[0]
+
+        indicents = rays[..., :-1, :]
+        reflecteds = rays[..., +1:, :]
+
+        dot_incidents = jnp.sum(-indicents * normals, axis=-1)
+        dot_reflecteds = jnp.sum(reflecteds * normals, axis=-1)
+
+        chex.assert_trees_all_close(dot_incidents, dot_reflecteds)
+
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_path_candidates_matches_exhaustive(
+        self, order: int, assume_quads: bool, simple_street_canyon_scene: Scene
+    ) -> None:
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
+        expected = scene.trace_paths(order=order)
+        if isinstance(expected, Iterator):
+            expected = next(expected)
+        assert isinstance(expected, TracedPaths)
+        path_candidates = expected.objects[:, 1:-1]
+        got = scene.trace_paths(path_candidates=path_candidates)
+        if isinstance(got, Iterator):
+            got = next(got)
+        assert isinstance(got, TracedPaths)
+        chex.assert_trees_all_equal(got.masked_vertices, expected.masked_vertices)
+
+        # Also check if passing a single path candidate works
+        path_candidates = expected.masked().objects[:, 1:-1]
+
+        for path_candidate in path_candidates:
+            got = scene.trace_paths(
+                path_candidates=path_candidate[None, :],
+            )
+            assert got.mask is not None
+            assert got.mask.size == 1
+            chex.assert_trees_all_equal(
+                got.mask.squeeze(),
+                True,
+                custom_message=f"Path candidate should be valid: {path_candidate}",
+            )
+
+    @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            "hybrid",
+        ],
+    )
+    @pytest.mark.parametrize("chunk_size", [None, 1000])
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    @pytest.mark.parametrize("mesh_mask", [False, True])
+    def test_compute_paths_with_smoothing(
+        self,
+        order: int | None,
+        method: Literal["exhaustive", "sbr", "hybrid"],
+        chunk_size: int | None,
+        assume_quads: bool,
+        mesh_mask: bool,
+        simple_street_canyon_scene: Scene,
+    ) -> None:
+        # TODO: fixme
+        scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
+
+        if mesh_mask:
+            scene = eqx.tree_at(
+                lambda s: s.mesh.mask,
+                scene,
+                jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
+                is_leaf=lambda x: x is None,
+            )
+
+        if method == "sbr":
+            expected = scene.launch_paths(order=order)
+        elif method == "hybrid":
+            expected = cast("Any", scene.trace_paths)(
+                order=order, solver=HybridPathTracer(chunk_size=chunk_size)
+            )
+        else:
+            expected = cast("Any", scene.trace_paths)(
+                order=order, solver=ExhaustivePathTracer(chunk_size=chunk_size)
+            )
+
+        if method == "hybrid":
+            expectation = pytest.warns(
+                UserWarning,
+                match="Argument 'smoothing' is currently ignored",
+            )
+        else:
+            expectation = does_not_raise()
+
+        with expectation:
+            if method == "sbr":
+                got = expected
+            elif method == "hybrid":
+                got = cast("Any", scene.trace_paths)(
+                    order=order,
+                    solver=HybridPathTracer(
+                        chunk_size=chunk_size, smoothing_factor=1000.0
+                    ),
+                )
+            else:
+                got = cast("Any", scene.trace_paths)(
+                    order=order,
+                    solver=ExhaustivePathTracer(
+                        chunk_size=chunk_size, smoothing_factor=1000.0
+                    ),
+                )
+
+        assert type(got) is type(expected)
+
+        if isinstance(got, Iterator):
+            for got_paths, expected_paths in zip(got, expected, strict=True):
+                chex.assert_trees_all_close(got_paths, expected_paths)
+        else:
+            chex.assert_trees_all_close(got, expected)
+
+    @pytest.mark.parametrize(
+        ("order", "chunk_size", "path_candidates", "method", "expectation"),
+        [
+            (0, None, None, "exhaustive", does_not_raise()),
+            (0, 1000, None, "exhaustive", does_not_raise()),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
+                does_not_raise(),
+            ),
+            (
+                0,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
+                pytest.raises(ValueError, match="You must specify one of"),
+            ),
+            (
+                None,
+                1000,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "exhaustive",
+                pytest.warns(UserWarning, match="Argument 'chunk_size' is ignored"),
+            ),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "sbr",
+                pytest.raises(ValueError, match="Argument 'order' is required"),
+            ),
+            (
+                None,
+                None,
+                jnp.empty((1, 0), dtype=jnp.int32),
+                "hybrid",
+                pytest.raises(ValueError, match="Argument 'order' is required"),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_on_empty_scene(
+        self,
+        order: int | None,
+        chunk_size: int | None,
+        path_candidates: Int[Array, "num_path_candidates order"] | None,
+        method: Literal["exhaustive", "sbr", "hybrid"],
+        expectation: AbstractContextManager[Exception],
+        assume_quads: bool,
+        key: PRNGKeyArray,
+    ) -> None:
+        # TODO: tests and fix issue in higher-order
+        key_tx, key_rx = jax.random.split(key, 2)
+
+        transmitters = jax.random.uniform(key_tx, (1, 3))
+
+        receivers = jax.random.uniform(key_rx, (1, 3))
+
+        scene = Scene(transmitters=transmitters, receivers=receivers).set_assume_quads(
+            assume_quads
+        )
+        expected_path_vertices = assemble_path(
+            transmitters[:, None, None, :],
+            receivers[None, :, None, :],
+        )
+
+        with expectation:
+            if method == "sbr":
+                solver = SBRPathLauncher()
+                got = scene.launch_paths(
+                    order=order,
+                    solver=solver,
+                )
+                paths = got
+                assert isinstance(paths, LaunchedPaths)
+            else:
+                solver_cls = (
+                    ExhaustivePathTracer if method == "exhaustive" else HybridPathTracer
+                )
+                solver = solver_cls(chunk_size=chunk_size)
+                got = cast("Any", scene.trace_paths)(
+                    order=cast("Any", order),
+                    solver=solver,
+                    path_candidates=cast("Any", path_candidates),
+                )
+                paths = next(got) if isinstance(got, Iterator) else got
+                assert isinstance(paths, TracedPaths)
+
+            chex.assert_trees_all_close(paths.vertices, expected_path_vertices)
+
+    @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
+    @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
+    def test_compute_paths_on_grid(
+        self,
+        m_tx: int,
+        n_tx: int | None,
+        m_rx: int,
+        n_rx: int | None,
+        advanced_path_tracing_example_scene: Scene,
+    ) -> None:
+        scene = advanced_path_tracing_example_scene
+        scene = scene.with_transmitters_grid(m_tx, n_tx)
+        scene = scene.with_receivers_grid(m_rx, n_rx)
+
+        paths = cast("TracedPaths", scene.trace_paths(order=1))
+
+        if n_tx is None:
+            n_tx = m_tx
+        if n_rx is None:
+            n_rx = m_rx
+
+        num_path_candidates = scene.mesh.triangles.shape[0]
+
+        chex.assert_shape(
+            paths.vertices,
+            (n_tx, m_tx, n_rx, m_rx, num_path_candidates, 3, 3),
+        )
+
+    @pytest.mark.parametrize("backend", [vispy, matplotlib, plotly])
+    def test_plot(
+        self,
+        backend: str,
+        sionna_folder: Path,
+    ) -> None:
+        file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
+        scene = Scene.load_xml(file)
+
+        tx = jnp.array([[0.0, 0.0, 0.0]])
+        rx = jnp.array([[1.0, 1.0, 1.0]])
+
+        scene = eqx.tree_at(lambda s: s.transmitters, scene, tx)
+        scene = eqx.tree_at(lambda s: s.receivers, scene, rx)
+
+        if backend == "matplotlib":
+            # TODO: remove me when draw_markers is implemented
+            scene.mesh.plot(backend=backend)
+        else:
+            scene.plot(backend=backend)
+
+    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "exhaustive",
+            "sbr",
+            "hybrid",
+        ],
+    )
+    def test_compute_paths_with_mesh_mask_matches_sub_mesh_without_mask(
+        self,
+        order: int,
+        method: Literal["exhaustive", "sbr", "hybrid"],
+    ) -> None:
+        # This test checks that the mask is correctly applied to the mesh
+        # and that the path obtained with the mask is the same as the one obtained
+        # on the 'subset' of the mesh.
+        outer_mesh = Mesh.box(10.0, 10.0, 10.0)
+        inner_mesh = Mesh.box(4.0, 4.0, 4.0)
+        mesh = outer_mesh + inner_mesh
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),  # Select outer mesh
+            jnp.zeros(
+                (inner_mesh.num_triangles,), dtype=bool
+            ),  # Do not select inner mesh
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+        tx = jnp.array([[-5.0, 0.0, 0.0]])
+        rx = jnp.array([[+5.0, 0.0, 0.0]])
+        if method == "sbr":
+            got = (
+                Scene(
+                    transmitters=tx,
+                    receivers=rx,
+                    mesh=mesh,
+                )
+                .launch_paths(order, solver="sbr")
+                .masked()
+            )
+            expected = (
+                Scene(
+                    transmitters=tx,
+                    receivers=rx,
+                    mesh=outer_mesh,
+                )
+                .launch_paths(order, solver="sbr")
+                .masked()
+            )
+        else:
+            got_paths = Scene(
+                transmitters=tx,
+                receivers=rx,
+                mesh=mesh,
+            ).trace_paths(order, solver=method)
+            got = cast("TracedPaths", got_paths).masked()
+            expected_paths = Scene(
+                transmitters=tx,
+                receivers=rx,
+                mesh=outer_mesh,
+            ).trace_paths(order, solver=method)
+            expected = cast("TracedPaths", expected_paths).masked()
+
+        chex.assert_trees_all_equal(got, expected)
+
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_no_path_candidate(
+        self,
+        assume_quads: bool,
+    ) -> None:
+        mesh = Mesh.box(6.0, 6.0, 6.0)
+
+        mask = jnp.zeros((mesh.num_triangles,), dtype=bool)
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = Scene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        paths = cast(
+            "TracedPaths",
+            scene.trace_paths(
+                order=1,
+                solver=ExhaustivePathTracer(disconnect_inactive_triangles=True),
+            ),
+        )
+
+        assert paths.vertices.shape[0] == 0, (
+            "No active triangles should lead to no path candidates."
+        )
+
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_with_disconnect_inactive_triangles(
+        self,
+        assume_quads: bool,
+    ) -> None:
+        # Create a scene with a masked mesh
+        outer_mesh = Mesh.box(6.0, 6.0, 6.0)
+        inner_mesh = Mesh.box(1.0, 1.0, 1.0)
+        mesh = outer_mesh + inner_mesh
+
+        # Mask to keep only the outer mesh (disconnect inner mesh)
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),
+            jnp.zeros((inner_mesh.num_triangles,), dtype=bool),
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = Scene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        # Compute paths with and without disconnecting inactive triangles
+        paths = cast(
+            "TracedPaths",
+            scene.trace_paths(
+                order=1,
+                solver=ExhaustivePathTracer(disconnect_inactive_triangles=False),
+            ),
+        )
+        paths_disc = cast(
+            "TracedPaths",
+            scene.trace_paths(
+                order=1,
+                solver=ExhaustivePathTracer(disconnect_inactive_triangles=True),
+            ),
+        )
+
+        assert paths.vertices.shape[0] > paths_disc.vertices.shape[0], (
+            "Disconnecting inactive triangles should reduce the number of path candidates."
+        )
+
+    @pytest.mark.parametrize("assume_quads", [False, True])
+    def test_compute_paths_hybrid_always_disconnects(
+        self,
+        assume_quads: bool,
+    ) -> None:
+        # Hybrid mode is equivalent to exhaustive tracing with inactive triangles
+        # disconnected.
+        outer_mesh = Mesh.box(6.0, 6.0, 6.0)
+        inner_mesh = Mesh.box(1.0, 1.0, 1.0)
+        mesh = outer_mesh + inner_mesh
+
+        # Mask to keep only the outer mesh
+        mask = jnp.concatenate((
+            jnp.ones((outer_mesh.num_triangles,), dtype=bool),
+            jnp.zeros((inner_mesh.num_triangles,), dtype=bool),
+        ))
+        mesh = eqx.tree_at(lambda m: m.mask, mesh, mask, is_leaf=lambda x: x is None)
+
+        tx = jnp.array([-1.5, 0.0, 0.0])
+        rx = jnp.array([+1.5, 0.0, 0.0])
+
+        scene = Scene(
+            transmitters=tx,
+            receivers=rx,
+            mesh=mesh,
+        ).set_assume_quads(assume_quads)
+
+        paths_hybrid = scene.trace_paths(order=1, solver="hybrid")
+        paths_exhaustive = scene.trace_paths(
+            order=1,
+            solver=ExhaustivePathTracer(disconnect_inactive_triangles=True),
+        )
+
+        chex.assert_trees_all_equal(paths_hybrid, paths_exhaustive)
+
+    def test_compute_tx_mlm(self) -> None:
+        # Define a simple box mesh: 8 vertices, 12 triangles
+        vertices = jnp.array(
+            [
+                [-1.0, -1.0, -1.0],
+                [1.0, -1.0, -1.0],
+                [1.0, 1.0, -1.0],
+                [-1.0, 1.0, -1.0],
+                [-1.0, -1.0, 1.0],
+                [1.0, -1.0, 1.0],
+                [1.0, 1.0, 1.0],
+                [-1.0, 1.0, 1.0],
+            ],
+            dtype=jnp.float32,
+        )
+        triangles = jnp.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],  # Bottom
+                [4, 5, 6],
+                [4, 6, 7],  # Top
+                [0, 1, 5],
+                [0, 5, 4],  # Front
+                [1, 2, 6],
+                [1, 6, 5],  # Right
+                [2, 3, 7],
+                [2, 7, 6],  # Back
+                [3, 0, 4],
+                [3, 4, 7],  # Left
+            ],
+            dtype=jnp.int32,
+        )
+        mesh = Mesh(vertices=vertices, triangles=triangles)
+
+        tx = jnp.array([0.0, 0.0, 5.0], dtype=jnp.float32)
+
+        scene = Scene(transmitters=tx, receivers=jnp.empty((0, 3)), mesh=mesh)
+        scene = scene.with_receivers_grid(m=10, n=10, height=1.5)
+
+        # Test shape and types of base case
+        mlm = scene.compute_tx_mlm(max_order=1, dim_x=10, dim_y=10, num_rays=500)
+        assert mlm.shape == (10, 10)
+        assert mlm.dtype == jnp.uint32
+
+        # Test custom height
+        mlm_custom_height = scene.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500, height=2.0
+        )
+        assert mlm_custom_height.shape == (10, 10)
+        assert mlm_custom_height.dtype == jnp.uint32
+
+        # Test min_order
+        mlm_min_order = scene.compute_tx_mlm(
+            max_order=1, min_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_min_order.shape == (10, 10)
+        assert mlm_min_order.dtype == jnp.uint32
+
+        # Test min_order > max_order results in all zeros
+        mlm_empty = scene.compute_tx_mlm(
+            max_order=1, min_order=2, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_empty.shape == (10, 10)
+        assert jnp.all(mlm_empty == 0)
+
+        # Test assume_quads
+        scene_quads = scene.set_assume_quads(True)
+        mlm_quads = scene_quads.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_quads.shape == (10, 10)
+        assert mlm_quads.dtype == jnp.uint32
+
+        # Test coverage:
+        # A receiver plane completely above the box (height = 1.5) should have direct
+        # line of sight (order 0) covered for some regions (especially corners).
+        mlm_above = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.any(mlm_above > 0), (
+            "Some cells above the box should have direct line of sight (order 0)"
+        )
+        assert mlm_above[0, 0] > 0, "Corners should be covered"
+        assert mlm_above[4, 4] > 0, "Corners should be covered"
+
+        # A receiver plane completely inside the box (height = 0.0) should have NO cells covered
+        # for any order because the box walls are closed and the transmitter is outside.
+        mlm_inside = scene.compute_tx_mlm(
+            max_order=2, dim_x=5, dim_y=5, num_rays=1000, height=0.0
+        )
+        assert jnp.all(mlm_inside == 0), (
+            "Cells inside a closed box should have no coverage"
+        )
+
+        # A receiver plane below the box (height = -2.0) should have:
+        # - Shadow region underneath the box (x in [-1, 1], y in [-1, 1]) is not covered by order 0
+        # since tx is at [0, 0, 5] and box blocks it.
+        mlm_below_shadow = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=1000, height=-2.0
+        )
+        assert jnp.all(mlm_below_shadow == 0), (
+            "Cells directly below the box should be in the shadow for order 0"
+        )
+
+        # Test vectorization over multiple transmitters
+        # 1D batch of transmitters: shape (2, 3)
+        tx_multi = jnp.array([[0.0, 0.0, 5.0], [0.0, 0.0, 6.0]], dtype=jnp.float32)
+        scene_multi = Scene(
+            transmitters=tx_multi, receivers=jnp.empty((0, 3)), mesh=mesh
+        )
+        mlm_multi = scene_multi.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_multi.shape == (2, 10, 10)
+        assert mlm_multi.dtype == jnp.uint32
+
+        # 2D batch of transmitters: shape (2, 3, 3)
+        tx_multi_2d = jnp.array(
+            [
+                [[0.0, 0.0, 5.0], [0.0, 0.0, 6.0], [0.0, 0.0, 7.0]],
+                [[0.0, 0.0, 5.0], [0.0, 0.0, 6.0], [0.0, 0.0, 7.0]],
+            ],
+            dtype=jnp.float32,
+        )
+        scene_multi_2d = Scene(
+            transmitters=tx_multi_2d, receivers=jnp.empty((0, 3)), mesh=mesh
+        )
+        mlm_multi_2d = scene_multi_2d.compute_tx_mlm(
+            max_order=1, dim_x=10, dim_y=10, num_rays=500
+        )
+        assert mlm_multi_2d.shape == (2, 3, 10, 10)
+        assert mlm_multi_2d.dtype == jnp.uint32
+
+    def test_compute_tx_mlm_with_masked_mesh(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        # Load the simple street canyon scene and set a valid transmitter
+        scene = simple_street_canyon_scene
+        # Mask out all buildings, leaving only the ground floor (last two triangles: 72 and 73)
+        mask = jnp.zeros((scene.mesh.num_triangles,), dtype=bool).at[72:74].set(True)
+        masked_mesh = eqx.tree_at(
+            lambda m: m.mask, scene.mesh, mask, is_leaf=lambda x: x is None
+        )
+        scene = eqx.tree_at(lambda s: s.mesh, scene, masked_mesh)
+
+        # 1. At max_order = 0, MLM has the same value everywhere (direct path hash 2166136261)
+        mlm_0 = scene.compute_tx_mlm(
+            max_order=0, min_order=0, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.all(mlm_0 == jnp.uint32(2166136261))
+
+        # 2. If min_order > 1 (e.g. 2), then we get the default hash value (0) everywhere,
+        # since at most 1 bounce (off the ground) can occur.
+        mlm_min_order_2 = scene.compute_tx_mlm(
+            max_order=2, min_order=2, dim_x=5, dim_y=5, num_rays=50000, height=1.5
+        )
+        assert jnp.all(mlm_min_order_2 == jnp.uint32(0))
+
+    def test_trace_paths_and_launch_paths_kwargs(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        scene = simple_street_canyon_scene
+        # 1. trace_paths with chunk_size in kwargs (exhaustive, default)
+        got1 = scene.trace_paths(order=1, chunk_size=10)
+        assert isinstance(got1, Iterator)
+        # 2. trace_paths with hybrid solver and chunk_size in kwargs
+        got2 = scene.trace_paths(order=1, solver="hybrid", chunk_size=10)
+        assert isinstance(got2, Iterator)
+        # 3. launch_paths with num_rays in kwargs
+        got3 = scene.launch_paths(order=1, num_rays=500)
+        assert isinstance(got3, LaunchedPaths)
+        # 4. Should raise ValueError if kwargs are provided with a solver instance
+        with pytest.raises(ValueError, match="solver_kwargs cannot be used"):
+            scene.trace_paths(order=1, solver=ExhaustivePathTracer(), chunk_size=10)  # type: ignore[ty:no-matching-overload]
+
+    def test_compute_paths_deprecation_warning(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        scene = simple_street_canyon_scene
+        with pytest.warns(DeprecationWarning, match="compute_paths is deprecated"):
+            scene.compute_paths(order=1)
+
+    def test_solvers_coverage(self, simple_street_canyon_scene: Scene) -> None:
+
+        class DummyTracer(AbstractPathTracer):
+            epsilon: float = 0.0
+            hit_tol: float = 0.0
+
+            def generate_path_candidates(
+                self,
+                scene: Any,
+                order: Any,
+                specular_reflection: Any = True,
+                diffuse_scattering: Any = False,
+            ) -> Any:
+                _ = (scene, order, specular_reflection, diffuse_scattering)
+                return jnp.ones((5, 1), dtype=int), jnp.zeros((5, 1), dtype=int)
+
+            def trace_path_candidates(
+                self, scene: Any, path_candidates: Any, interaction_types: Any
+            ) -> Any:
+                _ = (scene, path_candidates, interaction_types)
+                return TracedPaths(
+                    vertices=jnp.empty((1, 3, 3)),
+                    objects=jnp.empty((1, 3), dtype=int),
+                    interaction_types=jnp.empty((1, 1), dtype=int),
+                    mask=jnp.empty(1, dtype=bool),
+                )
+
+        tracer = DummyTracer()
+        chunks_padded = list(
+            tracer.generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=2, pad_chunks=True
+            )
+        )
+        assert len(chunks_padded) == 3
+
+        chunks_unpadded = list(
+            tracer.generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=2, pad_chunks=False
+            )
+        )
+        assert len(chunks_unpadded) == 3
+
+        _ = list(
+            tracer.trace_paths(
+                simple_street_canyon_scene, order=1, chunk_size=2, pad_chunks=True
+            )
+        )
+
+        _ = tracer.trace_paths(simple_street_canyon_scene, order=1)
+
+        class DummyLauncher(AbstractPathLauncher):
+            epsilon: float = 0.0
+            hit_tol: float = 0.0
+            max_dist: float = 1.0
+
+            def launch_rays(self, scene: Any) -> Any:
+                num_tx = scene.transmitters.reshape(-1, 3).shape[0]
+                num_rays = 10
+                origins = jnp.zeros((num_tx, num_rays, 3))
+                dirs = jnp.zeros((num_tx, num_rays, 3))
+                return origins, dirs
+
+        launcher = DummyLauncher()
+        _ = launcher.launch_paths(simple_street_canyon_scene, order=1)
+
+        # Test NotImplementedError for multiple orders
+        with pytest.raises(NotImplementedError):
+            ExhaustivePathTracer().generate_path_candidates(
+                simple_street_canyon_scene, order=[1, 2]
+            )
+
+        with pytest.raises(NotImplementedError):
+            HybridPathTracer(chunk_size=10).generate_path_candidates(
+                simple_street_canyon_scene, order=[1, 2]
+            )
+
+        with pytest.raises(NotImplementedError):
+            HybridPathTracer(chunk_size=10).generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=[1, 2]
+            )
+
+        # Test generate_path_candidates_chunks_iter with chunk_size=None
+        _ = list(
+            ExhaustivePathTracer().generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=None
+            )
+        )
+
+        _ = list(
+            HybridPathTracer(chunk_size=None).generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=None
+            )
+        )
+
+    def test_compute_paths_delegation_and_errors(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        scene = simple_street_canyon_scene
+
+        path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
+
+        with pytest.deprecated_call():
+            with pytest.raises(ValueError, match="order' is required"):
+                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
+                    order=None,
+                    path_candidates=path_candidates,
+                    method="sbr",
+                )
+
+        with pytest.deprecated_call():
+            with pytest.raises(ValueError, match="order' is required"):
+                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
+                    order=None,
+                    path_candidates=path_candidates,
+                    method="hybrid",
+                )
+
+        with pytest.deprecated_call():
+            got_sbr = scene.compute_paths(order=1, method="sbr", num_rays=500)
+            assert isinstance(got_sbr, LaunchedPaths)
+
+        with pytest.deprecated_call():
+            got_hybrid = scene.compute_paths(order=1, method="hybrid", num_rays=500)
+            assert isinstance(got_hybrid, TracedPaths)
+
+    @pytest.mark.require_no_typechecker
+    def test_trace_paths_and_launch_paths_errors_and_warnings(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        scene = simple_street_canyon_scene
+
+        # trace_paths unknown solver
+        with pytest.raises(ValueError, match="Unknown solver"):
+            scene.trace_paths(order=1, solver="invalid")  # type: ignore[ty:no-matching-overload]
+        # launch_paths unknown solver
+        with pytest.raises(ValueError, match="Unknown solver"):
+            scene.launch_paths(order=1, solver="invalid")  # type: ignore[ty:no-matching-overload]
+        # trace_paths with HybridPathTracer and smoothing_factor warning
+        with pytest.warns(UserWarning, match="smoothing' is currently ignored"):
+            scene.trace_paths(order=1, solver=HybridPathTracer(smoothing_factor=0.1))
+
+        # trace_paths with path_candidates and chunk_size warning
+        path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
+        with pytest.warns(UserWarning, match="chunk_size' is ignored"):
+            scene.trace_paths(
+                path_candidates=path_candidates,
+                solver=ExhaustivePathTracer(chunk_size=10),
+            )
+
+        # launch_paths with order is None
+        with pytest.raises(ValueError, match="order' is required"):
+            scene.launch_paths(order=None)
+
+        # compute_paths deprecation and error handling
+        with pytest.raises(ValueError, match="You must specify one of"):
+            scene.compute_paths(order=None, path_candidates=None)
+
+    def test_compute_tx_mlm_height_from_receivers(self) -> None:
+        mesh = Mesh.box()
+        tx = jnp.array([[0.0, 0.0, 5.0]], dtype=jnp.float32)
+        rx = jnp.array([[0.0, 0.0, 2.5]], dtype=jnp.float32)
+        scene = Scene(transmitters=tx, receivers=rx, mesh=mesh)
+        mlm = scene.compute_tx_mlm(max_order=1, dim_x=5, dim_y=5, num_rays=500)
+        assert mlm.shape == (1, 5, 5)
+
+    @pytest.mark.filterwarnings(
+        "ignore:Matplotlib does not currently support adding labels to markers"
+    )
+    @pytest.mark.parametrize("backend", ["plotly", "matplotlib", "vispy"])
+    def test_scene_plot(self, backend: str, simple_street_canyon_scene: Scene) -> None:
+        pytest.importorskip(backend)
+        scene = simple_street_canyon_scene
+        _ = scene.plot(backend=backend)

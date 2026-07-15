@@ -43,21 +43,21 @@ jobs:
       id: cache-scenes
       uses: actions/cache@v6
       with:
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
         key: ${{ steps.cache-key.outputs.result }}-scenes
 
     - name: Download Sionna scenes
       if: steps.cache-scenes.outputs.cache-hit != 'true'
-      run: uv run differt/src/differt/scene/_sionna.py
+      run: uv run differt/src/differt/geometry/_sionna.py
 
     - name: List scenes
-      run: tree -L 2 differt/src/differt/scene/scenes
+      run: tree -L 2 differt/src/differt/geometry/scenes
 
     - name: Upload scenes
       uses: actions/upload-artifact@v7
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
   pytest:
     strategy:
@@ -119,7 +119,7 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Run tests
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }} --durations=10
@@ -211,7 +211,7 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Run CodSpeed benchmarks
       uses: CodSpeedHQ/action@v4
@@ -253,7 +253,7 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v7

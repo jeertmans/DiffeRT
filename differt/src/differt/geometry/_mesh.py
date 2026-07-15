@@ -85,7 +85,7 @@ def triangle_contains_vertex_assuming_inside_same_plane(
     Return whether the triangle contains the corresponding vertex, assuming the vertex lies in the same plane as the triangle.
 
     This is especially useful when combined with the
-    :func:`image_method<differt.rt.image_method>`, as the path returned
+    :func:`image_method<differt.geometry.image_method>`, as the path returned
     will also lie in the same plane as the mirror, but may be outside of the actual reflector,
     e.g., a triangular surface.
 
@@ -518,7 +518,7 @@ def _triangles_visible_from_vertex_func(
         _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
 
     epsilon = 1e-5
-    output_visible.fill_(False)  # noqa: FBT003
+    output_visible.fill_(False)  # ruff:ignore[boolean-positional-value-in-call]
 
     wp.launch(
         _triangles_visible_from_vertex_kernel,
@@ -835,7 +835,8 @@ class Mesh(eqx.Module):
     face_colors: Float[Array, "num_triangles 3"] | None = eqx.field(default=None)
     """The array of face colors.
 
-    The array contains the face colors, as RGB triplets,
+    The array contains the face colors, as RGB triplets (with values in range
+    ``[0.0, 1.0]`` for normalized float colors or ``[0, 255]`` for 8-bit integer colors),
     with a black color used as defaults (if some faces have a color).
     This attribute is :data:`None` if all face colors are unset.
     """
@@ -893,7 +894,7 @@ class Mesh(eqx.Module):
         that form the quad are active.
     """
 
-    def __check_init__(self) -> None:  # noqa: PLW3201
+    def __check_init__(self) -> None:  # ruff:ignore[bad-dunder-method-name]
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
             raise ValueError(msg)
@@ -1488,7 +1489,7 @@ class Mesh(eqx.Module):
         def at(self) -> _MeshVerticesUpdateHelper[Self]: ...
 
     @property
-    def at(self):  # noqa: ANN202
+    def at(self):  # ruff:ignore[missing-return-type-private-function]
         """
         Helper property for updating or indexing a subset of triangle vertices.
 
@@ -2000,7 +2001,9 @@ class Mesh(eqx.Module):
         Return a new instance of this mesh, with new face colors.
 
         Args:
-            colors: The array of RGB colors.
+            colors: The array of RGB colors. Colors can be specified either as floats
+                in range ``[0.0, 1.0]`` (normalized RGB) or as integers in range
+                ``[0, 255]`` (8-bit RGB).
                 If one color is provided, it will be applied to all triangles.
 
                 This or ``key`` must be specified.
@@ -2027,7 +2030,7 @@ class Mesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     Scene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -2945,7 +2948,7 @@ class Mesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     Scene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -3032,7 +3035,7 @@ class Mesh(eqx.Module):
             .. plotly::
                 :context: reset
 
-                >>> from differt.scene import (
+                >>> from differt.geometry import (
                 ...     Scene,
                 ...     download_sionna_scenes,
                 ...     get_sionna_scene,
@@ -3230,7 +3233,7 @@ class Mesh(eqx.Module):
         """
         Return whether rays intersect any triangle in the mesh.
 
-        Unlike :func:`differt.rt.ray_intersect_any_triangle`, this method is optimized for :class:`Mesh`
+        Unlike :func:`differt.geometry.ray_intersect_any_triangle`, this method is optimized for :class:`Mesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray_anyhit<warp._src.lang.mesh_query_ray_anyhit>` to accelerate the ray tracing.
 
         .. warning::
@@ -3304,7 +3307,7 @@ class Mesh(eqx.Module):
         """
         Return for each ray, which triangle it intersects first, and if it intersects at all.
 
-        Unlike :func:`differt.rt.first_triangle_hit_by_ray`, this method is optimized for :class:`Mesh`
+        Unlike :func:`differt.geometry.first_triangle_hit_by_ray`, this method is optimized for :class:`Mesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
 
         .. warning::
@@ -3372,7 +3375,7 @@ class Mesh(eqx.Module):
         """
         Return whether triangles are visible from vertex positions.
 
-        Unlike :func:`differt.rt.triangles_visible_from_vertex`, this method is optimized for :class:`Mesh`
+        Unlike :func:`differt.geometry.triangles_visible_from_vertex`, this method is optimized for :class:`Mesh`
         objects when smoothing is disabled and uses :func:`warp.mesh_query_ray<warp._src.lang.mesh_query_ray>` to accelerate the ray tracing.
 
         .. warning::

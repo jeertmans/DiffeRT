@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 try:
-    import matplotlib.pyplot  # noqa: ICN001
+    import matplotlib.pyplot  # ruff:ignore[unconventional-import-alias]
 except ImportError:
     plt = None
 else:

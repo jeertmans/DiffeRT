@@ -317,7 +317,7 @@ def reflection_coefficients(
            ...     label="FSPL",
            ... )  # doctest: +SKIP
 
-           After, the :func:`image_method<differt.rt.image_method>`
+           After, the :func:`image_method<differt.geometry.image_method>`
            function is used to compute the reflection points.
 
            >>> ground_vertex = jnp.array([0.0, 0.0, 0.0])

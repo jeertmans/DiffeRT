@@ -14,13 +14,14 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import materials, z_0
-from differt.geometry import Mesh, TracedPaths
-from differt.plugins import deepmimo
-from differt.scene import (
+from differt.geometry import (
     ExhaustivePathTracer,
     HybridPathTracer,
+    Mesh,
     Scene,
+    TracedPaths,
 )
+from differt.plugins import deepmimo
 from differt.utils import sample_points_in_bounding_box
 
 
@@ -187,7 +188,7 @@ def test_match_sionna_on_simple_street_canyon(
     assert isinstance(dm.power, np.ndarray)
 
     # Greedily sort the paths to match Sionna's order
-    dm = dm._sort(sionna_paths)  # noqa: SLF001
+    dm = dm._sort(sionna_paths)  # ruff:ignore[private-member-access]
     assert isinstance(dm.power, jax.Array)  # _sort returns JAX arrays
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1

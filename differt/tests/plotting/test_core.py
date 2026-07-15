@@ -104,7 +104,7 @@ def test_draw_image(
     # VisPY does not support float64 and will complain if provided
     x = np.linspace(0, 1, 10, dtype=np.float32)
     y = np.linspace(0, 1, 20, dtype=np.float32)
-    X, Y = np.meshgrid(x, y)  # noqa: N806
+    X, Y = np.meshgrid(x, y)  # ruff:ignore[non-lowercase-variable-in-function]
     data = X * Y
 
     if channels is not None:
@@ -135,7 +135,7 @@ def test_draw_contour(
     # VisPY does not support float64 and will complain if provided
     x = np.linspace(0, 1, 10, dtype=np.float32)
     y = np.linspace(0, 1, 20, dtype=np.float32)
-    X, Y = np.meshgrid(x, y)  # noqa: N806
+    X, Y = np.meshgrid(x, y)  # ruff:ignore[non-lowercase-variable-in-function]
     data = X * Y
 
     if (backend == "vispy" and (fill or isinstance(levels, int))) or (
@@ -177,8 +177,8 @@ def test_draw_surface(
 ) -> None:
     x = np.linspace(0, 1, 10)
     y = np.linspace(0, 1, 20)
-    X, Y = np.meshgrid(x, y)  # noqa: N806
-    Z = X * Y  # noqa: N806
+    X, Y = np.meshgrid(x, y)  # ruff:ignore[non-lowercase-variable-in-function]
+    Z = X * Y  # ruff:ignore[non-lowercase-variable-in-function]
 
     if backend in {"vispy", "matplotlib"} and pass_colors:
         expectation = pytest.warns(
