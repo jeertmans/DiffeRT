@@ -11,8 +11,8 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
 from differt.geometry import (
     LaunchedPaths,
+    Mesh,
     TracedPaths,
-    TriangleMesh,
     assemble_path,
     fibonacci_lattice,
     viewing_frustum,
@@ -28,7 +28,7 @@ from differt.utils import smoothing_function
 from differt_core.rt import CompleteGraph, DiGraph
 
 if TYPE_CHECKING:
-    from differt.scene import TriangleScene
+    from differt.scene import Scene
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ class AbstractPathTracer(AbstractPathSolver):
     @abc.abstractmethod
     def generate_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         specular_reflection: bool = True,
         diffuse_scattering: bool = False,
@@ -92,7 +92,7 @@ class AbstractPathTracer(AbstractPathSolver):
 
     def generate_path_candidates_chunks_iter(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         *args: Any,
         chunk_size: int,
@@ -176,7 +176,7 @@ class AbstractPathTracer(AbstractPathSolver):
     @abc.abstractmethod
     def trace_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         path_candidates: Int[Array, "... num_path_candidates max_order"],
         interaction_types: Int[Array, "... num_path_candidates max_order"],
     ) -> TracedPaths:
@@ -196,7 +196,7 @@ class AbstractPathTracer(AbstractPathSolver):
     @overload
     def trace_paths(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         chunk_size: None = None,
         pad_chunks: bool = False,
@@ -205,7 +205,7 @@ class AbstractPathTracer(AbstractPathSolver):
     @overload
     def trace_paths(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         chunk_size: int,
         pad_chunks: bool = False,
@@ -213,7 +213,7 @@ class AbstractPathTracer(AbstractPathSolver):
 
     def trace_paths(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         chunk_size: int | None = None,
         pad_chunks: bool = False,
@@ -264,7 +264,7 @@ class AbstractPathLauncher(AbstractPathSolver):
     @abc.abstractmethod
     def launch_rays(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
     ) -> tuple[Float[Array, "num_tx num_rays 3"], Float[Array, "num_tx num_rays 3"]]:
         """
         Launch rays from transmitters.
@@ -278,7 +278,7 @@ class AbstractPathLauncher(AbstractPathSolver):
 
     def bounce_rays(  # noqa: PLR6301
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         ray_origins: Float[Array, "num_tx num_rays 3"],
         ray_directions: Float[Array, "num_tx num_rays 3"],
         triangles: Int[Array, "num_tx num_rays"],
@@ -319,7 +319,7 @@ class AbstractPathLauncher(AbstractPathSolver):
 
     def filter_rays(
         self,
-        scene: "TriangleScene",  # noqa: ARG002
+        scene: "Scene",  # noqa: ARG002
         ray_origins: Float[Array, "num_tx num_rays 3"],
         ray_directions: Float[Array, "num_tx num_rays 3"],
         rx_vertices: Float[Array, "num_rx 3"],
@@ -358,7 +358,7 @@ class AbstractPathLauncher(AbstractPathSolver):
     @eqx.filter_jit
     def launch_paths(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int,
     ) -> LaunchedPaths:
         """Launch paths for the given scene and order.
@@ -498,7 +498,7 @@ class AbstractPathLauncher(AbstractPathSolver):
 
 @eqx.filter_jit
 def _trace_path_candidates(
-    mesh: TriangleMesh,
+    mesh: Mesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],
     path_candidates: Int[Array, "num_path_candidates order"],
@@ -802,7 +802,7 @@ class ExhaustivePathTracer(AbstractPathTracer):
 
     def generate_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         specular_reflection: bool = True,  # noqa: ARG002
         diffuse_scattering: bool = False,  # noqa: ARG002
@@ -849,7 +849,7 @@ class ExhaustivePathTracer(AbstractPathTracer):
 
     def generate_path_candidates_chunks_iter(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         *args: Any,
         chunk_size: int | None = None,
@@ -936,7 +936,7 @@ class ExhaustivePathTracer(AbstractPathTracer):
     @eqx.filter_jit
     def trace_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         path_candidates: Int[Array, "num_candidates order"],
         interaction_types: Int[Array, "num_candidates order"],
     ) -> TracedPaths:
@@ -992,7 +992,7 @@ class HybridPathTracer(AbstractPathTracer):
 
     def generate_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         specular_reflection: bool = True,  # noqa: ARG002
         diffuse_scattering: bool = False,  # noqa: ARG002
@@ -1059,7 +1059,7 @@ class HybridPathTracer(AbstractPathTracer):
 
     def generate_path_candidates_chunks_iter(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         order: int | Sequence[int],
         *args: Any,
         chunk_size: int | None = None,
@@ -1155,7 +1155,7 @@ class HybridPathTracer(AbstractPathTracer):
     @eqx.filter_jit
     def trace_path_candidates(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
         path_candidates: Int[Array, "num_candidates order"],
         interaction_types: Int[Array, "num_candidates order"],
     ) -> TracedPaths:
@@ -1201,7 +1201,7 @@ class SBRPathLauncher(AbstractPathLauncher):
 
     def launch_rays(
         self,
-        scene: "TriangleScene",
+        scene: "Scene",
     ) -> tuple[Float[Array, "num_tx num_rays 3"], Float[Array, "num_tx num_rays 3"]]:
         tx_vertices = scene.transmitters.reshape(-1, 3)
         rx_vertices = scene.receivers.reshape(-1, 3)

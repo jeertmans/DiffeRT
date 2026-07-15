@@ -2,6 +2,7 @@
 
 __all__ = (
     "LaunchedPaths",
+    "Mesh",
     "Paths",
     "SBRPaths",
     "TracedPaths",
@@ -24,11 +25,12 @@ __all__ = (
     "viewing_frustum",
 )
 
-from ._paths import LaunchedPaths, Paths, SBRPaths, TracedPaths, merge_cell_ids
-from ._triangle_mesh import (
+from ._mesh import (
+    Mesh,
     TriangleMesh,
     triangle_contains_vertex_assuming_inside_same_plane,
 )
+from ._paths import LaunchedPaths, Paths, SBRPaths, TracedPaths, merge_cell_ids
 from ._utils import (
     assemble_path,
     cartesian_to_spherical,

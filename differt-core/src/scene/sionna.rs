@@ -8,9 +8,9 @@ use serde::{Deserialize, de};
 ///
 /// Only a subset of the XML file is actually used.
 ///
-/// This class is useless unless converted
-/// to another scene type, like
-/// :class:`TriangleScene<differt.scene.TriangleScene>`.
+/// This scene acts as a bridge between Sionna and DiffeRT,
+/// and is essentially used to quickly load scenes from Sionna
+/// and export them as a :class:`Scene<differt.scene.Scene>`.
 ///
 /// Warning:
 ///     We are still open to better ways to parse those XML files,

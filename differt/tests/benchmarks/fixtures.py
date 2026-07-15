@@ -6,9 +6,9 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import TriangleMesh, normalize
+from differt.geometry import Mesh, normalize
 from differt.scene import (
-    TriangleScene,
+    Scene,
     get_sionna_scene,
 )
 
@@ -40,10 +40,10 @@ def large_random_planar_mirrors_setup(key: PRNGKeyArray) -> PlanarMirrorsSetup:
 
 
 @pytest.fixture(params=["small", "medium"])
-def bench_scene(request: pytest.FixtureRequest, sionna_folder: Path) -> TriangleScene:
+def bench_scene(request: pytest.FixtureRequest, sionna_folder: Path) -> Scene:
     if request.param == "small":
         file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-        scene = TriangleScene.load_xml(file)
+        scene = Scene.load_xml(file)
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([-22.0, 0.0, 32.0])
         )
@@ -52,7 +52,7 @@ def bench_scene(request: pytest.FixtureRequest, sionna_folder: Path) -> Triangle
         # Root of the repo is 3 parents up from differt/tests/benchmarks/fixtures.py
         root = Path(__file__).parents[3]
         file = root / "docs" / "source" / "notebooks" / "bruxelles.obj"
-        scene = TriangleScene(mesh=TriangleMesh.load_obj(str(file)))
+        scene = Scene(mesh=Mesh.load_obj(str(file)))
         # Add a transmitter at some reasonable position
         vertices = scene.mesh.vertices
         center = jnp.mean(vertices, axis=0)

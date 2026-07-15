@@ -1,5 +1,5 @@
 """Geometry utilities used by :mod:`differt.geometry`."""
 
-__all__ = ("TriangleMesh",)
+__all__ = ("Mesh", "TriangleMesh")
 
-from ._triangle_mesh import TriangleMesh
+from ._mesh import Mesh, TriangleMesh

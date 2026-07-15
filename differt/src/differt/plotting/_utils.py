@@ -14,7 +14,6 @@ from typing import (
     ParamSpec,
     Protocol,
     TypeVar,
-    cast,
     get_args,
     no_type_check,
     runtime_checkable,
@@ -115,7 +114,7 @@ def get_backend(backend: str | None = None) -> BackendName:
         msg = f"Could not find backend '{backend}', did you install it?"
         raise ImportError(msg)
 
-    return cast("BackendName", backend)
+    return backend
 
 
 def set_defaults(backend: str | None = None, **kwargs: Any) -> BackendName:

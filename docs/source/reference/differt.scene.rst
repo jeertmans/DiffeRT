@@ -5,11 +5,12 @@
 
 .. automodule:: differt.scene
 
-.. rubric:: Triangle scene
+.. rubric:: Scene
 
 .. autosummary::
    :toctree: _autosummary
 
+   Scene
    TriangleScene
 
 .. rubric:: Path solvers

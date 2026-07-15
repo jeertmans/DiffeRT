@@ -13,10 +13,10 @@ so that one can use :mod:`differt_core` and still be able to differentiate
 its code. We welcome any contribution on that topic!
 """
 
+__all__ = ("__version__", "__version_info__")
+
 from differt_core._differt_core import __version__ as _version
 from differt_core._differt_core import __version_info__ as _version_info
-
-__all__ = ("__version__", "__version_info__")
 
 __version__ = _version
 """The current full version of this module."""

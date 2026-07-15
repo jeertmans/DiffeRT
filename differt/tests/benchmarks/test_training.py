@@ -11,13 +11,13 @@ from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
 
 from differt.geometry import TracedPaths
-from differt.scene import TriangleScene
+from differt.scene import Scene
 from differt.utils import sample_points_in_bounding_box
 
 
 def random_tx_rx(
-    base_scene: TriangleScene, num_tx: int = 10, num_rx: int = 10, *, key: PRNGKeyArray
-) -> TriangleScene:
+    base_scene: Scene, num_tx: int = 10, num_rx: int = 10, *, key: PRNGKeyArray
+) -> Scene:
     key_tx, key_rx = jax.random.split(key, 2)
     bounding_box = base_scene.mesh.bounding_box
     scene = eqx.tree_at(
@@ -34,8 +34,8 @@ def random_tx_rx(
 
 @eqx.filter_jit
 def random_scene(
-    base_scene: TriangleScene, num_tx: int = 4, num_rx: int = 8, *, key: PRNGKeyArray
-) -> TriangleScene:
+    base_scene: Scene, num_tx: int = 4, num_rx: int = 8, *, key: PRNGKeyArray
+) -> Scene:
     key_tx_rx, key_num_objects, key_sample_triangles = jax.random.split(key, 3)
     scene = random_tx_rx(base_scene, num_tx, num_rx, key=key_tx_rx)
     fill_factor = jax.random.uniform(key_num_objects, ())
@@ -46,9 +46,7 @@ def random_scene(
     )
 
 
-def train_dataloader(
-    base_scene: TriangleScene, *, key: PRNGKeyArray
-) -> Iterator[TriangleScene]:
+def train_dataloader(base_scene: Scene, *, key: PRNGKeyArray) -> Iterator[Scene]:
     while True:
         key, key_to_use = jax.random.split(key, 2)
         yield random_scene(base_scene, key=key_to_use)
@@ -95,7 +93,7 @@ class LOSModel(eqx.Module):
 
 
 @eqx.filter_jit(donate="all-except-first")
-def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
+def loss(model: LOSModel, scene: Scene) -> Float[Array, ""]:
     paths = scene.trace_paths(order=0, solver="exhaustive")
     assert isinstance(paths, TracedPaths)
     f = model
@@ -111,7 +109,7 @@ def loss(model: LOSModel, scene: TriangleScene) -> Float[Array, ""]:
 
 @pytest.mark.benchmark(group="training")
 def test_train_step(
-    simple_street_canyon_scene: TriangleScene,
+    simple_street_canyon_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -125,7 +123,7 @@ def test_train_step(
     def make_step(
         model: LOSModel,
         opt_state: optax.OptState,
-        scene: TriangleScene,
+        scene: Scene,
     ) -> tuple[LOSModel, optax.OptState, Float[Array, ""]]:
         loss_value, grads = eqx.filter_value_and_grad(loss)(
             model,

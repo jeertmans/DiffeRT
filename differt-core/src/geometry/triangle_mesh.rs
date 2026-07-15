@@ -9,10 +9,10 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 /// A lower-level mesh made of triangles.
 ///
 /// This class should not be used directly, prefer its higher-level version
-/// :class:`differt.geometry.TriangleMesh` instead.
+/// :class:`differt.geometry.Mesh` instead.
 #[derive(Clone, Debug, Default)]
-#[pyclass]
-pub(crate) struct TriangleMesh {
+#[pyclass(subclass)]
+pub(crate) struct Mesh {
     vertices: Vec<[f32; 3]>,
     triangles: Vec<[usize; 3]>,
     face_colors: Option<Vec<[f32; 3]>>,
@@ -77,7 +77,7 @@ impl ply::PropertyAccess for PlyFace {
     }
 }
 
-impl TriangleMesh {
+impl Mesh {
     pub fn get_material_index(&mut self, material_name: Option<String>) -> isize {
         if let Some(material_name) = material_name {
             return self
@@ -122,7 +122,7 @@ impl TriangleMesh {
 }
 
 #[pymethods]
-impl TriangleMesh {
+impl Mesh {
     /// :class:`Float[np.ndarray, 'num_vertices 3']<jaxtyping.Float>`: The array of triangle vertices.
     #[getter]
     fn vertices<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f32>> {
@@ -184,7 +184,7 @@ impl TriangleMesh {
     /// After calling this method, ``other`` will be empty.
     ///
     /// Args:
-    ///     other(TriangleMesh): The mesh to be appended to ``self``.
+    ///     other(Mesh): The mesh to be appended to ``self``.
     pub(crate) fn append(&mut self, other: &mut Self) {
         match (&self.face_colors, &other.face_colors) {
             (None, None) => {},
@@ -268,7 +268,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :attr:`differt.geometry.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.Mesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///
@@ -276,7 +276,7 @@ impl TriangleMesh {
     ///     file (str): The path to the Wavefront .obj file.
     ///
     /// Returns:
-    ///     TriangleMesh: The corresponding mesh containing only triangles.
+    ///     Mesh: The corresponding mesh containing only triangles.
     #[classmethod]
     pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let input = BufReader::new(File::open(filename)?);
@@ -302,7 +302,7 @@ impl TriangleMesh {
     ///
     /// Currently, only vertices and triangles are loaded. Triangle normals
     /// are ignored because they are computed with
-    /// :attr:`differt.geometry.TriangleMesh.normals` using
+    /// :attr:`differt.geometry.Mesh.normals` using
     /// JAX so that they can be differentiated with respect to triangle
     /// vertices.
     ///
@@ -310,7 +310,7 @@ impl TriangleMesh {
     ///     file (str): The path to the Stanford PLY .ply file.
     ///
     /// Returns:
-    ///     TriangleMesh: The corresponding mesh containing only triangles.
+    ///     Mesh: The corresponding mesh containing only triangles.
     #[classmethod]
     pub(crate) fn load_ply(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
         let mut input = BufReader::new(File::open(filename)?);
@@ -380,7 +380,7 @@ impl TriangleMesh {
     }
 }
 
-impl From<RawObj> for TriangleMesh {
+impl From<RawObj> for Mesh {
     fn from(mut raw_obj: RawObj) -> Self {
         use obj::raw::object::Polygon::*;
 
@@ -504,6 +504,6 @@ impl From<RawObj> for TriangleMesh {
 #[cfg(not(tarpaulin_include))]
 #[pymodule(gil_used = false)]
 pub(crate) fn triangle_mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<TriangleMesh>()?;
+    m.add_class::<Mesh>()?;
     Ok(())
 }

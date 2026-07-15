@@ -9,7 +9,7 @@ from pytest_subtests import SubTests
 
 from differt.em import materials
 from differt.geometry import (
-    TriangleMesh,
+    Mesh,
     assemble_path,
     fibonacci_lattice,
     path_length,
@@ -19,7 +19,7 @@ from differt.rt import (
     ray_intersect_any_triangle,
     ray_intersect_triangle,
 )
-from differt.scene import TriangleScene
+from differt.scene import Scene
 
 
 @pytest.mark.slow
@@ -29,11 +29,11 @@ def test_ray_casting() -> None:
     knot_mesh = o3d.data.KnotMesh()
     o3d_mesh = o3d.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
 
-    o3d_mesh = o3d.t.geometry.TriangleMesh.from_legacy(o3d_mesh)
+    o3d_mesh = o3d.t.geometry.Mesh.from_legacy(o3d_mesh)
     o3d_mesh = o3d_mesh.compute_vertex_normals()  # This avoids a warning from Open3D
     o3d_mesh = o3d_mesh.compute_triangle_normals()
 
-    mesh = TriangleMesh(
+    mesh = Mesh(
         vertices=jnp.asarray(o3d_mesh.vertex.positions.numpy()),
         triangles=jnp.asarray(o3d_mesh.triangle.indices.numpy()),
     )
@@ -123,7 +123,7 @@ def test_simple_street_canyon() -> None:
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,

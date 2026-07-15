@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import Array
 
-from differt.geometry import TriangleMesh
+from differt.geometry import Mesh
 from differt.rt._utils import (
     first_triangle_hit_by_ray,
     generate_all_path_candidates,
@@ -18,14 +18,14 @@ from differt.rt._utils import (
     ray_intersect_triangle,
     triangles_visible_from_vertex,
 )
-from differt.scene import TriangleScene
+from differt.scene import Scene
 
 from ..utils import random_inputs
 
 
 @pytest.fixture(scope="session")
 def cube_vertices() -> Array:
-    cube = TriangleMesh.box(with_top=True)
+    cube = Mesh.box(with_top=True)
     triangles_vertices = cube.triangle_vertices
 
     assert triangles_vertices.shape == (12, 3, 3)
@@ -356,8 +356,8 @@ def test_triangles_visible_from_vertex(
 
 
 def test_triangles_visible_from_vertex_inside_box() -> None:
-    outer_mesh = TriangleMesh.box(4.0, 4.0, 4.0)
-    inner_mesh = TriangleMesh.box(1.0, 1.0, 1.0)
+    outer_mesh = Mesh.box(4.0, 4.0, 4.0)
+    inner_mesh = Mesh.box(1.0, 1.0, 1.0)
     mesh = outer_mesh + inner_mesh
 
     # Mask to keep only the outer mesh
@@ -416,7 +416,7 @@ def test_triangles_visible_from_vertex_inside_box() -> None:
 
 
 def test_triangles_visible_from_vertex_street_canyon(
-    simple_street_canyon_scene: TriangleScene,
+    simple_street_canyon_scene: Scene,
 ) -> None:
     scene = simple_street_canyon_scene
     tx = jnp.array([-35, 0, 32.0])
