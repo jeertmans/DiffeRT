@@ -15,8 +15,8 @@ docs/source/reference/_autosummary/
 
 # Sionna data
 
-differt/src/differt/scene/scenes.lock
-differt/src/differt/scene/scenes/
+differt/src/differt/geometry/scenes.lock
+differt/src/differt/geometry/scenes/
 
 # Notebooks
 

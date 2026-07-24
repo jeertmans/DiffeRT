@@ -1,5 +1,5 @@
 use criterion::{Criterion, Throughput, black_box, criterion_group};
-use differt_core::rt::graph::{complete::CompleteGraph, directed::DiGraph};
+use differt_core::geometry::graph::{complete::CompleteGraph, directed::DiGraph};
 
 const NUM_NODES: usize = 1000;
 const DIRECT_PATH: bool = true;

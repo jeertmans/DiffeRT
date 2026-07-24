@@ -95,7 +95,7 @@ def _(
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Mesh  # noqa: PLC0415
+    from vispy.scene.visuals import Mesh  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -217,7 +217,7 @@ def _(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import LinePlot  # noqa: PLC0415
+    from vispy.scene.visuals import LinePlot  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -371,7 +371,7 @@ def _(
     ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Arrow  # noqa: PLC0415
+    from vispy.scene.visuals import Arrow  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -534,7 +534,10 @@ def _(
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
+    from vispy.scene.visuals import (  # ruff:ignore[import-outside-top-level]
+        Markers,
+        Text,
+    )
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -710,8 +713,10 @@ def _(
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Image  # noqa: PLC0415
-    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+    from vispy.scene.visuals import Image  # ruff:ignore[import-outside-top-level]
+    from vispy.visuals.transforms import (  # ruff:ignore[import-outside-top-level]
+        STTransform,
+    )
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -791,7 +796,7 @@ def _(
 
     kwargs.setdefault("hoverinfo", "skip")
 
-    if data.ndim == 3 and data.shape[-1] in {3, 4}:  # noqa: PLR2004
+    if data.ndim == 3 and data.shape[-1] in {3, 4}:  # ruff:ignore[magic-value-comparison]
         rows, cols, channels = data.shape
         if x is not None and x.ndim == 1 and len(x) == cols:
             dx = np.diff(x)
@@ -942,8 +947,10 @@ def _(
     fill: bool = False,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Isocurve  # noqa: PLC0415
-    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+    from vispy.scene.visuals import Isocurve  # ruff:ignore[import-outside-top-level]
+    from vispy.visuals.transforms import (  # ruff:ignore[import-outside-top-level]
+        STTransform,
+    )
 
     data = np.asarray(data)
 
@@ -1142,7 +1149,7 @@ def _(
     colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import SurfacePlot  # noqa: PLC0415
+    from vispy.scene.visuals import SurfacePlot  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -1188,7 +1195,7 @@ def _(
 
     if colors is not None and "facecolors" not in kwargs:
         colors = np.asarray(colors)
-        if colors.ndim != 3:  # noqa: PLR2004
+        if colors.ndim != 3:  # ruff:ignore[magic-value-comparison]
             msg = "Matplotlib requires 'colors' to be RGB or RGBA values."
             warnings.warn(msg, UserWarning, stacklevel=2)
             c_min = colors.min()

@@ -181,7 +181,7 @@ class Antenna(BaseAntenna):
         ds = du * dv
 
         # Power per unit solid angle
-        U = p / ds  # noqa: N806
+        U = p / ds  # ruff:ignore[non-lowercase-variable-in-function]
         p_tot = jnp.sum(p * jnp.sin(v)) / (4 * jnp.pi)
 
         return u, v, U / p_tot
@@ -319,10 +319,10 @@ class Dipole(Antenna):
             >>> ax = fig.add_subplot(
             ...     projection="polar", facecolor="lightgoldenrodyellow"
             ... )
-            >>> for ratio in [0.5, 1.0, 1.25, 1.5, 2.0]:
+            >>> for ratio in [0.5, 1.0, 1.25, 1.5, 2.0]:  # doctest: +SKIP
             ...     ant = Dipole(1e9, ratio)
             ...     power = jnp.linalg.norm(ant.poynting_vector(r), axis=-1)
-            ...     _ = ax.plot(theta, power, label=rf"$\ell/\lambda = {ratio:1.2f}$")
+            ...     ax.plot(theta, power, label=rf"$\ell/\lambda = {ratio:1.2f}$")
             >>>
             >>> ax.tick_params(grid_color="palegoldenrod")
             >>> ax.set_rscale("log")
@@ -472,9 +472,9 @@ class Dipole(Antenna):
 
         return u, v, 1.5 * jax.lax.integer_pow(sin_theta, 2)
 
-    def directive_gain(  # noqa: PLR6301
+    def directive_gain(  # ruff:ignore[no-self-use]
         self,
-        num_points: int = int(1e2),  # noqa: ARG002
+        num_points: int = int(1e2),  # ruff:ignore[unused-method-argument]
     ) -> Float[Array, ""]:
         return jnp.array(1.5)
 

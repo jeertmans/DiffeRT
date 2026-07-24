@@ -1,29 +1,59 @@
-"""Geometries for building scenes."""
+"""Geometries for building scenes and tracing ray paths efficiently."""
 
 __all__ = (
+    "AbstractPathLauncher",
+    "AbstractPathSolver",
+    "AbstractPathTracer",
+    "ExhaustivePathTracer",
+    "HybridPathTracer",
     "LaunchedPaths",
+    "Material",
     "Mesh",
     "Paths",
+    "SBRPathLauncher",
     "SBRPaths",
+    "Scene",
+    "Shape",
+    "SionnaScene",
+    "SizedIterator",
     "TracedPaths",
     "TriangleMesh",
+    "TriangleScene",
     "assemble_path",
     "cartesian_to_spherical",
+    "consecutive_vertices_are_on_same_side_of_mirror",
+    "download_sionna_scenes",
+    "fermat_path_on_linear_objects",
+    "fermat_path_on_planar_mirrors",
     "fibonacci_lattice",
+    "first_triangle_hit_by_ray",
+    "generate_all_path_candidates",
+    "generate_all_path_candidates_chunks_iter",
+    "generate_all_path_candidates_iter",
+    "get_sionna_scene",
+    "image_method",
+    "image_of_vertex_with_respect_to_mirror",
+    "intersection_of_ray_with_plane",
+    "list_sionna_scenes",
     "merge_cell_ids",
     "min_distance_between_cells",
     "normalize",
     "orthogonal_basis",
     "path_length",
     "perpendicular_vector",
+    "ray_intersect_any_triangle",
+    "ray_intersect_triangle",
     "rotation_matrix_along_axis",
     "rotation_matrix_along_x_axis",
     "rotation_matrix_along_y_axis",
     "rotation_matrix_along_z_axis",
     "spherical_to_cartesian",
     "triangle_contains_vertex_assuming_inside_same_plane",
+    "triangles_visible_from_vertex",
     "viewing_frustum",
 )
+
+from differt_core.geometry import Material, Shape, SionnaScene
 
 from ._mesh import (
     Mesh,
@@ -31,19 +61,48 @@ from ._mesh import (
     triangle_contains_vertex_assuming_inside_same_plane,
 )
 from ._paths import LaunchedPaths, Paths, SBRPaths, TracedPaths, merge_cell_ids
+from ._scene import Scene, TriangleScene
+from ._sionna import (
+    download_sionna_scenes,
+    get_sionna_scene,
+    list_sionna_scenes,
+)
+from ._solver_fermat import fermat_path_on_linear_objects, fermat_path_on_planar_mirrors
+from ._solver_image_method import (
+    consecutive_vertices_are_on_same_side_of_mirror,
+    image_method,
+    image_of_vertex_with_respect_to_mirror,
+    intersection_of_ray_with_plane,
+)
+from ._solvers import (
+    AbstractPathLauncher,
+    AbstractPathSolver,
+    AbstractPathTracer,
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    SBRPathLauncher,
+)
 from ._utils import (
+    SizedIterator,
     assemble_path,
     cartesian_to_spherical,
     fibonacci_lattice,
+    first_triangle_hit_by_ray,
+    generate_all_path_candidates,
+    generate_all_path_candidates_chunks_iter,
+    generate_all_path_candidates_iter,
     min_distance_between_cells,
     normalize,
     orthogonal_basis,
     path_length,
     perpendicular_vector,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
     rotation_matrix_along_axis,
     rotation_matrix_along_x_axis,
     rotation_matrix_along_y_axis,
     rotation_matrix_along_z_axis,
     spherical_to_cartesian,
+    triangles_visible_from_vertex,
     viewing_frustum,
 )

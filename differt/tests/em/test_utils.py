@@ -1,4 +1,4 @@
-# ruff: noqa: N806
+# ruff:file-ignore[non-lowercase-variable-in-function]
 import chex
 import jax
 import jax.numpy as jnp
