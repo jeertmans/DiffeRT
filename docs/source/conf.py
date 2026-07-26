@@ -33,6 +33,7 @@ version = __version__
 git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
+sys.path.append(str(conf_dir / "_extensions"))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -57,6 +58,8 @@ extensions = [
     "sphinx_design",
     "sphinx_plotly_directive",
     "sphinx_remove_toctrees",
+    # Custom
+    "itu_materials_table",
 ]
 
 templates_path = ["_templates"]
@@ -484,3 +487,4 @@ def setup(app: Sphinx) -> None:
             title_template="Issue {path}#{fragment}",
         ),
     )
+

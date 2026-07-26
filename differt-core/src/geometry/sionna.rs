@@ -248,7 +248,7 @@ impl<'de> Deserialize<'de> for Material {
                 let color = match r#type.as_str() {
                     // Copied from Sionna-RT's code, to match their colors:
                     // https://github.com/NVlabs/sionna-rt/blob/main/src/sionna/rt/radio_materials/itu_material.py
-                    // v1.0.0
+                    "vacuum" => [0.8, 0.8, 0.8],
                     "marble" => [0.701, 0.644, 0.485],
                     "concrete" => [0.539, 0.539, 0.539],
                     "wood" => [0.266, 0.109, 0.060],
@@ -263,6 +263,10 @@ impl<'de> Deserialize<'de> for Material {
                     "very_dry_ground" => [0.539, 0.319, 0.223],
                     "medium_dry_ground" => [0.539, 0.181, 0.076],
                     "wet_ground" => [0.539, 0.027, 0.147],
+                    "clear_acrylic" => [0.198, 0.804, 0.818],
+                    "vinyl_tile" => [0.334, 0.046, 0.670],
+                    "carpet_tile" => [0.836, 0.419, 0.888],
+                    "asphalt_concrete" => [0.119, 0.282, 0.297],
                     _ => {
                         log::warn!(
                             "unknown material type: {type:#?}, using default color, i.e., black",
@@ -660,6 +664,76 @@ mod tests {
 
         assert_eq!(material.name, "itu_wet_ground");
         assert_eq!(material.color, [0.539, 0.027, 0.147]);
+    }
+
+    #[test]
+    fn deserializes_itu_vacuum() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="vacuum">
+                <string name="type" value="vacuum"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_vacuum");
+        assert_eq!(material.color, [0.8, 0.8, 0.8]);
+    }
+
+    #[test]
+    fn deserializes_itu_clear_acrylic() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="acrylic">
+                <string name="type" value="clear_acrylic"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_clear_acrylic");
+        assert_eq!(material.color, [0.198, 0.804, 0.818]);
+    }
+
+    #[test]
+    fn deserializes_itu_vinyl_tile() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="vinyl">
+                <string name="type" value="vinyl_tile"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_vinyl_tile");
+        assert_eq!(material.color, [0.334, 0.046, 0.670]);
+    }
+
+    #[test]
+    fn deserializes_itu_carpet_tile() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="carpet">
+                <string name="type" value="carpet_tile"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_carpet_tile");
+        assert_eq!(material.color, [0.836, 0.419, 0.888]);
+    }
+
+    #[test]
+    fn deserializes_itu_asphalt_concrete() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="asphalt">
+                <string name="type" value="asphalt_concrete"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.name, "itu_asphalt_concrete");
+        assert_eq!(material.color, [0.119, 0.282, 0.297]);
     }
 
     #[test]

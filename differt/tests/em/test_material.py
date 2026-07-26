@@ -25,7 +25,7 @@ class TestITU:
             )
 
     def test_num_materials(self) -> None:
-        assert len(self.materials) == 15
+        assert len(self.materials) == 19
 
     def test_vacuum(self, key: PRNGKeyArray) -> None:
         mat = self.materials["itu_vacuum"]
@@ -78,24 +78,24 @@ class TestITU:
 
         expected_rel_perm = jnp.array([
             -1.0,
-            6.31,
-            6.31,
-            6.31,
-            -1.0,
-            5.79,
-            5.79,
-            5.79,
+            6.27,
+            6.27,
+            6.27,
+            6.70,
+            6.70,
+            6.70,
+            6.01,
             -1.0,
         ])
         expected_cond = jnp.array([
             -1.0,
-            1.647792e-04,
-            7.865069e-02,
-            1.718314,
-            -1.0,
-            3.060531,
-            6.608833,
-            1.002504e01,
+            0.0002760377246886492,
+            0.06698359549045563,
+            1.0434422492980957,
+            1.335839033126831,
+            2.0750820636749268,
+            3.539381980895996,
+            5.6384806632995605,
             -1.0,
         ])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
@@ -104,7 +104,7 @@ class TestITU:
     def test_ceiling_board(self) -> None:
         mat = self.materials["itu_ceiling_board"]
 
-        f = jnp.array([0.1e9, 1e9, 10e9, 100e9, 150e9, 220e9, 350e9, 450e9, 500e9])
+        f = jnp.array([0.1e9, 1e9, 10e9, 100e9, 150e9, 220e9, 350e9, 400e9, 500e9])
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
@@ -113,21 +113,21 @@ class TestITU:
             1.48,
             1.48,
             1.48,
-            -1.0,
-            1.52,
-            1.52,
-            1.52,
+            1.58,
+            1.58,
+            1.58,
+            1.58,
             -1.0,
         ])
         expected_cond = jnp.array([
             -1.0,
-            1.100000e-03,
-            1.307353e-02,
-            1.553792e-01,
-            -1.0,
-            7.460210e-01,
-            1.202940,
-            1.557951,
+            0.0011,
+            0.01476361,
+            0.19814934,
+            0.29822615,
+            0.4492834,
+            0.7383817,
+            0.8517896,
             -1.0,
         ])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
@@ -136,12 +136,20 @@ class TestITU:
     def test_plywood(self) -> None:
         mat = self.materials["itu_plywood"]
 
-        f = jnp.array([0.1e9, 1e9, 10e9, 40e9, 100e9])
+        f = jnp.array([0.1e9, 1e9, 10e9, 40e9, 100e9, 400e9, 500e9])
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
-        expected_rel_perm = jnp.array([-1.0, 2.71, 2.71, 2.71, -1.0])
-        expected_cond = jnp.array([-1.0, 0.33, 0.33, 0.33, -1.0])
+        expected_rel_perm = jnp.array([-1.0, 2.71, 2.71, 2.71, 2.17, 2.17, -1.0])
+        expected_cond = jnp.array([
+            -1.0,
+            0.33,
+            0.33,
+            0.33,
+            0.7750691175460815,
+            3.2998414039611816,
+            -1.0,
+        ])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
@@ -168,3 +176,52 @@ class TestITU:
         expected_cond = jnp.array([-1.0, 0.15, 2.992893, -1.0])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
+
+    def test_clear_acrylic(self) -> None:
+        mat = self.materials["itu_clear_acrylic"]
+
+        f = jnp.array([0.1e9, 1e9, 10e9, 40e9, 100e9])
+
+        got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
+
+        expected_rel_perm = jnp.array([-1.0, 2.57, 2.57, 2.57, -1.0])
+        expected_cond = jnp.array([-1.0, 0.0049, 0.05627248, 0.24464695, -1.0])
+        chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+        chex.assert_trees_all_close(got_cond, expected_cond)
+
+    def test_vinyl_tile(self) -> None:
+        mat = self.materials["itu_vinyl_tile"]
+
+        f = jnp.array([0.1e9, 1e9, 40e9, 100e9])
+
+        got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
+
+        expected_rel_perm = jnp.array([-1.0, 3.62, 3.62, -1.0])
+        expected_cond = jnp.array([-1.0, 0.0051, 0.11397906, -1.0])
+        chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+        chex.assert_trees_all_close(got_cond, expected_cond)
+
+    def test_carpet_tile(self) -> None:
+        mat = self.materials["itu_carpet_tile"]
+
+        f = jnp.array([0.1e9, 1e9, 40e9, 100e9])
+
+        got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
+
+        expected_rel_perm = jnp.array([-1.0, 2.08, 2.08, -1.0])
+        expected_cond = jnp.array([-1.0, 0.0009, 0.018532401, -1.0])
+        chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+        chex.assert_trees_all_close(got_cond, expected_cond)
+
+    def test_asphalt_concrete(self) -> None:
+        mat = self.materials["itu_asphalt_concrete"]
+
+        f = jnp.array([0.1e9, 1e9, 40e9, 100e9])
+
+        got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
+
+        expected_rel_perm = jnp.array([-1.0, 4.83, 4.83, -1.0])
+        expected_cond = jnp.array([-1.0, 0.0108, 1.8678477, -1.0])
+        chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
+        chex.assert_trees_all_close(got_cond, expected_cond)
+

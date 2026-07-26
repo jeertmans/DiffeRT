@@ -93,6 +93,8 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    Material
    materials
 
+.. itu-materials-table::
+
 .. currentmodule:: differt.em
 
 Types of interaction (reflection, diffraction, etc.) within a path

@@ -27,8 +27,12 @@ with one *slight* but **important** difference:
 - Added path solver configuration classes ({class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`, {class}`HybridPathTracer<differt.geometry.HybridPathTracer>`, and {class}`SBRPathLauncher<differt.geometry.SBRPathLauncher>`) to configure path tracing algorithms (by <gh-user:jeertmans>, in <gh-pr:491>).
 - Added {meth}`TriangleScene.trace_paths<differt.geometry.Scene.trace_paths>` (returning {class}`TracedPaths<differt.geometry.TracedPaths>`) and {meth}`TriangleScene.launch_paths<differt.geometry.Scene.launch_paths>` (returning {class}`LaunchedPaths<differt.geometry.LaunchedPaths>`) as distinct high-level path tracing routines (by <gh-user:jeertmans>, in <gh-pr:491>).
 - Added support for passing solver parameters directly as keyword arguments to {meth}`TriangleScene.trace_paths<differt.geometry.Scene.trace_paths>` and {meth}`TriangleScene.launch_paths<differt.geometry.Scene.launch_paths>` (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Added an automatically generated ITU radio materials summary table in Sphinx documentation using a custom Sphinx extension and directive `.. itu-materials-table::` (by <gh-user:jeertmans>, in <gh-pr:504>).
 
 ### Changed
+
+- Updated built-in ITU radio materials list in ``materials`` to **Recommendation ITU-R P.2040-4** (09/2025), including updated electrical parameters ($a, b, c, d, \text{frequency range}$) and default Sionna-RT RGB color mappings (by <gh-user:jeertmans>, in <gh-pr:504>).
+- Improved {class}`Material<differt.em._material.Material>` and ``materials`` string representations (`__repr__`) to display clean summaries with registered aliases instead of internal JIT function pointers (by <gh-user:jeertmans>, in <gh-pr:504>).
 
 - **Breaking change**: Renamed multiple functions and methods across the codebase from plural to singular form to improve API consistency and better align with JAX broadcasting semantics:
   - **Ray tracing (`differt.rt`):**
