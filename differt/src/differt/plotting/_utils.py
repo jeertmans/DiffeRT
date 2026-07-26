@@ -404,11 +404,10 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         # TODO: fixme when https://github.com/astral-sh/ty/issues/2507 is closed
         @no_type_check
         def _wrapper_(impl: Callable[P, T]) -> Callable[P, T]:
-            # ruff: noqa: DOC201
-            """Actually register the backend implementation."""
+            """Actually register the backend implementation."""  # ruff:ignore[docstring-missing-returns]
 
             @wraps(impl)
-            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # noqa: N807
+            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # ruff:ignore[dunder-function-name]
                 try:
                     return impl(*args, **kwargs)
                 except ImportError as e:
@@ -469,8 +468,12 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     Returns:
         The view on which contents are displayed.
     """
-    from vispy.scene.cameras.turntable import TurntableCamera  # noqa: PLC0415
-    from vispy.scene.widgets.viewbox import ViewBox  # noqa: PLC0415
+    from vispy.scene.cameras.turntable import (  # ruff:ignore[import-outside-top-level]
+        TurntableCamera,
+    )
+    from vispy.scene.widgets.viewbox import (  # ruff:ignore[import-outside-top-level]
+        ViewBox,
+    )
 
     def default_view() -> ViewBox:
         view = canvas.central_widget.add_view()
@@ -521,7 +524,7 @@ def process_vispy_kwargs(
     Returns:
         The canvas and view used to display contents.
     """
-    from vispy import scene  # noqa: PLC0415
+    from vispy import scene  # ruff:ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
@@ -569,8 +572,8 @@ def process_matplotlib_kwargs(
     Returns:
         The figure and axes used to display contents.
     """
-    import matplotlib.pyplot as plt  # noqa: PLC0415
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: PLC0415
+    import matplotlib.pyplot as plt  # ruff:ignore[import-outside-top-level]
+    from mpl_toolkits.mplot3d import Axes3D  # ruff:ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
@@ -618,7 +621,7 @@ def process_plotly_kwargs(
     Returns:
         The figure used to display contents.
     """
-    import plotly.graph_objects as go  # noqa: PLC0415
+    import plotly.graph_objects as go  # ruff:ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)

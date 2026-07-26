@@ -6,7 +6,7 @@ from typing import Any, Self
 
 from differt_core import _differt_core
 
-Mesh = _differt_core.geometry.triangle_mesh.Mesh
+Mesh = _differt_core.geometry.mesh.Mesh
 
 
 # Deprecated alias

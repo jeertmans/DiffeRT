@@ -9,26 +9,26 @@ import numpy as np
 from equinox import AbstractVar
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
-from differt.geometry import (
-    LaunchedPaths,
-    Mesh,
-    TracedPaths,
-    assemble_path,
-    fibonacci_lattice,
-    viewing_frustum,
-)
-from differt.rt import (
-    SizedIterator,
+from differt.utils import smoothing_function
+from differt_core.geometry import CompleteGraph, DiGraph
+
+from ._mesh import Mesh
+from ._paths import LaunchedPaths, TracedPaths
+from ._solver_image_method import (
     consecutive_vertices_are_on_same_side_of_mirror,
     image_method,
+)
+from ._utils import (
+    SizedIterator,
+    assemble_path,
+    fibonacci_lattice,
     ray_intersect_any_triangle,
     ray_intersect_triangle,
+    viewing_frustum,
 )
-from differt.utils import smoothing_function
-from differt_core.rt import CompleteGraph, DiGraph
 
 if TYPE_CHECKING:
-    from differt.scene import Scene
+    from ._scene import Scene
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ class AbstractPathTracer(AbstractPathSolver):
             **kwargs: Forwarded to :meth:`generate_path_candidates`.
 
         Returns:
-            A :class:`~differt.rt.SizedIterator` over
+            A :class:`~differt.geometry.SizedIterator` over
             ``(path_candidates, interaction_types)`` chunks.
         """
         # Always expect a 2-tuple to keep JAX tree structures predictable
@@ -276,7 +276,7 @@ class AbstractPathLauncher(AbstractPathSolver):
             A tuple of ray origins and ray directions.
         """
 
-    def bounce_rays(  # noqa: PLR6301
+    def bounce_rays(  # ruff:ignore[no-self-use]
         self,
         scene: "Scene",
         ray_origins: Float[Array, "num_tx num_rays 3"],
@@ -319,7 +319,7 @@ class AbstractPathLauncher(AbstractPathSolver):
 
     def filter_rays(
         self,
-        scene: "Scene",  # noqa: ARG002
+        scene: "Scene",  # ruff:ignore[unused-method-argument]
         ray_origins: Float[Array, "num_tx num_rays 3"],
         ray_directions: Float[Array, "num_tx num_rays 3"],
         rx_vertices: Float[Array, "num_rx 3"],
@@ -804,8 +804,8 @@ class ExhaustivePathTracer(AbstractPathTracer):
         self,
         scene: "Scene",
         order: int | Sequence[int],
-        specular_reflection: bool = True,  # noqa: ARG002
-        diffuse_scattering: bool = False,  # noqa: ARG002
+        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
@@ -994,8 +994,8 @@ class HybridPathTracer(AbstractPathTracer):
         self,
         scene: "Scene",
         order: int | Sequence[int],
-        specular_reflection: bool = True,  # noqa: ARG002
-        diffuse_scattering: bool = False,  # noqa: ARG002
+        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
@@ -1063,7 +1063,7 @@ class HybridPathTracer(AbstractPathTracer):
         order: int | Sequence[int],
         *args: Any,
         chunk_size: int | None = None,
-        pad_chunks: bool = False,  # noqa: ARG002
+        pad_chunks: bool = False,  # ruff:ignore[unused-method-argument]
         **kwargs: Any,
     ) -> SizedIterator[
         tuple[

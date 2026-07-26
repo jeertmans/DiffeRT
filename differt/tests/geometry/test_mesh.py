@@ -101,7 +101,7 @@ def test_triangle_contains_vertex_assuming_inside_same_planes() -> None:
 
 
 def test_triangle_mesh_deprecated() -> None:
-    from differt.geometry import TriangleMesh  # noqa: PLC0415
+    from differt.geometry import TriangleMesh  # ruff:ignore[import-outside-top-level]
 
     with pytest.warns(DeprecationWarning, match="TriangleMesh is deprecated"):
         _ = TriangleMesh(
@@ -1823,7 +1823,7 @@ class TestMeshDiffraction:
         mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=True)
 
         # The shared diagonal should be ignored because assume_quads=True.
-        adj_t, _ = mesh._connectivity()  # noqa: SLF001
+        adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
         assert jnp.all(adj_t == -1)
 
     def test_non_manifold_edges(self) -> None:
@@ -1915,7 +1915,7 @@ class TestMeshDiffraction:
         mesh = Mesh.empty()
 
         # This will call _connectivity() with num_triangles == 0
-        adj_t, adj_e = mesh._connectivity()  # noqa: SLF001
+        adj_t, adj_e = mesh._connectivity()  # ruff:ignore[private-member-access]
         assert adj_t.shape == (0, 3)
         assert adj_e.shape == (0, 3)
 

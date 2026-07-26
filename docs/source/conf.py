@@ -1,4 +1,4 @@
-# ruff: noqa: D100, D103, D200, DOC201, INP001
+# ruff:file-ignore[undocumented-public-module, undocumented-public-function, unnecessary-multiline-docstring, docstring-missing-returns, implicit-namespace-package]
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -27,7 +27,7 @@ from sphinx.ext.intersphinx import missing_reference
 from differt import __version__
 
 project = "DiffeRT"
-copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
+copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff:ignore[builtin-variable-shadowing, call-date-today]
 author = "Jérome Eertmans"
 version = __version__
 git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
@@ -76,11 +76,18 @@ nitpick_ignore = (
     ("py:class", "ndarray"),  # From ArrayLike
     ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
-    ("py:obj", "differt.rt.utils._T"),
+    ("py:obj", "differt.geometry._utils._T"),
     ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
     ("py:class", "equinox._module._better_abstract.AbstractVar"),
 )
+
+nitpick_ignore_regex = [
+    (r"py:.*", r"differt\.rt\..*"),
+    (r"py:.*", r"differt\.scene\..*"),
+    (r"py:.*", r"differt_core\.rt\..*"),
+    (r"py:.*", r"differt_core\.scene\..*"),
+]
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
@@ -233,7 +240,7 @@ def linkcode_resolve(domain: str, info: dict[str, str]) -> str | None:
     if info["module"].split(".", 1)[0] not in {"differt", "differt_core"}:
         return None
 
-    try:  # noqa: PLW0717
+    try:  # ruff:ignore[too-many-statements-in-try-clause]
         mod = sys.modules.get(info["module"])
         obj = operator.attrgetter(info["fullname"])(mod)
         if isinstance(obj, property):
@@ -294,7 +301,7 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
         for param_name, parameter in sig.parameters.items():
             if param_name == "folder":
-                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # noqa: PLW2901
+                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # ruff:ignore[redefined-loop-name]
 
             parameters.append(parameter)
 
@@ -328,6 +335,24 @@ def fix_reference(
             newnode.append(contnode)
 
             return newnode
+
+        target = node["reftarget"]
+        if target.startswith(("differt.rt.", "differt.scene.")):
+            new_target = target.replace("differt.rt.", "differt.geometry.").replace(
+                "differt.scene.", "differt.geometry."
+            )
+            node["reftarget"] = new_target
+            py_domain = env.get_domain("py")
+            return py_domain.resolve_xref(
+                env,
+                node.get("refdoc", env.docname),
+                app.builder,
+                node["reftype"],
+                new_target,
+                node,
+                contnode,
+            )
+
         if node["reftarget"].startswith(
             "jaxtyping"
         ):  # Sphinx fails to find them in the inventory
@@ -389,7 +414,7 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
-        fragment_placeholder = "{fragment}"  # noqa: RUF027
+        fragment_placeholder = "{fragment}"  # ruff:ignore[missing-f-string-syntax]
         if fragment and fragment_placeholder not in url_template:
             url = f"{url}#{fragment}"
         title = explicit_title or title_template.format(path=path, fragment=fragment)
@@ -403,7 +428,7 @@ def _make_gh_role(
 def setup(app: Sphinx) -> None:
     typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
-    import jaxtyping  # noqa: PLC0415
+    import jaxtyping  # ruff:ignore[import-outside-top-level]
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
 
@@ -412,17 +437,19 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike  # type: ignore[ty:invalid-assignment]
 
-    from typing import TypeVar  # noqa: PLC0415
+    from typing import TypeVar  # ruff:ignore[import-outside-top-level]
 
-    from differt.scene import download_sionna_scenes  # noqa: PLC0415
+    from differt.geometry import (  # ruff:ignore[import-outside-top-level]
+        download_sionna_scenes,
+    )
 
     class ArrayType(jaxtyping.Array):
         def __repr__(self) -> str:
             return "ArrayType"
 
-    import differt.plugins._deepmimo_types  # noqa: PLC0415
+    import differt.plugins._deepmimo_types  # ruff:ignore[import-outside-top-level]
 
-    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # noqa: SLF001
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # ruff:ignore[private-member-access]
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 

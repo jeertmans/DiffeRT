@@ -5,14 +5,14 @@ from timeit import timeit
 import pytest
 from pytest_subtests import SubTests
 
-from differt.scene._sionna import (
+from differt.geometry._sionna import (
     download_sionna_scenes as no_timeout_download_sionna_scenes,
 )
-from differt.scene._sionna import (
+from differt.geometry._sionna import (
     get_sionna_scene,
     list_sionna_scenes,
 )
-from differt_core.scene import SionnaScene
+from differt_core.geometry import SionnaScene
 
 # Let's put a timeout on downloading the scenes.
 download_sionna_scenes = partial(no_timeout_download_sionna_scenes, timeout=600.0)

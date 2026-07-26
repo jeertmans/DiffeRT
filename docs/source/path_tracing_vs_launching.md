@@ -2,9 +2,9 @@
 
 In DiffeRT, path finding algorithms are fundamentally split into two main approaches: **Path Tracing** and **Path Launching**. Each solves the problem of finding valid paths between transmitters and receivers, but they operate very differently in terms of speed, accuracy, and algorithmic approach.
 
-To help structure these algorithms, DiffeRT provides two base classes in {mod}`differt.scene`:
-* {class}`AbstractPathTracer<differt.scene.AbstractPathTracer>`
-* {class}`AbstractPathLauncher<differt.scene.AbstractPathLauncher>`
+To help structure these algorithms, DiffeRT provides two base classes in {mod}`differt.geometry`:
+* {class}`AbstractPathTracer<differt.geometry.AbstractPathTracer>`
+* {class}`AbstractPathLauncher<differt.geometry.AbstractPathLauncher>`
 
 ## Path Tracing
 
@@ -22,8 +22,8 @@ To help structure these algorithms, DiffeRT provides two base classes in {mod}`d
 * **Scalability**: The number of path candidates grows exponentially with the number of objects and the maximum interaction order. As a result, exhaustive path tracing becomes computationally infeasible for large scenes or high interaction orders.
 
 **Example Solvers:**
-* {class}`ExhaustivePathTracer<differt.scene.ExhaustivePathTracer>`
-* {class}`HybridPathTracer<differt.scene.HybridPathTracer>` (which uses a heuristic visibility graph to reduce the number of path candidates before applying exact tracing)
+* {class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`
+* {class}`HybridPathTracer<differt.geometry.HybridPathTracer>` (which uses a heuristic visibility graph to reduce the number of path candidates before applying exact tracing)
 
 ## Path Launching
 
@@ -41,16 +41,16 @@ To help structure these algorithms, DiffeRT provides two base classes in {mod}`d
 * **Tuning Required**: Requires tuning the number of rays and the capture radius (`max_dist`).
 
 **Example Solvers:**
-* {class}`SBRPathLauncher<differt.scene.SBRPathLauncher>`
+* {class}`SBRPathLauncher<differt.geometry.SBRPathLauncher>`
 
 ## Choosing a Solver
 
-When calling {meth}`Scene.trace_paths()<differt.scene.Scene.trace_paths>` or {meth}`Scene.launch_paths()<differt.scene.Scene.launch_paths>`, you configure your solver by directly instantiating the respective solver class.
+When calling {meth}`Scene.trace_paths()<differt.geometry.Scene.trace_paths>` or {meth}`Scene.launch_paths()<differt.geometry.Scene.launch_paths>`, you configure your solver by directly instantiating the respective solver class.
 
 For example, to configure an exhaustive tracer with chunking:
 
 ```python
-from differt.scene import ExhaustivePathTracer
+from differt.geometry import ExhaustivePathTracer
 
 scene.trace_paths(
     order=1,
@@ -61,7 +61,7 @@ scene.trace_paths(
 To configure an SBR launcher:
 
 ```python
-from differt.scene import SBRPathLauncher
+from differt.geometry import SBRPathLauncher
 
 scene.launch_paths(
     order=1,
@@ -73,4 +73,4 @@ scene.launch_paths(
 
 You are not limited to the built-in solvers! You can customize path generation by creating your own solver subclasses.
 
-By subclassing {class}`AbstractPathTracer<differt.scene.AbstractPathTracer>` or {class}`AbstractPathLauncher<differt.scene.AbstractPathLauncher>`, or one of its subclasses, you can implement custom logic for path candidate generation, path tracing, and so on.
+By subclassing {class}`AbstractPathTracer<differt.geometry.AbstractPathTracer>` or {class}`AbstractPathLauncher<differt.geometry.AbstractPathLauncher>`, or one of its subclasses, you can implement custom logic for path candidate generation, path tracing, and so on.

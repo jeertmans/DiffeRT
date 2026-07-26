@@ -24,21 +24,21 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added path solver configuration classes ({class}`ExhaustivePathTracer<differt.scene.ExhaustivePathTracer>`, {class}`HybridPathTracer<differt.scene.HybridPathTracer>`, and {class}`SBRPathLauncher<differt.scene.SBRPathLauncher>`) to configure path tracing algorithms (by <gh-user:jeertmans>, in <gh-pr:491>).
-- Added {meth}`TriangleScene.trace_paths<differt.scene.Scene.trace_paths>` (returning {class}`TracedPaths<differt.geometry.TracedPaths>`) and {meth}`TriangleScene.launch_paths<differt.scene.Scene.launch_paths>` (returning {class}`LaunchedPaths<differt.geometry.LaunchedPaths>`) as distinct high-level path tracing routines (by <gh-user:jeertmans>, in <gh-pr:491>).
-- Added support for passing solver parameters directly as keyword arguments to {meth}`TriangleScene.trace_paths<differt.scene.Scene.trace_paths>` and {meth}`TriangleScene.launch_paths<differt.scene.Scene.launch_paths>` (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Added path solver configuration classes ({class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`, {class}`HybridPathTracer<differt.geometry.HybridPathTracer>`, and {class}`SBRPathLauncher<differt.geometry.SBRPathLauncher>`) to configure path tracing algorithms (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Added {meth}`TriangleScene.trace_paths<differt.geometry.Scene.trace_paths>` (returning {class}`TracedPaths<differt.geometry.TracedPaths>`) and {meth}`TriangleScene.launch_paths<differt.geometry.Scene.launch_paths>` (returning {class}`LaunchedPaths<differt.geometry.LaunchedPaths>`) as distinct high-level path tracing routines (by <gh-user:jeertmans>, in <gh-pr:491>).
+- Added support for passing solver parameters directly as keyword arguments to {meth}`TriangleScene.trace_paths<differt.geometry.Scene.trace_paths>` and {meth}`TriangleScene.launch_paths<differt.geometry.Scene.launch_paths>` (by <gh-user:jeertmans>, in <gh-pr:491>).
 
 ### Changed
 
 - **Breaking change**: Renamed multiple functions and methods across the codebase from plural to singular form to improve API consistency and better align with JAX broadcasting semantics:
   - **Ray tracing (`differt.rt`):**
-    - Renamed `rays_intersect_any_triangle` to {func}`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`
-    - Renamed `first_triangles_hit_by_rays` to {func}`first_triangle_hit_by_ray<differt.rt.first_triangle_hit_by_ray>`
-    - Renamed `triangles_visible_from_vertices` to {func}`triangles_visible_from_vertex<differt.rt.triangles_visible_from_vertex>`
-    - Renamed `rays_intersect_triangles` to {func}`ray_intersect_triangle<differt.rt.ray_intersect_triangle>`
-    - Renamed `consecutive_vertices_are_on_same_side_of_mirrors` to {func}`consecutive_vertices_are_on_same_side_of_mirror<differt.rt.consecutive_vertices_are_on_same_side_of_mirror>`
-    - Renamed `image_of_vertices_with_respect_to_mirrors` to {func}`image_of_vertex_with_respect_to_mirror<differt.rt.image_of_vertex_with_respect_to_mirror>`
-    - Renamed `intersection_of_rays_with_planes` to {func}`intersection_of_ray_with_plane<differt.rt.intersection_of_ray_with_plane>`
+    - Renamed `rays_intersect_any_triangle` to {func}`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`
+    - Renamed `first_triangles_hit_by_rays` to {func}`first_triangle_hit_by_ray<differt.geometry.first_triangle_hit_by_ray>`
+    - Renamed `triangles_visible_from_vertices` to {func}`triangles_visible_from_vertex<differt.geometry.triangles_visible_from_vertex>`
+    - Renamed `rays_intersect_triangles` to {func}`ray_intersect_triangle<differt.geometry.ray_intersect_triangle>`
+    - Renamed `consecutive_vertices_are_on_same_side_of_mirrors` to {func}`consecutive_vertices_are_on_same_side_of_mirror<differt.geometry.consecutive_vertices_are_on_same_side_of_mirror>`
+    - Renamed `image_of_vertices_with_respect_to_mirrors` to {func}`image_of_vertex_with_respect_to_mirror<differt.geometry.image_of_vertex_with_respect_to_mirror>`
+    - Renamed `intersection_of_rays_with_planes` to {func}`intersection_of_ray_with_plane<differt.geometry.intersection_of_ray_with_plane>`
   - **Geometry (`differt.geometry`):**
     - Renamed `TriangleMesh.rays_intersect_any_triangle` to {meth}`TriangleMesh.ray_intersect_any_triangle<differt.geometry.Mesh.ray_intersect_any_triangle>`
     - Renamed `TriangleMesh.first_triangles_hit_by_rays` to {meth}`TriangleMesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`
@@ -56,7 +56,8 @@ with one *slight* but **important** difference:
 - **Breaking change**: Refactored the monolithic `TriangleScene.compute_paths` method into two distinct methods (`trace_paths` for exact tracing and `launch_paths` for ray launching) and marked `compute_paths` as deprecated (by <gh-user:jeertmans>, in <gh-pr:491>).
 - **Breaking change**: Renamed `Paths` to {class}`TracedPaths<differt.geometry.TracedPaths>` and `SBRPaths` to {class}`LaunchedPaths<differt.geometry.LaunchedPaths>`, separating them structurally to avoid inheritance dependencies. Added backwards-compatible aliases and properties (by <gh-user:jeertmans>, in <gh-pr:491>).
 - **Breaking change**: Mask and intersection type arrays of path classes are no longer optional (by <gh-user:jeertmans>, in <gh-pr:491>).
-- **Breaking change**: Renamed `TriangleMesh` to {class}`Mesh<differt.geometry.Mesh>` and `TriangleScene` to {class}`Scene<differt.scene.Scene>` across the codebase. Deprecated aliases are provided for backwards compatibility, raising a `DeprecationWarning` when used (by <gh-user:jeertmans>, in <gh-issue:496>).
+- **Breaking change**: Renamed `TriangleMesh` to {class}`Mesh<differt.geometry.Mesh>` and `TriangleScene` to {class}`Scene<differt.geometry.Scene>` across the codebase. Deprecated aliases are provided for backwards compatibility, raising a `DeprecationWarning` when used (by <gh-user:jeertmans>, in <gh-issue:496>).
+- **Breaking change**: Merged `differt.rt` and `differt.scene` into `differt.geometry`. Deprecated aliases are provided for backwards compatibility, raising a `DeprecationWarning` when used (by <gh-user:jeertmans>, in <gh-pr:498>).
 
 ### Chore
 
@@ -66,7 +67,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added Warp-accelerated {meth}`TriangleScene.compute_tx_mlm<differt.scene.Scene.compute_tx_mlm>` method to compute the Multipath Lifetime Map (MLM) from transmitter locations using a shooting and bouncing ray (SBR) approach, providing a much faster and lower-memory alternative to the exhaustive ray tracing approach (by <gh-user:jeertmans>, in <gh-pr:483>).
+- Added Warp-accelerated {meth}`TriangleScene.compute_tx_mlm<differt.geometry.Scene.compute_tx_mlm>` method to compute the Multipath Lifetime Map (MLM) from transmitter locations using a shooting and bouncing ray (SBR) approach, providing a much faster and lower-memory alternative to the exhaustive ray tracing approach (by <gh-user:jeertmans>, in <gh-pr:483>).
 
 ### Fixed
 
@@ -88,7 +89,7 @@ with one *slight* but **important** difference:
 
 - Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.Mesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.Mesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 - Updated {meth}`TriangleMesh.drop_duplicates<differt.geometry.Mesh.drop_duplicates>` to call both {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` and {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.Mesh.drop_unused_vertices>` in sequence (by <gh-user:jeertmans>, in <gh-pr:463>).
-- Documented TPU compatibility limitations due to NVIDIA Warp integration: Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.Mesh>` and {class}`TriangleScene<differt.scene.Scene>` do not support TPUs. Added warning notes across the codebase, updated JAX/TPU references in the documentation, and created a dedicated "Note on TPUs" documentation page detailing JAX/TPU alternatives (by <gh-user:jeertmans>, in <gh-pr:467>).
+- Documented TPU compatibility limitations due to NVIDIA Warp integration: Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.Mesh>` and {class}`TriangleScene<differt.geometry.Scene>` do not support TPUs. Added warning notes across the codebase, updated JAX/TPU references in the documentation, and created a dedicated "Note on TPUs" documentation page detailing JAX/TPU alternatives (by <gh-user:jeertmans>, in <gh-pr:467>).
 
 ### Fixed
 
@@ -187,7 +188,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Changed {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to leverage the `fpt-jax` library {cite}`fpt-eucap2026` for better performance and faster gradient computations (by <gh-user:jeertmans>, in <gh-pr:335>).
+- Changed {func}`fermat_path_on_linear_objects<differt.geometry.fermat_path_on_linear_objects>` to leverage the `fpt-jax` library {cite}`fpt-eucap2026` for better performance and faster gradient computations (by <gh-user:jeertmans>, in <gh-pr:335>).
 
 ### Chore
 
@@ -208,14 +209,14 @@ with one *slight* but **important** difference:
 
 - Added {func}`update_defaults<differt.plotting.update_defaults>`, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
 - [Added the possibility to pass {data}`None` for the `batch_size` argument]{#ray-triangle-batch-size-none} of `rays_intersect_any_triangle`, `triangles_visible_from_vertices`, and `first_triangles_hit_by_rays`, to indicate that no batching should be performed, i.e., all operations are executed in a single {func}`jax.vmap` call (by <gh-user:jeertmans>, in <gh-pr:310>).
-- Added a `batch_size` argument to {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` to allow users to specify the size of the batch used for ray-triangle intersection tests, see [above](#ray-triangle-batch-size-none) (by <gh-user:jeertmans>, in <gh-pr:310>).
-- Added the {meth}`DiGraph.filter_by_mask<differt_core.rt.DiGraph.filter_by_mask>` to disconnected nodes based on a mask (by <gh-user:jeertmans>, in <gh-pr:322>).
-- Added a `disconnect_inactive_triangles` to {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` to allow reducing the number of path candidates, at the cost of potential recompilations (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Added a `batch_size` argument to {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` to allow users to specify the size of the batch used for ray-triangle intersection tests, see [above](#ray-triangle-batch-size-none) (by <gh-user:jeertmans>, in <gh-pr:310>).
+- Added the {meth}`DiGraph.filter_by_mask<differt_core.geometry.DiGraph.filter_by_mask>` to disconnected nodes based on a mask (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Added a `disconnect_inactive_triangles` to {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` to allow reducing the number of path candidates, at the cost of potential recompilations (by <gh-user:jeertmans>, in <gh-pr:322>).
 - Added an `active_vertices` argument to {func}`viewing_frustum<differt.geometry.viewing_frustum>` to allow users to specify which vertices are active (by <gh-user:jeertmans>, in <gh-pr:322>).
 
 ### Changed
 
-- Changed {meth}`DiGraph.disconnect_nodes<differt_core.rt.DiGraph.disconnect_nodes>` to raise an {class}`IndexError` when the node indices are out of bounds (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Changed {meth}`DiGraph.disconnect_nodes<differt_core.geometry.DiGraph.disconnect_nodes>` to raise an {class}`IndexError` when the node indices are out of bounds (by <gh-user:jeertmans>, in <gh-pr:322>).
 - Changed the behavior of `first_triangles_hit_by_rays` to select the triangle with the closest center to the ray origin when two or more triangles are hit at the same distance (by <gh-user:jeertmans>, in <gh-pr:322>).
 - Changed the behavior of `first_triangles_hit_by_rays` to include the triangle centers in the world vertices when computing the viewing frustum (by <gh-user:jeertmans>, in <gh-pr:322>).
 
@@ -249,11 +250,11 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
-- Fixed a shape (and possibly `dtype`) issue in the fast path of `consecutive_vertices_are_on_same_side_of_mirrors`, that would raise an error when trying to stack arrays in {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` with a non-{data}`None` value for `smoothing_factor` (by <gh-user:jeertmans>, in <gh-pr:303>).
+- Fixed a shape (and possibly `dtype`) issue in the fast path of `consecutive_vertices_are_on_same_side_of_mirrors`, that would raise an error when trying to stack arrays in {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` with a non-{data}`None` value for `smoothing_factor` (by <gh-user:jeertmans>, in <gh-pr:303>).
 
 ### Removed
 
-- Removed `parallel` keyword argument in {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` as it was no longer supported, and its presence increased the code complexity. Executing code on multiple devices should be automatically handled by {func}`jax.jit`, or manually specified by the end-user. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:305>).
+- Removed `parallel` keyword argument in {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` as it was no longer supported, and its presence increased the code complexity. Executing code on multiple devices should be automatically handled by {func}`jax.jit`, or manually specified by the end-user. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:305>).
 
 ## [0.4.1](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...v0.4.1)
 
@@ -263,7 +264,7 @@ with one *slight* but **important** difference:
 
 ### Chore
 
-- Refactored {func}`image_method<differt.rt.image_method>` and {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to use {func}`jnp.vectorize<jax.numpy.vectorize>` instead of a custom but complex chain of calls to {func}`jax.vmap`, reducing the code complexity while not affecting performance (by <gh-user:jeertmans>, in <gh-pr:298>).
+- Refactored {func}`image_method<differt.geometry.image_method>` and {func}`fermat_path_on_linear_objects<differt.geometry.fermat_path_on_linear_objects>` to use {func}`jnp.vectorize<jax.numpy.vectorize>` instead of a custom but complex chain of calls to {func}`jax.vmap`, reducing the code complexity while not affecting performance (by <gh-user:jeertmans>, in <gh-pr:298>).
 - Ignored lints PLR091* globally, instead of per-case (by <gh-user:jeertmans>, in <gh-pr:298>).
 - Improved code coverage for ray-triangle intersection tests (by <gh-user:jeertmans>, in <gh-pr:301>).
 - Refactored benchmarks to reduce the number of benchmarks and avoid depending on JIT compilation (by <gh-user:jeertmans>, in <gh-pr:301>).
@@ -294,7 +295,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Implemented `method = 'hybrid'` for {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` (by <gh-user:jeertmans>, in <gh-pr:295>).
+- Implemented `method = 'hybrid'` for {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` (by <gh-user:jeertmans>, in <gh-pr:295>).
 
 ### Chore
 
@@ -340,11 +341,11 @@ with one *slight* but **important** difference:
 ### Changed
 
 - Deprecated `differt.utils.minimize` in favor of specialized implementations, see <gh-pr:283> for motivation and migration information (by <gh-user:jeertmans>, in <gh-pr:283>).
-- Changed the default `optimizer` used by {func}`fermat_path_on_linear_objects<differt.rt.fermat_path_on_linear_objects>` to be {func}`optax.lbfgs` (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Changed the default `optimizer` used by {func}`fermat_path_on_linear_objects<differt.geometry.fermat_path_on_linear_objects>` to be {func}`optax.lbfgs` (by <gh-user:jeertmans>, in <gh-pr:272>).
 
 ### Fixed
 
-- Fixed {class}`ValueError` raised when using `parallel` mode in {meth}`TriangleScene.compute_paths<differt.scene.Scene.compute_paths>` with `jax>=0.6` by disabling it (see <gh-issue:280>). This is a *soft* **breaking change** as it will raise a warning (by <gh-user:jeertmans>, in <gh-pr:281>). Using JAX v0.6 (and above) is now allowed again.
+- Fixed {class}`ValueError` raised when using `parallel` mode in {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` with `jax>=0.6` by disabling it (see <gh-issue:280>). This is a *soft* **breaking change** as it will raise a warning (by <gh-user:jeertmans>, in <gh-pr:281>). Using JAX v0.6 (and above) is now allowed again.
 
 ## [0.1.1](https://github.com/jeertmans/DiffeRT/compare/v0.1.0...v0.1.1)
 
@@ -355,7 +356,7 @@ with one *slight* but **important** difference:
   The following equality should always hold: `paths.reshape(*batch).shape = batch`.
 - Added the {mod}`differt.plugins` package and {mod}`differt.plugins.deepmimo` module (by <gh-user:jeertmans>, in <gh-pr:267>).
 - Added export utility to the [DeepMIMO](https://github.com/DeepMIMO) format (by <gh-user:jeertmans>, in <gh-pr:267>).
-- Added {meth}`from_mitsuba<differt.scene.Scene.from_mitsuba>` and {meth}`from_sionna<differt.scene.Scene.from_sionna>` methods to the {class}`TriangleScene<differt.scene.Scene>` class (by <gh-user:jeertmans>, in <gh-pr:267>).
+- Added {meth}`from_mitsuba<differt.geometry.Scene.from_mitsuba>` and {meth}`from_sionna<differt.geometry.Scene.from_sionna>` methods to the {class}`TriangleScene<differt.geometry.Scene>` class (by <gh-user:jeertmans>, in <gh-pr:267>).
 
 ### Chore
 
@@ -364,7 +365,7 @@ with one *slight* but **important** difference:
 
 ### Fixed
 
-- Fixed potential {class}`IndexError` in {attr}`TriangleScene.num_{transmitters,receivers}<differt.scene.Scene.num_transmitters>` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
+- Fixed potential {class}`IndexError` in {attr}`TriangleScene.num_{transmitters,receivers}<differt.geometry.Scene.num_transmitters>` when the TX/RX arrays have incorrect shape (by <gh-user:jeertmans>, in <gh-pr:272>).
 - Fixed potential `IndexError` in `Paths.num_valid_paths` when the `objects` array has its last axis being of zero size (by <gh-user:jeertmans>, in <gh-pr:273>).
 
 ## [0.1.0](https://github.com/jeertmans/DiffeRT/tree/v0.1.0)

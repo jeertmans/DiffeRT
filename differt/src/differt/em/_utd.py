@@ -1,5 +1,5 @@
-# ruff: noqa: N802, N806
-# type: ignore  # noqa: PGH003
+# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function]
+# type: ignore  # ruff:ignore[blanket-type-ignore]
 from typing import Any, Literal, overload
 
 import equinox as eqx
@@ -254,38 +254,37 @@ def diffraction_coefficients(
     Raises:
         NotImplementedError: The function is not yet implemented.
     """
-    # ruff: noqa: F821, F841
     raise NotImplementedError
 
     # Ensure input vectors are normalized
-    incident_ray = incident_ray / jnp.linalg.norm(incident_ray)
-    diffracted_ray = diffracted_ray / jnp.linalg.norm(diffracted_ray)
-    edge_vector = edge_vector / jnp.linalg.norm(edge_vector)
+    incident_ray = incident_ray / jnp.linalg.norm(incident_ray)  # ruff:ignore[undefined-name]
+    diffracted_ray = diffracted_ray / jnp.linalg.norm(diffracted_ray)  # ruff:ignore[undefined-name]
+    edge_vector = edge_vector / jnp.linalg.norm(edge_vector)  # ruff:ignore[undefined-name]
 
     # Compute relevant angles
     beta_0 = jnp.arccos(jnp.dot(incident_ray, edge_vector))
     beta = jnp.arccos(jnp.dot(diffracted_ray, edge_vector))
-    phi = jnp.arccos(jnp.dot(-incident_ray, diffracted_ray))
+    phi = jnp.arccos(jnp.dot(-incident_ray, diffracted_ray))  # ruff:ignore[unused-variable]
 
     # Compute L parameters (distance parameters)
-    L = r * jnp.sin(beta) ** 2 / (r + r_prime)
-    L_prime = r_prime * jnp.sin(beta_0) ** 2 / (r + r_prime)
+    L = r * jnp.sin(beta) ** 2 / (r + r_prime)  # ruff:ignore[undefined-name, unused-variable]
+    L_prime = r_prime * jnp.sin(beta_0) ** 2 / (r + r_prime)  # ruff:ignore[undefined-name, unused-variable]
 
-    phi_i = jnp.pi - (jnp.pi - jnp.arccos(dot(-s_t_i, t_o))) * _sign(dot(-s_t_i, n_o))
-    phi_d = jnp.pi - (jnp.pi - jnp.arccos(dot(+s_t_d, t_o))) * _sign(dot(+s_d_i, n_o))
+    phi_i = jnp.pi - (jnp.pi - jnp.arccos(dot(-s_t_i, t_o))) * _sign(dot(-s_t_i, n_o))  # ruff:ignore[undefined-name]
+    phi_d = jnp.pi - (jnp.pi - jnp.arccos(dot(+s_t_d, t_o))) * _sign(dot(+s_d_i, n_o))  # ruff:ignore[undefined-name]
 
     # Compute the angle differences
     phi_1 = phi_d - phi_i
     phi_2 = phi_d + phi_i
 
     # Compute the diffraction coefficients (without common mul. factor)
-    D_1 = _cot((jnp.pi + phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "+"))
-    D_2 = _cot((jnp.pi - phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "-"))
-    D_3 = _cot((jnp.pi + phi_2) / (2 * n)) * F(k * L_r_n * _a(phi_2, "+"))
-    D_4 = _cot((jnp.pi - phi_2) / (2 * n)) * F(k * L_r_o * _a(phi_2, "-"))
+    D_1 = _cot((jnp.pi + phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "+"))  # ruff:ignore[undefined-name]
+    D_2 = _cot((jnp.pi - phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "-"))  # ruff:ignore[undefined-name]
+    D_3 = _cot((jnp.pi + phi_2) / (2 * n)) * F(k * L_r_n * _a(phi_2, "+"))  # ruff:ignore[undefined-name]
+    D_4 = _cot((jnp.pi - phi_2) / (2 * n)) * F(k * L_r_o * _a(phi_2, "-"))  # ruff:ignore[undefined-name]
 
     factor = -jnp.exp(-1j * jnp.pi / 4) / (
-        2 * n * jnp.sqrt(2 * jnp.pi * k) * sin_beta_0
+        2 * n * jnp.sqrt(2 * jnp.pi * k) * sin_beta_0  # ruff:ignore[undefined-name]
     )
 
     # Apply the Keller cone condition

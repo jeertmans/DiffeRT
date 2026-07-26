@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 use super::sionna::SionnaScene;
-use crate::geometry::triangle_mesh::Mesh;
+use crate::geometry::mesh::Mesh;
 
 /// A scene that contains one mesh, usually being the results of multiple call to :meth:`Mesh.append<differt_core.geometry.Mesh.append>`.
 ///
@@ -77,7 +77,7 @@ impl Scene {
 
 #[cfg(not(tarpaulin_include))]
 #[pymodule(gil_used = false)]
-pub(crate) fn triangle_scene(m: Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn scene(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Scene>()?;
     Ok(())
 }

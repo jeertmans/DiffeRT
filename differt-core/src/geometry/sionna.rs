@@ -10,7 +10,7 @@ use serde::{Deserialize, de};
 ///
 /// This scene acts as a bridge between Sionna and DiffeRT,
 /// and is essentially used to quickly load scenes from Sionna
-/// and export them as a :class:`Scene<differt.scene.Scene>`.
+/// and export them as a :class:`Scene<differt.geometry.Scene>`.
 ///
 /// Warning:
 ///     We are still open to better ways to parse those XML files,

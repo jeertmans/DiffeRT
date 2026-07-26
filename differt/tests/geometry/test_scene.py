@@ -13,30 +13,28 @@ from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
 from differt.geometry import (
-    LaunchedPaths,
-    Mesh,
-    TracedPaths,
-    assemble_path,
-    normalize,
-    rotation_matrix_along_x_axis,
-)
-from differt.scene import (
     AbstractPathLauncher,
     AbstractPathTracer,
     ExhaustivePathTracer,
     HybridPathTracer,
+    LaunchedPaths,
+    Mesh,
     SBRPathLauncher,
+    TracedPaths,
+    assemble_path,
     get_sionna_scene,
     list_sionna_scenes,
+    normalize,
+    rotation_matrix_along_x_axis,
 )
-from differt.scene._scene import Scene
-from differt_core.scene import SionnaScene
+from differt.geometry._scene import Scene
+from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
 
 
 def test_triangle_scene_deprecated() -> None:
-    from differt.scene import TriangleScene  # noqa: PLC0415
+    from differt.geometry import TriangleScene  # ruff:ignore[import-outside-top-level]
 
     with pytest.warns(DeprecationWarning, match="TriangleScene is deprecated"):
         _ = TriangleScene(transmitters=jnp.zeros((1, 3)), receivers=jnp.zeros((1, 3)))
@@ -1041,7 +1039,7 @@ class TestScene:
 
         with pytest.deprecated_call():
             with pytest.raises(ValueError, match="order' is required"):
-                scene.compute_paths(  # type: ignore # noqa: PGH003
+                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
                     order=None,
                     path_candidates=path_candidates,
                     method="sbr",
@@ -1049,7 +1047,7 @@ class TestScene:
 
         with pytest.deprecated_call():
             with pytest.raises(ValueError, match="order' is required"):
-                scene.compute_paths(  # type: ignore # noqa: PGH003
+                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
                     order=None,
                     path_candidates=path_candidates,
                     method="hybrid",
@@ -1071,12 +1069,10 @@ class TestScene:
 
         # trace_paths unknown solver
         with pytest.raises(ValueError, match="Unknown solver"):
-            scene.trace_paths(order=1, solver="invalid")  # type: ignore # noqa: PGH003
-
+            scene.trace_paths(order=1, solver="invalid")  # type: ignore[ty:no-matching-overload]
         # launch_paths unknown solver
         with pytest.raises(ValueError, match="Unknown solver"):
-            scene.launch_paths(order=1, solver="invalid")  # type: ignore # noqa: PGH003
-
+            scene.launch_paths(order=1, solver="invalid")  # type: ignore[ty:no-matching-overload]
         # trace_paths with HybridPathTracer and smoothing_factor warning
         with pytest.warns(UserWarning, match="smoothing' is currently ignored"):
             scene.trace_paths(order=1, solver=HybridPathTracer(smoothing_factor=0.1))

@@ -5,7 +5,7 @@ from typing import Any, Self
 
 from differt_core import _differt_core
 
-Scene = _differt_core.scene.triangle_scene.Scene
+Scene = _differt_core.geometry.scene.Scene
 
 
 # Deprecated alias

@@ -5,7 +5,7 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.geometry import assemble_path, normalize
-from differt.rt._fermat import (
+from differt.geometry._solver_fermat import (
     fermat_path_on_linear_objects,
     fermat_path_on_planar_mirrors,
 )

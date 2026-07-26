@@ -1,5 +1,5 @@
-from differt.scene import Scene
-from differt.scene._solvers import ExhaustivePathTracer, SBRPathLauncher
+from differt.geometry import Scene
+from differt.geometry._solvers import ExhaustivePathTracer, SBRPathLauncher
 
 
 def test_generate_path_candidates_chunks_iter(

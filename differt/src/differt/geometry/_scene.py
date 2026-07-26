@@ -22,19 +22,12 @@ import warp as wp
 from jaxtyping import Array, ArrayLike, Float, Int
 from jaxtyping import UInt as Uint
 
-import differt_core.scene
-from differt.geometry import (
-    LaunchedPaths,
-    Mesh,
-    TracedPaths,
-    fibonacci_lattice,
-    viewing_frustum,
-)
+import differt_core.geometry
 from differt.plotting import PlotOutput, draw_markers, reuse
-from differt.rt import (
-    SizedIterator,
-)
-from differt.scene._solvers import (
+
+from ._mesh import Mesh
+from ._paths import LaunchedPaths, TracedPaths
+from ._solvers import (
     AbstractPathLauncher,
     AbstractPathTracer,
     ExhaustivePathTracer,
@@ -44,6 +37,7 @@ from differt.scene._solvers import (
     _HybridPathTracerKwargs,
     _SBRPathLauncherKwargs,
 )
+from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -130,10 +124,10 @@ def _compute_tx_mlm_kernel(
             u = (wp.float32(receiver_height) - query_origin[2]) / current_direction[2]
 
             # Intersection point P
-            P = query_origin + current_direction * u  # noqa: N806
+            P = query_origin + current_direction * u  # ruff:ignore[non-lowercase-variable-in-function]
 
             # Check if intersection is valid and unobstructed
-            if u > wp.float32(0.0) and u < t_hit:  # noqa: SIM102
+            if u > wp.float32(0.0) and u < t_hit:  # ruff:ignore[collapsible-if]
                 if t >= min_order and (
                     P[0] >= wp.float32(min_x)
                     and P[0] <= wp.float32(max_x)
@@ -619,7 +613,7 @@ class Scene(eqx.Module):
         )
 
     @classmethod
-    def from_core(cls, core_scene: differt_core.scene.Scene) -> Self:
+    def from_core(cls, core_scene: differt_core.geometry.Scene) -> Self:
         """
         Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
@@ -639,7 +633,7 @@ class Scene(eqx.Module):
         Load a triangle scene from a XML file.
 
         This method uses
-        :meth:`SionnaScene.load_xml<differt_core.scene.SionnaScene.load_xml>`
+        :meth:`SionnaScene.load_xml<differt_core.geometry.SionnaScene.load_xml>`
         internally.
 
         Args:
@@ -648,11 +642,11 @@ class Scene(eqx.Module):
         Returns:
             The corresponding scene containing only triangle meshes.
         """
-        core_scene = differt_core.scene.Scene.load_xml(file)
+        core_scene = differt_core.geometry.Scene.load_xml(file)
         return cls.from_core(core_scene)
 
     @classmethod
-    def from_mitsuba(cls, mi_scene) -> Self:  # noqa: ANN001  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
+    def from_mitsuba(cls, mi_scene) -> Self:  # ruff:ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
         """
         Load a triangle scene from a Mitsuba scene object.
 
@@ -809,7 +803,7 @@ class Scene(eqx.Module):
 
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
+            using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
@@ -1219,7 +1213,7 @@ class Scene(eqx.Module):
 
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.rt.image_method>`. More types of interactions
+            using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
@@ -1278,9 +1272,9 @@ class Scene(eqx.Module):
 
                 **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
             epsilon: Tolerance for checking ray / objects intersection, see
-                :func:`ray_intersect_triangle<differt.rt.ray_intersect_triangle>`.
+                :func:`ray_intersect_triangle<differt.geometry.ray_intersect_triangle>`.
             hit_tol: Tolerance for checking blockage (i.e., obstruction), see
-                :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`.
+                :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`.
 
                 Unused if ``method == 'sbr'``.
             min_len: Minimal (squared [#f1]_) length that each path segment must have for a path to be valid.
@@ -1312,9 +1306,9 @@ class Scene(eqx.Module):
                 If :data:`None`, everything is processed in one batch, which can lead to
                 memory issues on large scenes.
 
-                See :func:`ray_intersect_any_triangle<differt.rt.ray_intersect_any_triangle>`,
-                :func:`triangles_visible_from_vertex<differt.rt.triangles_visible_from_vertex>`,
-                and :func:`first_triangle_hit_by_ray<differt.rt.first_triangle_hit_by_ray>`
+                See :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`,
+                :func:`triangles_visible_from_vertex<differt.geometry.triangles_visible_from_vertex>`,
+                and :func:`first_triangle_hit_by_ray<differt.geometry.first_triangle_hit_by_ray>`
                 for more details.
             disconnect_inactive_triangles: If :data:`True`, inactive triangles (where
                 the mesh mask is :data:`False`) are disconnected from the graph before
@@ -1438,7 +1432,7 @@ class Scene(eqx.Module):
 
             .. plotly::
 
-                >>> from differt.scene import Scene, get_sionna_scene
+                >>> from differt.geometry import Scene, get_sionna_scene
                 >>> from differt.plotting import draw_image
                 >>> import equinox as eqx
                 >>>
@@ -1477,7 +1471,7 @@ class Scene(eqx.Module):
                 ...     z0=1.5,
                 ...     figure=fig,
                 ...     backend="plotly",
-                ... )  # doctest: +SKIP
+                ... )
                 >>> fig  # doctest: +SKIP
         """
         tx_shape = self.transmitters.shape[:-1]

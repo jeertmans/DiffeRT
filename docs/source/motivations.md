@@ -9,7 +9,7 @@ Those are two good questions, and we will try to motivate in this document the r
 DiffeRT is a Python, array-oriented, Differentiable Ray Tracing (RT) library that aims to provide fast and easy-to-use tools to model the propagation of radio waves. The long-term objective of DiffeRT is to provide:
 
 - fast methods to load large scenes from various formats;
-- a large set of performant RT utilities (e.g., ray launching, {func}`image_method<differt.rt.image_method>`);
+- a large set of performant RT utilities (e.g., ray launching, {func}`image_method<differt.geometry.image_method>`);
 - the ability to easily compute electromagnetic fields and relevant metrics (e.g., power delay profile, angular spread);
 - and the ability to differentiate any of the previous parts with respect to arbitrary input parameters for optimization or Machine Learning applications.
 
@@ -33,11 +33,11 @@ In terms of features, DiffeRT does not aim to match the extensive functionality 
 4. **Lightweight and Broadcastable Design:** DiffeRT's design philosophy prioritizes transparency and usability for RT applications, avoiding the heavier abstractions often seen in other libraries. Classes aim to store as few attributes as possible, and most utilities accept input arrays with arbitrary sized inputs, which makes it very easy, e.g., to compute the same operation for one receiving (RX) antenna, or on a two-dimensional grid of RXs.
 
 [^2]: There are some exceptions, like the internal machinery behind
-  {meth}`Scene.compute_paths<differt.scene.Scene.compute_paths>`,
+  {meth}`Scene.compute_paths<differt.geometry.Scene.compute_paths>`,
   but we then provide detailed tutorials to help the user understand and build their version of the function,
   if they wish to do so, e.g., with {ref}`advanced_path_tracing`.
 
-We acknowledge the work of Sionna and recommend that users try both tools and use the one that best fits their needs. If you want to reuse scene files from Sionna, check out the {meth}`Scene.load_xml<differt.scene.Scene.load_xml>` method, as it supports reading the same file format as the one used by Sionna, i.e., the XML file format used by Mitsuba.
+We acknowledge the work of Sionna and recommend that users try both tools and use the one that best fits their needs. If you want to reuse scene files from Sionna, check out the {meth}`Scene.load_xml<differt.geometry.Scene.load_xml>` method, as it supports reading the same file format as the one used by Sionna, i.e., the XML file format used by Mitsuba.
 
 ## What's Next?
 

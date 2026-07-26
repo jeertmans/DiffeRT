@@ -10,8 +10,7 @@ from equinox import nn
 from jaxtyping import Array, Float, PRNGKeyArray, PyTree
 from pytest_codspeed import BenchmarkFixture
 
-from differt.geometry import TracedPaths
-from differt.scene import Scene
+from differt.geometry import Scene, TracedPaths
 from differt.utils import sample_points_in_bounding_box
 
 

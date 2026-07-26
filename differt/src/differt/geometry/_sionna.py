@@ -120,7 +120,7 @@ def download_sionna_scenes(
                         "recommend upgrading to a newer version of Python: 3.12, 3.11.4, or 3.10.12."
                     )
                     warnings.warn(msg, UserWarning, stacklevel=2)
-                    tar.extractall(path=folder, members=members(tar))  # noqa: S202
+                    tar.extractall(path=folder, members=members(tar))  # ruff:ignore[tarfile-unsafe-members]
 
 
 def list_sionna_scenes(*, folder: str | Path = SIONNA_SCENES_FOLDER) -> list[str]:
@@ -174,7 +174,7 @@ def get_sionna_scene(
 
 
 def main() -> None:  # pragma: no cover
-    import argparse  # noqa: PLC0415
+    import argparse  # ruff:ignore[import-outside-top-level]
 
     parser = argparse.ArgumentParser(
         prog="download-sionna-scenes",
@@ -254,7 +254,7 @@ def main() -> None:  # pragma: no cover
                 msg = f"'{args.folder.relative_to(Path.cwd())}' exists and is not empty, please clean it manually or set '--force'."
                 parser.error(msg)
 
-            import shutil  # noqa: PLC0415
+            import shutil  # ruff:ignore[import-outside-top-level]
 
             shutil.rmtree(args.folder)
 

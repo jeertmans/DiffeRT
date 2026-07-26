@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.geometry import Mesh, path_length
+from differt.geometry import Mesh, Scene, path_length
 from differt.geometry._paths import (
     LaunchedPaths,
     Paths,
@@ -18,7 +18,6 @@ from differt.geometry._paths import (
     TracedPaths,
     merge_cell_ids,
 )
-from differt.scene import Scene
 
 from ..plotting.params import matplotlib, plotly, vispy
 

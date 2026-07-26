@@ -1,4 +1,4 @@
-# ruff: noqa: FURB152
+# ruff:file-ignore[math-constant]
 
 import operator
 import typing

@@ -503,7 +503,7 @@ impl From<RawObj> for Mesh {
 
 #[cfg(not(tarpaulin_include))]
 #[pymodule(gil_used = false)]
-pub(crate) fn triangle_mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
+pub(crate) fn mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Mesh>()?;
     Ok(())
 }

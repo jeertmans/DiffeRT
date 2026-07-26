@@ -346,7 +346,7 @@ def fspl(
     d: Float[ArrayLike, " *#batch"],
     f: Float[ArrayLike, " *#batch"],
     *,
-    dB: bool = False,  # noqa: N803
+    dB: bool = False,  # ruff:ignore[invalid-argument-name]
 ) -> Float[Array, " *batch"]:
     """
     Compute the free-space path loss (FSPL), optionally in dB.
