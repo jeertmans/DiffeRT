@@ -1,4 +1,4 @@
-# ruff:file-ignore[undocumented-public-module, undocumented-public-function, unnecessary-multiline-docstring, docstring-missing-returns, implicit-namespace-package]
+# ruff:file-ignore[undocumented-public-module, undocumented-public-function, docstring-missing-returns, implicit-namespace-package]
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -7,6 +7,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+
+import hashlib
 import inspect
 import operator
 import os
@@ -34,6 +36,8 @@ git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
 sys.path.append(str(conf_dir / "_extensions"))
+
+RTD = "READTHEDOCS" in os.environ
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -90,6 +94,9 @@ nitpick_ignore_regex = [
     (r"py:.*", r"differt\.scene\..*"),
     (r"py:.*", r"differt_core\.rt\..*"),
     (r"py:.*", r"differt_core\.scene\..*"),
+    (r"py:class", r".*Remove all items from D\.*"),
+    (r"py:class", r".*a shallow copy of D.*"),
+    (r"py:class", r".*providing a view on D's.*"),
 ]
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
@@ -189,7 +196,7 @@ nb_mime_priority_overrides = [
 
 # We cannot access log files on RTD, so we print to stderr
 
-nb_execution_show_tb = "READTHEDOCS" in os.environ
+nb_execution_show_tb = RTD
 
 # -- Bibtex
 
@@ -294,9 +301,7 @@ napolean_use_rtype = False
 
 
 def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
-    """
-    Rename the default folder to a more readeable name.
-    """
+    """Rename the default folder to a more readeable name."""
     module = getattr(obj, "__module__", None)
     if module and module.rsplit(".", maxsplit=1)[-1] == "_sionna":
         sig = inspect.signature(obj)
@@ -379,6 +384,51 @@ def fix_reference(
     return None
 
 
+PLOTLY_UUID_PATTERN = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
+
+
+def make_plotly_deterministic(app: Sphinx, exception: Exception | None) -> None:
+    """Replace random UUIDs in HTML with content-based deterministic IDs."""
+    if exception is not None or getattr(app.builder, "format", "") != "html":
+        return
+
+    outdir = Path(app.outdir)
+    for html_file in outdir.rglob("*.html"):
+        try:
+            html = html_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+
+        if "Plotly.newPlot" not in html:
+            continue
+
+        # 1. Extract unique UUIDs strictly in the order they appear
+        uuids = dict.fromkeys(PLOTLY_UUID_PATTERN.findall(html))
+
+        if not uuids:
+            return
+
+        # 2. Normalize HTML by replacing random UUIDs with positional placeholders
+        stable_html = html
+        for i, u in enumerate(uuids.keys()):
+            stable_html = stable_html.replace(u, f"__UUID_PLACEHOLDER_{i}__")
+
+        # 3. Hash the normalized HTML
+        # This ensures the hash ONLY changes if the actual plot data/layout changes
+        fig_hash = hashlib.sha256(stable_html.encode("utf-8")).hexdigest()
+
+        # 4. Swap placeholders out for our new deterministic IDs
+        new_html = stable_html
+        for i in range(len(uuids)):
+            deterministic_id = f"plot-id-{fig_hash}-{i}"
+            new_html = new_html.replace(f"__UUID_PLACEHOLDER_{i}__", deterministic_id)
+
+        # 5. Update the HTML file
+        html_file.write_text(new_html, encoding="utf-8")
+
+
 # -- GitHub roles
 
 
@@ -458,6 +508,9 @@ def setup(app: Sphinx) -> None:
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
     app.connect("missing-reference", fix_reference)
+    if RTD:
+        # Prevent spurious changes in between builds (see "Files changed" in PR previews)
+        app.connect("build-finished", make_plotly_deterministic)
 
     app.add_role(
         "gh-pr",
@@ -487,4 +540,3 @@ def setup(app: Sphinx) -> None:
             title_template="Issue {path}#{fragment}",
         ),
     )
-

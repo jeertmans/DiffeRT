@@ -1,8 +1,7 @@
 # ruff:file-ignore[math-constant]
 
-import operator
 import typing
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -138,11 +137,13 @@ class Material(eqx.Module):
 
         Returns:
             The material with the given ITU properties.
+
+        Raises:
+            ValueError: If more than one frequency range is specified and one of them is ``None``.
         """
         if len(itu_properties) > 1 and any(prop[4] is None for prop in itu_properties):
-            raise ValueError(
-                "Only one frequency range can be used if 'None' is passed, as it will match any frequency"
-            )
+            msg = "Only one frequency range can be used if 'None' is passed, as it will match any frequency"
+            raise ValueError(msg)
 
         aliases = (f"itu_{name.lower().replace(' ', '_')}",)
         if len(itu_properties) == 1:
@@ -247,12 +248,87 @@ class Material(eqx.Module):
         )
 
 
-class _MaterialsDict(dict[str, Material]):
-    """A dictionary subclass mapping material names to material instances."""
+class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
+    """A dictionary subclass mapping material names to material instances with automatic alias support.
 
-    def __repr__(self) -> str:
-        primary = {k: v for k, v in self.items() if not k.startswith("itu_")}
-        return f"{primary!r}"
+    This dictionary stores materials keyed by their primary name (:attr:`Material.name`).
+    Indexing, membership checks (``in``), getting, and deletion using any material
+    alias (defined in :attr:`Material.aliases`) automatically resolve to the primary material.
+    """
+
+    def _get_key(self, key: Any) -> Any:
+        if not isinstance(key, str):
+            return key
+        if super().__contains__(key):
+            return key
+        for primary_key, material in self.items():
+            if key in material.aliases:
+                return primary_key
+        return key
+
+    def __getitem__(self, key: str) -> Material:
+        real_key = self._get_key(key)
+        return super().__getitem__(real_key)
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str):
+            return False
+        real_key = self._get_key(key)
+        return super().__contains__(real_key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        real_key = self._get_key(key)
+        return super().get(real_key, default)
+
+    def __delitem__(self, key: str) -> None:
+        real_key = self._get_key(key)
+        super().__delitem__(real_key)
+
+    def pop(self, key: str, *args: Any) -> Any:
+        real_key = self._get_key(key)
+        return super().pop(real_key, *args)
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        real_key = self._get_key(key)
+        if super().__contains__(real_key):
+            return self[real_key]
+        self[key] = default
+        return default
+
+    def __setitem__(self, key: str, value: Material) -> None:
+        real_key = self._get_key(key)
+        if super().__contains__(real_key):
+            super().__setitem__(real_key, value)
+        elif isinstance(value, Material):
+            super().__setitem__(value.name, value)
+        else:
+            super().__setitem__(key, value)
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            if len(args) > 1:
+                msg = f"update expected at most 1 argument, got {len(args)}"
+                raise TypeError(msg)
+            other = args[0]
+            if isinstance(other, Mapping):
+                for k, v in other.items():
+                    self[k] = v
+            elif isinstance(other, Iterable):
+                for item in other:
+                    if isinstance(item, Material):
+                        self[item.name] = item
+                    else:
+                        k, v = item
+                        self[k] = v
+            else:
+                msg = f"Cannot update MaterialsDict from {type(other)}"
+                raise TypeError(msg)
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__()
+        self.update(*args, **kwargs)
 
 
 # ITU-R P.2040-4 materials from Table 3.
@@ -341,13 +417,7 @@ _materials = [
     Material.from_itu_properties("Wet ground", (30.0, -0.4, 0.15, 1.30, (1.0, 10.0))),
 ]
 
-materials: dict[str, Material] = _MaterialsDict(
-    {
-        name: material
-        for material in _materials
-        for name in (material.name, *material.aliases)
-    }
-)
+materials: MaterialsDict = MaterialsDict(_materials)
 """A dictionary mapping material names and their aliases to corresponding :class:`Material` instances.
 
 For convenience, each material can be accessed either by its official ITU name (e.g., ``'Concrete'``)

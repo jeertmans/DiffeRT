@@ -9,6 +9,7 @@ __all__ = (
     "InteractionType",
     "L_i",
     "Material",
+    "MaterialsDict",
     "RadiationPattern",
     "ShortDipole",
     "ShortDipolePattern",
@@ -49,7 +50,7 @@ from ._fresnel import (
     refractive_index,
 )
 from ._interaction_type import InteractionType
-from ._material import Material, materials
+from ._material import Material, MaterialsDict, materials
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
     fspl,

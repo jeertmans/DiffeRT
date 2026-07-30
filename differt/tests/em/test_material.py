@@ -1,5 +1,5 @@
 # ruff:file-ignore[math-constant]
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import chex
 import jax
@@ -7,13 +7,11 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em._material import Material, materials
+from differt.em import Material, MaterialsDict, materials
 
 
 class TestITU:
-    materials: ClassVar[dict[str, Material]] = {
-        name: material for name, material in materials.items() if name.startswith("itu")
-    }
+    materials: ClassVar[MaterialsDict] = materials
 
     def test_constructor(self) -> None:
         with pytest.raises(
@@ -225,3 +223,121 @@ class TestITU:
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
+
+def _dummy_properties(_: Any) -> tuple[float, float]:
+    return (1.0, 0.0)
+
+
+class TestMaterialsDict:
+    def test_init_and_len(self) -> None:
+        d = MaterialsDict(materials)
+        assert len(d) == 19
+
+        mat = Material(
+            name="Custom",
+            properties=_dummy_properties,
+            aliases=("custom_alias",),
+        )
+        d_list = MaterialsDict([mat])
+        assert len(d_list) == 1
+        assert "Custom" in d_list
+        assert "custom_alias" in d_list
+
+    def test_getitem_and_contains(self) -> None:
+        d = MaterialsDict(materials)
+        concrete = d["Concrete"]
+        assert d["itu_concrete"] is concrete
+        assert "Concrete" in d
+        assert "itu_concrete" in d
+        assert "unknown" not in d
+        assert 123 not in d  # type: ignore[operator]
+
+        with pytest.raises(KeyError):
+            _ = d["unknown"]
+
+    def test_get(self) -> None:
+        d = MaterialsDict(materials)
+        concrete = d.get("Concrete")
+        assert d.get("itu_concrete") is concrete
+        assert d.get("unknown") is None
+        assert d.get("unknown", "default") == "default"
+
+    def test_setitem_and_aliases(self) -> None:
+        d = MaterialsDict()
+        mat = Material(
+            name="Wood", properties=_dummy_properties, aliases=("itu_wood", "timber")
+        )
+
+        # Setting via primary name
+        d["Wood"] = mat
+        assert len(d) == 1
+        assert d["Wood"] is mat
+        assert d["itu_wood"] is mat
+        assert d["timber"] is mat
+
+        # Updating existing material via alias
+        new_mat = Material(
+            name="Wood", properties=_dummy_properties, aliases=("itu_wood", "timber")
+        )
+        d["itu_wood"] = new_mat
+        assert len(d) == 1
+        assert d["Wood"] is new_mat
+
+        # Setting new material via alias directly
+        mat2 = Material(
+            name="Brick", properties=_dummy_properties, aliases=("itu_brick",)
+        )
+        d["itu_brick"] = mat2
+        assert len(d) == 2
+        assert d["Brick"] is mat2
+        assert d["itu_brick"] is mat2
+
+    def test_delitem(self) -> None:
+        d = MaterialsDict(materials)
+        assert "Concrete" in d
+        assert "itu_concrete" in d
+
+        del d["itu_concrete"]
+        assert "Concrete" not in d
+        assert "itu_concrete" not in d
+        assert len(d) == 18
+
+        with pytest.raises(KeyError):
+            del d["itu_concrete"]
+
+    def test_pop(self) -> None:
+        d = MaterialsDict(materials)
+        concrete = d.pop("itu_concrete")
+        assert concrete.name == "Concrete"
+        assert "Concrete" not in d
+        assert d.pop("itu_concrete", None) is None
+
+        with pytest.raises(KeyError):
+            d.pop("itu_concrete")
+
+    def test_setdefault(self) -> None:
+        d = MaterialsDict()
+        mat = Material(
+            name="Metal", properties=_dummy_properties, aliases=("itu_metal",)
+        )
+
+        res = d.setdefault("itu_metal", mat)
+        assert res is mat
+        assert d["Metal"] is mat
+
+        res2 = d.setdefault("Metal", mat)
+        assert res2 is mat
+
+    def test_update_errors(self) -> None:
+        d = MaterialsDict()
+        with pytest.raises(TypeError, match="update expected at most 1 argument"):
+            d.update(1, 2)  # type: ignore[call-arg]
+        with pytest.raises(TypeError, match="Cannot update MaterialsDict"):
+            d.update(123)  # type: ignore[arg-type]
+
+    def test_repr(self) -> None:
+        mat = Material(
+            name="Test", properties=_dummy_properties, aliases=("test_alias",)
+        )
+        d = MaterialsDict([mat])
+        assert repr(d) == "{'Test': " + repr(mat) + "}"

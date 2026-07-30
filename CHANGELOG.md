@@ -66,6 +66,7 @@ with one *slight* but **important** difference:
 ### Chore
 
 - Removed tests that asserted `TypeError` coming from external runtime type-checkers (`jaxtyping` / `beartype`) and simplified affected tests to focus on the actual function behavior. This reduces test noise while preserving coverage for functionality (by <gh-user:jeertmans>, in <gh-pr:490>).
+- Transform Plotly figure IDs on ReadTheDocs builds to produce deterministic IDs, avoid spurious detections in *"Files changed*" on PR previews (by <gh-user:jeertmans>, in <gh-pr:507>).
 
 ## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
 
