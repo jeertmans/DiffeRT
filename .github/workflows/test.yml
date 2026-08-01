@@ -170,7 +170,7 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - uses: taiki-e/install-action@v2
+    - uses: taiki-e/install-action@v2.85.4
       with:
         tool: cargo-tarpaulin@0.31.2
 
