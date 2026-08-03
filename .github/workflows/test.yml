@@ -142,7 +142,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.pyversion }}
 
@@ -162,7 +162,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
 
     - name: Install NumPy
       run: pip install numpy
@@ -195,7 +195,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ env.UV_PYTHON}}
 
@@ -228,7 +228,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
 
     - name: Install NumPy
       run: pip install numpy
