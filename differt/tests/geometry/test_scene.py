@@ -255,6 +255,53 @@ class TestScene:
 
         chex.assert_trees_all_close(dot_incidents, dot_reflecteds, rtol=rtol)
 
+    def test_launch_paths_on_masked_mesh_with_varying_order_does_not_crash(
+        self, advanced_path_tracing_example_scene: Scene
+    ) -> None:
+        """Regression test for a native crash (segfault / access violation).
+
+        Calling :meth:`Scene.launch_paths<differt.geometry.Scene.launch_paths>`
+        (SBR) on a masked mesh with two different ``order`` values in the same
+        process reliably crashed the interpreter with Warp 1.16's
+        ``warp.jax_callable``-based CPU (and CUDA) implementation, whereas a
+        single call, or calls on an unmasked mesh, did not.
+        """
+        scene = eqx.tree_at(
+            lambda s: s.mesh.mask,
+            advanced_path_tracing_example_scene,
+            jnp.ones(
+                advanced_path_tracing_example_scene.mesh.triangles.shape[0],
+                dtype=bool,
+            ),
+            is_leaf=lambda x: x is None,
+        )
+
+        for order in (0, 1):
+            got = scene.launch_paths(order, solver=SBRPathLauncher(max_dist=1e-1))
+            assert isinstance(got, LaunchedPaths)
+
+    def test_trace_paths_on_masked_quad_mesh_with_varying_solver_does_not_crash(
+        self, advanced_path_tracing_example_scene: Scene
+    ) -> None:
+        """Regression test for a native crash (segfault / access violation).
+
+        Calling :meth:`Scene.trace_paths<differt.geometry.Scene.trace_paths>`
+        with the ``"exhaustive"`` solver, then with the ``"hybrid"`` solver, on
+        a masked mesh with quads assumed, reliably crashed the interpreter with
+        Warp 1.16's ``warp.jax_callable``-based CPU (and CUDA) implementation.
+        """
+        scene = advanced_path_tracing_example_scene.set_assume_quads(True)
+        scene = eqx.tree_at(
+            lambda s: s.mesh.mask,
+            scene,
+            jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
+            is_leaf=lambda x: x is None,
+        )
+
+        for method in ("exhaustive", "hybrid"):
+            got = scene.trace_paths(0, solver=method)
+            assert isinstance(got, TracedPaths)
+
     @pytest.mark.parametrize(
         ("order", "expected_path_vertices", "expected_objects"),
         [
