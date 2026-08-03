@@ -82,7 +82,7 @@ install-profiling *ARGS:
 # Run code linters and formatters
 [group('dev')]
 lint:
-    uv run pre-commit run --all-files
+    uv run prek run --all-files
 
 alias fmt := lint
 
