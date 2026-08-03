@@ -20,14 +20,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
-    - name: Install Python
-      uses: actions/setup-python@v6
-
     - name: Install pre-commit
-      run: pip install pre-commit
+      uses: j178/prek-action@v3.0.0
+      with:
+        install-only: true
 
     - name: Run autoupdate
-      run: pre-commit autoupdate
+      run: prek update
 
     - name: Create a pull request with updated versions
       uses: peter-evans/create-pull-request@v8
@@ -60,11 +59,5 @@ jobs:
       with:
         components: rustfmt
 
-    - name: Run pre-commit hooks
-      run: uv run --locked pre-commit run --all-files
-
-    - name: Apply fixes when present
-      uses: pre-commit-ci/lite-action@v1.1.0
-      if: always()
-      with:
-        msg: 'chore(fmt): auto fixes from pre-commit hooks'
+    - name: Install and run pre-commit
+      uses: j178/prek-action@v3.0.0
