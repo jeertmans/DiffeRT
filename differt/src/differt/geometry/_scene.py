@@ -62,8 +62,16 @@ from differt.geometry._mesh import (
 @no_type_check
 @wp.func
 def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:  # pragma: no cover
-    return h1 ^ (
-        h2 + wp.uint32(0x9E3779B9) + (h1 << wp.uint32(6)) + (h1 >> wp.uint32(2))
+    return (
+        h1
+        ^ (
+            h2
+            + wp.uint32(
+                -1640531527
+            )  # 0x9E3779B9: signed int32 representation avoids Warp C++ constant-conversion warning
+            + (h1 << wp.uint32(6))
+            + (h1 >> wp.uint32(2))
+        )
     )
 
 
@@ -99,7 +107,8 @@ def _compute_tx_mlm_kernel(
 
     current_origin = ray_origins[itx, iray]
     current_direction = ray_directions[itx, iray]
-    ray_hash = wp.uint32(2166136261)
+    # 2166136261 (FNV-1a offset basis): signed int32 representation avoids Warp C++ constant-conversion warning
+    ray_hash = wp.uint32(-2128831035)
 
     epsilon = wp.float32(1e-4)
     dx = (wp.float32(max_x) - wp.float32(min_x)) / wp.float32(dim_x)
