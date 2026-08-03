@@ -214,7 +214,7 @@ jobs:
         path: differt/src/differt/geometry/scenes
 
     - name: Run CodSpeed benchmarks
-      uses: CodSpeedHQ/action@v4
+      uses: CodSpeedHQ/action@v5
       with:
         mode: simulation
         run: uv run --group=codspeed pytest differt/tests/benchmarks --codspeed
