@@ -7,8 +7,6 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-
-import hashlib
 import inspect
 import operator
 import os
@@ -378,51 +376,6 @@ def fix_reference(
     return None
 
 
-PLOTLY_UUID_PATTERN = re.compile(
-    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-)
-
-
-def make_plotly_deterministic(app: Sphinx, exception: Exception | None) -> None:
-    """Replace random UUIDs in HTML with content-based deterministic IDs."""
-    if exception is not None or getattr(app.builder, "format", "") != "html":
-        return
-
-    outdir = Path(app.outdir)
-    for html_file in outdir.rglob("*.html"):
-        try:
-            html = html_file.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-
-        if "Plotly.newPlot" not in html:
-            continue
-
-        # 1. Extract unique UUIDs strictly in the order they appear
-        uuids = dict.fromkeys(PLOTLY_UUID_PATTERN.findall(html))
-
-        if not uuids:
-            return
-
-        # 2. Normalize HTML by replacing random UUIDs with positional placeholders
-        stable_html = html
-        for i, u in enumerate(uuids.keys()):
-            stable_html = stable_html.replace(u, f"__UUID_PLACEHOLDER_{i}__")
-
-        # 3. Hash the normalized HTML
-        # This ensures the hash ONLY changes if the actual plot data/layout changes
-        fig_hash = hashlib.sha256(stable_html.encode("utf-8")).hexdigest()
-
-        # 4. Swap placeholders out for our new deterministic IDs
-        new_html = stable_html
-        for i in range(len(uuids)):
-            deterministic_id = f"plot-id-{fig_hash}-{i}"
-            new_html = new_html.replace(f"__UUID_PLACEHOLDER_{i}__", deterministic_id)
-
-        # 5. Update the HTML file
-        html_file.write_text(new_html, encoding="utf-8")
-
-
 # -- GitHub roles
 
 
@@ -502,9 +455,6 @@ def setup(app: Sphinx) -> None:
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
     app.connect("missing-reference", fix_reference)
-    if RTD:
-        # Prevent spurious changes in between builds (see "Files changed" in PR previews)
-        app.connect("build-finished", make_plotly_deterministic)
 
     app.add_role(
         "gh-pr",
