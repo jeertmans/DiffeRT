@@ -3,7 +3,6 @@ import math
 import typing
 import warnings
 from collections.abc import Callable, Iterator, Mapping
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -192,10 +191,11 @@ def _compute_tx_mlm_func(
     output: wp.array(dtype=wp.uint32, ndim=3),
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func' in '_mesh.py'.
+        wp_mesh = wp.Mesh(points=wp.clone(mesh_points), indices=wp.clone(mesh_indices))
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
 
-    output.fill_(0)
+    output.zero_()
 
     num_tx = ray_origins.shape[0]
 
@@ -219,121 +219,6 @@ def _compute_tx_mlm_func(
         ],
         outputs=[output],
         device=ray_origins.device,
-    )
-
-
-@no_type_check
-def _compute_tx_mlm_cuda_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_tx num_rays 3"],
-    ray_directions: Float[Array, "num_tx num_rays 3"],
-    *,
-    dim_x: int,
-    dim_y: int,
-    num_rays: int,
-    max_order: int,
-    min_order: int,
-    assume_quads: bool,
-    receiver_height: float,
-    min_x: float,
-    max_x: float,
-    min_y: float,
-    max_y: float,
-) -> Uint[Array, "num_tx dim_x dim_y"]:
-    num_tx = ray_origins.shape[0]
-    return wp.jax_callable(
-        _compute_tx_mlm_func,
-        num_outputs=1,
-        output_dims=(num_tx, dim_x, dim_y),
-        graph_mode=wp.JaxCallableGraphMode.NONE,
-    )(
-        mesh_id,
-        vertices,
-        triangles.ravel(),
-        ray_origins,
-        ray_directions,
-        dim_x,
-        dim_y,
-        num_rays,
-        max_order,
-        min_order,
-        assume_quads,
-        receiver_height,
-        min_x,
-        max_x,
-        min_y,
-        max_y,
-    )[0]
-
-
-@no_type_check
-def _compute_tx_mlm_cpu_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_tx num_rays 3"],
-    ray_directions: Float[Array, "num_tx num_rays 3"],
-    *,
-    dim_x: int,
-    dim_y: int,
-    num_rays: int,
-    max_order: int,
-    min_order: int,
-    assume_quads: bool,
-    receiver_height: float,
-    min_x: float,
-    max_x: float,
-    min_y: float,
-    max_y: float,
-) -> Uint[Array, "num_tx dim_x dim_y"]:
-    num_tx = ray_origins.shape[0]
-
-    def callback(
-        jax_vertices: Float[Array, "num_vertices 3"],
-        jax_triangles: Int[Array, "num_triangles 3"],
-        jax_ray_origins: Float[Array, "num_tx num_rays 3"],
-        jax_ray_directions: Float[Array, "num_tx num_rays 3"],
-    ) -> Uint[Array, "num_tx dim_x dim_y"]:
-        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
-        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
-        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
-        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
-
-        output = wp.empty(
-            (num_tx, dim_x, dim_y), dtype=wp.uint32, device=wp_ray_origins.device
-        )
-
-        _compute_tx_mlm_func(
-            int(mesh_id),
-            wp_vertices,
-            wp_triangles,
-            wp_ray_origins,
-            wp_ray_directions,
-            dim_x,
-            dim_y,
-            num_rays,
-            max_order,
-            min_order,
-            assume_quads,
-            receiver_height,
-            min_x,
-            max_x,
-            min_y,
-            max_y,
-            output,
-        )
-
-        return wp.to_jax(output)
-
-    return jax.pure_callback(
-        callback,
-        jax.ShapeDtypeStruct((num_tx, dim_x, dim_y), jnp.uint32),
-        vertices,
-        triangles,
-        ray_origins,
-        ray_directions,
     )
 
 
@@ -391,43 +276,29 @@ def _compute_tx_mlm(
     ray_origins, ray_directions = jax.vmap(gen_rays)(tx)
 
     mesh_id = np.uint64(id(mesh))
+    num_tx = ray_origins.shape[0]
 
-    return jax.lax.platform_dependent(
+    return wp.jax_callable(
+        _compute_tx_mlm_func,
+        output_dims=(num_tx, dim_x, dim_y),
+    )(
+        mesh_id,
         points,
-        indices,
+        indices.ravel(),
         ray_origins,
         ray_directions,
-        cpu=partial(
-            _compute_tx_mlm_cpu_impl,
-            mesh_id,
-            dim_x=dim_x,
-            dim_y=dim_y,
-            num_rays=num_rays,
-            max_order=max_order,
-            min_order=min_order,
-            assume_quads=assume_quads,
-            receiver_height=receiver_height,
-            min_x=min_x,
-            max_x=max_x,
-            min_y=min_y,
-            max_y=max_y,
-        ),
-        cuda=partial(
-            _compute_tx_mlm_cuda_impl,
-            mesh_id,
-            dim_x=dim_x,
-            dim_y=dim_y,
-            num_rays=num_rays,
-            max_order=max_order,
-            min_order=min_order,
-            assume_quads=assume_quads,
-            receiver_height=receiver_height,
-            min_x=min_x,
-            max_x=max_x,
-            min_y=min_y,
-            max_y=max_y,
-        ),
-    )
+        dim_x,
+        dim_y,
+        num_rays,
+        max_order,
+        min_order,
+        assume_quads,
+        receiver_height,
+        min_x,
+        max_x,
+        min_y,
+        max_y,
+    )[0]
 
 
 class Scene(eqx.Module):

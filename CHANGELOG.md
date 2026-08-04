@@ -59,10 +59,15 @@ with one *slight* but **important** difference:
 - **Breaking change**: Renamed `TriangleMesh` to {class}`Mesh<differt.geometry.Mesh>` and `TriangleScene` to {class}`Scene<differt.geometry.Scene>` across the codebase. Deprecated aliases are provided for backwards compatibility, raising a `DeprecationWarning` when used (by <gh-user:jeertmans>, in <gh-issue:496>).
 - **Breaking change**: Merged `differt.rt` and `differt.scene` into `differt.geometry`. Deprecated aliases are provided for backwards compatibility, raising a `DeprecationWarning` when used (by <gh-user:jeertmans>, in <gh-pr:498>).
 
+### Fixed
+
+- Fixed possible use-after-free errors (segmentation faults) when reusing cached Warp meshes by cloning vertex and index buffers (by <gh-user:jeertmans>, in <gh-pr:513>).
+
 ### Chore
 
 - Removed tests that asserted `TypeError` coming from external runtime type-checkers (`jaxtyping` / `beartype`) and simplified affected tests to focus on the actual function behavior. This reduces test noise while preserving coverage for functionality (by <gh-user:jeertmans>, in <gh-pr:490>).
 - Changed pre-commit tool from `pre-commit` to `prek` (by <gh-user:jeertmans>).
+- Bumped minimum required `warp-lang` version to `1.16.0` and simplified Warp-JAX interop by calling `warp.jax_callable` directly on both CPU and CUDA, removing the separate `jax.pure_callback`-based CPU implementation that Warp's new native CPU support makes unnecessary (by <gh-user:jeertmans>, in <gh-pr:513>).
 
 ## [0.9.1](https://github.com/jeertmans/DiffeRT/compare/v0.9.0...v0.9.1)
 
