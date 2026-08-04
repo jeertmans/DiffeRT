@@ -378,7 +378,7 @@ def _triangles_visible_from_vertex_func(
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
 
     epsilon = 1e-5
-    output_visible.fill_(False)  # ruff:ignore[boolean-positional-value-in-call]
+    output_visible.zero_()
 
     wp.launch(
         _triangles_visible_from_vertex_kernel,

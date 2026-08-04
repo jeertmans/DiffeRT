@@ -445,7 +445,7 @@ def reflection_coefficients(
            ...     color="green",
            ...     label="Exact",
            ... )  # doctest: +SKIP
-           >>> P_tot_pw = A_e * jnp.square(jnp.linalg.norm(E_tot, axis=-1)) / z_0
+           >>> P_tot_pw = A_e * jnp.sum(jnp.abs(E_tot) ** 2, axis=-1) / z_0
            >>> plt.semilogx(
            ...     x,
            ...     10 * jnp.log10(P_tot_pw / ant.reference_power),
