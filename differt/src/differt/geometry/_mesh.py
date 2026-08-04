@@ -167,7 +167,9 @@ def _ray_intersect_any_triangle_anyhit_func(
     output: wp.array[wp.bool],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices: JAX may later free or reuse this memory,
+        # which would otherwise cause segfaults once the mesh is reused.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
     wp.launch(
         _ray_intersect_any_triangle_kernel,
@@ -207,7 +209,8 @@ def _first_triangle_hit_by_ray_func(
     output_dist: wp.array[wp.float32],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
     epsilon = 1e-5
     wp.launch(
@@ -374,7 +377,8 @@ def _triangles_visible_from_vertex_func(
     output_visible: wp.array[wp.bool],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
 
     epsilon = 1e-5

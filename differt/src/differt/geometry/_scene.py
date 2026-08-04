@@ -191,7 +191,8 @@ def _compute_tx_mlm_func(
     output: wp.array(dtype=wp.uint32, ndim=3),
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func' in '_mesh.py'.
+        wp_mesh = wp.Mesh(points=wp.clone(mesh_points), indices=wp.clone(mesh_indices))
         _WARP_MESHES_CACHE[mesh_id] = wp_mesh
 
     output.zero_()
@@ -279,7 +280,6 @@ def _compute_tx_mlm(
 
     return wp.jax_callable(
         _compute_tx_mlm_func,
-        num_outputs=1,
         output_dims=(num_tx, dim_x, dim_y),
     )(
         mesh_id,
