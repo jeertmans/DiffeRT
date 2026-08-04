@@ -59,20 +59,22 @@ from differt.geometry._mesh import (
     _WARP_MESHES_CACHE,  # TODO: should we create a separate cache here?
 )
 
+_C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
+_C_MAGIC_2 = wp.constant(wp.uint32(0x045D9F3B))
+_C_MAGIC_3 = wp.constant(wp.uint32(0x811C9DC5))
+
 
 @no_type_check
 @wp.func
 def combine_hashes(h1: wp.uint32, h2: wp.uint32) -> wp.uint32:  # pragma: no cover
-    return h1 ^ (
-        h2 + wp.uint32(0x9E3779B9) + (h1 << wp.uint32(6)) + (h1 >> wp.uint32(2))
-    )
+    return h1 ^ (h2 + _C_MAGIC_1 + (h1 << wp.uint32(6)) + (h1 >> wp.uint32(2)))
 
 
 @no_type_check
 @wp.func
 def hash_int(x: wp.uint32) -> wp.uint32:  # pragma: no cover
-    x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
-    x = ((x >> wp.uint32(16)) ^ x) * wp.uint32(0x45D9F3B)
+    x = ((x >> wp.uint32(16)) ^ x) * _C_MAGIC_2
+    x = ((x >> wp.uint32(16)) ^ x) * _C_MAGIC_2
     return (x >> wp.uint32(16)) ^ x
 
 
@@ -80,8 +82,6 @@ def hash_int(x: wp.uint32) -> wp.uint32:  # pragma: no cover
 @wp.kernel
 def _compute_tx_mlm_kernel(
     mesh_id: wp.uint64,
-    mesh_points: wp.array[wp.vec3],
-    mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array(dtype=wp.vec3, ndim=2),
     ray_directions: wp.array(dtype=wp.vec3, ndim=2),
     dim_x: int,
@@ -100,7 +100,7 @@ def _compute_tx_mlm_kernel(
 
     current_origin = ray_origins[itx, iray]
     current_direction = ray_directions[itx, iray]
-    ray_hash = wp.uint32(2166136261)
+    ray_hash = _C_MAGIC_3
 
     epsilon = wp.float32(1e-4)
     dx = (wp.float32(max_x) - wp.float32(min_x)) / wp.float32(dim_x)
@@ -150,18 +150,10 @@ def _compute_tx_mlm_kernel(
             # Update origin to hit point
             current_origin = query_origin + current_direction * res.t
 
-            # TODO: maybe we should pre-calculate the face normals?
-            # Compute face normal
             face_index = res.face
-            i0 = mesh_indices[face_index * 3 + 0]
-            i1 = mesh_indices[face_index * 3 + 1]
-            i2 = mesh_indices[face_index * 3 + 2]
-            v0 = mesh_points[i0]
-            v1 = mesh_points[i1]
-            v2 = mesh_points[i2]
 
             # Normal vector
-            normal = wp.normalize(wp.cross(v1 - v0, v2 - v0))
+            normal = wp.mesh_eval_face_normal(mesh_id, face_index)
 
             # Reflected direction
             current_direction = (
@@ -212,8 +204,6 @@ def _compute_tx_mlm_func(
         dim=(num_tx, num_rays),
         inputs=[
             wp_mesh.id,
-            mesh_points,
-            mesh_indices,
             ray_origins,
             ray_directions,
             dim_x,
