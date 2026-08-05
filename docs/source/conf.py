@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import jaxtyping
 from docutils import nodes
 from docutils.parsers.rst.states import Inliner
 from sphinx.addnodes import pending_xref
@@ -64,7 +65,7 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
-suppress_warnings = ["mystnb.unknown_mime_type"]
+suppress_warnings = ["config.cache", "mystnb.unknown_mime_type"]
 
 add_module_names = False
 add_function_parentheses = False
@@ -131,6 +132,22 @@ ogp_use_first_image = True
 always_document_param_types = False
 always_use_bars_union = True
 autodoc_preserve_defaults = True
+
+
+def fix_format_jaxtyping_annotation(annotation: Any, _config: Any) -> str | None:
+    if not (
+        isinstance(annotation, type) and issubclass(annotation, jaxtyping.AbstractArray)
+    ):
+        return None
+
+    dtype = annotation.dtype.__name__
+    atype = annotation.array_type.__name__
+    shape = annotation.dim_str
+
+    return f':py:class:`{dtype}[{atype}, "{shape}"] <jaxtyping.{dtype}>`'
+
+
+typehints_formatter = fix_format_jaxtyping_annotation
 
 # -- MyST-nb settings
 myst_url_schemes = {
@@ -313,14 +330,13 @@ def fix_reference(
 ) -> nodes.reference | None:
     """Fix some intersphinx references that are broken."""
     if node["refdomain"] == "py":
-        if node["reftarget"].startswith(
-            "equinox"
-        ):  # Sphinx fails to find them in the inventory
-            if node["reftarget"].endswith("Module"):
+        target = node["reftarget"]
+        if target.startswith("equinox"):  # Sphinx fails to find them in the inventory
+            if target.endswith("Module"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/module/module/#equinox.Module"
                 )
-            elif node["reftarget"].endswith("tree_at"):
+            elif target.endswith("tree_at"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
                 )
@@ -336,7 +352,6 @@ def fix_reference(
 
             return newnode
 
-        target = node["reftarget"]
         if target.startswith(("differt.rt.", "differt.scene.")):
             new_target = target.replace("differt.rt.", "differt.geometry.").replace(
                 "differt.scene.", "differt.geometry."
@@ -353,11 +368,14 @@ def fix_reference(
                 contnode,
             )
 
-        if node["reftarget"].startswith(
-            "jaxtyping"
-        ):  # Sphinx fails to find them in the inventory
+        if target.startswith("jaxtyping"):  # Sphinx fails to find them in the inventory
             if node["reftype"] == "class":
-                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+                if "Array" in target or "ndarray" in target or "PyTree" in target:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#array"
+                else:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+            elif node["reftype"] == "obj" and target == "jaxtyping.shape":
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#shape"
             elif node["reftype"] == "mod":
                 uri = "https://docs.kidger.site/jaxtyping/"
             else:
@@ -428,7 +446,6 @@ def _make_gh_role(
 def setup(app: Sphinx) -> None:
     typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
-    import jaxtyping  # ruff:ignore[import-outside-top-level]
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
 
