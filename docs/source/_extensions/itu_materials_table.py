@@ -14,7 +14,15 @@ class ITUMaterialsTableDirective(SphinxDirective):
     has_content = False
 
     def run(self) -> list[nodes.Node]:
+        """Generate the ITU materials table nodes.
+
+        Returns:
+            The list of docutils nodes to insert in the document.
+        """
         from differt.em import materials  # ruff:ignore[import-outside-top-level]
+        from differt.em._material import (  # ruff:ignore[import-outside-top-level,import-private-name]
+            _ITU_MATERIALS_TABLE,
+        )
 
         unique_materials = list(dict.fromkeys(materials.values()))
 
@@ -29,35 +37,38 @@ class ITUMaterialsTableDirective(SphinxDirective):
             "",
             ".. list-table:: ITU Radio Materials (Recommendation ITU-R P.2040-4)",
             "   :header-rows: 1",
-            "   :widths: 20 20 20 20 20",
+            "   :widths: 16 16 16 13 13 13 13",
             "",
             "   * - Material Name",
             "     - Aliases",
             "     - Frequency Range (GHz)",
-            "     - Relative Permittivity (:math:`a f^b`)",
-            "     - Conductivity (:math:`c f^d`)",
+            "     - :math:`a`",
+            "     - :math:`b`",
+            "     - :math:`c`",
+            "     - :math:`d`",
         ]
 
         for mat in unique_materials:
             aliases_str = (
                 ", ".join(f"``{a}``" for a in mat.aliases) if mat.aliases else "None"
             )
-            if mat._itu_properties:
-                for idx, (a, b, c, d, f_range) in enumerate(mat._itu_properties):
+            itu_properties = _ITU_MATERIALS_TABLE.get(mat.name)
+            if itu_properties:
+                for idx, (a, b, c, d, f_range) in enumerate(itu_properties):
                     name_col = f"**{mat.name}**" if idx == 0 else ""
                     alias_col = aliases_str if idx == 0 else ""
                     if f_range is None:
                         freq_col = "All"
                     else:
                         freq_col = f"[{f_range[0]}, {f_range[1]}]"
-                    er_col = f":math:`a = {a}, b = {b}`"
-                    sigma_col = f":math:`c = {c}, d = {d}`"
                     rst_lines.extend([
                         f"   * - {name_col}",
                         f"     - {alias_col}",
                         f"     - {freq_col}",
-                        f"     - {er_col}",
-                        f"     - {sigma_col}",
+                        f"     - {a}",
+                        f"     - {b}",
+                        f"     - {c}",
+                        f"     - {d}",
                     ])
 
         container = nodes.container()
@@ -69,7 +80,11 @@ class ITUMaterialsTableDirective(SphinxDirective):
 
 
 def setup(app: Sphinx) -> dict[str, Any]:
-    """Register the itu-materials-table directive with Sphinx."""
+    """Register the itu-materials-table directive with Sphinx.
+
+    Returns:
+        The Sphinx extension metadata.
+    """
     app.add_directive("itu-materials-table", ITUMaterialsTableDirective)
     return {
         "version": "0.1",

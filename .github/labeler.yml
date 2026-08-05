@@ -7,7 +7,7 @@ ci:
 - changed-files:
   - any-glob-to-any-file:
     - .github/**/*
-    - .pre-commit-config.yaml
+    - prek.toml
     - pyproject.toml
 
 documentation:

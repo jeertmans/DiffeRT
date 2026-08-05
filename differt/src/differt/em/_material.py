@@ -44,22 +44,6 @@ class Material(eqx.Module):
     """
     A tuple of name aliases for the material.
     """
-    _itu_properties: (
-        tuple[
-            tuple[
-                Any,
-                Any,
-                Any,
-                Any,
-                tuple[Any, Any] | None,
-            ],
-            ...,
-        ]
-        | None
-    ) = eqx.field(default=None, static=True)
-    """
-    ITU frequency-dependent parameters if constructed via :meth:`from_itu_properties`.
-    """
 
     def __repr__(self) -> str:
         thickness_str = (
@@ -173,7 +157,6 @@ class Material(eqx.Module):
                 name=name,
                 properties=partial(jax.jit(callback), a=a, b=b, c=c, d=d),
                 aliases=aliases,
-                _itu_properties=itu_properties,  # type: ignore[arg-type]
             )
 
         def properties(
@@ -244,7 +227,6 @@ class Material(eqx.Module):
             name=name,
             properties=properties,
             aliases=aliases,
-            _itu_properties=itu_properties,  # type: ignore[arg-type]
         )
 
 
@@ -256,47 +238,35 @@ class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
     alias (defined in :attr:`Material.aliases`) automatically resolve to the primary material.
     """
 
-    def _get_key(self, key: Any) -> Any:
-        if not isinstance(key, str):
-            return key
-        if super().__contains__(key):
-            return key
-        for primary_key, material in self.items():
-            if key in material.aliases:
-                return primary_key
-        return key
+    def __init__(
+        self,
+        other: Mapping[str, Material] | Iterable[Material | tuple[str, Material]] = (),
+        /,
+        **kwargs: Material,
+    ) -> None:
+        super().__init__()
+        self.update(other, **kwargs)
 
-    def __getitem__(self, key: str) -> Material:
-        real_key = self._get_key(key)
-        return super().__getitem__(real_key)
+    def _resolve(self, key: Any) -> Any:
+        """Return the primary key that ``key`` (a name or alias) maps to, or ``key`` unchanged if unknown."""
+        if not isinstance(key, str) or super().__contains__(key):
+            return key
+        return next((name for name, mat in self.items() if key in mat.aliases), key)
+
+    def __missing__(self, key: str) -> Material:
+        real_key = self._resolve(key)
+        if real_key == key:
+            raise KeyError(key)
+        return self[real_key]
 
     def __contains__(self, key: object) -> bool:
-        if not isinstance(key, str):
-            return False
-        real_key = self._get_key(key)
-        return super().__contains__(real_key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        real_key = self._get_key(key)
-        return super().get(real_key, default)
+        return super().__contains__(self._resolve(key))
 
     def __delitem__(self, key: str) -> None:
-        real_key = self._get_key(key)
-        super().__delitem__(real_key)
-
-    def pop(self, key: str, *args: Any) -> Any:
-        real_key = self._get_key(key)
-        return super().pop(real_key, *args)
-
-    def setdefault(self, key: str, default: Any = None) -> Any:
-        real_key = self._get_key(key)
-        if super().__contains__(real_key):
-            return self[real_key]
-        self[key] = default
-        return default
+        super().__delitem__(self._resolve(key))
 
     def __setitem__(self, key: str, value: Material) -> None:
-        real_key = self._get_key(key)
+        real_key = self._resolve(key)
         if super().__contains__(real_key):
             super().__setitem__(real_key, value)
         elif isinstance(value, Material):
@@ -304,90 +274,126 @@ class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
         else:
             super().__setitem__(key, value)
 
-    def update(self, *args: Any, **kwargs: Any) -> None:
-        if args:
-            if len(args) > 1:
-                msg = f"update expected at most 1 argument, got {len(args)}"
-                raise TypeError(msg)
-            other = args[0]
-            if isinstance(other, Mapping):
-                for k, v in other.items():
-                    self[k] = v
-            elif isinstance(other, Iterable):
-                for item in other:
-                    if isinstance(item, Material):
-                        self[item.name] = item
-                    else:
-                        k, v = item
-                        self[k] = v
-            else:
-                msg = f"Cannot update MaterialsDict from {type(other)}"
-                raise TypeError(msg)
-        for k, v in kwargs.items():
-            self[k] = v
+    def get(self, key: object, default: Any = None) -> Any:
+        return super().get(self._resolve(key), default)
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__()
-        self.update(*args, **kwargs)
+    def pop(self, key: object, *default: Any) -> Any:
+        real_key = self._resolve(key)
+        if super().__contains__(real_key):
+            return super().pop(real_key)
+        if default:
+            return default[0]
+        raise KeyError(key)
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        real_key = self._resolve(key)
+        if super().__contains__(real_key):
+            return self[real_key]
+        self[key] = default
+        return default
+
+    def update(self, other: Any = (), /, **kwargs: Material) -> None:
+        items: Iterable[Any] = other.items() if isinstance(other, Mapping) else other
+        for item in items:
+            if isinstance(item, Material):
+                self[item.name] = item
+            else:
+                key, value = item
+                self[key] = value
+        for key, value in kwargs.items():
+            self[key] = value
 
 
 # ITU-R P.2040-4 materials from Table 3.
+#
+# This table is kept separately from `Material`, which is ITU-agnostic, so that
+# the raw per-frequency-range coefficients remain available (e.g., to generate the
+# documentation table) without `Material` having to store them.
+_ITU_MATERIALS_TABLE: dict[
+    str,
+    tuple[
+        tuple[
+            Any,
+            Any,
+            Any,
+            Any,
+            tuple[Any, Any] | None,
+        ],
+        ...,
+    ],
+] = {}
+
+
+def _add_material(
+    name: str,
+    *itu_properties: tuple[
+        Any,
+        Any,
+        Any,
+        Any,
+        tuple[Any, Any] | None,
+    ],
+) -> Material:
+    _ITU_MATERIALS_TABLE[name] = itu_properties
+    return Material.from_itu_properties(name, *itu_properties)
+
+
 _materials = [
-    Material.from_itu_properties("Vacuum", (1.0, 0.0, 0.0, 0.0, None)),
-    Material.from_itu_properties(
+    _add_material("Vacuum", (1.0, 0.0, 0.0, 0.0, None)),
+    _add_material(
         "Concrete",
         (5.24, 0.0, 0.0462, 0.7822, (1.0, 100.0)),
         (5.17, 0.0, 0.0145, 1.09, (110.0, 330.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Brick",
         (3.91, 0.0, 0.0238, 0.16, (1.0, 40.0)),
         (3.75, 0.0, 0.038, 0.0, (1.0, 10.0)),
         (3.95, 0.0, 0.0022, 1.33, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Plasterboard",
         (2.94, 0.0, 0.0116, 0.7076, (1.0, 100.0)),
         (2.73, 0.0, 0.0084, 0.94, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Wood",
         (1.99, 0.0, 0.0047, 1.0718, (0.001, 100.0)),
         (1.63, 0.0, 0.0076, 1.002, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Glass",
         (6.27, 0.0, 0.0043, 1.1925, (0.1, 100.0)),
         (6.70, 0.0, 0.0042, 1.15, (100.0, 400.0)),
         (6.01, 0.0, 0.0400, 0.81, (220.0, 450.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Clear Acrylic",
         (2.57, 0.0, 0.0049, 1.0601, (1.0, 40.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Ceiling board",
         (1.48, 0.0, 0.0011, 1.1278, (1.0, 100.0)),
         (1.58, 0.0, 0.0014, 1.07, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Chipboard",
         (2.58, 0.0, 0.0217, 0.7800, (1.0, 100.0)),
         (2.16, 0.0, 0.0023, 1.359, (100.0, 200.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Plywood",
         (2.71, 0.0, 0.33, 0.0, (1.0, 40.0)),
         (1.94, 0.0, 0.0067, 0.9982, (110.0, 330.0)),
         (2.17, 0.0, 0.0063, 1.045, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Marble",
         (7.074, 0.0, 0.0055, 0.9262, (1.0, 60.0)),
         (7.94, 0.0, 0.0001, 1.7330, (110.0, 330.0)),
         (8.62, 0.0, 0.0027, 1.15, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Floorboard",
         (3.66, 0.0, 0.0044, 1.3515, (50.0, 100.0)),
         (5.27, 0.0, 2.22e-17, 7.3413, (220.0, 300.0)),
@@ -395,26 +401,22 @@ _materials = [
         (5.27, 0.0, 49.8726, 0.0, (400.0, 450.0)),
         (3.1575, 0.0, 0.001675, 1.32775, (100.0, 400.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Vinyl tile",
         (3.62, 0.0, 0.0051, 0.8422, (1.0, 40.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Carpet tile",
         (2.08, 0.0, 0.0009, 0.8200, (1.0, 40.0)),
     ),
-    Material.from_itu_properties(
+    _add_material(
         "Asphalt concrete",
         (4.83, 0.0, 0.0108, 1.3969, (1.0, 40.0)),
     ),
-    Material.from_itu_properties("Metal", (1.0, 0.0, 1e7, 0.0, (1.0, 100.0))),
-    Material.from_itu_properties(
-        "Very dry ground", (3.0, 0.0, 0.00015, 2.52, (1.0, 10.0))
-    ),
-    Material.from_itu_properties(
-        "Medium dry ground", (15.0, -0.1, 0.035, 1.63, (1.0, 10.0))
-    ),
-    Material.from_itu_properties("Wet ground", (30.0, -0.4, 0.15, 1.30, (1.0, 10.0))),
+    _add_material("Metal", (1.0, 0.0, 1e7, 0.0, (1.0, 100.0))),
+    _add_material("Very dry ground", (3.0, 0.0, 0.00015, 2.52, (1.0, 10.0))),
+    _add_material("Medium dry ground", (15.0, -0.1, 0.035, 1.63, (1.0, 10.0))),
+    _add_material("Wet ground", (30.0, -0.4, 0.15, 1.30, (1.0, 10.0))),
 ]
 
 materials: MaterialsDict = MaterialsDict(_materials)

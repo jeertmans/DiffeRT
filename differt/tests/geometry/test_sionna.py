@@ -58,8 +58,8 @@ def test_get_unexisting_sionna_scene(scene_name: str, sionna_folder: Path) -> No
 
 @pytest.mark.parametrize("scene_name", ["box", "etoile", "munich"])
 def test_get_existing_sionna_scene(scene_name: str, sionna_folder: Path) -> None:
-    assert Path(get_sionna_scene(scene_name, folder=sionna_folder)).exists()
-    assert Path(get_sionna_scene(scene_name, folder=str(sionna_folder))).exists()
+    assert get_sionna_scene(scene_name, folder=sionna_folder).exists()
+    assert get_sionna_scene(scene_name, folder=str(sionna_folder)).exists()
 
 
 class TestSionnaScene:

@@ -1,4 +1,8 @@
-use std::{fs::File, io::BufReader};
+use std::{
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 use indexmap::IndexMap;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
@@ -357,12 +361,19 @@ impl SionnaScene {
     /// Load a Sionna scene from a XML file.
     ///
     /// Args:
-    ///     file (str): The path to the XML file.
+    ///     file (os.PathLike[str] | str): The path to the XML file.
     ///
     /// Returns:
     ///     SionnaScene: The corresponding scene.
     #[classmethod]
-    pub(crate) fn load_xml(_: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
+    #[pyo3(name = "load_xml")]
+    pub(crate) fn py_load_xml(_: &Bound<'_, PyType>, file: PathBuf) -> PyResult<Self> {
+        Self::load_xml(&file)
+    }
+}
+
+impl SionnaScene {
+    pub(crate) fn load_xml(file: &Path) -> PyResult<Self> {
         let input = BufReader::new(File::open(file)?);
         quick_xml::de::from_reader(input).map_err(|err| {
             PyValueError::new_err(format!(

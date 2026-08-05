@@ -1,5 +1,6 @@
 import logging
 import re
+from pathlib import Path
 from typing import Any
 
 import chex
@@ -947,11 +948,13 @@ class TestMesh:
         )
         mesh = mesh.set_materials("concrete")
 
-    def test_load_obj(self, two_buildings_obj_file: str) -> None:
+    def test_load_obj(self, two_buildings_obj_file: Path) -> None:
         mesh = Mesh.load_obj(two_buildings_obj_file)
         assert mesh.triangles.shape == (24, 3)
+        mesh = Mesh.load_obj(str(two_buildings_obj_file))
+        assert mesh.triangles.shape == (24, 3)
 
-    def test_load_obj_with_mat(self, two_buildings_obj_with_mat_file: str) -> None:
+    def test_load_obj_with_mat(self, two_buildings_obj_with_mat_file: Path) -> None:
         mesh = Mesh.load_obj(two_buildings_obj_with_mat_file)
         assert mesh.triangles.shape == (24, 3)
         assert len(mesh.material_names) == 2
@@ -962,12 +965,14 @@ class TestMesh:
         assert mesh.face_colors is not None
         assert mesh.face_materials is not None
 
-    def test_load_ply(self, two_buildings_ply_file: str) -> None:
+    def test_load_ply(self, two_buildings_ply_file: Path) -> None:
         mesh = Mesh.load_ply(two_buildings_ply_file)
+        assert mesh.triangles.shape == (24, 3)
+        mesh = Mesh.load_ply(str(two_buildings_ply_file))
         assert mesh.triangles.shape == (24, 3)
 
     def test_load_ply_with_colors(
-        self, cube_ply_file: str, caplog: pytest.LogCaptureFixture
+        self, cube_ply_file: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         caplog.clear()
 

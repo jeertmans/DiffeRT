@@ -3,6 +3,7 @@ import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from functools import partial
+from os import PathLike
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -167,84 +168,16 @@ def _ray_intersect_any_triangle_anyhit_func(
     output: wp.array[wp.bool],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
-        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices: JAX may later free or reuse this memory,
+        # which would otherwise cause segfaults once the mesh is reused.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
+        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
     wp.launch(
         _ray_intersect_any_triangle_kernel,
         dim=ray_origins.shape[0],
         inputs=[wp_mesh.id, ray_origins, ray_directions, max_t],
         outputs=[output],
         device=ray_origins.device,
-    )
-
-
-def _ray_intersect_any_triangle_cuda_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_rays 3"],
-    ray_directions: Float[Array, "num_rays 3"],
-    max_t: Float[Array, " num_rays"],
-) -> Bool[Array, " num_rays"]:
-    return wp.jax_callable(
-        _ray_intersect_any_triangle_anyhit_func,
-        output_dims=(ray_origins.shape[0],),
-        graph_mode=wp.JaxCallableGraphMode.NONE,
-    )(
-        mesh_id,
-        vertices,
-        triangles.ravel(),
-        ray_origins,
-        ray_directions,
-        max_t,
-    )[0]
-
-
-def _ray_intersect_any_triangle_cpu_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_rays 3"],
-    ray_directions: Float[Array, "num_rays 3"],
-    max_t: Float[Array, " num_rays"],
-) -> Bool[Array, " num_rays"]:
-    def callback(
-        jax_vertices: Float[Array, "num_vertices 3"],
-        jax_triangles: Int[Array, "num_triangles 3"],
-        jax_ray_origins: Float[Array, "num_rays 3"],
-        jax_ray_directions: Float[Array, "num_rays 3"],
-        jax_max_t: Float[Array, " num_rays"],
-    ) -> Bool[Array, " num_rays"]:
-        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
-        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
-        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
-        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
-        wp_max_t = wp.from_jax(jax_max_t)
-
-        output = wp.empty(
-            jax_ray_origins.shape[0], dtype=bool, device=wp_ray_origins.device
-        )
-
-        _ray_intersect_any_triangle_anyhit_func(
-            int(mesh_id),
-            wp_vertices,
-            wp_triangles,
-            wp_ray_origins,
-            wp_ray_directions,
-            wp_max_t,
-            output,
-        )
-
-        return wp.to_jax(output)
-
-    return jax.pure_callback(
-        callback,
-        jax.ShapeDtypeStruct((ray_origins.shape[0],), bool),
-        vertices,
-        triangles,
-        ray_origins,
-        ray_directions,
-        max_t,
     )
 
 
@@ -277,8 +210,9 @@ def _first_triangle_hit_by_ray_func(
     output_dist: wp.array[wp.float32],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
-        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
+        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
     epsilon = 1e-5
     wp.launch(
         _first_triangle_hit_by_ray_kernel,
@@ -286,79 +220,6 @@ def _first_triangle_hit_by_ray_func(
         inputs=[wp_mesh.id, ray_origins, ray_directions, epsilon],
         outputs=[output_face, output_dist],
         device=ray_origins.device,
-    )
-
-
-def _first_triangle_hit_by_ray_cuda_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_rays 3"],
-    ray_directions: Float[Array, "num_rays 3"],
-) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
-    return tuple(
-        wp.jax_callable(
-            _first_triangle_hit_by_ray_func,
-            num_outputs=2,
-            output_dims=(ray_origins.shape[0],),
-            graph_mode=wp.JaxCallableGraphMode.NONE,
-        )(
-            mesh_id,
-            vertices,
-            triangles.ravel(),
-            ray_origins,
-            ray_directions,
-        )
-    )
-
-
-def _first_triangle_hit_by_ray_cpu_impl(
-    mesh_id: np.uint64,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "num_rays 3"],
-    ray_directions: Float[Array, "num_rays 3"],
-) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
-    def callback(
-        jax_vertices: Float[Array, "num_vertices 3"],
-        jax_triangles: Int[Array, "num_triangles 3"],
-        jax_ray_origins: Float[Array, "num_rays 3"],
-        jax_ray_directions: Float[Array, "num_rays 3"],
-    ) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
-        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
-        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
-        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
-        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
-
-        output_faces = wp.empty(
-            jax_ray_origins.shape[0], dtype=int, device=wp_ray_origins.device
-        )
-        output_dists = wp.empty(
-            jax_ray_origins.shape[0], dtype=float, device=wp_ray_origins.device
-        )
-
-        _first_triangle_hit_by_ray_func(
-            int(mesh_id),
-            wp_vertices,
-            wp_triangles,
-            wp_ray_origins,
-            wp_ray_directions,
-            output_faces,
-            output_dists,
-        )
-
-        return wp.to_jax(output_faces), wp.to_jax(output_dists)
-
-    return jax.pure_callback(
-        callback,
-        (
-            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.int32),
-            jax.ShapeDtypeStruct((ray_origins.shape[0],), jnp.float32),
-        ),
-        vertices,
-        triangles,
-        ray_origins,
-        ray_directions,
     )
 
 
@@ -402,13 +263,16 @@ def _first_triangle_hit_by_ray_helper(
     flat_ray_origins: Float[Array, "num_rays 3"],
     flat_ray_directions: Float[Array, "num_rays 3"],
 ) -> tuple[Int[Array, " num_rays"], Float[Array, " num_rays"]]:
-    out_faces, out_t = jax.lax.platform_dependent(
+    out_faces, out_t = wp.jax_callable(
+        _first_triangle_hit_by_ray_func,
+        num_outputs=2,
+        output_dims=(flat_ray_origins.shape[0],),
+    )(
+        mesh_id,
         vertices,
-        triangles,
+        triangles.ravel(),
         flat_ray_origins,
         flat_ray_directions,
-        cpu=partial(_first_triangle_hit_by_ray_cpu_impl, mesh_id),
-        cuda=partial(_first_triangle_hit_by_ray_cuda_impl, mesh_id),
     )
     return out_faces, out_t
 
@@ -514,11 +378,12 @@ def _triangles_visible_from_vertex_func(
     output_visible: wp.array[wp.bool],
 ) -> None:
     if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        wp_mesh = wp.Mesh(points=points, indices=indices)
-        _WARP_MESHES_CACHE[mesh_id] = wp.Mesh(points=points, indices=indices)
+        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
+        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
+        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
 
     epsilon = 1e-5
-    output_visible.fill_(False)  # ruff:ignore[boolean-positional-value-in-call]
+    output_visible.zero_()
 
     wp.launch(
         _triangles_visible_from_vertex_kernel,
@@ -534,78 +399,6 @@ def _triangles_visible_from_vertex_func(
         outputs=[output_visible],
         device=ray_origins.device,
     )
-
-
-def _triangles_visible_from_vertex_cuda_impl(
-    mesh_id: np.uint64,
-    num_rays: int,
-    num_triangles: int,
-    total_batches: int,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "total_rays 3"],
-    ray_directions: Float[Array, "total_rays 3"],
-) -> Bool[Array, "total_batches num_triangles"]:
-    return wp.jax_callable(
-        _triangles_visible_from_vertex_func,
-        output_dims=(total_batches * num_triangles,),
-        graph_mode=wp.JaxCallableGraphMode.NONE,
-    )(
-        mesh_id,
-        vertices,
-        triangles.ravel(),
-        ray_origins,
-        ray_directions,
-        num_rays,
-        num_triangles,
-    )[0].reshape((total_batches, num_triangles))
-
-
-def _triangles_visible_from_vertex_cpu_impl(
-    mesh_id: np.uint64,
-    num_rays: int,
-    num_triangles: int,
-    total_batches: int,
-    vertices: Float[Array, "num_vertices 3"],
-    triangles: Int[Array, "num_triangles 3"],
-    ray_origins: Float[Array, "total_rays 3"],
-    ray_directions: Float[Array, "total_rays 3"],
-) -> Bool[Array, "total_batches num_triangles"]:
-    def callback(
-        jax_vertices: Float[Array, "num_vertices 3"],
-        jax_triangles: Int[Array, "num_triangles 3"],
-        jax_ray_origins: Float[Array, "total_rays 3"],
-        jax_ray_directions: Float[Array, "total_rays 3"],
-    ) -> Bool[Array, " _"]:
-        wp_vertices = wp.from_jax(jax_vertices, dtype=wp.vec3)
-        wp_triangles = wp.from_jax(jax_triangles.ravel(), dtype=wp.int32)
-        wp_ray_origins = wp.from_jax(jax_ray_origins, dtype=wp.vec3)
-        wp_ray_directions = wp.from_jax(jax_ray_directions, dtype=wp.vec3)
-
-        output_visible = wp.empty(
-            total_batches * num_triangles, dtype=bool, device=wp_ray_origins.device
-        )
-
-        _triangles_visible_from_vertex_func(
-            int(mesh_id),
-            wp_vertices,
-            wp_triangles,
-            wp_ray_origins,
-            wp_ray_directions,
-            num_rays,
-            num_triangles,
-            output_visible,
-        )
-        return wp.to_jax(output_visible)
-
-    return jax.pure_callback(
-        callback,
-        jax.ShapeDtypeStruct((total_batches * num_triangles,), bool),
-        vertices,
-        triangles,
-        ray_origins,
-        ray_directions,
-    ).reshape((total_batches, num_triangles))
 
 
 _Index = (
@@ -2429,7 +2222,7 @@ class Mesh(eqx.Module):
         return self.triangles.size == 0
 
     @classmethod
-    def load_obj(cls, file: str) -> Self:
+    def load_obj(cls, file: str | PathLike[str]) -> Self:
         """
         Load a triangle mesh from a Wavefront .obj file.
 
@@ -2446,7 +2239,7 @@ class Mesh(eqx.Module):
         return cls.from_core(core_mesh)
 
     @classmethod
-    def load_ply(cls, file: str) -> Self:
+    def load_ply(cls, file: str | PathLike[str]) -> Self:
         """
         Load a triangle mesh from a Stanford PLY .ply file.
 
@@ -3286,15 +3079,17 @@ class Mesh(eqx.Module):
 
         mesh_id = np.uint64(id(self))
 
-        output = jax.lax.platform_dependent(
+        output = wp.jax_callable(
+            _ray_intersect_any_triangle_anyhit_func,
+            output_dims=(flat_ray_origins.shape[0],),
+        )(
+            mesh_id,
             jax.lax.stop_gradient(self.vertices),
-            triangles,
+            triangles.ravel(),
             jax.lax.stop_gradient(flat_ray_origins),
             jax.lax.stop_gradient(flat_ray_directions),
             jax.lax.stop_gradient(flat_max_t),
-            cpu=partial(_ray_intersect_any_triangle_cpu_impl, mesh_id),
-            cuda=partial(_ray_intersect_any_triangle_cuda_impl, mesh_id),
-        )
+        )[0]
         batch = ray_origins.shape[:-1]
         return jax.lax.stop_gradient(output.reshape(batch))
 
@@ -3441,26 +3236,18 @@ class Mesh(eqx.Module):
 
         mesh_id = np.uint64(id(self))
 
-        out_visible = jax.lax.platform_dependent(
+        out_visible = wp.jax_callable(
+            _triangles_visible_from_vertex_func,
+            output_dims=(total_batches * num_triangles,),
+        )(
+            mesh_id,
             jax.lax.stop_gradient(self.vertices),
-            triangles,
+            triangles.ravel(),
             jax.lax.stop_gradient(flat_ray_origins),
             jax.lax.stop_gradient(flat_ray_directions),
-            cpu=partial(
-                _triangles_visible_from_vertex_cpu_impl,
-                mesh_id,
-                num_rays,
-                num_triangles,
-                total_batches,
-            ),
-            cuda=partial(
-                _triangles_visible_from_vertex_cuda_impl,
-                mesh_id,
-                num_rays,
-                num_triangles,
-                total_batches,
-            ),
-        )
+            num_rays,
+            num_triangles,
+        )[0].reshape((total_batches, num_triangles))
 
         batch_shape = vertex.shape[:-1]
         return jax.lax.stop_gradient(out_visible.reshape(*batch_shape, num_triangles))

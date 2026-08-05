@@ -330,9 +330,9 @@ class TestMaterialsDict:
 
     def test_update_errors(self) -> None:
         d = MaterialsDict()
-        with pytest.raises(TypeError, match="update expected at most 1 argument"):
+        with pytest.raises(TypeError, match="too many positional arguments"):
             d.update(1, 2)  # type: ignore[call-arg]
-        with pytest.raises(TypeError, match="Cannot update MaterialsDict"):
+        with pytest.raises(TypeError, match="not iterable"):
             d.update(123)  # type: ignore[arg-type]
 
     def test_repr(self) -> None:
