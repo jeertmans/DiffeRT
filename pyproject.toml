@@ -230,40 +230,42 @@ preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
-  "any-type",  # any-type
-  "complex-structure",  # complex-structure
-  "missing-trailing-comma",  # missing-trailing-comma, conflicts with formatter
-  "prohibited-trailing-comma",  # prohibited-trailing-comma, conflicts with formatter
-  "missing-copyright-notice",  # missing-copyright-notice
-  "incorrect-blank-line-before-class",  # no-blank-line-before-class
-  "docstring-tab-indentation",  # indent-with-spaces, conflicts with formatter
-  "multi-line-summary-first-line",  # multi-line-summary-second-line
-  "triple-single-quotes",  # triple-single-quotes, conflicts with formatter
-  "missing-dashed-underline-after-section",  # dashed-underline-after-section
-  "indentation-with-invalid-multiple",  # indentation-with-invalid-multiple, conflicts with formatter
-  "indentation-with-invalid-multiple-comment",  # indentation-with-invalid-multiple-comments, conflicts with formatter
-  "over-indented",  # over-indented, conflicts with formatter
-  "line-too-long",  # line-too-long, conflicts with formatter
-  "commented-out-code",  # commented-out-code
-  "forward-annotation-syntax-error",  # forward-annotation-syntax-error
-  "future-rewritable-type-annotation",  # future-rewritable-type-annotation
-  "boolean-type-hint-positional-argument",  # boolean-type-hint-positional-argument
-  "boolean-default-value-positional-argument",  # boolean-default-value-positional-argument
-  "line-contains-todo",  # line-contains-todo, comment this to find where TODOs are
-  "single-line-implicit-string-concatenation",  # single-line-implicit-string-concatenation, conflicts with formatter
-  "multi-line-implicit-string-concatenation",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "any-type",
+  "complex-structure",
+  "missing-trailing-comma",  # conflicts with formatter
+  "prohibited-trailing-comma",  # conflicts with formatter
+  "missing-copyright-notice",
+  "incorrect-blank-line-before-class",
+  "docstring-tab-indentation",  # conflicts with formatter
+  "multi-line-summary-first-line",
+  "triple-single-quotes",  # conflicts with formatter
+  "missing-dashed-underline-after-section",
+  "indentation-with-invalid-multiple",  # conflicts with formatter
+  "indentation-with-invalid-multiple-comment",  # conflicts with formatter
+  "over-indented",  # conflicts with formatter
+  "line-too-long",  # conflicts with formatter
+  "commented-out-code",
+  "forward-annotation-syntax-error",
+  "future-rewritable-type-annotation",
+  "boolean-type-hint-positional-argument",
+  "boolean-default-value-positional-argument",
+  "line-contains-todo",  # comment this to find where TODOs are
+  "single-line-implicit-string-concatenation",  # conflicts with formatter
+  "multi-line-implicit-string-concatenation",  # conflicts with formatter
   "PD",  # pandas-vet
-  "too-many-public-methods",  # too-many-public-methods, counts @overload...
+  "too-many-public-methods",  # counts @overload...
   "PLR091",  # too-many-*
-  "non-augmented-assignment",  # non-augmented-assignment
-  "bad-quotes-inline-string",  # bad-quotes-inline-string, conflicts with formatter
-  "bad-quotes-multiline-string",  # bad-quotes-multiline-string, conflicts with formatter
-  "bad-quotes-docstring",  # bad-quotes-docstring, conflicts with formatter
-  "avoidable-escaped-quote",  # avoidable-escaped-quote, conflicts with formatter
-  "float-equality-comparison",  # float-equality-comparison
-  "missing-todo-author",  # missing-todo-author, I am currently the only author
-  "missing-todo-link",  # missing-todo-link
-  "tab-indentation",  # tab-indentation, conflicts with formatter
+  "non-augmented-assignment",
+  "bad-quotes-inline-string",  # conflicts with formatter
+  "bad-quotes-multiline-string",  # conflicts with formatter
+  "bad-quotes-docstring",  # conflicts with formatter
+  "avoidable-escaped-quote",  # conflicts with formatter
+  "float-equality-comparison",
+  "missing-todo-author",  # I am currently the only author
+  "missing-todo-link",
+  "noqa-comments",
+  "rule-codes-in-suppression-comments",
+  "tab-indentation",  # conflicts with formatter
 ]
 isort = {known-first-party = ["differt", "differt_core", "tests"]}
 preview = true
