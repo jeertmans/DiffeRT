@@ -257,7 +257,7 @@ def test_received_power_matches_sionna() -> None:
     # Load simple street canyon scene
     file = sionna.rt.scene.simple_street_canyon
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()
+    differt_scene = Scene.load_xml(file).set_assume_quads()
 
     # Configure transmitter and receiver antenna array
     # We use isotropic pattern with vertical polarization (V)

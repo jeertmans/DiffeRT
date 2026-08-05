@@ -1,5 +1,5 @@
 # pyright: reportMissingTypeArgument=false
-# ruff: noqa: N802, N806, ANN001, ANN202
+# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function, missing-type-function-argument, missing-return-type-private-function]
 import chex
 import jax
 import jax.numpy as jnp

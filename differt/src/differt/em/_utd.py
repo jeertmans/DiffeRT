@@ -1,6 +1,6 @@
-# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function]
+# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function, invalid-argument-name]
 # type: ignore  # ruff:ignore[blanket-type-ignore]
-from typing import Any, Literal, overload
+from typing import Literal, overload
 
 import equinox as eqx
 import jax

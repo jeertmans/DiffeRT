@@ -1168,7 +1168,6 @@ class Mesh(eqx.Module):
         wedge_params = self.wedge_angles[t_idx[unique_indices], e_idx[unique_indices]]
 
         return unique_edges, adj_triangles, wedge_params
->>>>>>> main:differt/src/differt/geometry/_mesh.py
 
     @property
     def diffraction_edges(self) -> Float[Array, "num_edges 2 3"]:
@@ -1249,53 +1248,6 @@ class Mesh(eqx.Module):
 
         _, _, params = self._diffraction_edges_info()
         return params
-
-    @property
-    def wedge_angles(self) -> Float[Array, "num_triangles 3"]:
-        """Compute the wedge parameter n (where exterior angle is n * pi) for each edge.
-
-        Returns 1.0 for non-diffraction edges.
-        """
-        num_triangles = self.num_triangles
-        if num_triangles == 0:
-            return jnp.empty((0, 3))
-
-        normals = self.normals  # (num_triangles, 3)
-        adj_t, adj_e = self._connectivity
-
-        adj_t_safe = jnp.where(adj_t != -1, adj_t, num_triangles)
-        padded_normals = jnp.vstack((normals, jnp.zeros((1, 3))))
-        normals_2 = padded_normals[adj_t_safe]
-        normals_1 = normals[:, None, :]
-
-        cos_phi = jnp.sum(normals_1 * normals_2, axis=-1)
-        cos_phi = jnp.clip(cos_phi, -1.0, 1.0)
-        phi = jnp.arccos(cos_phi)
-
-        vertices = self.triangle_vertices  # (num_triangles, 3, 3)
-        v_a = vertices
-
-        opp_vertex_map = jnp.array([1, 2, 0])
-        adj_e_safe = jnp.where(adj_e != -1, adj_e, 0)
-        opp_v_idx = opp_vertex_map[adj_e_safe]
-
-        padded_vertices = jnp.vstack((vertices, jnp.zeros((1, 3, 3))))
-        v_opp2 = padded_vertices[adj_t_safe, opp_v_idx]
-
-        u2 = v_opp2 - v_a
-        dot_u2 = jnp.sum(normals_1 * u2, axis=-1)
-        s = jnp.sign(dot_u2)
-
-        n = 1.0 - s * phi / jnp.pi
-
-        mask = self.diffraction_edges_mask
-        return jnp.where(mask, n, 1.0)
-
-    @property
-    def wedge_parameters(self) -> Float[Array, " num_edges"]:
-        """The wedge parameter n for each diffraction edge."""
-        mask = self.diffraction_edges_mask.reshape(-1)
-        return self.wedge_angles.reshape(-1)[mask]
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
