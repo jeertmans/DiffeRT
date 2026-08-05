@@ -1,4 +1,4 @@
-# ruff: noqa: D100, D103, D200, DOC201, INP001
+# ruff:file-ignore[undocumented-public-module, undocumented-public-function, docstring-missing-returns, implicit-namespace-package]
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import jaxtyping
 from docutils import nodes
 from docutils.parsers.rst.states import Inliner
 from sphinx.addnodes import pending_xref
@@ -27,12 +28,14 @@ from sphinx.ext.intersphinx import missing_reference
 from differt import __version__
 
 project = "DiffeRT"
-copyright = f"2023-{date.today().year}, Jérome Eertmans"  # noqa: A001, DTZ011
+copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff:ignore[builtin-variable-shadowing, call-date-today]
 author = "Jérome Eertmans"
 version = __version__
-git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
+git_ref = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
+
+RTD = "READTHEDOCS" in os.environ
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -62,7 +65,7 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
-suppress_warnings = ["mystnb.unknown_mime_type"]
+suppress_warnings = ["config.cache", "mystnb.unknown_mime_type"]
 
 add_module_names = False
 add_function_parentheses = False
@@ -76,10 +79,18 @@ nitpick_ignore = (
     ("py:class", "ndarray"),  # From ArrayLike
     ("py:obj", "differt.geometry._paths._M"),
     ("py:obj", "differt.utils._T"),
-    ("py:obj", "differt.rt.utils._T"),
+    ("py:obj", "differt.geometry._utils._T"),
     ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
+    ("py:class", "equinox._module._better_abstract.AbstractVar"),
 )
+
+nitpick_ignore_regex = [
+    (r"py:.*", r"differt\.rt\..*"),
+    (r"py:.*", r"differt\.scene\..*"),
+    (r"py:.*", r"differt_core\.rt\..*"),
+    (r"py:.*", r"differt_core\.scene\..*"),
+]
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]
 linkcheck_report_timeouts_as_broken = False  # Default value in Sphinx >= 8
@@ -96,18 +107,19 @@ numfig = True
 # -- Intersphinx mapping
 
 intersphinx_mapping = {
-    "jax": ("https://jax.readthedocs.io/en/latest", None),
+    "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "jaxtyping": ("https://docs.kidger.site/jaxtyping/", None),
-    "matplotlib": ("https://matplotlib.org/stable", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
     "mitsuba": ("https://mitsuba.readthedocs.io/en/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "optax": ("https://optax.readthedocs.io/en/latest", None),
-    "plotly": ("https://plotly.com/python-api-reference", None),
-    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "optax": ("https://optax.readthedocs.io/en/latest/", None),
+    "plotly": ("https://plotly.com/python-api-reference/", None),
+    "python": ("https://docs.python.org/3/", None),
     "requests": ("https://requests.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sionna": ("https://nvlabs.github.io/sionna/", None),
     "vispy": ("https://vispy.org", None),
+    "warp": ("https://nvidia.github.io/warp/stable/", None),
 }
 
 # -- OpenGraph settings
@@ -120,6 +132,22 @@ ogp_use_first_image = True
 always_document_param_types = False
 always_use_bars_union = True
 autodoc_preserve_defaults = True
+
+
+def fix_format_jaxtyping_annotation(annotation: Any, _config: Any) -> str | None:
+    if not (
+        isinstance(annotation, type) and issubclass(annotation, jaxtyping.AbstractArray)
+    ):
+        return None
+
+    dtype = annotation.dtype.__name__
+    atype = annotation.array_type.__name__
+    shape = annotation.dim_str
+
+    return f':py:class:`{dtype}[{atype}, "{shape}"] <jaxtyping.{dtype}>`'
+
+
+typehints_formatter = fix_format_jaxtyping_annotation
 
 # -- MyST-nb settings
 myst_url_schemes = {
@@ -177,7 +205,7 @@ nb_mime_priority_overrides = [
 
 # We cannot access log files on RTD, so we print to stderr
 
-nb_execution_show_tb = "READTHEDOCS" in os.environ
+nb_execution_show_tb = RTD
 
 # -- Bibtex
 
@@ -194,6 +222,7 @@ html_js_files = [
 plot_pre_code = """
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import matplotlib.pyplot as plt
 import numpy as np
 """
@@ -206,6 +235,7 @@ plot_html_show_formats = False
 plotly_pre_code = """
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import numpy as np
 import plotly
 import plotly.express as px
@@ -229,7 +259,7 @@ def linkcode_resolve(domain: str, info: dict[str, str]) -> str | None:
     if info["module"].split(".", 1)[0] not in {"differt", "differt_core"}:
         return None
 
-    try:  # noqa: PLW0717
+    try:  # ruff:ignore[too-many-statements-in-try-clause]
         mod = sys.modules.get(info["module"])
         obj = operator.attrgetter(info["fullname"])(mod)
         if isinstance(obj, property):
@@ -280,9 +310,7 @@ napolean_use_rtype = False
 
 
 def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
-    """
-    Rename the default folder to a more readeable name.
-    """
+    """Rename the default folder to a more readeable name."""
     module = getattr(obj, "__module__", None)
     if module and module.rsplit(".", maxsplit=1)[-1] == "_sionna":
         sig = inspect.signature(obj)
@@ -290,7 +318,7 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
         for param_name, parameter in sig.parameters.items():
             if param_name == "folder":
-                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # noqa: PLW2901
+                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # ruff:ignore[redefined-loop-name]
 
             parameters.append(parameter)
 
@@ -302,14 +330,13 @@ def fix_reference(
 ) -> nodes.reference | None:
     """Fix some intersphinx references that are broken."""
     if node["refdomain"] == "py":
-        if node["reftarget"].startswith(
-            "equinox"
-        ):  # Sphinx fails to find them in the inventory
-            if node["reftarget"].endswith("Module"):
+        target = node["reftarget"]
+        if target.startswith("equinox"):  # Sphinx fails to find them in the inventory
+            if target.endswith("Module"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/module/module/#equinox.Module"
                 )
-            elif node["reftarget"].endswith("tree_at"):
+            elif target.endswith("tree_at"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
                 )
@@ -324,11 +351,31 @@ def fix_reference(
             newnode.append(contnode)
 
             return newnode
-        if node["reftarget"].startswith(
-            "jaxtyping"
-        ):  # Sphinx fails to find them in the inventory
+
+        if target.startswith(("differt.rt.", "differt.scene.")):
+            new_target = target.replace("differt.rt.", "differt.geometry.").replace(
+                "differt.scene.", "differt.geometry."
+            )
+            node["reftarget"] = new_target
+            py_domain = env.get_domain("py")
+            return py_domain.resolve_xref(
+                env,
+                node.get("refdoc", env.docname),
+                app.builder,
+                node["reftype"],
+                new_target,
+                node,
+                contnode,
+            )
+
+        if target.startswith("jaxtyping"):  # Sphinx fails to find them in the inventory
             if node["reftype"] == "class":
-                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+                if "Array" in target or "ndarray" in target or "PyTree" in target:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#array"
+                else:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+            elif node["reftype"] == "obj" and target == "jaxtyping.shape":
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#shape"
             elif node["reftype"] == "mod":
                 uri = "https://docs.kidger.site/jaxtyping/"
             else:
@@ -385,7 +432,7 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
-        fragment_placeholder = "{fragment}"  # noqa: RUF027
+        fragment_placeholder = "{fragment}"  # ruff:ignore[missing-f-string-syntax]
         if fragment and fragment_placeholder not in url_template:
             url = f"{url}#{fragment}"
         title = explicit_title or title_template.format(path=path, fragment=fragment)
@@ -399,7 +446,6 @@ def _make_gh_role(
 def setup(app: Sphinx) -> None:
     typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
-    import jaxtyping  # noqa: PLC0415
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
 
@@ -408,17 +454,19 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike  # type: ignore[ty:invalid-assignment]
 
-    from typing import TypeVar  # noqa: PLC0415
+    from typing import TypeVar  # ruff:ignore[import-outside-top-level]
 
-    from differt.scene import download_sionna_scenes  # noqa: PLC0415
+    from differt.geometry import (  # ruff:ignore[import-outside-top-level]
+        download_sionna_scenes,
+    )
 
     class ArrayType(jaxtyping.Array):
         def __repr__(self) -> str:
             return "ArrayType"
 
-    import differt.plugins._deepmimo_types  # noqa: PLC0415
+    import differt.plugins._deepmimo_types  # ruff:ignore[import-outside-top-level]
 
-    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # noqa: SLF001
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # ruff:ignore[private-member-access]
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 

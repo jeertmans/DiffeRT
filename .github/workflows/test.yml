@@ -27,10 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: true
 
@@ -41,36 +41,32 @@ jobs:
 
     - name: Cache scenes
       id: cache-scenes
-      uses: actions/cache@v5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
         key: ${{ steps.cache-key.outputs.result }}-scenes
 
     - name: Download Sionna scenes
       if: steps.cache-scenes.outputs.cache-hit != 'true'
-      run: uv run differt/src/differt/scene/_sionna.py
+      run: uv run differt/src/differt/geometry/_sionna.py
 
     - name: List scenes
-      run: tree -L 2 differt/src/differt/scene/scenes
+      run: tree -L 2 differt/src/differt/geometry/scenes
 
     - name: Upload scenes
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
   pytest:
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
+        pyversion: ['3.11', '3.12', '3.13', '3.14']
         resolution: [highest, lowest-direct]
         include:
-        - pyversion: 3.13t      # Qt bindings not available for this version
-          group: tests
-        - pyversion: 3.14t      # Qt bindings not available for this version
-          group: tests
         - pyversion: '3.11'
           group: tests-matplotlib
         - pyversion: '3.11'
@@ -82,27 +78,21 @@ jobs:
           jaxtyping-packages: ''  # Running without type checker
           resolution: highest
         exclude:
-        - os: windows-latest  # jaxlib wheels not available
-          pyversion: 3.13t
-        - os: windows-latest  # jaxlib wheels not available
-          pyversion: 3.14t
         - os: windows-latest  # bugs with NumPy
           pyversion: '3.13'
         - pyversion: '3.11'
           resolution: lowest-direct
         - pyversion: '3.12'
           resolution: lowest-direct
-        - pyversion: 3.13t
-          resolution: lowest-direct
 
     runs-on: ${{ matrix.os }}
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: true
 
@@ -120,22 +110,22 @@ jobs:
 
     - name: Install Mesa (OpenGL on Windows)
       if: matrix.os == 'windows-latest'
-      uses: ssciwr/setup-mesa-dist-win@v3
+      uses: ssciwr/setup-mesa-dist-win@2dfeaebfa514f74c2b8cd8d27108c31486d33e72 # v3.0.0
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
     - name: Download scenes
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Run tests
       run: uv run --python ${{ matrix.pyversion }} --resolution ${{ matrix.resolution }} --frozen --no-dev --group  ${{ matrix.group || 'tests-extended' }} --exact -m pytest${{ matrix.jaxtyping-packages && format(' --jaxtyping-packages="{0}"', matrix.jaxtyping-packages) || '' }} --durations=10
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
@@ -145,14 +135,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        pyversion: ['3.11', '3.12', '3.13', 3.13t, '3.14', 3.14t]
+        pyversion: ['3.11', '3.12', '3.13', '3.14']
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.pyversion }}
 
@@ -169,10 +159,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
 
     - name: Install NumPy
       run: pip install numpy
@@ -180,7 +170,7 @@ jobs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
-    - uses: taiki-e/install-action@v2
+    - uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2.85.4
       with:
         tool: cargo-tarpaulin@0.31.2
 
@@ -188,7 +178,7 @@ jobs:
       run: cargo tarpaulin --verbose --timeout 120 --out xml
 
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         token: ${{ secrets.DIFFERT_CODECOV_TOKEN }}
         fail_ci_if_error: true
@@ -202,15 +192,15 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ env.UV_PYTHON}}
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: true
 
@@ -218,13 +208,13 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Download scenes
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Run CodSpeed benchmarks
-      uses: CodSpeedHQ/action@v4
+      uses: CodSpeedHQ/action@0ca9cbbf4623b599a6c3ed4fc8a922942705d9f1 # v5.0.2
       with:
         mode: simulation
         run: uv run --group=codspeed pytest differt/tests/benchmarks --codspeed
@@ -235,10 +225,10 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
 
     - name: Install NumPy
       run: pip install numpy
@@ -247,7 +237,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Cache Rust
-      uses: Swatinem/rust-cache@v2
+      uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
     - name: Run Benchmarks
       run: cargo bench
@@ -257,21 +247,23 @@ jobs:
     needs: [download-scenes]
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Download scenes
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: sionna-scenes
-        path: differt/src/differt/scene/scenes
+        path: differt/src/differt/geometry/scenes
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: true
 
     - name: Install Just
-      uses: taiki-e/install-action@just
+      uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2.85.4
+      with:
+        tool: just@1.58.0
 
     - name: Install dependencies
       run: just install --locked --no-dev --group docs

@@ -1,6 +1,6 @@
-# ruff: noqa: N802, N803, N806
-# type: ignore  # noqa: PGH003
-from typing import Literal, overload
+# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function]
+# type: ignore  # ruff:ignore[blanket-type-ignore]
+from typing import Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -136,7 +136,7 @@ def L_i(
             If this is set, other radius parameters must be set to 'None'.
 
     Returns:
-        The values of the distance parameter :math:`L_i`.
+        Distance parameter :math:`L_i`.
 
     Raises:
         ValueError: If 's_i' was provided along at least one of the other radius parameters,
@@ -188,10 +188,10 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     With Fresnel integrals computed by :data:`jax.scipy.special.fresnel`.
 
     Args:
-        z: The array of real points to evaluate.
+        z: Real point to evaluate.
 
     Returns:
-        The values of the transition function at the given point.
+        Value of the transition function.
 
     Examples:
         .. plot::

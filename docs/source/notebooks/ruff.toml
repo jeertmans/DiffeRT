@@ -3,6 +3,6 @@ line-length = 80
 
 [lint]
 extend-ignore = [
-  "PTH123",
+  "builtin-open",
 ]
 isort = {known-first-party = []}

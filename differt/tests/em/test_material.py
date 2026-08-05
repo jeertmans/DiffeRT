@@ -1,4 +1,4 @@
-# ruff: noqa: FURB152
+# ruff:file-ignore[math-constant]
 from typing import ClassVar
 
 import chex

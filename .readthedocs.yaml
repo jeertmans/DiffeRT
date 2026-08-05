@@ -19,6 +19,8 @@ build:
     - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
     install:
     - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --frozen --group docs
+    post_install:
+    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv run python -c "import warp; warp.print_diagnostics()"
 sphinx:
   builder: html
   configuration: docs/source/conf.py

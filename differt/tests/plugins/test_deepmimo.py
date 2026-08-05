@@ -1,6 +1,9 @@
 from dataclasses import asdict
 from itertools import chain
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import chex
 import equinox as eqx
@@ -11,40 +14,46 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import materials, z_0
-from differt.geometry import TriangleMesh
+from differt.geometry import (
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    Mesh,
+    Scene,
+    TracedPaths,
+)
 from differt.plugins import deepmimo
-from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
 
 
 def test_export(key: PRNGKeyArray) -> None:
-    mesh = TriangleMesh.box(with_top=True, with_bottom=True)
+    mesh = Mesh.box(with_top=True, with_bottom=True)
     key_tx, key_rx = jax.random.split(key, 2)
 
     transmitters = sample_points_in_bounding_box(mesh.bounding_box, (1, 2), key=key_tx)
     receivers = sample_points_in_bounding_box(mesh.bounding_box, (4,), key=key_rx)
     num_tx = transmitters[..., 0].size
     num_rx = receivers[..., 0].size
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     with pytest.raises(
         ValueError, match="Scene must contain information about face materials"
     ):
-        deepmimo.export(
-            paths=scene.compute_paths(order=0), scene=scene, frequency=2.4e9
-        )
+        deepmimo.export(paths=scene.trace_paths(order=0), scene=scene, frequency=2.4e9)
 
     mesh = mesh.set_materials("itu_concrete")
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     frequency = 2.4e9  # 2.4 GHz
     for order in [0, 1, 2]:
-        paths = scene.compute_paths(order=order)
+        paths = cast("TracedPaths", scene.trace_paths(order=order))
         dm = deepmimo.export(paths=paths, scene=scene, frequency=frequency)
         assert dm.num_tx == num_tx
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
-        paths_iter = scene.compute_paths(order=order, chunk_size=100)
+        paths_iter = cast(
+            "Iterator[TracedPaths]",
+            scene.trace_paths(order=order, solver=ExhaustivePathTracer(chunk_size=100)),
+        )
         dm = deepmimo.export(
             paths=paths_iter,
             scene=scene,
@@ -55,13 +64,19 @@ def test_export(key: PRNGKeyArray) -> None:
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
 
-    paths_iter = (scene.compute_paths(order=order) for order in [0, 1, 2])
+    paths_iter = (
+        cast("TracedPaths", scene.trace_paths(order=order)) for order in [0, 1, 2]
+    )
     dm = deepmimo.export(paths=paths_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
     assert dm.num_rx == num_rx
     num_paths = dm.num_paths
     paths_iter_iter = chain.from_iterable(
-        scene.compute_paths(order=order, chunk_size=100) for order in [0, 1, 2]
+        cast(
+            "Iterator[TracedPaths]",
+            scene.trace_paths(order=order, solver=ExhaustivePathTracer(chunk_size=100)),
+        )
+        for order in [0, 1, 2]
     )
     dm = deepmimo.export(paths=paths_iter_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
@@ -103,7 +118,7 @@ def test_match_sionna_on_simple_street_canyon(
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -157,10 +172,9 @@ def test_match_sionna_on_simple_street_canyon(
         paths=(
             paths.masked()
             for order in range(max_order + 1)
-            for paths in differt_scene.compute_paths(
+            for paths in differt_scene.trace_paths(
                 order=order,
-                method="hybrid",
-                chunk_size=100_000,
+                solver=HybridPathTracer(chunk_size=100_000),
             )
         ),
         scene=differt_scene,
@@ -174,7 +188,7 @@ def test_match_sionna_on_simple_street_canyon(
     assert isinstance(dm.power, np.ndarray)
 
     # Greedily sort the paths to match Sionna's order
-    dm = dm._sort(sionna_paths)  # noqa: SLF001
+    dm = dm._sort(sionna_paths)  # ruff:ignore[private-member-access]
     assert isinstance(dm.power, jax.Array)  # _sort returns JAX arrays
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1

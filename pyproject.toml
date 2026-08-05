@@ -12,7 +12,7 @@ dev = [
   {include-group = "tests"},
   "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
-  "pre-commit>=3.5.0",
+  "prek>=0.4.11",
   "ty==0.0.40",
 ]
 docs = [
@@ -21,7 +21,7 @@ docs = [
   "differt[all]",
   "jax==0.8.1",  # TODO: 0.8.2 introduced metaclass for jax.Array, breaking some references in the docs
   "myst-nb>=0.17.2",
-  "pillow>=12.2.0",
+  "pillow>=12.3.0",
   "plotly<6",
   "sphinx>=8.1.3,<9",
   "sphinx-autodoc-typehints>=3.5.2",
@@ -85,7 +85,7 @@ version = "1.0.0"
 allow_dirty = false
 commit = true
 commit_args = ""
-current_version = "0.8.2"
+current_version = "0.10.0"
 ignore_missing_version = false
 message = "chore(deps): bump version from {current_version} to {new_version}"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
@@ -206,13 +206,16 @@ addopts = [
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 env = [
   "JAX_DEBUG_NANS=True",
-  "JAX_PLATFORM_NAME=cpu",
+  "JAX_PLATFORMS=cpu",
 ]
 filterwarnings = [
   "error",
+  'ignore:The differt.rt module is deprecated:DeprecationWarning',
+  'ignore:The differt.scene module is deprecated:DeprecationWarning',
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
   'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
+  '''ignore:Due to '_pack_', the '.*' Structure will use memory layout compatible with MSVC \(Windows\):DeprecationWarning''',  # Warning from warp-lang
 ]
 log_level = "INFO"
 markers = [
@@ -227,40 +230,40 @@ preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
-  "ANN401",  # any-type
-  "C901",  # complex-structure
-  "COM812",  # missing-trailing-comma, conflicts with formatter
-  "COM819",  # prohibited-trailing-comma, conflicts with formatter
-  "CPY001",  # missing-copyright-notice
-  "D203",  # no-blank-line-before-class
-  "D206",  # indent-with-spaces, conflicts with formatter
-  "D212",  # multi-line-summary-second-line
-  "D300",  # triple-single-quotes, conflicts with formatter
-  "D407",  # dashed-underline-after-section
-  "E111",  # indentation-with-invalid-multiple, conflicts with formatter
-  "E114",  # indentation-with-invalid-multiple-comments, conflicts with formatter
-  "E117",  # over-indented, conflicts with formatter
-  "E501",  # line-too-long, conflicts with formatter
-  "ERA001",  # commented-out-code
-  "F722",  # forward-annotation-syntax-error
-  "FA100",  # future-rewritable-type-annotation
-  "FBT001",  # boolean-type-hint-positional-argument
-  "FBT002",  # boolean-default-value-positional-argument
-  "FIX002",  # line-contains-todo, comment this to find where TODOs are
-  "ISC001",  # single-line-implicit-string-concatenation, conflicts with formatter
-  "ISC002",  # multi-line-implicit-string-concatenation, conflicts with formatter
+  "any-type",  # any-type
+  "complex-structure",  # complex-structure
+  "missing-trailing-comma",  # missing-trailing-comma, conflicts with formatter
+  "prohibited-trailing-comma",  # prohibited-trailing-comma, conflicts with formatter
+  "missing-copyright-notice",  # missing-copyright-notice
+  "incorrect-blank-line-before-class",  # no-blank-line-before-class
+  "docstring-tab-indentation",  # indent-with-spaces, conflicts with formatter
+  "multi-line-summary-first-line",  # multi-line-summary-second-line
+  "triple-single-quotes",  # triple-single-quotes, conflicts with formatter
+  "missing-dashed-underline-after-section",  # dashed-underline-after-section
+  "indentation-with-invalid-multiple",  # indentation-with-invalid-multiple, conflicts with formatter
+  "indentation-with-invalid-multiple-comment",  # indentation-with-invalid-multiple-comments, conflicts with formatter
+  "over-indented",  # over-indented, conflicts with formatter
+  "line-too-long",  # line-too-long, conflicts with formatter
+  "commented-out-code",  # commented-out-code
+  "forward-annotation-syntax-error",  # forward-annotation-syntax-error
+  "future-rewritable-type-annotation",  # future-rewritable-type-annotation
+  "boolean-type-hint-positional-argument",  # boolean-type-hint-positional-argument
+  "boolean-default-value-positional-argument",  # boolean-default-value-positional-argument
+  "line-contains-todo",  # line-contains-todo, comment this to find where TODOs are
+  "single-line-implicit-string-concatenation",  # single-line-implicit-string-concatenation, conflicts with formatter
+  "multi-line-implicit-string-concatenation",  # multi-line-implicit-string-concatenation, conflicts with formatter
   "PD",  # pandas-vet
-  "PLR0904",  # too-many-public-methods, counts @overload...
+  "too-many-public-methods",  # too-many-public-methods, counts @overload...
   "PLR091",  # too-many-*
-  "PLR6104",  # non-augmented-assignment
-  "Q000",  # bad-quotes-inline-string, conflicts with formatter
-  "Q001",  # bad-quotes-multiline-string, conflicts with formatter
-  "Q002",  # bad-quotes-docstring, conflicts with formatter
-  "Q003",  # avoidable-escaped-quote, conflicts with formatter
-  "RUF069",  # float-equality-comparison
-  "TD002",  # missing-todo-author, I am currently the only author
-  "TD003",  # missing-todo-link
-  "W191",  # tab-indentation, conflicts with formatter
+  "non-augmented-assignment",  # non-augmented-assignment
+  "bad-quotes-inline-string",  # bad-quotes-inline-string, conflicts with formatter
+  "bad-quotes-multiline-string",  # bad-quotes-multiline-string, conflicts with formatter
+  "bad-quotes-docstring",  # bad-quotes-docstring, conflicts with formatter
+  "avoidable-escaped-quote",  # avoidable-escaped-quote, conflicts with formatter
+  "float-equality-comparison",  # float-equality-comparison
+  "missing-todo-author",  # missing-todo-author, I am currently the only author
+  "missing-todo-link",  # missing-todo-link
+  "tab-indentation",  # tab-indentation, conflicts with formatter
 ]
 isort = {known-first-party = ["differt", "differt_core", "tests"]}
 preview = true
@@ -281,14 +284,14 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = [
-  "B018",
-  "N806",
-  "PLR2004",
-  "RUF027",
-  "T201",
+  "useless-expression",
+  "non-lowercase-variable-in-function",
+  "magic-value-comparison",
+  "missing-f-string-syntax",
+  "print",
 ]
-"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "S101", "PLC2701", "PLR0917", "PLR2004", "PLR6301", "SIM117", "TID252"]
-"scripts/*" = ["INP001"]
+"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "assert", "import-private-name", "too-many-positional-arguments", "magic-value-comparison", "no-self-use", "multiple-with-statements", "relative-imports"]
+"scripts/*" = ["implicit-namespace-package"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

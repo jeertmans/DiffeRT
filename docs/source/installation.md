@@ -26,11 +26,13 @@ please report it as
 
 ### About JAX
 
-If you want to leverage the power of your GPU(s) or TPU(s), you may want
+If you want to leverage the power of your GPU(s) or TPU(s) (see {doc}`limitations` for current limitations on TPUs and non-CUDA GPUs), you may want
 to look at [JAX's installation guide](https://jax.readthedocs.io/en/latest/installation.html),
 which provides the necessary information about how to install JAX with support for your target device.
 
-DiffeRT works seamlessly with JAX regardless of the active devices (i.e., CPU, GPU, or TPU).
+DiffeRT works seamlessly with JAX regardless of the active devices (i.e., CPU, GPU[^hardware-note], or TPU[^hardware-note])
+
+[^hardware-note]: Since v0.9, and particularly {gh-pr}`467`, DiffeRT uses Warp for more efficient ray tracing utilities inside {class}`Mesh<differt.geometry.Mesh>` and, as a result, inside {class}`Scene<differt.geometry.Scene>`. Since Warp only supports CPU and CUDA-enabled GPU platforms, DiffeRT will fail to work on TPUs and non-CUDA GPUs (e.g., Apple Silicon or AMD GPUs) when using some methods (which are documented, see {doc}`limitations`).
 
 ### Optional dependencies
 

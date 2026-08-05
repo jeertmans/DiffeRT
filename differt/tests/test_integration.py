@@ -13,17 +13,15 @@ from differt.em import (
     materials,
 )
 from differt.geometry import (
-    TriangleMesh,
-    assemble_paths,
+    Mesh,
+    Scene,
+    assemble_path,
     fibonacci_lattice,
-    path_lengths,
+    first_triangle_hit_by_ray,
+    path_length,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
 )
-from differt.rt import (
-    first_triangles_hit_by_rays,
-    rays_intersect_any_triangle,
-    rays_intersect_triangles,
-)
-from differt.scene import TriangleScene
 
 
 @pytest.mark.slow
@@ -31,13 +29,11 @@ def test_ray_casting() -> None:
     o3d = pytest.importorskip("open3d", reason="open3d not installed")
 
     knot_mesh = o3d.data.KnotMesh()
-    o3d_mesh = o3d.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
-
-    o3d_mesh = o3d.t.geometry.TriangleMesh.from_legacy(o3d_mesh)
+    o3d_mesh = o3d.t.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
     o3d_mesh = o3d_mesh.compute_vertex_normals()  # This avoids a warning from Open3D
     o3d_mesh = o3d_mesh.compute_triangle_normals()
 
-    mesh = TriangleMesh(
+    mesh = Mesh(
         vertices=jnp.asarray(o3d_mesh.vertex.positions.numpy()),
         triangles=jnp.asarray(o3d_mesh.triangle.indices.numpy()),
     )
@@ -71,7 +67,7 @@ def test_ray_casting() -> None:
 
     triangle_vertices = mesh.triangle_vertices
 
-    triangles, t_hit = first_triangles_hit_by_rays(
+    triangles, t_hit = first_triangle_hit_by_ray(
         ray_origins, ray_directions, triangle_vertices
     )
     hit = triangles != -1
@@ -89,7 +85,7 @@ def test_ray_casting() -> None:
         ans["primitive_ids"].numpy(),  # codespell:ignore ans
     )
 
-    got_counts = rays_intersect_triangles(
+    got_counts = ray_intersect_triangle(
         ray_origins[..., None, :], ray_directions[..., None, :], triangle_vertices
     )[1].sum(axis=-1)
 
@@ -102,7 +98,7 @@ def test_ray_casting() -> None:
 
     scale = 100.0
 
-    got_hit = rays_intersect_any_triangle(
+    got_hit = ray_intersect_any_triangle(
         ray_origins,
         scale * ray_directions,
         triangle_vertices,
@@ -127,7 +123,7 @@ def test_simple_street_canyon() -> None:
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -179,20 +175,20 @@ def test_simple_street_canyon() -> None:
     max_depth = sionna_path_objects.shape[0]  # May differ from 'max_order'
 
     for order in range(max_depth + 1):
-        paths = differt_scene.compute_paths(
+        paths = differt_scene.trace_paths(
             order=order,
-            method="hybrid",
+            solver="hybrid",
         )
         select = (sionna_path_objects == -1).sum(axis=0) == (max_depth - order)
         vertices = sionna_path_vertices[:order, select, :]
         vertices = jnp.moveaxis(vertices, 0, -2)
-        vertices = assemble_paths(
+        vertices = assemble_path(
             differt_scene.transmitters,
             vertices,
             differt_scene.receivers,
         )
-        got_path_lengths = path_lengths(paths.masked_vertices)
-        expected_path_lengths = path_lengths(vertices)
+        got_path_lengths = path_length(paths.masked_vertices)
+        expected_path_lengths = path_length(vertices)
         # We check the sum of path lengths because Sionna orders the paths differently,
         # so we cannot compare them directly.
         chex.assert_trees_all_close(

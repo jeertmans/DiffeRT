@@ -21,13 +21,14 @@ from differt.em import (
     z_0,
 )
 from differt.geometry import (
-    Paths,
+    Scene,
+    SizedIterator,
+    TracedPaths,
     cartesian_to_spherical,
     normalize,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
-from differt.rt import SizedIterator
-from differt.scene import TriangleScene
+from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
 
@@ -156,7 +157,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         self,
         paths: SionnaPaths,
     ) -> "DeepMIMO[Array]":
-        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # noqa: DOC201, DOC501
+        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # ruff:ignore[docstring-missing-returns, docstring-missing-exception]
         if _is_jax_dtype(self):
             vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
             interactions = (
@@ -211,7 +212,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
             return jax.tree.map(sort_fn, self)
 
-        return self.jax()._sort(paths)  # noqa: SLF001
+        return self.jax()._sort(paths)  # ruff:ignore[private-member-access]
 
     def jax(self) -> "DeepMIMO[Array]":
         """
@@ -297,11 +298,11 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
                 >>> import equinox as eqx
                 >>> from differt.plugins import deepmimo
-                >>> from differt.scene import TriangleScene, get_sionna_scene
+                >>> from differt.geometry import Scene, get_sionna_scene
                 >>> from differt.plotting import reuse
                 >>>
                 >>> file = get_sionna_scene("simple_street_canyon")
-                >>> scene = TriangleScene.load_xml(file)
+                >>> scene = Scene.load_xml(file)
                 >>> scene = eqx.tree_at(
                 ...     lambda s: s.transmitters, scene, jnp.array([-33.0, 0.0, 32.0])
                 ... )
@@ -311,9 +312,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 >>>
                 >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
                 ...     scene.plot()
-                ...     paths = (
-                ...         scene.compute_paths(order=order) for order in [0, 1, 2]
-                ...     )
+                ...     paths = (scene.trace_paths(order=order) for order in [0, 1, 2])
                 ...     dm = deepmimo.export(paths=paths, scene=scene, frequency=2.4e9)
                 ...     dm.plot_paths()
                 >>> fig  # doctest: +SKIP
@@ -329,8 +328,8 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
 def export(
     *,
-    paths: Paths | Iterable[Paths],
-    scene: TriangleScene,
+    paths: TracedPaths | Iterable[TracedPaths],
+    scene: Scene,
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, ""],
     include_primitives: bool = False,
@@ -354,7 +353,7 @@ def export(
 
             You can provide paths with different numbers of interactions by passing an iterable.
 
-            E.g., the return value of :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+            E.g., the return value of :meth:`Scene.trace_paths<differt.geometry.Scene.trace_paths>`.
 
         scene: The scene that was used to compute the paths.
         radio_materials: The list of materials in the scene.
@@ -378,12 +377,12 @@ def export(
     if radio_materials is None:
         radio_materials = materials
 
-    if isinstance(polarization, tuple) and len(polarization) == 2:  # noqa: PLR2004
+    if isinstance(polarization, tuple) and len(polarization) == 2:  # ruff:ignore[magic-value-comparison]
         tx_polarization, rx_polarization = polarization
     else:
         tx_polarization = rx_polarization = polarization
 
-    paths_iter = [paths] if isinstance(paths, Paths) else paths
+    paths_iter = [paths] if isinstance(paths, TracedPaths) else paths
     del paths
 
     # Variables eta_r, conductivity, thickness, omega, epsilon_complex, n_complex, wavelength
@@ -418,7 +417,7 @@ def export(
 
     for paths in paths_iter:
         # Reshape any batch of tx and rx positions into the expected shape
-        paths = paths.reshape(num_tx, num_rx, -1)  # noqa: PLW2901
+        paths = paths.reshape(num_tx, num_rx, -1)  # ruff:ignore[redefined-loop-name]
 
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
