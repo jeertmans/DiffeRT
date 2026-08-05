@@ -9,7 +9,7 @@ from differt.em import (
     compute_received_power,
     fspl,
 )
-from differt.geometry import Paths, TriangleMesh
+from differt.geometry import Mesh, TracedPaths
 
 
 def test_los_received_power_matches_fspl() -> None:
@@ -18,10 +18,10 @@ def test_los_received_power_matches_fspl() -> None:
     # Vertices of path: TX at [0, 0, 0], RX at [10, 0, 0]
     vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
     objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-    paths = Paths(vertices=vertices, objects=objects)
+    paths = TracedPaths(vertices=vertices, objects=objects)
 
     frequency = 1e9  # 1 GHz
-    mesh = TriangleMesh.empty()  # Empty mesh is fine since order is 0 (no reflections)
+    mesh = Mesh.empty()  # Empty mesh is fine since order is 0 (no reflections)
 
     # Compute fields
     fields = compute_received_fields(
@@ -44,9 +44,9 @@ def test_compute_cir() -> None:
     # 10m path along x-axis
     vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
     objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-    paths = Paths(vertices=vertices, objects=objects)
+    paths = TracedPaths(vertices=vertices, objects=objects)
     frequency = 1e9
-    mesh = TriangleMesh.empty()
+    mesh = Mesh.empty()
 
     fields = compute_received_fields(paths, mesh, frequency)
     delay, fields_out = compute_cir(paths, fields)
@@ -65,8 +65,8 @@ def test_jit_and_gradients() -> None:
         # Vertices shape: (1, 2, 3)
         vertices = jnp.stack([tx_pos, rx_pos])[None, ...]
         objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-        paths = Paths(vertices=vertices, objects=objects)
-        mesh = TriangleMesh.empty()
+        paths = TracedPaths(vertices=vertices, objects=objects)
+        mesh = Mesh.empty()
         fields = compute_received_fields(paths, mesh, 1e9)
         return jnp.abs(fields[0]) ** 2
 
