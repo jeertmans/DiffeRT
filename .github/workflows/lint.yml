@@ -18,19 +18,18 @@ jobs:
       pull-requests: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v7
-
-    - name: Install Python
-      uses: actions/setup-python@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Install pre-commit
-      run: pip install pre-commit
+      uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece # v3.0.0
+      with:
+        install-only: true
 
     - name: Run autoupdate
-      run: pre-commit autoupdate
+      run: prek update
 
     - name: Create a pull request with updated versions
-      uses: peter-evans/create-pull-request@v8
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
       with:
         branch: update/pre-commit-hooks
         title: 'chore(deps): update pre-commit hooks'
@@ -43,10 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: true
 
@@ -60,11 +59,5 @@ jobs:
       with:
         components: rustfmt
 
-    - name: Run pre-commit hooks
-      run: uv run --locked pre-commit run --all-files
-
-    - name: Apply fixes when present
-      uses: pre-commit-ci/lite-action@v1.1.0
-      if: always()
-      with:
-        msg: 'chore(fmt): auto fixes from pre-commit hooks'
+    - name: Install and run pre-commit
+      uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece # v3.0.0

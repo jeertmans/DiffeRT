@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
   "chex>=0.1.86",
-  "differt-core==0.9.1",
+  "differt-core==0.10.0",
   "equinox>=0.13.7",
   "filelock>=3.15.4",
   "fpt-jax==0.1.0",
@@ -24,7 +24,7 @@ dependencies = [
   "numpy>=1.26.1",
   "requests>=2.32.0",
   "tqdm>=4.66.2",
-  "warp-lang>=1.14.0",
+  "warp-lang>=1.16.0",
 ]
 description = "Differentiable Ray Tracing Toolbox for Radio Propagation Simulations"
 dynamic = ["readme", "version"]

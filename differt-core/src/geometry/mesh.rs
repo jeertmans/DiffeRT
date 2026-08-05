@@ -1,4 +1,8 @@
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 use indexmap::IndexMap;
 use numpy::{PyArray1, PyArray2, ndarray::arr2};
@@ -273,29 +277,14 @@ impl Mesh {
     /// vertices.
     ///
     /// Args:
-    ///     file (str): The path to the Wavefront .obj file.
+    ///     file (str | os.PathLike[str]): The path to the Wavefront .obj file.
     ///
     /// Returns:
     ///     Mesh: The corresponding mesh containing only triangles.
     #[classmethod]
-    pub(crate) fn load_obj(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
-        let input = BufReader::new(File::open(filename)?);
-        let mut obj: RawObj = parse_obj(input).map_err(|err| {
-            PyValueError::new_err(format!(
-                "An error occurred while reading obj file {filename:#?}: {}",
-                err
-            ))
-        })?;
-
-        for material_file in obj.material_libraries.iter_mut() {
-            let mut path = PathBuf::from(filename);
-            path.set_file_name(&material_file);
-            if let Some(path_str) = path.to_str() {
-                *material_file = path_str.to_string();
-            }
-        }
-
-        Ok(obj.into())
+    #[pyo3(name = "load_obj")]
+    pub(crate) fn py_load_obj(_: &Bound<'_, PyType>, file: PathBuf) -> PyResult<Self> {
+        Self::load_obj(&file)
     }
 
     /// Load a triangle mesh from a Stanford PLY .ply file.
@@ -307,20 +296,47 @@ impl Mesh {
     /// vertices.
     ///
     /// Args:
-    ///     file (str): The path to the Stanford PLY .ply file.
+    ///     file (str | os.PathLike[str]): The path to the Stanford PLY .ply file.
     ///
     /// Returns:
     ///     Mesh: The corresponding mesh containing only triangles.
     #[classmethod]
-    pub(crate) fn load_ply(_: &Bound<'_, PyType>, filename: &str) -> PyResult<Self> {
-        let mut input = BufReader::new(File::open(filename)?);
+    #[pyo3(name = "load_ply")]
+    pub(crate) fn py_load_ply(_: &Bound<'_, PyType>, file: PathBuf) -> PyResult<Self> {
+        Self::load_ply(&file)
+    }
+}
+
+impl Mesh {
+    pub(crate) fn load_obj(file: &Path) -> PyResult<Self> {
+        let input = BufReader::new(File::open(file)?);
+        let mut obj: RawObj = parse_obj(input).map_err(|err| {
+            PyValueError::new_err(format!(
+                "An error occurred while reading obj file {file:#?}: {}",
+                err
+            ))
+        })?;
+
+        for material_file in obj.material_libraries.iter_mut() {
+            let mut path = file.to_path_buf();
+            path.set_file_name(&material_file);
+            if let Some(path_str) = path.to_str() {
+                *material_file = path_str.to_string();
+            }
+        }
+
+        Ok(obj.into())
+    }
+
+    pub(crate) fn load_ply(file: &Path) -> PyResult<Self> {
+        let mut input = BufReader::new(File::open(file)?);
 
         let vertex_parser = parser::Parser::<PlyVertex>::new();
         let face_parser = parser::Parser::<PlyFace>::new();
 
         let header = vertex_parser.read_header(&mut input).map_err(|err| {
             PyValueError::new_err(format!(
-                "An error occurred while reading the header of ply file {filename:#?}: {}",
+                "An error occurred while reading the header of ply file {file:#?}: {}",
                 err
             ))
         })?;
@@ -337,7 +353,7 @@ impl Mesh {
                             .map_err(|err| {
                                 PyValueError::new_err(format!(
                                     "An error occurred while reading the vertex elements of ply \
-                                     file {filename:#?}: {}",
+                                     file {file:#?}: {}",
                                     err
                                 ))
                             })?
@@ -352,7 +368,7 @@ impl Mesh {
                             .map_err(|err| {
                                 PyValueError::new_err(format!(
                                     "An error occurred while reading the face elements of PLY \
-                                     file {filename:#?}: {}",
+                                     file {file:#?}: {}",
                                     err
                                 ))
                             })?

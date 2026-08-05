@@ -7,8 +7,6 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-
-import hashlib
 import inspect
 import operator
 import os
@@ -19,6 +17,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import jaxtyping
 from docutils import nodes
 from docutils.parsers.rst.states import Inliner
 from sphinx.addnodes import pending_xref
@@ -32,7 +31,7 @@ project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff:ignore[builtin-variable-shadowing, call-date-today]
 author = "Jérome Eertmans"
 version = __version__
-git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
+git_ref = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
 
@@ -66,7 +65,7 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
-suppress_warnings = ["mystnb.unknown_mime_type"]
+suppress_warnings = ["config.cache", "mystnb.unknown_mime_type"]
 
 add_module_names = False
 add_function_parentheses = False
@@ -133,6 +132,22 @@ ogp_use_first_image = True
 always_document_param_types = False
 always_use_bars_union = True
 autodoc_preserve_defaults = True
+
+
+def fix_format_jaxtyping_annotation(annotation: Any, _config: Any) -> str | None:
+    if not (
+        isinstance(annotation, type) and issubclass(annotation, jaxtyping.AbstractArray)
+    ):
+        return None
+
+    dtype = annotation.dtype.__name__
+    atype = annotation.array_type.__name__
+    shape = annotation.dim_str
+
+    return f':py:class:`{dtype}[{atype}, "{shape}"] <jaxtyping.{dtype}>`'
+
+
+typehints_formatter = fix_format_jaxtyping_annotation
 
 # -- MyST-nb settings
 myst_url_schemes = {
@@ -315,14 +330,13 @@ def fix_reference(
 ) -> nodes.reference | None:
     """Fix some intersphinx references that are broken."""
     if node["refdomain"] == "py":
-        if node["reftarget"].startswith(
-            "equinox"
-        ):  # Sphinx fails to find them in the inventory
-            if node["reftarget"].endswith("Module"):
+        target = node["reftarget"]
+        if target.startswith("equinox"):  # Sphinx fails to find them in the inventory
+            if target.endswith("Module"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/module/module/#equinox.Module"
                 )
-            elif node["reftarget"].endswith("tree_at"):
+            elif target.endswith("tree_at"):
                 uri = (
                     "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
                 )
@@ -338,7 +352,6 @@ def fix_reference(
 
             return newnode
 
-        target = node["reftarget"]
         if target.startswith(("differt.rt.", "differt.scene.")):
             new_target = target.replace("differt.rt.", "differt.geometry.").replace(
                 "differt.scene.", "differt.geometry."
@@ -355,11 +368,14 @@ def fix_reference(
                 contnode,
             )
 
-        if node["reftarget"].startswith(
-            "jaxtyping"
-        ):  # Sphinx fails to find them in the inventory
+        if target.startswith("jaxtyping"):  # Sphinx fails to find them in the inventory
             if node["reftype"] == "class":
-                uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+                if "Array" in target or "ndarray" in target or "PyTree" in target:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#array"
+                else:
+                    uri = "https://docs.kidger.site/jaxtyping/api/array/#dtype"
+            elif node["reftype"] == "obj" and target == "jaxtyping.shape":
+                uri = "https://docs.kidger.site/jaxtyping/api/array/#shape"
             elif node["reftype"] == "mod":
                 uri = "https://docs.kidger.site/jaxtyping/"
             else:
@@ -376,51 +392,6 @@ def fix_reference(
             return missing_reference(app, env, node, contnode)
 
     return None
-
-
-PLOTLY_UUID_PATTERN = re.compile(
-    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-)
-
-
-def make_plotly_deterministic(app: Sphinx, exception: Exception | None) -> None:
-    """Replace random UUIDs in HTML with content-based deterministic IDs."""
-    if exception is not None or getattr(app.builder, "format", "") != "html":
-        return
-
-    outdir = Path(app.outdir)
-    for html_file in outdir.rglob("*.html"):
-        try:
-            html = html_file.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-
-        if "Plotly.newPlot" not in html:
-            continue
-
-        # 1. Extract unique UUIDs strictly in the order they appear
-        uuids = dict.fromkeys(PLOTLY_UUID_PATTERN.findall(html))
-
-        if not uuids:
-            return
-
-        # 2. Normalize HTML by replacing random UUIDs with positional placeholders
-        stable_html = html
-        for i, u in enumerate(uuids.keys()):
-            stable_html = stable_html.replace(u, f"__UUID_PLACEHOLDER_{i}__")
-
-        # 3. Hash the normalized HTML
-        # This ensures the hash ONLY changes if the actual plot data/layout changes
-        fig_hash = hashlib.sha256(stable_html.encode("utf-8")).hexdigest()
-
-        # 4. Swap placeholders out for our new deterministic IDs
-        new_html = stable_html
-        for i in range(len(uuids)):
-            deterministic_id = f"plot-id-{fig_hash}-{i}"
-            new_html = new_html.replace(f"__UUID_PLACEHOLDER_{i}__", deterministic_id)
-
-        # 5. Update the HTML file
-        html_file.write_text(new_html, encoding="utf-8")
 
 
 # -- GitHub roles
@@ -475,7 +446,6 @@ def _make_gh_role(
 def setup(app: Sphinx) -> None:
     typing.GENERATING_DOCS = True  # type: ignore[ty:unresolved-attribute]
 
-    import jaxtyping  # ruff:ignore[import-outside-top-level]
     # Patch to avoid expanding the ArrayLike union type, which takes a lot
     # of space and is less readable.
 
@@ -502,9 +472,6 @@ def setup(app: Sphinx) -> None:
 
     app.connect("autodoc-before-process-signature", fix_sionna_folder)
     app.connect("missing-reference", fix_reference)
-    if RTD:
-        # Prevent spurious changes in between builds (see "Files changed" in PR previews)
-        app.connect("build-finished", make_plotly_deterministic)
 
     app.add_role(
         "gh-pr",

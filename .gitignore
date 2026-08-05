@@ -1,6 +1,7 @@
 # Python build files and cache
 
 *.pyc
+*.pyd
 *.so
 *.egg-info
 
