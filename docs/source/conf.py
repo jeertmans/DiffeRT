@@ -31,7 +31,7 @@ project = "DiffeRT"
 copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff:ignore[builtin-variable-shadowing, call-date-today]
 author = "Jérome Eertmans"
 version = __version__
-git_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", "main")
+git_ref = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
 
