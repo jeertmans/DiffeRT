@@ -3,6 +3,7 @@ import math
 import typing
 import warnings
 from collections.abc import Callable, Iterator, Mapping
+from os import PathLike
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -489,7 +490,7 @@ class Scene(eqx.Module):
         )
 
     @classmethod
-    def load_xml(cls, file: str) -> Self:
+    def load_xml(cls, file: str | PathLike[str]) -> Self:
         """
         Load a triangle scene from a XML file.
 

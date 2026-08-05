@@ -3,6 +3,7 @@ import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
 from functools import partial
+from os import PathLike
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -2221,7 +2222,7 @@ class Mesh(eqx.Module):
         return self.triangles.size == 0
 
     @classmethod
-    def load_obj(cls, file: str) -> Self:
+    def load_obj(cls, file: str | PathLike[str]) -> Self:
         """
         Load a triangle mesh from a Wavefront .obj file.
 
@@ -2238,7 +2239,7 @@ class Mesh(eqx.Module):
         return cls.from_core(core_mesh)
 
     @classmethod
-    def load_ply(cls, file: str) -> Self:
+    def load_ply(cls, file: str | PathLike[str]) -> Self:
         """
         Load a triangle mesh from a Stanford PLY .ply file.
 

@@ -46,22 +46,26 @@ class TestScene:
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
-                scene = Scene.load_xml(file)
-                sionna_scene = SionnaScene.load_xml(file)
 
-                assert scene.mesh.object_bounds is not None
-                assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
+                for f in [file, str(file)]:
+                    scene = Scene.load_xml(f)
+                    sionna_scene = SionnaScene.load_xml(f)
+
+                    assert scene.mesh.object_bounds is not None
+                    assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
 
     def test_from_sionna(self, sionna_folder: Path, subtests: SubTests) -> None:
         sionna = pytest.importorskip("sionna", reason="sionna not installed")
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
-                sionna_scene = sionna.rt.load_scene(file)
-                differt_scene = Scene.from_sionna(sionna_scene)
-                assert differt_scene.mesh.num_triangles > 0
-                assert differt_scene.mesh.face_colors is not None
-                assert differt_scene.mesh.face_materials is not None
+                for f in [file, str(file)]:
+                    # While not documented, sionna.rt.load_scene() can load scenes from a file path or a string path.
+                    sionna_scene = sionna.rt.load_scene(f)
+                    differt_scene = Scene.from_sionna(sionna_scene)
+                    assert differt_scene.mesh.num_triangles > 0
+                    assert differt_scene.mesh.face_colors is not None
+                    assert differt_scene.mesh.face_materials is not None
 
     def test_rotate(
         self, advanced_path_tracing_example_scene: Scene, key: PRNGKeyArray

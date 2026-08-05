@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
@@ -22,38 +22,33 @@ impl Scene {
     /// Load a scene from a Sionna-compatible XML file.
     ///
     /// Args:
-    ///     file (str): The path to the XML file.
+    ///     file (str | os.PathLike[str]): The path to the XML file.
     ///
     /// Returns:
     ///     Scene: The corresponding scene.
     #[classmethod]
-    fn load_xml(cls: &Bound<'_, PyType>, file: &str) -> PyResult<Self> {
-        // TODO: create a Rust variant without PyType?
-        let sionna_scene_py_type = PyType::new::<SionnaScene>(cls.py());
-        let sionna = SionnaScene::load_xml(&sionna_scene_py_type, file)?;
+    #[pyo3(name = "load_xml")]
+    fn py_load_xml(_cls: &Bound<'_, PyType>, file: PathBuf) -> PyResult<Self> {
+        Self::load_xml(&file)
+    }
+}
+impl Scene {
+    fn load_xml(file: &Path) -> PyResult<Self> {
+        let sionna = SionnaScene::load_xml(&file)?;
 
-        let path = PathBuf::from(file);
-        let folder = path.parent().ok_or_else(|| {
+        let folder = file.parent().ok_or_else(|| {
             PyValueError::new_err(format!(
-                "Could not determine parent folder of file: {}",
-                file
+                "Could not determine parent folder of file: {file:#?}",
             ))
         })?;
 
         let mut mesh = Mesh::default();
 
-        let mesh_py_type = PyType::new::<Mesh>(cls.py());
-
         for (_, shape) in sionna.shapes.into_iter() {
             let mesh_file_path = folder.join(shape.file);
-            let mesh_file = mesh_file_path.to_str().ok_or_else(|| {
-                PyValueError::new_err(format!(
-                    "Could not convert path {mesh_file_path:?} to valid unicode string"
-                ))
-            })?;
             let mut other_mesh = match shape.r#type.as_str() {
-                "obj" => Mesh::load_obj(&mesh_py_type, mesh_file)?,
-                "ply" => Mesh::load_ply(&mesh_py_type, mesh_file)?,
+                "obj" => Mesh::load_obj(&mesh_file_path)?,
+                "ply" => Mesh::load_ply(&mesh_file_path)?,
                 ty => {
                     log::warn!("Unsupported shape type {ty}, skipping.");
                     continue;
