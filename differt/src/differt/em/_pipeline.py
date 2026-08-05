@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Complex, Float
 
-from differt.geometry import Paths, TriangleMesh, normalize
+from differt.geometry import Mesh, TracedPaths, normalize
 from differt.utils import safe_divide
 
 from ._constants import c, epsilon_0, z_0
@@ -63,8 +63,8 @@ def _spherical_basis(
 
 
 def compute_received_fields(
-    paths: Paths,
-    mesh: TriangleMesh,
+    paths: TracedPaths,
+    mesh: Mesh,
     frequency: Float[ArrayLike, ""],
     tx_polarization: Any = "V",
     rx_polarization: Any = "V",
@@ -271,7 +271,7 @@ def compute_received_power(
 
 
 def compute_cir(
-    paths: Paths,
+    paths: TracedPaths,
     fields: Complex[Array, "*batch"],
 ) -> tuple[Float[Array, "*batch"], Complex[Array, "*batch"]]:
     """

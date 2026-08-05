@@ -18,7 +18,14 @@ def test_los_received_power_matches_fspl() -> None:
     # Vertices of path: TX at [0, 0, 0], RX at [10, 0, 0]
     vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
     objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-    paths = TracedPaths(vertices=vertices, objects=objects)
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+    paths = TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
 
     frequency = 1e9  # 1 GHz
     mesh = Mesh.empty()  # Empty mesh is fine since order is 0 (no reflections)
@@ -44,7 +51,14 @@ def test_compute_cir() -> None:
     # 10m path along x-axis
     vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
     objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-    paths = TracedPaths(vertices=vertices, objects=objects)
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+    paths = TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
     frequency = 1e9
     mesh = Mesh.empty()
 
@@ -65,7 +79,14 @@ def test_jit_and_gradients() -> None:
         # Vertices shape: (1, 2, 3)
         vertices = jnp.stack([tx_pos, rx_pos])[None, ...]
         objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
-        paths = TracedPaths(vertices=vertices, objects=objects)
+        mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+        interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+        paths = TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=mask,
+            interaction_types=interaction_types,
+        )
         mesh = Mesh.empty()
         fields = compute_received_fields(paths, mesh, 1e9)
         return jnp.abs(fields[0]) ** 2
