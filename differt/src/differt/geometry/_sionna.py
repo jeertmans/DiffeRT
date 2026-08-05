@@ -143,7 +143,7 @@ def get_sionna_scene(
     scene_name: str,
     *,
     folder: str | Path = SIONNA_SCENES_FOLDER,
-) -> str:
+) -> Path:
     """
     Return the path to the given Sionna scene.
 
@@ -170,7 +170,7 @@ def get_sionna_scene(
             msg,
         )
 
-    return str(p)
+    return p
 
 
 def main() -> None:  # pragma: no cover

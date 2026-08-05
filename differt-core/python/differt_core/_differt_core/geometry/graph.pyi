@@ -1,4 +1,3 @@
-# pyright: reportMissingTypeArgument=false
 from collections.abc import Iterator, Sized
 
 import numpy as np

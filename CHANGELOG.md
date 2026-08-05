@@ -13,7 +13,7 @@ All notable changes to this project will be documented on this page.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
 with one *slight* but **important** difference:
-- before version `1.0.0`, an increment in the MINOR version number indicates a breaking change, and an increment in the PATCH version number indicates either a new feature or a bug fix (see the [v0.1.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/1));
+- before version `1.0.0`, an increment in the MINOR version number indicates possible breaking changes, and an increment in the PATCH version number indicates either a new feature or a bug fix (see the [v0.1.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/1));
 - after version `1.0.0`, this project follows standard semantic versioning (see the [v1.0.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/2)).
 
 <!-- end changelog-preamble -->
@@ -21,6 +21,11 @@ with one *slight* but **important** difference:
 <!-- start changelog -->
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.10.0...HEAD)
+
+### Changed
+
+- All file reader methods now support {class}`os.PathLike[str]<os.PathLike>` in addition to {class}`str` input types (by <gh-user:jeertmans>, in <gh-pr:517>).
+- **Breaking change**: The {func}`get_sionna_scene<differt.geometry.get_sionna_scene>` function now returns a {class}`pathlib.Path`, instead of a {class}`str` (by <gh-user:jeertmans>, in <gh-pr:517>).
 
 ## [0.10.0](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...v0.10.0)
 
@@ -151,7 +156,7 @@ with one *slight* but **important** difference:
 ### Changed
 
 - Changed default options for plotting with Plotly (`aspectmode="data"` and `flatshading=True` on meshes) so that Plotly is now a much better option for large 3D scenes. Edited the tutorial accordingly, showing the improved visualization and the importance of lighting (by <gh-user:jeertmans>, in <gh-pr:412>).
-- {meth}`TriangleMesh.at<differt.geometry.Mesh.at>` now raises a {exc}`ValueError` if the array index passed to `at[...]` is not at most one-dimensional. This is a **breaking-change** (by <gh-user:copilot> and <gh-user:jeertmans>, in <gh-pr:420>).
+-**Breaking change**: {meth}`TriangleMesh.at<differt.geometry.Mesh.at>` now raises a {exc}`ValueError` if the array index passed to `at[...]` is not at most one-dimensional (by <gh-user:copilot> and <gh-user:jeertmans>, in <gh-pr:420>).
 
 ### Chore
 
@@ -189,8 +194,8 @@ with one *slight* but **important** difference:
 
 ### Removed
 
-- Removed `confidence` attribute in `Paths` as it is now replaced by `mask`, possibly holding floating point values. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:349>).
-- Removed `jnp.asarray` field converters from all classes, as it would lead to confusing type hints mismatches between the annotations and the actual types accepted by the classes' `__init__` method. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:383>).
+- **Breaking change**: Removed `confidence` attribute in `Paths` as it is now replaced by `mask`, possibly holding floating point values (by <gh-user:jeertmans>, in <gh-pr:349>).
+- **Breaking change**: Removed `jnp.asarray` field converters from all classes, as it would lead to confusing type hints mismatches between the annotations and the actual types accepted by the classes' `__init__` method (by <gh-user:jeertmans>, in <gh-pr:383>).
 
 ## [0.6.2](https://github.com/jeertmans/DiffeRT/compare/v0.6.1...v0.6.2)
 
@@ -234,7 +239,7 @@ with one *slight* but **important** difference:
 - Fixed plotting issue in the coherence example notebook, where the scene in the second row was not plotted correctly, see [below](#fixed-update-defaults) (by <gh-user:jeertmans>, in <gh-pr:312>).
 - Added `jaxtyped` Pytest marker to automatically skip tests that require jaxtyping when it is disabled (by <gh-user:jeertmans>, in <gh-pr:321>).
 - Bumped minimum required JAX version to [`0.7.0`](https://docs.jax.dev/en/latest/changelog.html#jax-0-7-0-july-22-2025) to use `wrap_negative_indices=False` with {attr}`at<jax.numpy.ndarray.at>` (by <gh-user:jeertmans>, in <gh-pr:310>).
-- Dropped Python 3.10 because we need JAX 0.7.0. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:310>).
+- **Breaking changes**: Dropped support for Python 3.10 because we need JAX 0.7.0 (by <gh-user:jeertmans>, in <gh-pr:310>).
 
 ### Fixed
 
@@ -248,7 +253,7 @@ with one *slight* but **important** difference:
 
 ### Removed
 
-- Removed `differt.utils.sorted_array2`, `differt.utils.dot`, `differt.geometry.pairwise_cross`,`differt.geometry.Mesh.sort` to reduce the size of the API by limiting it to RT-related functionalities. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:309>).
+- **Breaking change**: Removed `differt.utils.sorted_array2`, `differt.utils.dot`, `differt.geometry.pairwise_cross`,`differt.geometry.Mesh.sort` to reduce the size of the API by limiting it to RT-related functionalities (by <gh-user:jeertmans>, in <gh-pr:309>).
 
 ## [0.5.0](https://github.com/jeertmans/DiffeRT/compare/v0.4.1...v0.5.0)
 
@@ -262,7 +267,7 @@ with one *slight* but **important** difference:
 
 ### Removed
 
-- Removed `parallel` keyword argument in {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` as it was no longer supported, and its presence increased the code complexity. Executing code on multiple devices should be automatically handled by {func}`jax.jit`, or manually specified by the end-user. This is a **breaking-change** (by <gh-user:jeertmans>, in <gh-pr:305>).
+- **Breaking change**: Removed `parallel` keyword argument in {meth}`TriangleScene.compute_paths<differt.geometry.Scene.compute_paths>` as it was no longer supported, and its presence increased the code complexity. Executing code on multiple devices should be automatically handled by {func}`jax.jit`, or manually specified by the end-user (by <gh-user:jeertmans>, in <gh-pr:305>).
 
 ## [0.4.1](https://github.com/jeertmans/DiffeRT/compare/v0.4.0...v0.4.1)
 
@@ -293,7 +298,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Renamed `TriangleMesh.num_objects` to {attr}`TriangleMesh.num_primitives<differt.geometry.Mesh.num_primitives>` to avoid possible confusion with {attr}`TriangleMesh.object_bounds<differt.geometry.Mesh.object_bounds>`, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:297>).
+- **Breaking change**: Renamed `TriangleMesh.num_objects` to {attr}`TriangleMesh.num_primitives<differt.geometry.Mesh.num_primitives>` to avoid possible confusion with {attr}`TriangleMesh.object_bounds<differt.geometry.Mesh.object_bounds>` (by <gh-user:jeertmans>, in <gh-pr:297>).
 
 ### Chore
 
@@ -325,7 +330,7 @@ with one *slight* but **important** difference:
 
 ### Removed
 
-- Removed `differt.utils.minimize`, see <gh-pr:283>, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:291>).
+- **Breaking change**: Removed `differt.utils.minimize`, see <gh-pr:283> (by <gh-user:jeertmans>, in <gh-pr:291>).
 
 ## [0.2.0](https://github.com/jeertmans/DiffeRT/compare/v0.1.2...v0.2.0)
 
@@ -338,7 +343,7 @@ with one *slight* but **important** difference:
 
 ### Changed
 
-- Simplified `assemble_paths`'s signature to assume a 2- (TX-RX) or 3-argument (TX-PATH-RX) form is actually sufficient, resulting in a **breaking change** (by <gh-user:jeertmans>, in <gh-pr:289>).
+- **Breaking change**: Simplified `assemble_paths`'s signature to assume a 2- (TX-RX) or 3-argument (TX-PATH-RX) form is actually sufficient (by <gh-user:jeertmans>, in <gh-pr:289>).
 
 ### Fixed
 
