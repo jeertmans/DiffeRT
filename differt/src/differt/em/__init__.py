@@ -13,6 +13,9 @@ __all__ = (
     "ShortDipole",
     "ShortDipolePattern",
     "c",
+    "compute_cir",
+    "compute_received_fields",
+    "compute_received_power",
     "diffraction_coefficients",
     "epsilon_0",
     "fresnel_coefficients",
@@ -50,6 +53,11 @@ from ._fresnel import (
 )
 from ._interaction_type import InteractionType
 from ._material import Material, materials
+from ._pipeline import (
+    compute_cir,
+    compute_received_fields,
+    compute_received_power,
+)
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
     fspl,

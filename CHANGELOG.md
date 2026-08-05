@@ -22,8 +22,17 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.10.0...HEAD)
 
+### Added
+
+- Added topology-aware diffraction edge detection properties (`_connectivity`, `diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`Mesh<differt.geometry.Mesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:Antigravity>).
+- Added a reusable, JAX-compatible EM pipeline ({func}`compute_received_fields<differt.em.compute_received_fields>`, {func}`compute_received_power<differt.em.compute_received_power>`, {func}`compute_cir<differt.em.compute_cir>`) under {mod}`differt.em` to calculate received fields, received power, and Channel Impulse Response (CIR) (by <gh-user:Antigravity>).
+- Added comparative integration tests verifying DiffeRT's computed received power against Sionna's RT solver (by <gh-user:Antigravity>).
+- Added UTD {func}`diffraction_coefficients<differt.em.diffraction_coefficients>` implementing soft ($D_s$) and hard ($D_h$) diffraction coefficients for PEC and lossy dielectric wedges (Luebbers' heuristic model), including a NaN-safe transition helper across shadow and reflection boundaries (by <gh-user:Antigravity>).
+
 ### Changed
 
+- Removed warning message in {meth}`Mesh.keep_all_within<differt.geometry.Mesh.keep_all_within>` and {meth}`Mesh.keep_any_within<differt.geometry.Mesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gr-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
+- Refactored {func}`deepmimo.export<differt.plugins.deepmimo.export>` to leverage the new unified JAX-compatible `compute_received_fields` pipeline, reducing duplicate code and improving consistency (by <gh-user:Antigravity>).
 - All file reader methods now support {class}`os.PathLike[str]<os.PathLike>` in addition to {class}`str` input types (by <gh-user:jeertmans>, in <gh-pr:517>).
 - **Breaking change**: The {func}`get_sionna_scene<differt.geometry.get_sionna_scene>` function now returns a {class}`pathlib.Path`, instead of a {class}`str` (by <gh-user:jeertmans>, in <gh-pr:517>).
 
@@ -103,12 +112,14 @@ with one *slight* but **important** difference:
 - Removed warning message in {meth}`TriangleMesh.keep_all_within<differt.geometry.Mesh.keep_all_within>` and {meth}`TriangleMesh.keep_any_within<differt.geometry.Mesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gh-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
 - Updated {meth}`TriangleMesh.drop_duplicates<differt.geometry.Mesh.drop_duplicates>` to call both {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` and {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.Mesh.drop_unused_vertices>` in sequence (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Documented TPU compatibility limitations due to NVIDIA Warp integration: Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.Mesh>` and {class}`TriangleScene<differt.geometry.Scene>` do not support TPUs. Added warning notes across the codebase, updated JAX/TPU references in the documentation, and created a dedicated "Note on TPUs" documentation page detailing JAX/TPU alternatives (by <gh-user:jeertmans>, in <gh-pr:467>).
+>>>>>>> main
 
 ### Fixed
 
 - Updated the `polarization` parameter in {func}`deepmimo.export<differt.plugins.deepmimo.export>` to accept a tuple of `(tx_polarization, rx_polarization)` to specify different transmitter and receiver polarizations independently (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed power and phase calculation discrepancies in {func}`deepmimo.export<differt.plugins.deepmimo.export>` compared to Sionna RT by fixing a bug where the `radio_materials` parameter was ignored, incorporating finite-slab double-boundary formulas for ITU materials with finite thickness, correcting the receiver polarization projection in tests, and using a fully vectorized transition matrix calculation (by <gh-user:jeertmans>, in <gh-pr:455>).
 - Fixed a bug in `_keep_within` (used by `keep_all_within` and `keep_any_within`) where the calculation of the active triangles count per object counted all triangles instead of active ones when checking if an object was fully kept/removed (by <gh-user:jeertmans>, in <gh-pr:456>).
+- Fixed the `mode == "-"` branch in the UTD `_N` helper function in `differt/em/_utd.py` to use `(beta - jnp.pi)` instead of `(beta + jnp.pi)` (by <gh-user:Antigravity>).
 
 ### Removed
 

@@ -103,6 +103,17 @@ are identified by different numbers, which are listed in an enum class.
 
    InteractionType
 
+.. rubric:: Pipelines
+
+End-to-end pipelines to compute received fields and power.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   compute_cir
+   compute_received_fields
+   compute_received_power
+
 .. rubric:: Utilities
 
 Utility functions, mostly used internally for computing EM fields.
