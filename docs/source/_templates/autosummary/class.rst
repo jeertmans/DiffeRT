@@ -7,11 +7,15 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-   :members:
    :show-inheritance:
-   {% if objname == 'InteractionType' -%}
+   {% if objname == 'MaterialsDict' -%}
+   {#- Behaves just like a plain 'dict' (plus alias resolution), so its
+       inherited and overridden dict methods are not worth documenting. -#}
+   {%- elif objname == 'InteractionType' -%}
+   :members:
    :member-order: bysource
    {%- else -%}
+   :members:
    :inherited-members:
 
    {% block attributes %}

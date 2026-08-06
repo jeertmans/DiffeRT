@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em import materials, z_0
+from differt.em import MaterialsDict, materials, z_0
 from differt.geometry import (
     ExhaustivePathTracer,
     HybridPathTracer,
@@ -163,10 +163,10 @@ def test_match_sionna_on_simple_street_canyon(
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_order, refraction=False)
 
-    custom_materials = {
+    custom_materials = MaterialsDict({
         name: eqx.tree_at(lambda m: m.thickness, mat, replace=0.1)
         for name, mat in materials.items()
-    }
+    })
 
     dm = deepmimo.export(
         paths=(

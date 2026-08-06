@@ -22,10 +22,16 @@ with one *slight* but **important** difference:
 
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.10.0...HEAD)
 
+### Added
+
+- Added an automatically generated ITU radio materials summary table in Sphinx documentation using a custom Sphinx extension and directive `.. itu-materials-table::` (by <gh-user:jeertmans>, in <gh-pr:504>).
+
 ### Changed
 
 - All file reader methods now support {class}`os.PathLike[str]<os.PathLike>` in addition to {class}`str` input types (by <gh-user:jeertmans>, in <gh-pr:517>).
 - **Breaking change**: The {func}`get_sionna_scene<differt.geometry.get_sionna_scene>` function now returns a {class}`pathlib.Path`, instead of a {class}`str` (by <gh-user:jeertmans>, in <gh-pr:517>).
+- Updated built-in ITU radio materials list in ``materials`` to **Recommendation ITU-R P.2040-4** (09/2025), including updated electrical parameters ($a, b, c, d, \text{frequency range}$) and default Sionna-RT RGB color mappings (by <gh-user:jeertmans>, in <gh-pr:504>).
+- Improved {class}`Material<differt.em._material.Material>` and ``materials`` string representations (`__repr__`) to display clean summaries with registered aliases instead of internal JIT function pointers (by <gh-user:jeertmans>, in <gh-pr:504>).
 
 ## [0.10.0](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...v0.10.0)
 

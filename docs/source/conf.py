@@ -34,6 +34,7 @@ version = __version__
 git_ref = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "main")
 conf_dir = Path(__file__).absolute().parent
 root_dir = conf_dir.parent.parent
+sys.path.append(str(conf_dir / "_extensions"))
 
 RTD = "READTHEDOCS" in os.environ
 
@@ -60,6 +61,8 @@ extensions = [
     "sphinx_design",
     "sphinx_plotly_directive",
     "sphinx_remove_toctrees",
+    # Custom
+    "itu_materials_table",
 ]
 
 templates_path = ["_templates"]
@@ -90,6 +93,9 @@ nitpick_ignore_regex = [
     (r"py:.*", r"differt\.scene\..*"),
     (r"py:.*", r"differt_core\.rt\..*"),
     (r"py:.*", r"differt_core\.scene\..*"),
+    (r"py:class", r".*Remove all items from D\.*"),
+    (r"py:class", r".*a shallow copy of D.*"),
+    (r"py:class", r".*providing a view on D's.*"),
 ]
 
 linkcheck_ignore = ["https://doi.org/10.1002/2015RS005659"]

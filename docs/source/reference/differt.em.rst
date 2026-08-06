@@ -91,7 +91,10 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    :toctree: _autosummary
 
    Material
+   MaterialsDict
    materials
+
+.. itu-materials-table::
 
 .. currentmodule:: differt.em
 
