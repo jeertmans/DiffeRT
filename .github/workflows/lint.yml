@@ -40,6 +40,8 @@ jobs:
 
   pre-commit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - name: Checkout repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,3 +63,9 @@ jobs:
 
     - name: Install and run pre-commit
       uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece # v3.0.0
+
+    - name: Commit lint fixes
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
+      with:
+        commit_message: "chore(fmt): auto fixes from pre-commit hooks"
