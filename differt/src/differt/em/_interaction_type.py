@@ -10,4 +10,6 @@ class InteractionType(IntEnum):
     DIFFRACTION = 1
     """Diffraction on an edge."""
     SCATTERING = 2
-    """Scattering on a surface."""
+    """Scattering on a rough surface."""
+    TRANSMISSION = 3
+    """Transmission through a surface."""

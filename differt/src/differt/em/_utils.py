@@ -2,12 +2,11 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, Float, Int
+from jaxtyping import Array, ArrayLike, Float
 
 from differt.geometry import normalize, path_length, perpendicular_vector
 
 from ._constants import c
-from ._interaction_type import InteractionType
 
 
 @jax.jit
@@ -300,45 +299,6 @@ def sp_rotation_matrix(
     batch = r11.shape[:-1]
 
     return jnp.concatenate((r11, r12, r21, r22), axis=-1).reshape(*batch, 2, 2)
-
-
-@jax.jit
-def transition_matrix(
-    vertices: Float[ArrayLike, "*batch path_length 3"],
-    objects: Float[ArrayLike, "*batch path_length"],
-    interaction_types: Int[ArrayLike, "*batch path_length-2"],
-    object_normals: Float[ArrayLike, "*batch path_length 3"],
-) -> Float[Array, "*batch 2 2"]:
-    """
-    Compute the transition matrix, ...
-
-    .. warning::
-
-        Do not use this function yet, it is not implemented!
-    """
-    vertices = jnp.asarray(vertices)
-    objects = jnp.asarray(objects)
-    interaction_types = jnp.asarray(interaction_types)
-    object_normals = jnp.asarray(object_normals)
-
-    if any(x.dtype == jnp.float64 for x in (vertices, object_normals)):
-        cdtype = jnp.complex128
-    else:
-        cdtype = jnp.complex64
-
-    # [*batch 2 2]
-    mat = jnp.zeros((vertices.shape[:-2], 2, 2), dtype=cdtype)
-
-    v = jnp.diff(vertices, axis=-2)
-    k, s = normalize(v)
-    _k_i, _s_i = k[..., :-1, :], s[..., :-1, :]
-    _k_r, _s_r = k[..., +1:, :], s[..., +1:, :]
-
-    mat_r = mat  # TODO: fixme
-
-    mat = jnp.where(interaction_types == InteractionType.REFLECTION, mat_r, mat)
-
-    raise NotImplementedError
 
 
 @jax.jit(static_argnames=("dB",))

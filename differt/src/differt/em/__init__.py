@@ -1,10 +1,12 @@
 """Electromagnetic (EM) fields utilities."""
 
 __all__ = (
+    "AbstractFieldSolver",
     "Antenna",
     "BaseAntenna",
     "Dipole",
     "F",
+    "GeometricFieldSolver",
     "HWDipolePattern",
     "InteractionType",
     "L_i",
@@ -29,9 +31,9 @@ __all__ = (
     "reflection_coefficients",
     "refraction_coefficients",
     "refractive_index",
+    "slab_coefficients",
     "sp_directions",
     "sp_rotation_matrix",
-    "transition_matrix",
     "z_0",
 )
 
@@ -51,6 +53,7 @@ from ._fresnel import (
     reflection_coefficients,
     refraction_coefficients,
     refractive_index,
+    slab_coefficients,
 )
 from ._interaction_type import InteractionType
 from ._material import Material, MaterialsDict, materials
@@ -59,6 +62,7 @@ from ._pipeline import (
     compute_received_fields,
     compute_received_power,
 )
+from ._solvers import AbstractFieldSolver, GeometricFieldSolver
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
     fspl,
@@ -66,5 +70,4 @@ from ._utils import (
     path_delay,
     sp_directions,
     sp_rotation_matrix,
-    transition_matrix,
 )

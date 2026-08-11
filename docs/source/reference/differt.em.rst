@@ -65,6 +65,10 @@ where :math:`\boldsymbol{D}` is the dyadic matrix with the diffraction coefficie
    reflection_coefficients
    refraction_coefficients
    refractive_index
+   slab_coefficients
+   diffraction_coefficients
+   F
+   L_i
 
 .. rubric:: Antennas
 
@@ -106,6 +110,32 @@ are identified by different numbers, which are listed in an enum class.
 
    InteractionType
 
+.. rubric:: Field solvers
+
+Field solvers compute the received complex field(s) from a set of paths and
+the geometry/materials they interacted with. :class:`GeometricFieldSolver`
+is the default solver used by :func:`compute_received_fields`; subclass it
+to customize how each interaction type contributes to the field.
+
+By default, :class:`GeometricFieldSolver` supports all four
+:class:`InteractionType` members: reflection and transmission (a
+finite-thickness dielectric slab model), diffraction (the Uniform Theory
+of Diffraction), and diffuse scattering (a deterministic adaptation of a
+Lambertian rough-surface model), each cross-checked against Sionna RT's
+own implementation where a like-for-like comparison is meaningful (see
+each ``*_matrix`` method's docstring for details and caveats,
+particularly for scattering).
+
+Unlike Sionna RT, which only supports a point source infinitely far away,
+:meth:`GeometricFieldSolver.compute_fields`'s ``tx_wavefront_radius``
+argument supports a non-planar (near-field) source, e.g., a focused beam.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   AbstractFieldSolver
+   GeometricFieldSolver
+
 .. rubric:: Pipelines
 
 End-to-end pipelines to compute received fields and power.
@@ -130,8 +160,6 @@ Utility functions, mostly used internally for computing EM fields.
    poynting_vector
    sp_directions
    sp_rotation_matrix
-   F
-   L_i
 
 .. rubric:: Work in progress
 
@@ -140,8 +168,6 @@ The following utilities are still under development, and using them is not recom
 .. autosummary::
    :toctree: _autosummary
 
-   diffraction_coefficients
-   transition_matrix
    ShortDipole
    RadiationPattern
    HWDipolePattern

@@ -40,6 +40,26 @@ class Material(eqx.Module):
     """
     thickness: Float[ArrayLike, ""] | None = eqx.field(default=None)
     """The thickness of the material."""
+    scattering_coefficient: Float[ArrayLike, ""] = eqx.field(default=0.0)
+    r"""
+    The (rough-surface) scattering coefficient :math:`S \in [0, 1]`.
+
+    The fraction :math:`S^2` of the reflected power is diverted to
+    diffuse scattering (see
+    :meth:`GeometricFieldSolver.scattering_matrix<differt.em.GeometricFieldSolver.scattering_matrix>`),
+    with the remaining :math:`1 - S^2` staying specular. Defaults to
+    ``0.0``, i.e., a perfectly smooth surface with no diffuse scattering,
+    matching the behavior of materials that do not set this value
+    explicitly.
+    """
+    xpd_coefficient: Float[ArrayLike, ""] = eqx.field(default=0.0)
+    r"""
+    The cross-polarization discrimination coefficient :math:`K_x \in [0, 1]` of the scattered field.
+
+    The fraction :math:`K_x` of the diffusely-scattered energy is
+    converted to the orthogonal polarization. Defaults to ``0.0``, i.e.,
+    no cross-polarization.
+    """
     aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """
     A tuple of name aliases for the material.

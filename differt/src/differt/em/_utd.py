@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import jax.scipy.special as jsp
 from jaxtyping import Array, ArrayLike, Complex, Float
 
-from differt.em._fresnel import reflection_coefficients
+from differt.em._fresnel import reflection_coefficients, slab_coefficients
 
 # TODO: use ArrayLike instead of Array as inputs
 
@@ -271,6 +271,8 @@ def diffraction_coefficients(
     sin_beta_0: Float[ArrayLike, " *batch"] | None = None,
     n_r_o: Complex[ArrayLike, " *batch"] | None = None,
     n_r_n: Complex[ArrayLike, " *batch"] | None = None,
+    d_o: Float[ArrayLike, " *batch"] | None = None,
+    d_n: Float[ArrayLike, " *batch"] | None = None,
 ) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
     r"""
     Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
@@ -299,6 +301,16 @@ def diffraction_coefficients(
             If ``None``, the o-face is assumed to be a Perfect Electric Conductor (PEC).
         n_r_n: The relative refractive index of the n-face material.
             If ``None``, the n-face is assumed to be a Perfect Electric Conductor (PEC).
+        d_o: The thickness of the o-face material.
+
+            If ``None`` (default), the o-face is treated as an infinite
+            half-space, i.e., using
+            :func:`reflection_coefficients<differt.em.reflection_coefficients>`.
+            Otherwise, the finite-thickness slab formula
+            (:func:`slab_coefficients<differt.em.slab_coefficients>`) is used,
+            matching Sionna RT's dielectric-wedge diffraction model. Unused
+            if ``n_r_o`` is ``None`` (PEC).
+        d_n: The thickness of the n-face material. See ``d_o``.
 
     Returns:
         A tuple containing the soft and hard diffraction coefficients :math:`(D_s, D_h)`.
@@ -336,19 +348,27 @@ def diffraction_coefficients(
     dtype = jnp.result_type(k)
     complex_dtype = jnp.complex128 if dtype == jnp.float64 else jnp.complex64
 
+    wavelength = 2.0 * jnp.pi / k
+
     if n_r_o is None:
         r_s_o = jnp.full_like(k, -1.0, dtype=complex_dtype)
         r_p_o = jnp.full_like(k, 1.0, dtype=complex_dtype)
     else:
         cos_theta_o = jnp.sin(phi_i_arr)
-        r_s_o, r_p_o = reflection_coefficients(n_r_o, cos_theta_o)
+        if d_o is None:
+            r_s_o, r_p_o = reflection_coefficients(n_r_o, cos_theta_o)
+        else:
+            (r_s_o, r_p_o), _ = slab_coefficients(n_r_o, cos_theta_o, d_o, wavelength)
 
     if n_r_n is None:
         r_s_n = jnp.full_like(k, -1.0, dtype=complex_dtype)
         r_p_n = jnp.full_like(k, 1.0, dtype=complex_dtype)
     else:
-        cos_theta_n = jnp.sin(n_arr * jnp.pi - phi_i_arr)
-        r_s_n, r_p_n = reflection_coefficients(n_r_n, cos_theta_n)
+        cos_theta_n = jnp.sin(n_arr * jnp.pi - phi_d_arr)
+        if d_n is None:
+            r_s_n, r_p_n = reflection_coefficients(n_r_n, cos_theta_n)
+        else:
+            (r_s_n, r_p_n), _ = slab_coefficients(n_r_n, cos_theta_n, d_n, wavelength)
 
     D_s = (D_1 + D_2 + r_s_n * D_3 + r_s_o * D_4) * factor
     D_h = (D_1 + D_2 + r_p_n * D_3 + r_p_o * D_4) * factor
