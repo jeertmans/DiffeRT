@@ -303,7 +303,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
     This solver combines a transmitter excitation, one 2x2 dyadic
     transition (Jones) matrix per interaction along each path, and a
     receiver projection, following Geometrical Optics (GO) and the
-    Uniform Theory of Diffraction (UTD), see :ref:`differt.em`.
+    Uniform Theory of Diffraction (UTD), see :mod:`differt.em`.
 
     To support an additional :class:`InteractionType`, subclass this
     solver, override the matching ``*_matrix`` method (e.g.,
@@ -682,12 +682,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
             a_{s,p} = S \sqrt{f_s(\hat{k}_o) \frac{\mathrm{d}A}{s^2}} \, |r_{s,p}|,
 
         where :math:`S` is
-        :attr:`Material.scattering_coefficient<differt.em.Material.scattering_coefficient>`
+        :attr:`Material.scattering_coefficient<differt.em._material.Material.scattering_coefficient>`
         and :math:`f_s(\hat{k}_o) = \max(\hat{n}\cdot\hat{k}_o, 0) / \pi`
         is the Lambertian scattering pattern (normalized so that its
         integral over the hemisphere is 1). A final rotation mixes the s
         and p channels according to
-        :attr:`Material.xpd_coefficient<differt.em.Material.xpd_coefficient>`.
+        :attr:`Material.xpd_coefficient<differt.em._material.Material.xpd_coefficient>`.
 
         Args:
             paths: The paths.
@@ -781,7 +781,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
 
         This is a **thin-surface** transmission model: the transmitting
         object is treated as a single dielectric slab whose thickness is
-        read from :attr:`Material.thickness<differt.em.Material.thickness>`
+        read from :attr:`Material.thickness<differt.em._material.Material.thickness>`
         (accounting for multiple internal reflections in closed form, per
         ITU-R P.2040-3 eq. 43b/44), evaluated at the incidence angle and
         combined coherently. This matches Sionna RT's
@@ -954,7 +954,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
                 See ``tx_polarization``.
             radio_materials: The mapping of material properties.
 
-                Defaults to :data:`materials<differt.em.materials>`.
+                Defaults to :data:`materials<differt.em._material.materials>`.
             tx_wavefront_radius: The radius of curvature of the incident
                 wavefront at the transmitter, for a non-planar (near-field)
                 source; ``0`` (the default) is an ideal point source. See
