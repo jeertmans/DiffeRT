@@ -365,12 +365,11 @@ class GeometricFieldSolver(AbstractFieldSolver):
         represent past that first diffraction; :func:`L_i<differt.em.L_i>`
         already accepts the general astigmatic case (``rho_1_i``,
         ``rho_2_i``, ``rho_e_i``) for whoever wants to extend
-        :meth:`diffraction_matrix` that far. Since Sionna RT has no
-        equivalent feature at all, there is no reference implementation to
-        validate ``tx_wavefront_radius`` against; its correctness instead
-        rests on the geometric argument above (also checked against the
-        equivalent of physically moving the transmitter back by
-        ``tx_wavefront_radius``, see the test suite).
+        :meth:`diffraction_matrix` that far. Sionna RT has no equivalent
+        feature to compare against; ``tx_wavefront_radius``'s correctness
+        instead rests on the geometric argument above (also checked
+        against the equivalent of physically moving the transmitter back
+        by ``tx_wavefront_radius``, see the test suite).
     """
 
     supported_interaction_types: ClassVar[frozenset[InteractionType]] = frozenset({
@@ -667,11 +666,10 @@ class GeometricFieldSolver(AbstractFieldSolver):
             :math:`\mathrm{d}A / s^2`, as a geometrically-motivated
             substitute (:math:`\mathrm{d}A` being the triangle's area and
             :math:`s` the distance to the next vertex). This is a
-            physically-motivated but distinct adaptation: unlike
-            :meth:`reflection_matrix`, :meth:`transmission_matrix`, and
-            :meth:`diffraction_matrix`, it should **not** be expected to
-            numerically match Sionna RT's (stochastic) output for a single
-            path, only in a statistical (many-samples) sense.
+            physically-motivated but distinct adaptation: because Sionna
+            RT's model is stochastic, this method should **not** be
+            expected to numerically match its output for a single path,
+            only in a statistical (many-samples) sense.
 
         Given the specular reflection coefficients :math:`r_s, r_p`
         (:meth:`reflection_matrix`, ignoring the scattering-coefficient

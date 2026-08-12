@@ -121,10 +121,8 @@ By default, :class:`GeometricFieldSolver` supports all four
 :class:`InteractionType` members: reflection and transmission (a
 finite-thickness dielectric slab model), diffraction (the Uniform Theory
 of Diffraction), and diffuse scattering (a deterministic adaptation of a
-Lambertian rough-surface model), each cross-checked against Sionna RT's
-own implementation where a like-for-like comparison is meaningful (see
-each ``*_matrix`` method's docstring for details and caveats,
-particularly for scattering).
+Lambertian rough-surface model); see each ``*_matrix`` method's docstring
+for details and caveats, particularly for scattering.
 
 Unlike Sionna RT, which only supports a point source infinitely far away,
 :meth:`GeometricFieldSolver.compute_fields`'s ``tx_wavefront_radius``
