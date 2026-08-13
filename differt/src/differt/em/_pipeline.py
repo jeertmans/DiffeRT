@@ -1,4 +1,3 @@
-import functools
 from collections.abc import Mapping
 from typing import Any, Literal, TypedDict, Unpack, overload
 
@@ -6,7 +5,8 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Complex, Float
 
-from differt.geometry import Mesh, TracedPaths
+from differt.geometry._mesh import Mesh
+from differt.geometry._paths import TracedPaths
 
 from ._constants import c, z_0
 from ._material import Material
@@ -114,7 +114,7 @@ def compute_received_fields(
     return solver.compute_fields(paths, mesh, frequency)
 
 
-@functools.partial(jax.jit, static_argnames=("coherent", "axis"))
+@jax.jit(static_argnames=("coherent", "axis"))
 def compute_received_power(
     fields: Complex[Array, "*batch"],
     z_0: Float[ArrayLike, ""] | float = z_0,
@@ -128,7 +128,7 @@ def compute_received_power(
         fields: The complex received fields.
         z_0: The reference impedance.
         coherent: Whether to sum coherently (vector sum of fields before power)
-            or non-coherently (power sum of individual fields).
+            or non-coherent (power sum of individual fields).
             Only active if ``axis`` is not None.
         axis: The axis along which to sum the fields. If None, no sum is performed.
 
@@ -164,3 +164,200 @@ def compute_cir(
     lengths = jnp.linalg.norm(path_segments, axis=-1).sum(axis=-1)
     delay = lengths / c
     return delay, fields
+
+
+def transition_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce transition matrix for each interaction along each path.
+
+    This is a convenience wrapper around :meth:`GeometricFieldSolver.transition_matrices<differt.em.GeometricFieldSolver.transition_matrices>`.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None to instantiate a default :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 transition matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.transition_matrices(paths, mesh, frequency)
+
+
+transition_matrices = transition_matrix
+
+
+def reflection_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce reflection transition matrix for each path bounce.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 reflection matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.reflection_matrix(paths, mesh, frequency)
+
+
+def diffraction_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce diffraction transition matrix for each path bounce.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 diffraction matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.diffraction_matrix(paths, mesh, frequency)
+
+
+def scattering_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce diffuse scattering transition matrix for each path bounce.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 diffuse scattering matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.scattering_matrix(paths, mesh, frequency)
+
+
+def transmission_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce transmission transition matrix for each path bounce.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 transmission matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.transmission_matrix(paths, mesh, frequency)
+
+
+def ris_matrix(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"],
+    *,
+    solver: GeometricFieldSolver | None = None,
+    **solver_kwargs: Any,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Compute the per-bounce RIS (Reconfigurable Intelligent Surface) transition matrix.
+
+    Args:
+        paths: The paths.
+        mesh: The triangle mesh of the scene.
+        frequency: The operating frequency (or frequencies) in Hz.
+        solver: The field solver instance, or None.
+        **solver_kwargs: Keyword arguments passed to :class:`GeometricFieldSolver` when ``solver`` is None.
+
+    Returns:
+        One 2x2 RIS matrix per bounce.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        solver = GeometricFieldSolver(**solver_kwargs)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver.ris_matrix(paths, mesh, frequency)

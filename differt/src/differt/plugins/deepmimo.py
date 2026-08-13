@@ -32,6 +32,7 @@ from differt.geometry import (
     normalize,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
+from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
 

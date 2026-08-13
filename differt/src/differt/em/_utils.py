@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
-from differt.geometry import normalize, path_length, perpendicular_vector
+from differt.geometry._utils import normalize, path_length, perpendicular_vector
 
 from ._constants import c
 

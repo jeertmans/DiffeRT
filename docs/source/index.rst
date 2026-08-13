@@ -28,6 +28,7 @@ Contents
    :maxdepth: 1
 
    notebooks/quickstart
+   notebooks/em_fields_abc
    notebooks/advanced_path_tracing
    notebooks/plotting_backend
    notebooks/diffraction

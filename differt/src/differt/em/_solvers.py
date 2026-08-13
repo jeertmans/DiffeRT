@@ -8,7 +8,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Complex, Float, Inexact, Int
 
-from differt.geometry import Mesh, TracedPaths, normalize
+from differt.geometry._mesh import Mesh
+from differt.geometry._paths import TracedPaths
+from differt.geometry._utils import normalize
 from differt.utils import safe_divide
 
 from ._constants import c, epsilon_0
@@ -403,8 +405,8 @@ class GeometricFieldSolver(AbstractFieldSolver):
         a wavefront that is already spherical, with a radius of curvature
         equal to the geometric distance traveled), this solver supports a
         **non-planar** incident wavefront at the transmitter, via the
-        :attr:`tx_wavefront_radii` attribute, used (through the private
-        :meth:`_resolve_tx_wavefront_radii`) by :meth:`compute_fields`,
+        :attr:`tx_wavefront_radii` attribute, used internally by
+        :meth:`compute_fields`,
         :meth:`transition_matrices`, :meth:`diffraction_matrix`, and
         :meth:`spreading_factor` (all overridable). It accepts either a
         single value, for an isotropic (spherical) wavefront, a
@@ -444,8 +446,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
         When :attr:`tx_polarization` is set to an
         :class:`Antenna<differt.em.Antenna>` instance, its own
         :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
-        is used *instead of* :attr:`tx_wavefront_radii` -- see
-        :meth:`_resolve_tx_wavefront_radii`.
+        is used *instead of* :attr:`tx_wavefront_radii`.
     """
 
     supported_interaction_types: ClassVar[frozenset[InteractionType]] = frozenset({
@@ -490,7 +491,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
     """The mapping of material properties.
 
     Defaults to :data:`materials<differt.em._material.materials>` when
-    left to :data:`None` (see :attr:`_radio_materials`).
+    left to :data:`None`.
     """
     tx_wavefront_radii: (
         Float[ArrayLike, "*#batch"]
@@ -512,8 +513,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
     principal radii along the s- and p-planes -- not supported together
     with a ``DIFFRACTION`` interaction) may be passed. Ignored when
     :attr:`tx_polarization` is an :class:`Antenna<differt.em.Antenna>`
-    instance -- see :attr:`tx_polarization` and
-    :meth:`_resolve_tx_wavefront_radii`.
+    instance -- see :attr:`tx_polarization`.
     """
 
     @property
@@ -1019,6 +1019,30 @@ class GeometricFieldSolver(AbstractFieldSolver):
 
         return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
 
+    def ris_matrix(
+        self,
+        paths: TracedPaths,
+        mesh: Mesh,
+        frequency: Float[ArrayLike, "*#batch"],
+    ) -> Complex[Array, "*batch order 2 2"]:
+        """
+        Compute the per-bounce RIS (Reconfigurable Intelligent Surface) transition matrix.
+
+        .. warning::
+
+            Not implemented yet. Subclasses can override this method to provide custom RIS physics.
+
+        Args:
+            paths: The paths.
+            mesh: The triangle mesh of the scene.
+            frequency: The operating frequency (or frequencies) in Hz.
+
+        Raises:
+            NotImplementedError: Unconditionally, as RIS modeling is reserved for future implementation.
+        """
+        msg = "RIS matrix computation is not implemented yet. Override 'ris_matrix' in a subclass."
+        raise NotImplementedError(msg)
+
     def transition_matrices(
         self,
         paths: TracedPaths,
@@ -1048,6 +1072,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
             InteractionType.DIFFRACTION: self.diffraction_matrix,
             InteractionType.SCATTERING: self.scattering_matrix,
             InteractionType.TRANSMISSION: self.transmission_matrix,
+            InteractionType.RIS: self.ris_matrix,
         }
 
         dtype = jnp.result_type(paths.vertices)
@@ -1121,6 +1146,17 @@ class GeometricFieldSolver(AbstractFieldSolver):
             e_theta = jnp.sum(e_dir * theta_hat_0, axis=-1)
             e_phi = jnp.sum(e_dir * phi_hat_0, axis=-1)
             e_field = jnp.stack([e_theta, e_phi], axis=-1)
+        elif hasattr(tx_polarization, "polarization_vectors"):
+            T = paths.vertices[..., 0, :]
+            r_hat = k[..., 0, :]
+            s_vec, p_vec = tx_polarization.polarization_vectors(T + r_hat)
+            e_theta = jnp.sum(s_vec * theta_hat_0, axis=-1) + jnp.sum(
+                p_vec * theta_hat_0, axis=-1
+            )
+            e_phi = jnp.sum(s_vec * phi_hat_0, axis=-1) + jnp.sum(
+                p_vec * phi_hat_0, axis=-1
+            )
+            e_field = jnp.stack([e_theta, e_phi], axis=-1).astype(complex)
         elif tx_polarization == "V":
             e_field = jnp.stack(
                 [jnp.ones(theta_hat_0.shape[:-1]), jnp.zeros(theta_hat_0.shape[:-1])],
@@ -1158,6 +1194,17 @@ class GeometricFieldSolver(AbstractFieldSolver):
             u_theta = jnp.sum(e_rx_dir * theta_hat_last, axis=-1)
             u_phi = jnp.sum(e_rx_dir * phi_hat_last, axis=-1)
             u = jnp.stack([u_theta, u_phi], axis=-1)
+        elif hasattr(rx_polarization, "polarization_vectors"):
+            r = paths.vertices[..., -1, :]
+            k_last = k[..., -1, :]
+            s_vec, p_vec = rx_polarization.polarization_vectors(r - k_last)
+            u_theta = jnp.sum(s_vec * theta_hat_last, axis=-1) + jnp.sum(
+                p_vec * theta_hat_last, axis=-1
+            )
+            u_phi = jnp.sum(s_vec * phi_hat_last, axis=-1) + jnp.sum(
+                p_vec * phi_hat_last, axis=-1
+            )
+            u = jnp.stack([u_theta, u_phi], axis=-1).astype(complex)
         elif rx_polarization == "V":
             theta_hat_neg_k_last = _spherical_basis(-k[..., -1, :])[0]
             a_coeff = jnp.sum(theta_hat_last * theta_hat_neg_k_last, axis=-1)
@@ -1205,8 +1252,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
         Reads :attr:`tx_wavefront_radii` (or the value returned by
         :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
         when :attr:`tx_polarization` is an
-        :class:`Antenna<differt.em.Antenna>`, via
-        :meth:`_resolve_tx_wavefront_radii`) from ``self``.
+        :class:`Antenna<differt.em.Antenna>`) from ``self``.
 
         For a path with no diffraction interaction, this is the general
         astigmatic-ray-tube spreading factor,

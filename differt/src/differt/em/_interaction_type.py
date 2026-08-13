@@ -13,3 +13,5 @@ class InteractionType(IntEnum):
     """Scattering on a rough surface."""
     TRANSMISSION = 3
     """Transmission through a surface."""
+    RIS = 4
+    """Interaction with a Reconfigurable Intelligent Surface (RIS)."""

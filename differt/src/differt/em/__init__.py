@@ -17,11 +17,13 @@ __all__ = (
     "RadiationPattern",
     "ShortDipole",
     "ShortDipolePattern",
+    "TracedFields",
     "c",
     "compute_cir",
     "compute_received_fields",
     "compute_received_power",
     "diffraction_coefficients",
+    "diffraction_matrix",
     "epsilon_0",
     "fresnel_coefficients",
     "fspl",
@@ -31,11 +33,17 @@ __all__ = (
     "path_delay",
     "poynting_vector",
     "reflection_coefficients",
+    "reflection_matrix",
     "refraction_coefficients",
     "refractive_index",
+    "ris_matrix",
+    "scattering_matrix",
     "slab_coefficients",
     "sp_directions",
     "sp_rotation_matrix",
+    "transition_matrices",
+    "transition_matrix",
+    "transmission_matrix",
     "z_0",
 )
 
@@ -52,6 +60,7 @@ from ._antenna import (
     poynting_vector,
 )
 from ._constants import c, epsilon_0, mu_0, z_0
+from ._fields import TracedFields
 from ._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
@@ -65,6 +74,13 @@ from ._pipeline import (
     compute_cir,
     compute_received_fields,
     compute_received_power,
+    diffraction_matrix,
+    reflection_matrix,
+    ris_matrix,
+    scattering_matrix,
+    transition_matrices,
+    transition_matrix,
+    transmission_matrix,
 )
 from ._solvers import AbstractFieldSolver, GeometricFieldSolver
 from ._utd import F, L_i, diffraction_coefficients

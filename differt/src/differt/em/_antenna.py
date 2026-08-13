@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Inexact
 
-from differt.geometry import (
+from differt.geometry._utils import (
     cartesian_to_spherical,
     normalize,
     spherical_to_cartesian,

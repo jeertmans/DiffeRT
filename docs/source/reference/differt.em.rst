@@ -158,14 +158,22 @@ is set to an :class:`Antenna` instance, whatever that antenna's own
 
 .. rubric:: Pipelines
 
-End-to-end pipelines to compute received fields and power.
+End-to-end pipelines and high-level wrappers to compute received fields, Channel Impulse Response (CIR), and received power.
 
 .. autosummary::
    :toctree: _autosummary
 
+   TracedFields
    compute_cir
    compute_received_fields
    compute_received_power
+   diffraction_matrix
+   reflection_matrix
+   ris_matrix
+   scattering_matrix
+   transition_matrices
+   transition_matrix
+   transmission_matrix
 
 .. rubric:: Utilities
 

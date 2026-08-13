@@ -11,7 +11,7 @@ from jaxtyping import PRNGKeyArray
 from differt.em._utd import F, L_i, _cot_times_F, diffraction_coefficients
 
 
-def test_L_i(key: PRNGKeyArray) -> None:  # ruff:ignore[invalid-function-name]
+def test_L_i(key: PRNGKeyArray) -> None:
     key_s_d, key_sin, key_1_i, key_2_i, key_e_i, key_s_i = jax.random.split(key, 6)
 
     s_d = jax.random.uniform(key_s_d, (100,), minval=10.0, maxval=100.0)
@@ -69,16 +69,16 @@ def test_L_i(key: PRNGKeyArray) -> None:  # ruff:ignore[invalid-function-name]
         _ = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i)
 
 
-def scipy_F(x: np.ndarray) -> np.ndarray:  # ruff:ignore[invalid-function-name]
+def scipy_F(x: np.ndarray) -> np.ndarray:
     factor = np.sqrt(np.pi / 2)
     sqrtx = np.sqrt(x)
 
-    S, C = sp.fresnel(sqrtx / factor)  # ruff:ignore[non-lowercase-variable-in-function]
+    S, C = sp.fresnel(sqrtx / factor)
 
     return 2j * sqrtx * np.exp(1j * x) * (factor * ((1 - 1j) / 2 - C + 1j * S))
 
 
-def test_F() -> None:  # ruff:ignore[invalid-function-name]
+def test_F() -> None:
     # Test case 1: 0.001 to 10.0
     x = jnp.logspace(-3, 1, 1000)
     got = F(x)
