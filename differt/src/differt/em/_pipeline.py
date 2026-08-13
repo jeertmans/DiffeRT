@@ -1,6 +1,6 @@
 import functools
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal, TypedDict, Unpack, overload
 
 import jax
 import jax.numpy as jnp
@@ -13,70 +13,105 @@ from ._material import Material
 from ._solvers import AbstractFieldSolver, GeometricFieldSolver
 
 
+class _GeometricFieldSolverKwargs(TypedDict, total=False):
+    tx_polarization: Any
+    rx_polarization: Any
+    radio_materials: Mapping[str, Material] | None
+    tx_wavefront_radii: (
+        Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None
+    )
+
+
+@overload
 def compute_received_fields(
     paths: TracedPaths,
     mesh: Mesh,
-    frequency: Float[ArrayLike, "*#batch"],
-    tx_polarization: Any = "V",
-    rx_polarization: Any = "V",
-    radio_materials: Mapping[str, Material] | None = None,
+    frequency: Float[ArrayLike, "*#batch"] | None = None,
     *,
-    solver: AbstractFieldSolver | None = None,
-    tx_wavefront_radius: Float[ArrayLike, "*#batch"]
-    | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
-    | None = 0.0,
+    solver: Literal["geometric"] = "geometric",
+    **solver_kwargs: Unpack[_GeometricFieldSolverKwargs],
+) -> Complex[Array, "*batch"]: ...
+
+
+@overload
+def compute_received_fields(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"] | None = None,
+    *,
+    solver: AbstractFieldSolver,
+) -> Complex[Array, "*batch"]: ...
+
+
+def compute_received_fields(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[ArrayLike, "*#batch"] | None = None,
+    *,
+    solver: AbstractFieldSolver | Literal["geometric"] = "geometric",
+    **solver_kwargs: Any,
 ) -> Complex[Array, "*batch"]:
-    r"""
+    """
     Compute the received complex fields for each path.
 
     This is a convenience wrapper around a :class:`AbstractFieldSolver`,
     defaulting to :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`.
-    Pass a custom ``solver`` to customize how fields are computed, e.g., to
-    add support for path interaction types beyond
+    Pass a custom ``solver`` instance to customize how fields are computed,
+    e.g., to add support for path interaction types beyond
     :attr:`InteractionType.REFLECTION<differt.em.InteractionType.REFLECTION>`.
 
     Args:
         paths: The paths.
         mesh: The triangle mesh of the scene.
         frequency: The operating frequency (or frequencies) in Hz.
-        tx_polarization: The transmitter antenna polarization or pattern.
-        rx_polarization: The receiver antenna polarization or pattern.
-        radio_materials: The dictionary of material properties.
-        solver: The field solver to use.
+
+            May be omitted (left to :data:`None`) when ``solver``'s
+            (or the ``tx_polarization`` solver keyword argument's)
+            ``tx_polarization`` is an :class:`Antenna<differt.em.Antenna>`
+            instance, in which case its own
+            :attr:`~differt.em.Antenna.frequency` is used instead.
+        solver: The field solver configuration or string shortcut.
 
             Defaults to a plain :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`.
-        tx_wavefront_radius: The radius (or radii) of curvature of the
-            incident wavefront at the transmitter, for a non-planar
-            (near-field) source (e.g., a focused beam). This is a
-            distance, and ``0`` and :data:`None` are its two opposite
-            limits, *not* two ways of saying the same thing: ``0`` (the
-            default) is the near-distance limit, an ideal point source
-            located exactly at the transmitter, matching Sionna RT's
-            implicit assumption; :data:`None` is the far-distance limit
-            (:math:`\rho_0 \to \infty`), an ideal plane wave, e.g., a
-            source far enough away that its curvature is negligible --
-            see :class:`FarFieldAntenna<differt.em.FarFieldAntenna>`.
-            Either of those, a single finite value (spherical wavefront),
-            or a ``(rho_s, rho_p)`` tuple (astigmatic wavefront) may be
-            passed. Ignored when ``tx_polarization`` is an
-            :class:`Antenna<differt.em.Antenna>` instance. See
-            :meth:`GeometricFieldSolver.compute_fields<differt.em.GeometricFieldSolver.compute_fields>`.
+        **solver_kwargs: Parameters passed to the solver configuration when
+            it is instantiated from a string shortcut (see
+            :class:`GeometricFieldSolver`'s attributes, e.g.,
+            ``tx_polarization``, ``rx_polarization``, ``radio_materials``,
+            ``tx_wavefront_radii``). Not allowed when ``solver`` is already
+            a solver instance.
 
     Returns:
         The received complex fields of shape ``*batch``.
-    """
-    if solver is None:
-        solver = GeometricFieldSolver()
 
-    return solver.compute_fields(
-        paths,
-        mesh,
-        frequency,
-        tx_polarization=tx_polarization,
-        rx_polarization=rx_polarization,
-        radio_materials=radio_materials,
-        tx_wavefront_radius=tx_wavefront_radius,
-    )
+    Raises:
+        ValueError: If ``solver`` is an unknown string shortcut, if
+            ``solver_kwargs`` is used together with a solver instance, or
+            if ``frequency`` is omitted and cannot be derived from an
+            :class:`Antenna<differt.em.Antenna>` instance.
+    """
+    if isinstance(solver, str):
+        if solver == "geometric":
+            solver = GeometricFieldSolver(**solver_kwargs)
+        else:
+            msg = f"Unknown solver: {solver}"
+            raise ValueError(msg)
+    elif solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+
+    if frequency is None:
+        tx_polarization = getattr(solver, "tx_polarization", None)
+        frequency = getattr(tx_polarization, "frequency", None)
+        if frequency is None:
+            msg = (
+                "'frequency' must be provided explicitly, unless "
+                "'tx_polarization' is an 'Antenna' instance."
+            )
+            raise ValueError(msg)
+
+    return solver.compute_fields(paths, mesh, frequency)
 
 
 @functools.partial(jax.jit, static_argnames=("coherent", "axis"))

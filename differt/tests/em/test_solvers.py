@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from typing import Any, cast
 
 import chex
@@ -139,7 +138,7 @@ class TestGeometricFieldSolver:
         )
         mesh = _ground_plane_mesh("Metal")
 
-        mat = GeometricFieldSolver().reflection_matrix(paths, mesh, 1e9, materials)
+        mat = GeometricFieldSolver().reflection_matrix(paths, mesh, 1e9)
 
         chex.assert_shape(mat, (1, 1, 2, 2))
         assert jnp.iscomplexobj(mat)
@@ -227,11 +226,6 @@ class TestGeometricFieldSolver:
                 paths: TracedPaths,
                 mesh: Mesh,  # ruff:ignore[unused-method-argument]
                 frequency: Float[ArrayLike, "*#batch"],  # ruff:ignore[unused-method-argument]
-                radio_materials: Mapping[str, Material],  # ruff:ignore[unused-method-argument]
-                tx_wavefront_radius: Float[  # ruff:ignore[unused-method-argument]
-                    ArrayLike, "*#batch"
-                ]
-                | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]] = 0.0,
             ) -> Complex[Array, "*batch order 2 2"]:
                 shape = (*paths.interaction_types.shape, 2, 2)
                 return jnp.broadcast_to(jnp.eye(2, dtype=complex), shape)
@@ -256,13 +250,13 @@ class TestGeometricFieldSolver:
 
 class TestNonPlanarWavefront:
     """
-    Validates ``tx_wavefront_radius`` (a non-planar, near-field source),
+    Validates ``tx_wavefront_radii`` (a non-planar, near-field source),
     which has no Sionna RT equivalent to cross-check against (see
     :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`'s
     docstring note). Instead, each test checks a geometric equivalence: a
-    point source with ``tx_wavefront_radius=rho0`` at some position must
+    point source with ``tx_wavefront_radii=rho0`` at some position must
     give *exactly* the same field as an ideal point source
-    (``tx_wavefront_radius=0``) physically moved back by ``rho0`` along
+    (``tx_wavefront_radii=0``) physically moved back by ``rho0`` along
     the direction of the first path segment -- both represent the same
     spherical wavefront arriving at the transmitter.
     """
@@ -274,7 +268,7 @@ class TestNonPlanarWavefront:
         tx, rx = jnp.array([0.0, 0.0, 0.0]), jnp.array([10.0, 0.0, 0.0])
 
         paths = _los_paths(tx, rx)
-        got = compute_received_fields(paths, mesh, frequency, tx_wavefront_radius=rho0)
+        got = compute_received_fields(paths, mesh, frequency, tx_wavefront_radii=rho0)
 
         k_hat = (rx - tx) / jnp.linalg.norm(rx - tx)
         moved_paths = _los_paths(tx - rho0 * k_hat, rx)
@@ -291,7 +285,7 @@ class TestNonPlanarWavefront:
         rx = jnp.array([10.0, 0.0, 1.0])
 
         paths = _single_bounce_paths(tx, bounce, rx, InteractionType.REFLECTION)
-        got = compute_received_fields(paths, mesh, frequency, tx_wavefront_radius=rho0)
+        got = compute_received_fields(paths, mesh, frequency, tx_wavefront_radii=rho0)
 
         k_hat = (bounce - tx) / jnp.linalg.norm(bounce - tx)
         moved_paths = _single_bounce_paths(
@@ -333,7 +327,7 @@ class TestNonPlanarWavefront:
             )
 
         got = compute_received_fields(
-            diffraction_paths(tx), wedge, frequency, tx_wavefront_radius=rho0
+            diffraction_paths(tx), wedge, frequency, tx_wavefront_radii=rho0
         )
 
         k_hat = (diffraction_point - tx) / jnp.linalg.norm(diffraction_point - tx)
@@ -344,7 +338,7 @@ class TestNonPlanarWavefront:
         chex.assert_trees_all_close(got, expected, rtol=1e-4)
 
     def test_default_matches_point_source(self) -> None:
-        # tx_wavefront_radius=0 (the default) must reproduce the existing,
+        # tx_wavefront_radii=0 (the default) must reproduce the existing,
         # already-validated (against Sionna RT) point-source behavior.
         paths = _single_bounce_paths(
             [0.0, 0.0, 1.0],
@@ -354,7 +348,7 @@ class TestNonPlanarWavefront:
         )
         mesh = _ground_plane_mesh("Metal")
 
-        got = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radius=0.0)
+        got = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radii=0.0)
         expected = compute_received_fields(paths, mesh, 1e9)
 
         chex.assert_trees_all_close(got, expected)
@@ -370,8 +364,8 @@ class TestNonPlanarWavefront:
         )
         mesh = _ground_plane_mesh("Metal")
 
-        got = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radius=(4.0, 4.0))
-        expected = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radius=4.0)
+        got = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radii=(4.0, 4.0))
+        expected = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radii=4.0)
 
         chex.assert_trees_all_close(got, expected)
 
@@ -387,10 +381,10 @@ class TestNonPlanarWavefront:
 
         paths = _los_paths(tx, rx)
         got = compute_received_fields(
-            paths, mesh, frequency, tx_wavefront_radius=(rho_s, rho_p)
+            paths, mesh, frequency, tx_wavefront_radii=(rho_s, rho_p)
         )
         isotropic = compute_received_fields(
-            paths, mesh, frequency, tx_wavefront_radius=5.0
+            paths, mesh, frequency, tx_wavefront_radii=5.0
         )
 
         s_tot = 10.0
@@ -432,16 +426,16 @@ class TestNonPlanarWavefront:
         )
 
         with pytest.raises(Exception, match="astigmatic"):
-            compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radius=(3.0, 8.0))
+            compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radii=(3.0, 8.0))
 
     def test_planar_go_path_has_no_spreading(self) -> None:
         # A plane wave does not spread at all: the spreading factor must
         # be exactly 1, regardless of the path length, for a path with no
         # DIFFRACTION interaction (here: LoS).
-        solver = GeometricFieldSolver()
+        solver = GeometricFieldSolver(tx_wavefront_radii=None)
         for length in (1.0, 100.0, 1e6):
             paths = _los_paths([0.0, 0.0, 0.0], [length, 0.0, 0.0])
-            got = solver.spreading_factor(paths, tx_wavefront_radius=None)
+            got = solver.spreading_factor(paths)
             chex.assert_trees_all_close(got, jnp.ones_like(got))
 
     def test_planar_diffraction_path_has_cylindrical_spreading(self) -> None:
@@ -450,7 +444,7 @@ class TestNonPlanarWavefront:
         # 1/sqrt(s_after), independent of any (infinite) incident
         # distance -- not the naive (and incorrect, vanishing) limit of
         # the point-source formula as the incident distance grows.
-        solver = GeometricFieldSolver()
+        solver = GeometricFieldSolver(tx_wavefront_radii=None)
         s_after = 7.0
         paths = _single_bounce_paths(
             [-100.0, 0.0, 0.0],
@@ -458,7 +452,7 @@ class TestNonPlanarWavefront:
             [0.0, s_after, 0.0],
             InteractionType.DIFFRACTION,
         )
-        got = solver.spreading_factor(paths, tx_wavefront_radius=None)
+        got = solver.spreading_factor(paths)
         expected = 1.0 / jnp.sqrt(s_after)
         chex.assert_trees_all_close(got[0], expected)
 
@@ -489,12 +483,12 @@ class TestNonPlanarWavefront:
             interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
         )
 
-        fields = compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radius=None)
+        fields = compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radii=None)
         assert jnp.all(jnp.isfinite(fields))
 
-    def test_far_field_antenna_overrides_tx_wavefront_radius(self) -> None:
+    def test_far_field_antenna_overrides_tx_wavefront_radii(self) -> None:
         # When 'tx_polarization' is an Antenna, its own 'wavefront_radii'
-        # takes precedence over the explicit 'tx_wavefront_radius'
+        # takes precedence over the explicit 'tx_wavefront_radii'
         # argument -- here, a 'FarFieldDipoleAntenna' always reports a
         # planar wavefront, so passing a (very different) explicit radius
         # must have no effect at all.
@@ -507,7 +501,7 @@ class TestNonPlanarWavefront:
             paths, mesh, frequency, tx_polarization=antenna
         )
         got_explicit = compute_received_fields(
-            paths, mesh, frequency, tx_polarization=antenna, tx_wavefront_radius=42.0
+            paths, mesh, frequency, tx_polarization=antenna, tx_wavefront_radii=42.0
         )
 
         chex.assert_trees_all_close(got_default, got_explicit)
@@ -558,8 +552,8 @@ class TestTransmissionMatrix:
         )
         radio_materials = {"Vacuum": vacuum_with_thickness}
 
-        mat = GeometricFieldSolver().transmission_matrix(
-            paths, mesh, frequency, radio_materials
+        mat = GeometricFieldSolver(radio_materials=radio_materials).transmission_matrix(
+            paths, mesh, frequency
         )
 
         chex.assert_shape(mat, (1, 1, 2, 2))
@@ -796,8 +790,8 @@ class TestScatteringMatrix:
         mesh = _ground_plane_mesh("Concrete")
         radio_materials = {"Concrete": self._scattering_material(s=0.0)}
 
-        mat = GeometricFieldSolver().scattering_matrix(
-            paths, mesh, 1e9, radio_materials
+        mat = GeometricFieldSolver(radio_materials=radio_materials).scattering_matrix(
+            paths, mesh, 1e9
         )
 
         chex.assert_shape(mat, (1, 1, 2, 2))
@@ -814,8 +808,8 @@ class TestScatteringMatrix:
         mesh = _ground_plane_mesh("Concrete")
         radio_materials = {"Concrete": self._scattering_material(s=0.5, xpd=0.2)}
 
-        mat = GeometricFieldSolver().scattering_matrix(
-            paths, mesh, 1e9, radio_materials
+        mat = GeometricFieldSolver(radio_materials=radio_materials).scattering_matrix(
+            paths, mesh, 1e9
         )
 
         chex.assert_shape(mat, (1, 1, 2, 2))
@@ -838,12 +832,12 @@ class TestScatteringMatrix:
         radio_materials_s = {"Concrete": self._scattering_material(s=s)}
         radio_materials_0 = {"Concrete": self._scattering_material(s=0.0)}
 
-        mat_s = GeometricFieldSolver().reflection_matrix(
-            paths, mesh, 1e9, radio_materials_s
-        )
-        mat_0 = GeometricFieldSolver().reflection_matrix(
-            paths, mesh, 1e9, radio_materials_0
-        )
+        mat_s = GeometricFieldSolver(
+            radio_materials=radio_materials_s
+        ).reflection_matrix(paths, mesh, 1e9)
+        mat_0 = GeometricFieldSolver(
+            radio_materials=radio_materials_0
+        ).reflection_matrix(paths, mesh, 1e9)
 
         chex.assert_trees_all_close(mat_s, mat_0 * jnp.sqrt(1.0 - s**2), rtol=1e-5)
 
@@ -863,15 +857,15 @@ class TestScatteringMatrix:
                 [5.0 + rx_distance, 0.0, 1.0],
                 InteractionType.SCATTERING,
             )
-            mat = GeometricFieldSolver().scattering_matrix(
-                paths, mesh, 1e9, radio_materials
-            )
+            mat = GeometricFieldSolver(
+                radio_materials=radio_materials
+            ).scattering_matrix(paths, mesh, 1e9)
             magnitudes.append(jnp.abs(mat[0, 0, 0, 0]))
 
         assert magnitudes[0] > magnitudes[1] > magnitudes[2]
 
     def test_lambertian_pattern_hemisphere_integral_is_one(self) -> None:
-        # Sanity-check the Lambertian pattern formula itself (independent
+        # Test the Lambertian pattern formula itself (independent
         # of the rest of the pipeline): integrating cos(theta) / pi over
         # the hemisphere (solid angle) should give 1.
         n_theta, n_phi = 400, 400

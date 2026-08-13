@@ -80,8 +80,7 @@ when relevant.
 Each :class:`Antenna` implements :meth:`Antenna.wavefront_radii`, which
 tells :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>` the
 radius (or radii) of curvature of the wavefront it emits, overriding
-whatever ``tx_wavefront_radius`` was passed to
-:func:`compute_received_fields<differt.em.compute_received_fields>`: a
+whatever :attr:`GeometricFieldSolver.tx_wavefront_radii` is set to: a
 single value describes a spherical wavefront (like :class:`Dipole`), a
 ``(rho_s, rho_p)`` tuple an astigmatic one, and :data:`None` a planar one
 (the far-field, plane-wave approximation). Subclass
@@ -131,6 +130,10 @@ Field solvers compute the received complex field(s) from a set of paths and
 the geometry/materials they interacted with. :class:`GeometricFieldSolver`
 is the default solver used by :func:`compute_received_fields`; subclass it
 to customize how each interaction type contributes to the field.
+Solver-specific configuration (antenna polarization, radio materials,
+transmitter wavefront curvature) lives on the solver instance itself, as
+plain attributes, rather than as keyword arguments to
+:meth:`~GeometricFieldSolver.compute_fields`.
 
 By default, :class:`GeometricFieldSolver` supports all four
 :class:`InteractionType` members: reflection and transmission (a
@@ -140,10 +143,12 @@ Lambertian rough-surface model); see each ``*_matrix`` method's docstring
 for details and caveats, particularly for scattering.
 
 Unlike Sionna RT, which only supports a point source infinitely far away,
-:meth:`GeometricFieldSolver.compute_fields`'s ``tx_wavefront_radius``
-argument supports a non-planar (near-field) source, e.g., a focused beam,
-either isotropic (a single radius, spherical wavefront) or astigmatic
-(a ``(rho_s, rho_p)`` tuple of two independent principal radii).
+:attr:`GeometricFieldSolver.tx_wavefront_radii` supports a non-planar
+(near-field) source, e.g., a focused beam, either isotropic (a single
+radius, spherical wavefront) or astigmatic (a ``(rho_s, rho_p)`` tuple of
+two independent principal radii); or, when :attr:`~GeometricFieldSolver.tx_polarization`
+is set to an :class:`Antenna` instance, whatever that antenna's own
+:meth:`Antenna.wavefront_radii` reports.
 
 .. autosummary::
    :toctree: _autosummary

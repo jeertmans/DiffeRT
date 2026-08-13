@@ -114,40 +114,72 @@ class Antenna(BaseAntenna):
             Fields can be either real or complex-valued.
         """
 
-    @abstractmethod
-    def wavefront_radii(
+    def wavefront_radii(  # ruff:ignore[no-self-use]
         self,
-        r: Float[ArrayLike, "*batch 3"],
+        k_hat: Float[ArrayLike, "*#batch 3"],
     ) -> (
         Float[Array, "*batch"]
-        | tuple[Float[Array, "*batch"], Float[Array, "*batch"]]
+        | tuple[
+            Float[Array, "*batch"],
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch"],
+            Float[Array, "*batch 3"],
+        ]
         | None
     ):
-        """
-        Return the radii of curvature of the wavefront reaching the given observation point(s).
+        r"""
+        Return the radii of curvature of the wavefront this antenna emits, in the given direction(s).
 
-        This describes the non-planar (near-field) shape of the wavefront
-        *emitted by this antenna*, as observed from ``r``, in the local
-        (s-, p-plane) basis used throughout :mod:`differt.em` -- see
-        :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`'s
-        ``tx_wavefront_radius`` argument, which
-        :meth:`GeometricFieldSolver.compute_fields
-        <differt.em.GeometricFieldSolver.compute_fields>` sets from this
-        method whenever the transmitter's polarization is an
-        :class:`Antenna` instance (overriding whatever ``tx_wavefront_radius``
-        was passed explicitly).
+        This is an *offset* distance (or pair of distances) -- the same
+        quantity as, and with the same sign convention as,
+        ``tx_wavefront_radii`` -- added to the geometric path length by
+        :meth:`GeometricFieldSolver.spreading_factor
+        <differt.em.GeometricFieldSolver.spreading_factor>`, rather than
+        the (generally much larger, and direction-*independent* only for
+        an isotropic source) total radius of curvature at some distant
+        observation point. :meth:`GeometricFieldSolver.compute_fields
+        <differt.em.GeometricFieldSolver.compute_fields>` calls this with
+        the direction of the first path segment (leaving the
+        transmitter) whenever ``tx_polarization`` is set to an
+        :class:`Antenna` instance, using the result *instead of* the
+        solver's own ``tx_wavefront_radii`` attribute.
+
+        A single position-like argument cannot, by itself, encode an
+        astigmatic wavefront's orientation (its two principal radii apply
+        along two specific, generally direction-dependent axes, not just
+        "the wavefront's curvature at that point"); this is why the
+        argument here is the propagation *direction* rather than a
+        position -- see the ``(rho_s, s_hat, rho_p, p_hat)`` return case
+        below.
 
         Args:
-            r: Position vector relative to the antenna center, at which
-                the wavefront curvature is evaluated.
+            k_hat: The (unit-length) direction of propagation away from
+                this antenna, towards the observation point.
 
         Returns:
             :data:`None` for a planar wavefront (the far-field, plane-wave
-            approximation -- see :class:`FarFieldAntenna`), a single value
-            for an isotropic (spherical) wavefront, or a
-            ``(rho_s, rho_p)`` tuple for a general astigmatic wavefront
-            with two independent principal radii.
+            approximation -- see :class:`FarFieldAntenna`); a single value
+            for an isotropic (spherical) wavefront, the same in every
+            direction; or a ``(rho_s, s_hat, rho_p, p_hat)`` 4-tuple for a
+            general astigmatic wavefront, where ``rho_s`` and ``rho_p``
+            are the two principal radii and ``s_hat``/``p_hat`` are unit
+            vectors (orthogonal to ``k_hat`` and to each other) giving
+            the direction each one applies along -- the same (explicit
+            vector pair, rather than a bare angle) convention used
+            elsewhere in this module for a local s-/p-plane basis, see
+            :func:`sp_directions<differt.em.sp_directions>` and
+            :func:`sp_rotation_matrix<differt.em.sp_rotation_matrix>`
+            (which a subclass reporting an astigmatic wavefront can reuse
+            to derive ``s_hat``/``p_hat`` from ``k_hat`` and its own
+            fixed reference axis, e.g. :attr:`Dipole.moment`, exactly as
+            :func:`sp_directions<differt.em.sp_directions>` derives a
+            local basis from a ray direction and a surface normal).
+
+            The default implementation returns ``0`` for every direction,
+            i.e., an ideal point source located exactly at this
+            antenna's :attr:`~BaseAntenna.center` (no offset at all).
         """
+        return jnp.zeros(jnp.shape(jnp.asarray(k_hat))[:-1])
 
     @eqx.filter_jit
     def poynting_vector(
@@ -485,26 +517,6 @@ class Dipole(Antenna):
 
         return e, b
 
-    def wavefront_radii(
-        self,
-        r: Float[ArrayLike, "*batch 3"],
-    ) -> Float[Array, "*batch"]:
-        """
-        Return the (isotropic) radius of curvature of the wavefront reaching the given observation point(s).
-
-        A dipole radiates a genuinely spherical wavefront centered on its
-        own :attr:`center`, so this is simply the distance from ``r`` to
-        :attr:`center`, for every ``r``.
-
-        Args:
-            r: Position vector relative to the antenna center, at which
-                the wavefront curvature is evaluated.
-
-        Returns:
-            The distance from :attr:`center` to ``r``.
-        """
-        return jnp.linalg.norm(jnp.asarray(r) - self.center, axis=-1)
-
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -588,25 +600,20 @@ class FarFieldAntenna(Antenna):
     :meth:`GeometricFieldSolver.compute_fields
     <differt.em.GeometricFieldSolver.compute_fields>`, this makes the
     solver treat the source as an ideal point source infinitely far away
-    (plane-wave incidence), regardless of whatever ``tx_wavefront_radius``
-    argument was passed -- see :meth:`Antenna.wavefront_radii` and
+    (plane-wave incidence), regardless of whatever ``tx_wavefront_radii``
+    attribute the solver was configured with -- see
+    :meth:`Antenna.wavefront_radii` and
     :meth:`GeometricFieldSolver.spreading_factor
     <differt.em.GeometricFieldSolver.spreading_factor>`.
     """
 
     def wavefront_radii(  # ruff:ignore[no-self-use]
         self,
-        r: Float[  # ruff:ignore[unused-method-argument]
-            ArrayLike, "*batch 3"
+        k_hat: Float[  # ruff:ignore[unused-method-argument]
+            ArrayLike, "*#batch 3"
         ],
     ) -> None:
-        """
-        Return :data:`None` (a planar wavefront), unconditionally.
-
-        Args:
-            r: Unused; accepted for a uniform
-                :meth:`Antenna.wavefront_radii` signature.
-        """
+        """Return :data:`None` (a planar wavefront), unconditionally."""
         return
 
 

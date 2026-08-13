@@ -170,15 +170,20 @@ class TestDipole:
         chex.assert_trees_all_close(directive_gain, expected_gain)
 
     def test_wavefront_radii(self) -> None:
-        # A dipole radiates a genuinely spherical wavefront centered on
-        # its own 'center', so 'wavefront_radii(r)' is just the distance
-        # from 'center' to 'r' -- zero at the dipole's own location, and
-        # growing linearly with distance elsewhere.
+        # A dipole is an ideal point source, with zero offset from its
+        # own 'center' in every direction (the default 'Antenna'
+        # behavior, which 'Dipole' does not override).
         dipole = Dipole(frequency=1e9, center=jnp.array([1.0, 2.0, 3.0]))
-        chex.assert_trees_all_close(dipole.wavefront_radii(dipole.center), 0.0)
+        chex.assert_trees_all_close(
+            dipole.wavefront_radii(jnp.array([1.0, 0.0, 0.0])), 0.0
+        )
+        chex.assert_trees_all_close(
+            dipole.wavefront_radii(jnp.array([0.0, 0.0, 1.0])), 0.0
+        )
 
-        r = jnp.array([11.0, 2.0, 3.0])  # 10 m away from 'center', along x
-        chex.assert_trees_all_close(dipole.wavefront_radii(r), 10.0)
+        # Batched directions.
+        k_hat = jnp.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+        chex.assert_trees_all_close(dipole.wavefront_radii(k_hat), jnp.zeros(2))
 
 
 class TestShortDipole:
@@ -193,13 +198,13 @@ class TestShortDipole:
 
 class TestFarFieldDipoleAntenna:
     def test_wavefront_radii_is_always_none(self) -> None:
-        # Unlike 'Dipole', a 'FarFieldDipoleAntenna' unconditionally
-        # reports a planar wavefront, regardless of 'r'.
+        # A 'FarFieldDipoleAntenna' unconditionally reports a planar
+        # wavefront, regardless of direction.
         antenna = FarFieldDipoleAntenna(
             frequency=1e9, center=jnp.array([1.0, 2.0, 3.0])
         )
-        assert antenna.wavefront_radii(antenna.center) is None
-        assert antenna.wavefront_radii(jnp.array([11.0, 2.0, 3.0])) is None
+        assert antenna.wavefront_radii(jnp.array([1.0, 0.0, 0.0])) is None
+        assert antenna.wavefront_radii(jnp.array([0.0, 1.0, 0.0])) is None
 
     def test_inherits_dipole_behavior(self) -> None:
         # Everything else (fields, reference_power, directivity, ...) is
