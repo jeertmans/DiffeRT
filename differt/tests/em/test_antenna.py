@@ -11,6 +11,8 @@ from differt.em import c
 from differt.em._antenna import (
     Antenna,
     Dipole,
+    FarFieldAntenna,
+    FarFieldDipoleAntenna,
 )
 from differt.geometry import normalize, spherical_to_cartesian
 
@@ -167,6 +169,17 @@ class TestDipole:
         directive_gain = dipole.directive_gain(1000)
         chex.assert_trees_all_close(directive_gain, expected_gain)
 
+    def test_wavefront_radii(self) -> None:
+        # A dipole radiates a genuinely spherical wavefront centered on
+        # its own 'center', so 'wavefront_radii(r)' is just the distance
+        # from 'center' to 'r' -- zero at the dipole's own location, and
+        # growing linearly with distance elsewhere.
+        dipole = Dipole(frequency=1e9, center=jnp.array([1.0, 2.0, 3.0]))
+        chex.assert_trees_all_close(dipole.wavefront_radii(dipole.center), 0.0)
+
+        r = jnp.array([11.0, 2.0, 3.0])  # 10 m away from 'center', along x
+        chex.assert_trees_all_close(dipole.wavefront_radii(r), 10.0)
+
 
 class TestShortDipole:
     @pytest.mark.skip
@@ -176,3 +189,43 @@ class TestShortDipole:
     )
     def test_directivity(self, ratio: float, expected_gain_dbi: float) -> None:
         pass
+
+
+class TestFarFieldDipoleAntenna:
+    def test_wavefront_radii_is_always_none(self) -> None:
+        # Unlike 'Dipole', a 'FarFieldDipoleAntenna' unconditionally
+        # reports a planar wavefront, regardless of 'r'.
+        antenna = FarFieldDipoleAntenna(
+            frequency=1e9, center=jnp.array([1.0, 2.0, 3.0])
+        )
+        assert antenna.wavefront_radii(antenna.center) is None
+        assert antenna.wavefront_radii(jnp.array([11.0, 2.0, 3.0])) is None
+
+    def test_inherits_dipole_behavior(self) -> None:
+        # Everything else (fields, reference_power, directivity, ...) is
+        # inherited from 'Dipole' unchanged.
+        frequency = 1e9
+        dipole = Dipole(frequency=frequency, num_wavelengths=0.5)
+        far_field = FarFieldDipoleAntenna(frequency=frequency, num_wavelengths=0.5)
+
+        assert isinstance(far_field, Dipole)
+        assert isinstance(far_field, FarFieldAntenna)
+        assert isinstance(far_field, Antenna)
+
+        chex.assert_trees_all_close(far_field.moment, dipole.moment)
+        chex.assert_trees_all_close(far_field.reference_power, dipole.reference_power)
+
+        r = jnp.array([[10.0, 0.0, 0.0], [0.0, 5.0, 3.0]])
+        e_dipole, b_dipole = dipole.fields(r)
+        e_far_field, b_far_field = far_field.fields(r)
+        chex.assert_trees_all_close(e_dipole, e_far_field)
+        chex.assert_trees_all_close(b_dipole, b_far_field)
+
+    def test_abstract_base_class(self) -> None:
+        # 'FarFieldAntenna' itself still needs 'fields' and
+        # 'reference_power' from a subclass, just like a plain 'Antenna'.
+        with pytest.raises(
+            TypeError,
+            match="Can't instantiate abstract class FarFieldAntenna",
+        ):
+            _ = FarFieldAntenna(frequency=jnp.asarray(1e9))

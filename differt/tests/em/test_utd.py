@@ -8,7 +8,7 @@ import pytest
 import scipy.special as sp
 from jaxtyping import PRNGKeyArray
 
-from differt.em._utd import F, L_i, diffraction_coefficients
+from differt.em._utd import F, L_i, _cot_times_F, diffraction_coefficients
 
 
 def test_L_i(key: PRNGKeyArray) -> None:  # ruff:ignore[invalid-function-name]
@@ -164,6 +164,34 @@ def test_diffraction_coefficients() -> None:
     )
     assert not jnp.any(jnp.isnan(D_s_exact))
     assert not jnp.any(jnp.isnan(D_h_exact))
+
+
+def test_cot_times_f_boundary_limit_matches_formula_away_from_boundary() -> None:
+    """
+    Regression test for the ``is_near_boundary`` limit branch's magnitude.
+
+    A previous implementation had an erroneous extra factor of
+    :math:`\\sqrt{2}` in this limit (derived from the small-``z``
+    asymptotic of :func:`F<differt.em.F>`), which only manifested within
+    the extremely narrow (``1e-5`` rad) window around exact shadow
+    boundaries where that branch is used -- too narrow for the existing
+    ``test_diffraction_coefficients`` shadow-boundary check (which only
+    asserts finiteness, not the exact value) to catch. The two branches
+    must agree as delta shrinks toward (but not through) the switchover
+    threshold, from either side.
+    """
+    n = jnp.asarray(1.5)
+    k = jnp.asarray(73.0)
+    L = jnp.asarray(6.4)
+
+    for mode in ("+", "-"):
+        boundary = jnp.pi if mode == "-" else -jnp.pi
+        for sign in (1.0, -1.0):
+            # Just above the 1e-5 threshold (ordinary formula) vs. just
+            # below it (limit branch): both should agree closely.
+            ordinary = _cot_times_F(boundary + sign * 2e-5, n, k, L, mode)
+            limit = _cot_times_F(boundary + sign * 1e-6, n, k, L, mode)
+            chex.assert_trees_all_close(limit, ordinary, rtol=1e-2)
 
 
 def test_lossy_diffraction_coefficients() -> None:

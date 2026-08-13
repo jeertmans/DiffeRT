@@ -114,6 +114,41 @@ class Antenna(BaseAntenna):
             Fields can be either real or complex-valued.
         """
 
+    @abstractmethod
+    def wavefront_radii(
+        self,
+        r: Float[ArrayLike, "*batch 3"],
+    ) -> (
+        Float[Array, "*batch"]
+        | tuple[Float[Array, "*batch"], Float[Array, "*batch"]]
+        | None
+    ):
+        """
+        Return the radii of curvature of the wavefront reaching the given observation point(s).
+
+        This describes the non-planar (near-field) shape of the wavefront
+        *emitted by this antenna*, as observed from ``r``, in the local
+        (s-, p-plane) basis used throughout :mod:`differt.em` -- see
+        :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`'s
+        ``tx_wavefront_radius`` argument, which
+        :meth:`GeometricFieldSolver.compute_fields
+        <differt.em.GeometricFieldSolver.compute_fields>` sets from this
+        method whenever the transmitter's polarization is an
+        :class:`Antenna` instance (overriding whatever ``tx_wavefront_radius``
+        was passed explicitly).
+
+        Args:
+            r: Position vector relative to the antenna center, at which
+                the wavefront curvature is evaluated.
+
+        Returns:
+            :data:`None` for a planar wavefront (the far-field, plane-wave
+            approximation -- see :class:`FarFieldAntenna`), a single value
+            for an isotropic (spherical) wavefront, or a
+            ``(rho_s, rho_p)`` tuple for a general astigmatic wavefront
+            with two independent principal radii.
+        """
+
     @eqx.filter_jit
     def poynting_vector(
         self,
@@ -450,6 +485,26 @@ class Dipole(Antenna):
 
         return e, b
 
+    def wavefront_radii(
+        self,
+        r: Float[ArrayLike, "*batch 3"],
+    ) -> Float[Array, "*batch"]:
+        """
+        Return the (isotropic) radius of curvature of the wavefront reaching the given observation point(s).
+
+        A dipole radiates a genuinely spherical wavefront centered on its
+        own :attr:`center`, so this is simply the distance from ``r`` to
+        :attr:`center`, for every ``r``.
+
+        Args:
+            r: Position vector relative to the antenna center, at which
+                the wavefront curvature is evaluated.
+
+        Returns:
+            The distance from :attr:`center` to ``r``.
+        """
+        return jnp.linalg.norm(jnp.asarray(r) - self.center, axis=-1)
+
     def directivity(
         self,
         num_points: int = int(1e2),
@@ -516,6 +571,56 @@ class ShortDipole(Dipole):
     ) -> Float[Array, ""]:
         # Bypass Dipole's specialized implementation
         return Antenna.directive_gain(self, num_points=num_points)
+
+
+class FarFieldAntenna(Antenna):
+    """
+    Base class for antennas that are only ever used in the far field.
+
+    Subclass this (instead of :class:`Antenna`) when your antenna's
+    intended use is the far field, i.e., a locally planar wavefront:
+    :meth:`wavefront_radii` is implemented once and for all here, always
+    returning :data:`None`, so subclasses only need to implement
+    :meth:`~Antenna.fields` and :attr:`~Antenna.reference_power` (exactly
+    like a plain :class:`Antenna`).
+
+    When used as ``tx_polarization`` in
+    :meth:`GeometricFieldSolver.compute_fields
+    <differt.em.GeometricFieldSolver.compute_fields>`, this makes the
+    solver treat the source as an ideal point source infinitely far away
+    (plane-wave incidence), regardless of whatever ``tx_wavefront_radius``
+    argument was passed -- see :meth:`Antenna.wavefront_radii` and
+    :meth:`GeometricFieldSolver.spreading_factor
+    <differt.em.GeometricFieldSolver.spreading_factor>`.
+    """
+
+    def wavefront_radii(  # ruff:ignore[no-self-use]
+        self,
+        r: Float[  # ruff:ignore[unused-method-argument]
+            ArrayLike, "*batch 3"
+        ],
+    ) -> None:
+        """
+        Return :data:`None` (a planar wavefront), unconditionally.
+
+        Args:
+            r: Unused; accepted for a uniform
+                :meth:`Antenna.wavefront_radii` signature.
+        """
+        return
+
+
+class FarFieldDipoleAntenna(FarFieldAntenna, Dipole):
+    """
+    A :class:`Dipole` restricted to the far field (a planar, rather than spherical, wavefront).
+
+    Otherwise identical to :class:`Dipole` (same constructor, same
+    :meth:`~Antenna.fields`); only :meth:`~FarFieldAntenna.wavefront_radii`
+    differs, see :class:`FarFieldAntenna`.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        Dipole.__init__(self, *args, **kwargs)
 
 
 class RadiationPattern(BaseAntenna):

@@ -77,12 +77,27 @@ If you want to use those classes in another medium, you can do so
 by multiplying the output fields by relative permeabilities and permittivities,
 when relevant.
 
+Each :class:`Antenna` implements :meth:`Antenna.wavefront_radii`, which
+tells :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>` the
+radius (or radii) of curvature of the wavefront it emits, overriding
+whatever ``tx_wavefront_radius`` was passed to
+:func:`compute_received_fields<differt.em.compute_received_fields>`: a
+single value describes a spherical wavefront (like :class:`Dipole`), a
+``(rho_s, rho_p)`` tuple an astigmatic one, and :data:`None` a planar one
+(the far-field, plane-wave approximation). Subclass
+:class:`FarFieldAntenna` (instead of :class:`Antenna` directly) for an
+antenna that is only ever used in the far field, to get this last case
+for free; :class:`FarFieldDipoleAntenna` does exactly that for
+:class:`Dipole`.
+
 .. autosummary::
    :toctree: _autosummary
 
    BaseAntenna
    Antenna
    Dipole
+   FarFieldAntenna
+   FarFieldDipoleAntenna
 
 .. rubric:: Materials
 
@@ -126,7 +141,9 @@ for details and caveats, particularly for scattering.
 
 Unlike Sionna RT, which only supports a point source infinitely far away,
 :meth:`GeometricFieldSolver.compute_fields`'s ``tx_wavefront_radius``
-argument supports a non-planar (near-field) source, e.g., a focused beam.
+argument supports a non-planar (near-field) source, e.g., a focused beam,
+either isotropic (a single radius, spherical wavefront) or astigmatic
+(a ``(rho_s, rho_p)`` tuple of two independent principal radii).
 
 .. autosummary::
    :toctree: _autosummary

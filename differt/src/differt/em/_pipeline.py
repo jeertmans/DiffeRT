@@ -22,9 +22,11 @@ def compute_received_fields(
     radio_materials: Mapping[str, Material] | None = None,
     *,
     solver: AbstractFieldSolver | None = None,
-    tx_wavefront_radius: Float[ArrayLike, "*#batch"] = 0.0,
+    tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+    | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+    | None = 0.0,
 ) -> Complex[Array, "*batch"]:
-    """
+    r"""
     Compute the received complex fields for each path.
 
     This is a convenience wrapper around a :class:`AbstractFieldSolver`,
@@ -43,10 +45,21 @@ def compute_received_fields(
         solver: The field solver to use.
 
             Defaults to a plain :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`.
-        tx_wavefront_radius: The radius of curvature of the incident
-            wavefront at the transmitter, for a non-planar (near-field)
-            source (e.g., a focused beam); ``0`` (the default) is an ideal
-            point source, matching Sionna RT's implicit assumption. See
+        tx_wavefront_radius: The radius (or radii) of curvature of the
+            incident wavefront at the transmitter, for a non-planar
+            (near-field) source (e.g., a focused beam). This is a
+            distance, and ``0`` and :data:`None` are its two opposite
+            limits, *not* two ways of saying the same thing: ``0`` (the
+            default) is the near-distance limit, an ideal point source
+            located exactly at the transmitter, matching Sionna RT's
+            implicit assumption; :data:`None` is the far-distance limit
+            (:math:`\rho_0 \to \infty`), an ideal plane wave, e.g., a
+            source far enough away that its curvature is negligible --
+            see :class:`FarFieldAntenna<differt.em.FarFieldAntenna>`.
+            Either of those, a single finite value (spherical wavefront),
+            or a ``(rho_s, rho_p)`` tuple (astigmatic wavefront) may be
+            passed. Ignored when ``tx_polarization`` is an
+            :class:`Antenna<differt.em.Antenna>` instance. See
             :meth:`GeometricFieldSolver.compute_fields<differt.em.GeometricFieldSolver.compute_fields>`.
 
     Returns:

@@ -240,14 +240,12 @@ def _cot_times_F(
     threshold = 1e-5
     is_near_boundary = jnp.abs(delta) < threshold
 
-    # Limit value as delta -> 0
-    limit_val = (
-        mode_sign
-        * _sign(delta)
-        * (2.0 * n)
-        * (1.0 + 1j)
-        * jnp.sqrt(jnp.pi * k * L_val / 2.0)
-    )
+    # Limit value as delta -> 0, i.e., lim cot(x) * F(z) as x -> N*pi, using
+    # cot(x) ~ 1/(x - N*pi) and the small-z asymptotic F(z) ~ (1+j) sqrt(pi z / 2)
+    # (both to first order in delta): cot(x_safe) ~ 2n*mode_sign/delta and
+    # F(z_safe) ~ (1+j) |delta| sqrt(pi k L_val) / 2, whose product is
+    # n * mode_sign * sign(delta) * (1+j) * sqrt(pi k L_val).
+    limit_val = mode_sign * _sign(delta) * n * (1.0 + 1j) * jnp.sqrt(jnp.pi * k * L_val)
 
     # Safe delta to prevent division by zero/NaN inside unselected paths in jnp.where
     delta_safe = jnp.where(is_near_boundary, threshold, delta)
@@ -303,8 +301,10 @@ def diffraction_coefficients(
             If ``None``, the n-face is assumed to be a Perfect Electric Conductor (PEC).
         d_o: The thickness of the o-face material.
 
-            If ``None`` (default), the o-face is treated as an infinite
-            half-space, i.e., using
+            If ``None`` (default), or if (element-wise) negative -- the
+            same "no thickness specified" sentinel used elsewhere, e.g.
+            :func:`compute_received_fields<differt.em.compute_received_fields>`
+            -- the o-face is treated as an infinite half-space, i.e., using
             :func:`reflection_coefficients<differt.em.reflection_coefficients>`.
             Otherwise, the finite-thickness slab formula
             (:func:`slab_coefficients<differt.em.slab_coefficients>`) is used,
@@ -358,7 +358,20 @@ def diffraction_coefficients(
         if d_o is None:
             r_s_o, r_p_o = reflection_coefficients(n_r_o, cos_theta_o)
         else:
-            (r_s_o, r_p_o), _ = slab_coefficients(n_r_o, cos_theta_o, d_o, wavelength)
+            # A (element-wise) negative 'd_o' is the "no thickness
+            # specified" sentinel, meaning an infinite half-space, exactly
+            # like '_get_reflection_coefficients' resolves it for plain
+            # REFLECTION; this must be a per-element (not Python-level)
+            # choice, since 'd_o' can mix materials with and without an
+            # explicit thickness across a batch.
+            d_o_arr = jnp.asarray(d_o)
+            r_s_inf_o, r_p_inf_o = reflection_coefficients(n_r_o, cos_theta_o)
+            (r_s_slab_o, r_p_slab_o), _ = slab_coefficients(
+                n_r_o, cos_theta_o, jnp.maximum(d_o_arr, 0.0), wavelength
+            )
+            use_slab_o = d_o_arr >= 0.0
+            r_s_o = jnp.where(use_slab_o, r_s_slab_o, r_s_inf_o)
+            r_p_o = jnp.where(use_slab_o, r_p_slab_o, r_p_inf_o)
 
     if n_r_n is None:
         r_s_n = jnp.full_like(k, -1.0, dtype=complex_dtype)
@@ -368,7 +381,15 @@ def diffraction_coefficients(
         if d_n is None:
             r_s_n, r_p_n = reflection_coefficients(n_r_n, cos_theta_n)
         else:
-            (r_s_n, r_p_n), _ = slab_coefficients(n_r_n, cos_theta_n, d_n, wavelength)
+            # See the symmetric comment for 'd_o' above.
+            d_n_arr = jnp.asarray(d_n)
+            r_s_inf_n, r_p_inf_n = reflection_coefficients(n_r_n, cos_theta_n)
+            (r_s_slab_n, r_p_slab_n), _ = slab_coefficients(
+                n_r_n, cos_theta_n, jnp.maximum(d_n_arr, 0.0), wavelength
+            )
+            use_slab_n = d_n_arr >= 0.0
+            r_s_n = jnp.where(use_slab_n, r_s_slab_n, r_s_inf_n)
+            r_p_n = jnp.where(use_slab_n, r_p_slab_n, r_p_inf_n)
 
     D_s = (D_1 + D_2 + r_s_n * D_3 + r_s_o * D_4) * factor
     D_h = (D_1 + D_2 + r_p_n * D_3 + r_p_o * D_4) * factor

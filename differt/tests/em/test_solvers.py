@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 import chex
 import equinox as eqx
@@ -9,6 +9,8 @@ from jaxtyping import Array, ArrayLike, Complex, Float
 
 from differt.em import (
     AbstractFieldSolver,
+    Dipole,
+    FarFieldDipoleAntenna,
     GeometricFieldSolver,
     InteractionType,
     Material,
@@ -18,7 +20,7 @@ from differt.em import (
     materials,
     refraction_coefficients,
 )
-from differt.geometry import Mesh, TracedPaths
+from differt.geometry import Mesh, Scene, TracedPaths
 
 
 def _los_paths(tx: list[float], rx: list[float]) -> TracedPaths:
@@ -228,7 +230,8 @@ class TestGeometricFieldSolver:
                 radio_materials: Mapping[str, Material],  # ruff:ignore[unused-method-argument]
                 tx_wavefront_radius: Float[  # ruff:ignore[unused-method-argument]
                     ArrayLike, "*#batch"
-                ] = 0.0,
+                ]
+                | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]] = 0.0,
             ) -> Complex[Array, "*batch order 2 2"]:
                 shape = (*paths.interaction_types.shape, 2, 2)
                 return jnp.broadcast_to(jnp.eye(2, dtype=complex), shape)
@@ -355,6 +358,187 @@ class TestNonPlanarWavefront:
         expected = compute_received_fields(paths, mesh, 1e9)
 
         chex.assert_trees_all_close(got, expected)
+
+    def test_astigmatic_tuple_matches_scalar_when_radii_equal(self) -> None:
+        # A '(rho, rho)' tuple must be exactly equivalent to passing 'rho'
+        # alone, for any interaction type (here: two reflections).
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.REFLECTION,
+        )
+        mesh = _ground_plane_mesh("Metal")
+
+        got = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radius=(4.0, 4.0))
+        expected = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radius=4.0)
+
+        chex.assert_trees_all_close(got, expected)
+
+    def test_astigmatic_go_matches_two_radii_spreading_formula(self) -> None:
+        # For a path with no diffraction interaction (here: LoS), the
+        # amplitude must follow the general astigmatic ray-tube spreading
+        # factor 1/sqrt((rho_s + s)(rho_p + s)) exactly, per the two
+        # independent principal radii (see 'spreading_factor').
+        mesh = Mesh.empty()
+        frequency = 3.5e9
+        tx, rx = jnp.array([0.0, 0.0, 0.0]), jnp.array([10.0, 0.0, 0.0])
+        rho_s, rho_p = 3.0, 8.0
+
+        paths = _los_paths(tx, rx)
+        got = compute_received_fields(
+            paths, mesh, frequency, tx_wavefront_radius=(rho_s, rho_p)
+        )
+        isotropic = compute_received_fields(
+            paths, mesh, frequency, tx_wavefront_radius=5.0
+        )
+
+        s_tot = 10.0
+        expected_ratio = jnp.sqrt(
+            ((s_tot + 5.0) ** 2) / ((s_tot + rho_s) * (s_tot + rho_p))
+        )
+
+        chex.assert_trees_all_close(
+            jnp.abs(got), jnp.abs(isotropic) * expected_ratio, rtol=1e-5
+        )
+
+    def test_astigmatic_with_diffraction_raises(self) -> None:
+        # Genuinely astigmatic sources (rho_s != rho_p) are not supported
+        # together with a DIFFRACTION interaction, since that would
+        # require tracking the wavefront's principal-axis orientation
+        # along the path, not just its two radii.
+        vertices = jnp.array([
+            [0.0, -30.0, -15.0],
+            [0.0, -30.0, 15.0],
+            [0.0, 0.0, 15.0],
+            [0.0, 0.0, -15.0],
+            [30.0, 0.0, 15.0],
+            [30.0, 0.0, -15.0],
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3], [3, 2, 4], [3, 4, 5]])
+        wedge = Mesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_materials=jnp.array([0, 0, 0, 0]),
+            material_names=("Concrete",),
+        )
+        paths = TracedPaths(
+            vertices=jnp.array([
+                [[-10.0, -5.0, 0.0], [0.0, 0.0, 0.0], [5.0, 10.0, 0.0]]
+            ]),
+            objects=jnp.array([[-1, 5, -1]]),
+            mask=jnp.array([True]),
+            interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
+        )
+
+        with pytest.raises(Exception, match="astigmatic"):
+            compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radius=(3.0, 8.0))
+
+    def test_planar_go_path_has_no_spreading(self) -> None:
+        # A plane wave does not spread at all: the spreading factor must
+        # be exactly 1, regardless of the path length, for a path with no
+        # DIFFRACTION interaction (here: LoS).
+        solver = GeometricFieldSolver()
+        for length in (1.0, 100.0, 1e6):
+            paths = _los_paths([0.0, 0.0, 0.0], [length, 0.0, 0.0])
+            got = solver.spreading_factor(paths, tx_wavefront_radius=None)
+            chex.assert_trees_all_close(got, jnp.ones_like(got))
+
+    def test_planar_diffraction_path_has_cylindrical_spreading(self) -> None:
+        # A plane wave diffracting off a straight edge produces a
+        # cylindrical wave beyond the edge, i.e., a spreading factor of
+        # 1/sqrt(s_after), independent of any (infinite) incident
+        # distance -- not the naive (and incorrect, vanishing) limit of
+        # the point-source formula as the incident distance grows.
+        solver = GeometricFieldSolver()
+        s_after = 7.0
+        paths = _single_bounce_paths(
+            [-100.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, s_after, 0.0],
+            InteractionType.DIFFRACTION,
+        )
+        got = solver.spreading_factor(paths, tx_wavefront_radius=None)
+        expected = 1.0 / jnp.sqrt(s_after)
+        chex.assert_trees_all_close(got[0], expected)
+
+    def test_planar_does_not_raise_with_diffraction(self) -> None:
+        # Unlike an astigmatic '(rho_s, rho_p)' tuple, a planar wavefront
+        # (None) is supported together with a DIFFRACTION interaction.
+        vertices = jnp.array([
+            [0.0, -30.0, -15.0],
+            [0.0, -30.0, 15.0],
+            [0.0, 0.0, 15.0],
+            [0.0, 0.0, -15.0],
+            [30.0, 0.0, 15.0],
+            [30.0, 0.0, -15.0],
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3], [3, 2, 4], [3, 4, 5]])
+        wedge = Mesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_materials=jnp.array([0, 0, 0, 0]),
+            material_names=("Concrete",),
+        )
+        paths = TracedPaths(
+            vertices=jnp.array([
+                [[-10.0, -5.0, 0.0], [0.0, 0.0, 0.0], [5.0, 10.0, 0.0]]
+            ]),
+            objects=jnp.array([[-1, 5, -1]]),
+            mask=jnp.array([True]),
+            interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
+        )
+
+        fields = compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radius=None)
+        assert jnp.all(jnp.isfinite(fields))
+
+    def test_far_field_antenna_overrides_tx_wavefront_radius(self) -> None:
+        # When 'tx_polarization' is an Antenna, its own 'wavefront_radii'
+        # takes precedence over the explicit 'tx_wavefront_radius'
+        # argument -- here, a 'FarFieldDipoleAntenna' always reports a
+        # planar wavefront, so passing a (very different) explicit radius
+        # must have no effect at all.
+        paths = _los_paths([0.0, 0.0, 0.0], [50.0, 0.0, 0.0])
+        mesh = Mesh.empty()
+        frequency = 1e9
+        antenna = FarFieldDipoleAntenna(frequency=frequency)
+
+        got_default = compute_received_fields(
+            paths, mesh, frequency, tx_polarization=antenna
+        )
+        got_explicit = compute_received_fields(
+            paths, mesh, frequency, tx_polarization=antenna, tx_wavefront_radius=42.0
+        )
+
+        chex.assert_trees_all_close(got_default, got_explicit)
+
+        # And it must indeed differ from a plain (non-far-field) Dipole
+        # sharing the same physical parameters, since that one reports a
+        # spherical (not planar) wavefront.
+        near_field_antenna = Dipole(frequency=frequency)
+        got_near_field = compute_received_fields(
+            paths, mesh, frequency, tx_polarization=near_field_antenna
+        )
+        assert not jnp.allclose(got_default, got_near_field)
+
+    def test_dipole_at_tx_position_matches_point_source_spreading(self) -> None:
+        # A Dipole centered exactly at the transmitter (the typical usage)
+        # reports a wavefront radius of 0 there, i.e., the same spreading
+        # behavior as the default point source -- using an Antenna as
+        # 'tx_polarization' must not, by itself, change the spreading law.
+        tx = [0.0, 0.0, 0.0]
+        rx = [50.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+
+        dipole = Dipole(frequency=frequency, center=jnp.array(tx))
+        chex.assert_trees_all_close(
+            dipole.wavefront_radii(jnp.array(tx)), jnp.array(0.0)
+        )
+
+        fields = compute_received_fields(paths, mesh, frequency, tx_polarization=dipole)
+        assert jnp.all(jnp.isfinite(fields))
 
 
 class TestTransmissionMatrix:
@@ -491,6 +675,98 @@ class TestDiffractionAgainstSionna:
         expected = expected_a * jnp.exp(-1j * 2 * jnp.pi * frequency * tau)
 
         chex.assert_trees_all_close(a[0], expected, rtol=1e-2)
+
+
+class TestShadowBoundaryContinuity:
+    """
+    Regression tests for the continuity of the total (LoS + reflection +
+    diffraction) field across the incident and reflection shadow
+    boundaries (ISB/RSB), for the canonical 90-degree wedge corner (see
+    :class:`TestDiffractionAgainstSionna`). Uniform Theory of Diffraction
+    is specifically designed to keep this total field continuous (unlike
+    plain geometrical optics, which drops discontinuously to/from zero at
+    these boundaries); a previous implementation had a bug (an
+    incorrectly clipped material thickness, see
+    :meth:`GeometricFieldSolver.diffraction_matrix<differt.em.GeometricFieldSolver.diffraction_matrix>`)
+    that broke this continuity specifically for materials with no
+    explicit thickness set (i.e., the common case, since
+    :data:`materials<differt.em.materials>`'s built-in materials never set
+    one).
+    """
+
+    def _wedge_mesh(self) -> Mesh:
+        vertices = jnp.array([
+            [0.0, -30.0, -15.0],
+            [0.0, -30.0, 15.0],
+            [0.0, 0.0, 15.0],
+            [0.0, 0.0, -15.0],
+            [30.0, 0.0, 15.0],
+            [30.0, 0.0, -15.0],
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3], [3, 2, 4], [3, 4, 5]])
+        return Mesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_materials=jnp.array([0, 0, 0, 0]),
+            material_names=("Concrete",),
+        )
+
+    def test_reflection_shadow_boundary_is_continuous(self) -> None:
+        wedge = self._wedge_mesh()
+        frequency = 3.5e9
+        tx = jnp.array([-10.0, -5.0, 0.0])
+
+        # A window straddling the RSB (found, for this geometry, at ~153.43
+        # deg), fine enough to resolve the transition without being so fine
+        # that float32 positions on either side of the boundary round to
+        # the same value.
+        angle = jnp.radians(jnp.linspace(150.0, 158.0, 4000))
+        rx = 15.0 * jnp.stack(
+            [jnp.cos(angle), jnp.sin(angle), jnp.zeros_like(angle)], axis=-1
+        )
+
+        scene = Scene(transmitters=tx, receivers=rx, mesh=wedge)
+        los_paths = cast("TracedPaths", scene.trace_paths(order=0))
+        refl_paths = cast("TracedPaths", scene.trace_paths(order=1))
+        refl_valid = jnp.any(refl_paths.mask, axis=-1)
+        (transition_idx,) = jnp.nonzero(jnp.diff(refl_valid.astype(int)))
+        assert transition_idx.size > 0, "expected an RSB within the sampled window"
+        idx = transition_idx[0]
+
+        los_field = compute_received_fields(los_paths, wedge, frequency)[..., 0]
+        refl_field = compute_received_fields(refl_paths, wedge, frequency).sum(axis=-1)
+        diffraction_point = jnp.zeros(3)
+        diffraction_paths = TracedPaths(
+            vertices=jnp.stack(
+                [
+                    jnp.broadcast_to(tx, rx.shape),
+                    jnp.broadcast_to(diffraction_point, rx.shape),
+                    rx,
+                ],
+                axis=-2,
+            ),
+            objects=jnp.stack(
+                [
+                    -jnp.ones(rx.shape[0], dtype=int),
+                    jnp.full(rx.shape[0], 5, dtype=int),
+                    -jnp.ones(rx.shape[0], dtype=int),
+                ],
+                axis=-1,
+            ),
+            mask=jnp.ones(rx.shape[0], dtype=bool),
+            interaction_types=jnp.full((rx.shape[0], 1), InteractionType.DIFFRACTION),
+        )
+        diff_field = compute_received_fields(diffraction_paths, wedge, frequency)
+
+        total_power = compute_received_power(los_field + refl_field + diff_field)
+
+        # Right at the boundary, the total field must stay continuous (a
+        # small residual step from discretizing a steep-but-continuous
+        # transition is expected -- empirically ~0.07 dB at this
+        # resolution -- but nowhere near the ~0.4 dB this regression test
+        # would have caught before the fix).
+        jump = jnp.abs(total_power[idx + 1] - total_power[idx])
+        assert jump < 0.15, f"discontinuous jump of {jump:.3f} dB at the RSB"
 
 
 class TestScatteringMatrix:

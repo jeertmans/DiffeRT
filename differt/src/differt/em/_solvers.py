@@ -19,6 +19,34 @@ from ._utd import diffraction_coefficients
 from ._utils import sp_directions, sp_rotation_matrix
 
 
+def _wavefront_radii(
+    tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+    | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+    | None,
+) -> tuple[Float[Array, "*batch"], Float[Array, "*batch"]] | None:
+    """
+    Split a wavefront-radius argument into its two principal (s- and p-plane) radii.
+
+    A single value describes an isotropic (spherical) wavefront, i.e., both
+    principal radii equal that value; a ``(rho_s, rho_p)`` tuple describes a
+    general astigmatic wavefront, with each element broadcastable against
+    the paths' batch dimensions; :data:`None` describes a planar wavefront
+    (this is a static, Python-level choice, not a traced value, so it is
+    safe to branch on under :func:`jax.jit`).
+
+    Returns:
+        The ``(rho_s, rho_p)`` pair of principal radii, or :data:`None`
+        for a planar wavefront.
+    """
+    if tx_wavefront_radius is None:
+        return None
+    if isinstance(tx_wavefront_radius, tuple):
+        rho_s, rho_p = tx_wavefront_radius
+        return jnp.asarray(rho_s), jnp.asarray(rho_p)
+    rho = jnp.asarray(tx_wavefront_radius)
+    return rho, rho
+
+
 @jax.jit
 def _get_reflection_coefficients(
     n_r: Complex[Array, "*batch"],
@@ -348,28 +376,38 @@ class GeometricFieldSolver(AbstractFieldSolver):
         ``tx_wavefront_radius`` argument threaded through
         :meth:`compute_fields`, :meth:`transition_matrices`,
         :meth:`diffraction_matrix`, and :meth:`spreading_factor` (all
-        overridable): a chain of flat-mirror reflections keeps a spherical
-        wavefront spherical (only the *total* path length, plus
-        ``tx_wavefront_radius``, matters, regardless of order), and, for at
-        most one diffraction interaction anywhere along the path, the
-        UTD distance parameter and the post-diffraction (cylindrical)
-        spreading factor both use the *cumulative* path length up to that
-        point, plus ``tx_wavefront_radius``.
+        overridable). It accepts either a single value, for an isotropic
+        (spherical) wavefront, or a ``(rho_s, rho_p)`` tuple, for a general
+        **astigmatic** wavefront with unequal principal radii along the
+        s- and p-planes: a chain of flat-mirror reflections and/or
+        transmissions leaves both principal radii unchanged (only the
+        *total* path length, plus each of ``rho_s``/``rho_p``, matters,
+        regardless of order), since neither interaction does anything but
+        fold the ray direction (for a flat mirror) or leave it unchanged
+        (for a thin transmitting slab).
 
-        This only tracks an isotropic radius, not the fully general
-        astigmatic (two-independent-principal-radii) case: a path with a
-        diffraction bounce followed by further interactions would, in
-        general, need to track the diffracted wavefront's curvature
-        onward, since diffraction turns even an initially-spherical
-        wavefront astigmatic, which ``tx_wavefront_radius`` alone cannot
-        represent past that first diffraction; :func:`L_i<differt.em.L_i>`
-        already accepts the general astigmatic case (``rho_1_i``,
-        ``rho_2_i``, ``rho_e_i``) for whoever wants to extend
-        :meth:`diffraction_matrix` that far. Sionna RT has no equivalent
-        feature to compare against; ``tx_wavefront_radius``'s correctness
-        instead rests on the geometric argument above (also checked
-        against the equivalent of physically moving the transmitter back
-        by ``tx_wavefront_radius``, see the test suite).
+        An astigmatic ``tx_wavefront_radius`` combined with at most one
+        diffraction interaction anywhere along the path is **not**
+        currently supported (and raises at runtime, via
+        :func:`equinox.error_if`): computing the diffraction point's
+        edge-fixed radius of curvature would require tracking the
+        wavefront's principal-axis orientation along the path, not just
+        its two radii. For a single *isotropic* radius, the existing
+        behavior is unchanged: the UTD distance parameter and the
+        post-diffraction (cylindrical) spreading factor both use the
+        *cumulative* path length up to the diffraction point, plus
+        ``tx_wavefront_radius``. This also only tracks the wavefront up to
+        the first diffraction: a path with a diffraction bounce followed
+        by further interactions would, in general, need to track the
+        diffracted wavefront's curvature onward, since diffraction turns
+        even an initially-spherical wavefront astigmatic;
+        :func:`L_i<differt.em.L_i>` already accepts the general astigmatic
+        case (``rho_1_i``, ``rho_2_i``, ``rho_e_i``) for whoever wants to
+        extend :meth:`diffraction_matrix` that far. Sionna RT has no
+        equivalent feature to compare against; ``tx_wavefront_radius``'s
+        correctness instead rests on the geometric argument above (also
+        checked against the equivalent of physically moving the
+        transmitter back by ``tx_wavefront_radius``, see the test suite).
     """
 
     supported_interaction_types: ClassVar[frozenset[InteractionType]] = frozenset({
@@ -393,7 +431,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         radio_materials: Mapping[str, Material],
         tx_wavefront_radius: Float[  # ruff:ignore[unused-method-argument]
             ArrayLike, "*#batch"
-        ] = 0.0,
+        ]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch order 2 2"]:
         """
         Compute the per-bounce reflection transition matrix, for every bounce.
@@ -409,10 +449,11 @@ class GeometricFieldSolver(AbstractFieldSolver):
             mesh: The triangle mesh of the scene.
             frequency: The operating frequency (or frequencies) in Hz.
             radio_materials: The mapping of material properties.
-            tx_wavefront_radius: Unused (a flat mirror reflects a
-                spherical wavefront into another spherical wavefront, so
-                only the total path length matters, see
-                :meth:`spreading_factor`); accepted for a uniform
+            tx_wavefront_radius: Unused (a flat mirror leaves a
+                wavefront's principal radii of curvature unchanged --
+                spherical or astigmatic alike -- so only the total path
+                length matters, see :meth:`spreading_factor`); accepted
+                for a uniform
                 ``*_matrix`` signature across interaction types.
 
         Returns:
@@ -462,7 +503,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         mesh: Mesh,
         frequency: Float[ArrayLike, "*#batch"],
         radio_materials: Mapping[str, Material],
-        tx_wavefront_radius: Float[ArrayLike, "*#batch"] = 0.0,
+        tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch order 2 2"]:
         r"""
         Compute the per-bounce diffraction transition matrix, for every bounce.
@@ -495,12 +538,16 @@ class GeometricFieldSolver(AbstractFieldSolver):
                 wavefront at the transmitter, for a non-planar (near-field)
                 source (e.g., a focused beam); ``0`` (the default)
                 corresponds to an ideal point source, i.e., a wavefront
-                that is already spherical (planar-wave incidence
-                corresponds to the limit :math:`\rho_0 \to \infty`, not
-                representable here, but negligible for a source far enough
-                away that ``tx_wavefront_radius`` barely changes the
-                result). Only affects a ``DIFFRACTION`` bounce that is the
-                *first* interaction along a path; see the note in
+                that is already spherical. :data:`None` (a planar
+                wavefront, the :math:`\rho_0 \to \infty` limit) is also
+                supported here (unlike an astigmatic ``(rho_s, rho_p)``
+                tuple, which is not, and must not be used with a
+                ``DIFFRACTION`` bounce -- see :meth:`spreading_factor`),
+                using the well-known plane-wave-incidence distance
+                parameter formula, rather than evaluating the general one
+                at :math:`\rho_0 \to \infty` (which would give a 0/0
+                division). Only affects a ``DIFFRACTION`` bounce that is
+                the *first* interaction along a path; see the note in
                 :class:`GeometricFieldSolver`.
 
         Returns:
@@ -580,14 +627,40 @@ class GeometricFieldSolver(AbstractFieldSolver):
         # transmitter; only add 'tx_wavefront_radius' when this bounce is
         # the *first* interaction (order index 0), since it is only there
         # that 's_prime' is the distance from the transmitter itself.
+        radii = _wavefront_radii(tx_wavefront_radius)
         is_first_bounce = jnp.arange(s_prime.shape[-1]) == 0
-        rho_i = s_prime + jnp.where(
-            is_first_bounce, jnp.asarray(tx_wavefront_radius)[..., None], 0.0
-        )
 
-        L = (  # ruff:ignore[non-lowercase-variable-in-function]
-            safe_divide(rho_i * s_out, rho_i + s_out) * sin_beta_0**2
-        )
+        if radii is None:
+            # A planar wavefront has no associated point-source distance to
+            # add; for a first-bounce diffraction, this is exactly the
+            # well-known plane-wave-incidence formula (the radii-based
+            # formula below is not simply evaluated at 'rho_i -> inf', which
+            # would be a 0/0 (NaN) division).
+            L_planar = s_out * sin_beta_0**2  # ruff:ignore[non-lowercase-variable-in-function]
+            L_other = safe_divide(s_prime * s_out, s_prime + s_out) * sin_beta_0**2  # ruff:ignore[non-lowercase-variable-in-function]
+            L = jnp.where(is_first_bounce, L_planar, L_other)  # ruff:ignore[non-lowercase-variable-in-function]
+        else:
+            rho_s, rho_p = radii
+            # This method runs on every bounce (its result is discarded
+            # later, based on 'interaction_types'), so only complain when an
+            # astigmatic radius is combined with an *actual* DIFFRACTION
+            # bounce.
+            is_actual_diffraction = (
+                paths.interaction_types == InteractionType.DIFFRACTION
+            )
+            rho_s = eqx.error_if(
+                rho_s,
+                jnp.any(is_actual_diffraction) & jnp.any(rho_s != rho_p),
+                "An astigmatic 'tx_wavefront_radius' (a '(rho_s, rho_p)' tuple "
+                "with 'rho_s != rho_p') is not currently supported for a "
+                "DIFFRACTION interaction; pass a single (spherical) value "
+                "instead.",
+            )
+            rho_i = s_prime + jnp.where(is_first_bounce, rho_s[..., None], 0.0)
+
+            L = (  # ruff:ignore[non-lowercase-variable-in-function]
+                safe_divide(rho_i * s_out, rho_i + s_out) * sin_beta_0**2
+            )
 
         n_complex, thickness = _material_arrays(mesh, radio_materials, frequency)
         mat0_idx = jnp.take(mesh.face_materials, prim0, axis=0)
@@ -595,13 +668,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
         n_r_o = _take_material_property(n_complex, mat0_idx)
         n_r_n = _take_material_property(n_complex, matn_idx)
         # A material with no explicit thickness uses the '-1' sentinel
-        # (meaning "infinite half-space", see '_material_arrays'); unlike
-        # for REFLECTION, that convention does not apply to a wedge face, so
-        # treat it as zero thickness instead (rather than feeding a
-        # negative thickness into the slab formula, which can overflow to
-        # NaN for highly lossy materials).
-        d_o = jnp.maximum(jnp.take(thickness, mat0_idx, axis=0), 0.0)
-        d_n = jnp.maximum(jnp.take(thickness, matn_idx, axis=0), 0.0)
+        # (meaning "infinite half-space", see '_material_arrays'); passed
+        # through as-is, 'diffraction_coefficients' resolves this sentinel
+        # per-element the same way '_get_reflection_coefficients' does for
+        # plain REFLECTION.
+        d_o = jnp.take(thickness, mat0_idx, axis=0)
+        d_n = jnp.take(thickness, matn_idx, axis=0)
 
         wavenumber = jnp.broadcast_to(2.0 * jnp.pi * frequency / c, wedge_n.shape)
         D_s, D_h = diffraction_coefficients(  # ruff:ignore[non-lowercase-variable-in-function]
@@ -646,7 +718,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         radio_materials: Mapping[str, Material],
         tx_wavefront_radius: Float[  # ruff:ignore[unused-method-argument]
             ArrayLike, "*#batch"
-        ] = 0.0,
+        ]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch order 2 2"]:
         r"""
         Compute the per-bounce diffuse scattering transition matrix, for every bounce.
@@ -772,7 +846,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         radio_materials: Mapping[str, Material],
         tx_wavefront_radius: Float[  # ruff:ignore[unused-method-argument]
             ArrayLike, "*#batch"
-        ] = 0.0,
+        ]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch order 2 2"]:
         """
         Compute the per-bounce transmission transition matrix, for every bounce.
@@ -857,7 +933,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         mesh: Mesh,
         frequency: Float[ArrayLike, "*#batch"],
         radio_materials: Mapping[str, Material],
-        tx_wavefront_radius: Float[ArrayLike, "*#batch"] = 0.0,
+        tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch order 2 2"]:
         """
         Compute one transition matrix per bounce, dispatching on the bounce's interaction type.
@@ -923,9 +1001,11 @@ class GeometricFieldSolver(AbstractFieldSolver):
         tx_polarization: Any = "V",
         rx_polarization: Any = "V",
         radio_materials: Mapping[str, Material] | None = None,
-        tx_wavefront_radius: Float[ArrayLike, "*#batch"] = 0.0,
+        tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Complex[Array, "*batch"]:
-        """
+        r"""
         Compute the received complex fields for each path.
 
         Args:
@@ -947,16 +1027,40 @@ class GeometricFieldSolver(AbstractFieldSolver):
                 dimension, broadcastable against ``paths``' batch
                 dimensions (:class:`Antenna<differt.em.Antenna>` is a
                 :class:`equinox.Module`, so this works out of the box).
+
+                When this is an :class:`Antenna<differt.em.Antenna>`
+                instance, its :meth:`Antenna.wavefront_radii
+                <differt.em.Antenna.wavefront_radii>` is used *instead of*
+                ``tx_wavefront_radius`` below (which is only used as a
+                fallback for a plain polarization string/vector, since
+                those carry no wavefront-curvature information of their
+                own).
             rx_polarization: The receiver antenna polarization or pattern.
 
                 See ``tx_polarization``.
             radio_materials: The mapping of material properties.
 
                 Defaults to :data:`materials<differt.em._material.materials>`.
-            tx_wavefront_radius: The radius of curvature of the incident
-                wavefront at the transmitter, for a non-planar (near-field)
-                source; ``0`` (the default) is an ideal point source. See
-                :meth:`diffraction_matrix` and :meth:`spreading_factor`.
+            tx_wavefront_radius: The radius (or radii) of curvature of the
+                incident wavefront at the transmitter, for a non-planar
+                (near-field) source. This is a distance, and ``0`` and
+                :data:`None` are its two opposite limits, *not* two ways
+                of saying the same thing: ``0`` (the default) is the
+                near-distance limit, an ideal point source located
+                exactly at the transmitter; :data:`None` is the
+                far-distance limit (:math:`\rho_0 \to \infty`), an ideal
+                plane wave, e.g., a source far enough away that its
+                curvature is negligible -- see
+                :class:`FarFieldAntenna<differt.em.FarFieldAntenna>`.
+                Either of those, a single finite value (spherical
+                wavefront), or a ``(rho_s, rho_p)`` tuple (astigmatic
+                wavefront, with unequal principal radii along the s- and
+                p-planes -- not supported together with a ``DIFFRACTION``
+                interaction) may be passed. Ignored when
+                ``tx_polarization`` is an
+                :class:`Antenna<differt.em.Antenna>` instance -- see
+                ``tx_polarization`` above. See :meth:`diffraction_matrix`
+                and :meth:`spreading_factor`.
 
         Returns:
             The received complex fields of shape ``*batch``.
@@ -983,6 +1087,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
             e_theta = jnp.sum(e_dir * theta_hat_0, axis=-1)
             e_phi = jnp.sum(e_dir * phi_hat_0, axis=-1)
             e_field = jnp.stack([e_theta, e_phi], axis=-1)
+            if hasattr(tx_polarization, "wavefront_radii"):
+                # The antenna's own curvature, evaluated at the transmitter
+                # itself, takes precedence over the 'tx_wavefront_radius'
+                # argument (which only exists as a fallback for a plain
+                # polarization string/vector, with no antenna to ask).
+                tx_wavefront_radius = tx_polarization.wavefront_radii(T)
         elif tx_polarization == "V":
             e_field = jnp.stack(
                 [jnp.ones(theta_hat_0.shape[:-1]), jnp.zeros(theta_hat_0.shape[:-1])],
@@ -1043,10 +1153,18 @@ class GeometricFieldSolver(AbstractFieldSolver):
         # The virtual source is 'tx_wavefront_radius' further away than the
         # transmitter itself, along the first segment's direction, so the
         # wave accumulates that much extra propagation phase too (same
-        # total distance that already enters 'spreading_factor' above).
-        phase_val = (
-            -2.0 * jnp.pi * frequency * (s_tot + jnp.asarray(tx_wavefront_radius)) / c
-        )
+        # total distance that already enters 'spreading_factor' above). For
+        # an astigmatic source, the two principal radii generally do not
+        # correspond to a single virtual point source, so their mean is
+        # used as a reasonable single extra-distance value for phase
+        # purposes; this reduces to the exact spherical-source result when
+        # both radii are equal (the default, and the only case combined
+        # with a DIFFRACTION interaction). A planar wavefront has no
+        # associated point-source distance at all, so no extra phase is
+        # added in that case.
+        radii = _wavefront_radii(tx_wavefront_radius)
+        extra_distance = 0.5 * (radii[0] + radii[1]) if radii is not None else 0.0
+        phase_val = -2.0 * jnp.pi * frequency * (s_tot + extra_distance) / c
         phase_shift = jax.lax.complex(jnp.cos(phase_val), jnp.sin(phase_val))
 
         a_r = a_r * spreading_factor * phase_shift
@@ -1057,40 +1175,73 @@ class GeometricFieldSolver(AbstractFieldSolver):
     def spreading_factor(  # ruff:ignore[no-self-use]
         self,
         paths: TracedPaths,
-        tx_wavefront_radius: Float[ArrayLike, "*#batch"] = 0.0,
+        tx_wavefront_radius: Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | None = 0.0,
     ) -> Float[Array, "*batch"]:
         r"""
         Compute the wavefront spreading factor for each path.
 
-        For a path with no diffraction interaction, this is the usual
-        spherical-wave spreading, :math:`1/L`, where :math:`L` is the
-        total path length (plus ``tx_wavefront_radius``, for a non-planar
-        source). For a path containing a diffraction interaction, the
-        wavefront becomes cylindrical past the diffraction point, and the
-        spreading factor becomes :math:`1/\sqrt{\rho^i s(\rho^i+s)}`,
-        where :math:`\rho^i` is the incident wavefront's radius of
-        curvature at the diffraction point (the cumulative path length
-        before it, plus ``tx_wavefront_radius`` if it is the first
-        interaction) and :math:`s` is the path length after it, matching
-        Sionna RT's model when ``tx_wavefront_radius`` is left at its
-        default of ``0``.
+        For a path with no diffraction interaction, this is the general
+        astigmatic-ray-tube spreading factor,
+        :math:`1/\sqrt{(\rho_s+L)(\rho_p+L)}`, where :math:`L` is the
+        total path length and :math:`\rho_s`, :math:`\rho_p` are the
+        wavefront's two principal radii of curvature at the transmitter
+        (plus ``tx_wavefront_radius``, for a non-planar source); this is
+        exact for any chain of flat-mirror reflections and/or
+        transmissions, regardless of how many interactions the path has,
+        since neither changes a wavefront's principal radii (only a flat
+        mirror's image-method folds the ray direction). If
+        ``tx_wavefront_radius`` is :data:`None` (a planar wavefront), this
+        is instead exactly ``1`` (a plane wave does not spread at all).
+
+        For a path containing a diffraction interaction, the wavefront
+        becomes cylindrical past the diffraction point, and the spreading
+        factor becomes :math:`1/\sqrt{\rho^i s(\rho^i+s)}`, where
+        :math:`\rho^i` is the incident wavefront's radius of curvature at
+        the diffraction point (the cumulative path length before it, plus
+        ``tx_wavefront_radius`` if it is the first interaction) and
+        :math:`s` is the path length after it, matching Sionna RT's model
+        when ``tx_wavefront_radius`` is left at its default of ``0``. For
+        a planar wavefront, this is instead :math:`1/\sqrt{s}`, the
+        classic cylindrical-spreading law for an edge illuminated by a
+        plane wave (:math:`\rho^i \to \infty` independently of :math:`s`,
+        unlike the amplitude, which would incorrectly vanish if this
+        limit were taken naively).
 
         Only a single diffraction interaction per path is currently
         supported; override this method to support multiple diffractions
-        (or other custom wavefront models) per path.
+        (or other custom wavefront models) per path. A genuinely
+        astigmatic source (unequal principal radii) combined with a
+        diffraction interaction is not currently supported either --
+        computing the diffraction point's edge-fixed radius of curvature
+        would require tracking the wavefront's principal-axis orientation
+        along the path, not just its two radii -- and raises at runtime.
 
         Args:
             paths: The paths.
-            tx_wavefront_radius: The radius of curvature of the incident
-                wavefront at the transmitter, for a non-planar (near-field)
-                source; ``0`` (the default) corresponds to an ideal point
-                source and matches Sionna RT's (point-source-only) model.
-                Added once to the cumulative path length before the
+            tx_wavefront_radius: The radius (or radii) of curvature of the
+                incident wavefront at the transmitter, for a non-planar
+                (near-field) source. This is a distance, and ``0`` and
+                :data:`None` are its two opposite limits, *not* two ways
+                of saying the same thing: ``0`` (the default) is the
+                near-distance limit, an ideal point source located
+                exactly at the transmitter, matching Sionna RT's
+                (point-source-only) model; :data:`None` is the
+                far-distance limit (:math:`\rho_0 \to \infty`), an ideal
+                plane wave, e.g., a source far enough away that its
+                curvature is negligible -- see
+                :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
+                and :class:`FarFieldAntenna<differt.em.FarFieldAntenna>`.
+                Either of those, a single finite value (an isotropic,
+                spherical wavefront, i.e., both principal radii equal
+                that value), or a ``(rho_s, rho_p)`` tuple (a general
+                astigmatic wavefront) may be passed. Added once to the
+                cumulative path length before the
                 (single) diffraction interaction if there is one,
                 otherwise to the total path length -- correct for a chain
-                of flat-mirror reflections (which keep a spherical
-                wavefront spherical) around at most one diffraction, at
-                any position along the path.
+                of flat-mirror reflections and/or transmissions around at
+                most one diffraction, at any position along the path.
 
         Returns:
             The spreading factor for each path.
@@ -1099,23 +1250,54 @@ class GeometricFieldSolver(AbstractFieldSolver):
         _, s = normalize(path_segments, keepdims=True)
         s = s[..., 0]
         s_tot = s.sum(axis=-1)
-        tx_wavefront_radius = jnp.asarray(tx_wavefront_radius)
+        radii = _wavefront_radii(tx_wavefront_radius)
+
+        if radii is None:
+            if paths.order == 0:
+                return jnp.ones_like(s_tot)
+
+            is_diffraction = paths.interaction_types == InteractionType.DIFFRACTION
+            has_diffraction = jnp.any(is_diffraction, axis=-1)
+
+            diffraction_index = jnp.argmax(is_diffraction, axis=-1)
+            segment_index = jnp.arange(s.shape[-1])
+            is_before = segment_index <= diffraction_index[..., None]
+            s_after = jnp.sum(jnp.where(~is_before, s, 0.0), axis=-1)
+
+            spreading_diffraction = safe_divide(1.0, jnp.sqrt(s_after))
+            spreading_go = jnp.ones_like(s_tot)
+
+            return jnp.where(has_diffraction, spreading_diffraction, spreading_go)
+
+        rho_s, rho_p = radii
 
         if paths.order == 0:
-            return safe_divide(1.0, s_tot + tx_wavefront_radius)
+            return safe_divide(1.0, jnp.sqrt((s_tot + rho_s) * (s_tot + rho_p)))
 
         is_diffraction = paths.interaction_types == InteractionType.DIFFRACTION
         has_diffraction = jnp.any(is_diffraction, axis=-1)
 
+        is_astigmatic = jnp.any(rho_s != rho_p)
+        rho_s = eqx.error_if(
+            rho_s,
+            jnp.any(has_diffraction) & is_astigmatic,
+            "An astigmatic 'tx_wavefront_radius' (a '(rho_s, rho_p)' tuple with "
+            "'rho_s != rho_p') is not currently supported for a path containing a "
+            "DIFFRACTION interaction; pass a single (spherical) value instead.",
+        )
+        # In the (only currently supported) case reaching this point without
+        # erroring, either 'rho_s == rho_p' (isotropic) for every path with a
+        # diffraction interaction, or no path has one; either way, 'rho_s'
+        # alone is the correct radius to use below.
         diffraction_index = jnp.argmax(is_diffraction, axis=-1)
         segment_index = jnp.arange(s.shape[-1])
         is_before = segment_index <= diffraction_index[..., None]
-        s_prime = jnp.sum(jnp.where(is_before, s, 0.0), axis=-1) + tx_wavefront_radius
+        s_prime = jnp.sum(jnp.where(is_before, s, 0.0), axis=-1) + rho_s
         s_after = jnp.sum(jnp.where(~is_before, s, 0.0), axis=-1)
 
         spreading_diffraction = safe_divide(
             1.0, jnp.sqrt(s_prime * s_after * (s_prime + s_after))
         )
-        spreading_go = safe_divide(1.0, s_tot + tx_wavefront_radius)
+        spreading_go = safe_divide(1.0, jnp.sqrt((s_tot + rho_s) * (s_tot + rho_p)))
 
         return jnp.where(has_diffraction, spreading_diffraction, spreading_go)
