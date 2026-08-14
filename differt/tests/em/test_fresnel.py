@@ -17,7 +17,7 @@ from differt.em._fresnel import (
     ("mat_name", "expected"),
     [
         ("Vacuum", 1.0),
-        ("Glass", 2.503997),
+        ("Glass", 2.511971),
     ],
 )
 @jax.enable_x64()

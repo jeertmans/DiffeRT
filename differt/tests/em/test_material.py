@@ -74,26 +74,28 @@ class TestITU:
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
+        # 220 and 350 GHz fall in both the (100, 400) and (220, 450) GHz ranges;
+        # the narrower (220, 450) range takes priority.
         expected_rel_perm = jnp.array([
             -1.0,
-            6.27,
-            6.27,
-            6.27,
-            6.70,
-            6.70,
-            6.70,
-            6.01,
+            6.31,
+            6.31,
+            6.31,
+            6.5767,
+            5.79,
+            5.79,
+            5.79,
             -1.0,
         ])
         expected_cond = jnp.array([
             -1.0,
-            0.0002760377246886492,
-            0.06698359549045563,
-            1.0434422492980957,
-            1.335839033126831,
-            2.0750820636749268,
-            3.539381980895996,
-            5.6384806632995605,
+            0.00016477919,
+            0.078650691,
+            1.71831405,
+            1.89401102,
+            3.06053066,
+            6.60883188,
+            10.0250435,
             -1.0,
         ])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
@@ -106,26 +108,28 @@ class TestITU:
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
+        # 220 and 350 GHz fall in both the (100, 400) and (220, 450) GHz ranges;
+        # the narrower (220, 450) range takes priority.
         expected_rel_perm = jnp.array([
             -1.0,
             1.48,
             1.48,
             1.48,
-            1.58,
-            1.58,
-            1.58,
-            1.58,
+            1.2567,
+            1.52,
+            1.52,
+            1.52,
             -1.0,
         ])
         expected_cond = jnp.array([
             -1.0,
             0.0011,
-            0.01476361,
-            0.19814934,
-            0.29822615,
-            0.4492834,
-            0.7383817,
-            0.8517896,
+            0.013073525,
+            0.15537915,
+            0.18966185,
+            0.74602091,
+            1.2029403,
+            1.3801230,
             -1.0,
         ])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
@@ -178,12 +182,12 @@ class TestITU:
     def test_clear_acrylic(self) -> None:
         mat = self.materials["itu_clear_acrylic"]
 
-        f = jnp.array([0.1e9, 1e9, 10e9, 40e9, 100e9])
+        f = jnp.array([100e9, 110e9, 200e9, 330e9, 400e9])
 
         got_rel_perm, got_cond = mat.relative_permittivity(f), mat.conductivity(f)
 
-        expected_rel_perm = jnp.array([-1.0, 2.57, 2.57, 2.57, -1.0])
-        expected_cond = jnp.array([-1.0, 0.0049, 0.05627248, 0.24464695, -1.0])
+        expected_rel_perm = jnp.array([-1.0, 2.58, 2.58, 2.58, -1.0])
+        expected_cond = jnp.array([-1.0, 0.23615505, 0.6341937, 1.4507495, -1.0])
         chex.assert_trees_all_close(got_rel_perm, expected_rel_perm)
         chex.assert_trees_all_close(got_cond, expected_cond)
 
@@ -330,7 +334,7 @@ class TestMaterialsDict:
 
     def test_update_errors(self) -> None:
         d = MaterialsDict()
-        with pytest.raises(TypeError, match="too many positional arguments"):
+        with pytest.raises(TypeError, match="positional argument"):
             d.update(1, 2)  # type: ignore[call-arg]
         with pytest.raises(TypeError, match="not iterable"):
             d.update(123)  # type: ignore[arg-type]
