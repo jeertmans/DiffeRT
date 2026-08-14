@@ -96,9 +96,15 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Install LLVM dependencies
+    - name: Install LLVM dependencies (Linux)
       if: (matrix.os == 'ubuntu-latest') && (matrix.group != 'tests')
       run: sudo apt-get install llvm
+
+    - name: Install LLVM dependencies (macOS)
+      if: (matrix.os == 'macos-latest') && (matrix.group != 'tests')
+      run: |
+        brew install llvm
+        echo "DRJIT_LIBLLVM_PATH=$(brew --prefix llvm)/lib/libLLVM.dylib" >> "$GITHUB_ENV"
 
     - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'

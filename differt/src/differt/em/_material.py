@@ -167,44 +167,39 @@ class Material(eqx.Module):
             f_hz_flat = f_hz.ravel()
             f_ghz_flat = f_hz_flat * 1e-9
 
-            # Sort ranges by lower bound (in Hz)
             ranges_hz = [
                 (prop[4][0] * 1e9, prop[4][1] * 1e9)
                 if prop[4] is not None
                 else (-jnp.inf, jnp.inf)
                 for prop in itu_properties
             ]
-            sorted_indices = sorted(
-                range(len(ranges_hz)), key=lambda i: (ranges_hz[i][0], ranges_hz[i][1])
-            )
 
-            lower_bounds_hz = jnp.array([ranges_hz[i][0] for i in sorted_indices])
-            upper_bounds_hz = jnp.array([ranges_hz[i][1] for i in sorted_indices])
+            lower_bounds_hz = jnp.array([r[0] for r in ranges_hz])
+            upper_bounds_hz = jnp.array([r[1] for r in ranges_hz])
+            widths_hz = upper_bounds_hz - lower_bounds_hz
 
             # Generate masks for each frequency range (in Hz)
             masks = (f_hz_flat[:, None] >= lower_bounds_hz[None, :]) & (
                 f_hz_flat[:, None] <= upper_bounds_hz[None, :]
             )
 
-            # Pick the first matching range for each frequency
-            # If outside all ranges, pick fallback index
+            # Some ranges overlap, e.g., a broad range with coarse coefficients
+            # and a narrower range with more specific coefficients. When several
+            # ranges match, prefer the narrowest (most specific) one.
             i_outside = len(itu_properties)  # Fallback index
-            i_range = jnp.arange(len(sorted_indices))
+            candidate_widths = jnp.where(masks, widths_hz[None, :], jnp.inf)
             indices = jnp.where(
-                masks,
-                i_range[None, :],
+                jnp.any(masks, axis=1),
+                jnp.argmin(candidate_widths, axis=1),
                 i_outside,
             )
-
-            # Find first True column index per row, or fallback if none match
-            indices = jnp.min(indices, axis=1)
 
             branches = [
                 lambda f, a=prop[0], b=prop[1], c=prop[2], d=prop[3]: (
                     a * (f**b),
                     c * (f**d),
                 )
-                for prop in [itu_properties[i] for i in sorted_indices]
+                for prop in itu_properties
             ]
             branches.append(
                 lambda f: (
@@ -348,33 +343,35 @@ _materials = [
     _add_material(
         "Brick",
         (3.91, 0.0, 0.0238, 0.16, (1.0, 40.0)),
-        (3.75, 0.0, 0.038, 0.0, (1.0, 10.0)),
-        (3.95, 0.0, 0.0022, 1.33, (100.0, 400.0)),
+        (4.15, 0.0, 0.0006, 1.5712, (110.0, 330.0)),
     ),
     _add_material(
         "Plasterboard",
-        (2.94, 0.0, 0.0116, 0.7076, (1.0, 100.0)),
-        (2.73, 0.0, 0.0084, 0.94, (100.0, 400.0)),
+        (2.73, 0.0, 0.0085, 0.9395, (1.0, 100.0)),
+        (2.56, 0.0, 0.0001, 1.7799, (110.0, 330.0)),
+        (2.65, 0.0, 0.0002, 1.598, (100.0, 400.0)),
     ),
     _add_material(
         "Wood",
         (1.99, 0.0, 0.0047, 1.0718, (0.001, 100.0)),
-        (1.63, 0.0, 0.0076, 1.002, (100.0, 400.0)),
+        (1.82, 0.0, 0.0040, 1.0761, (110.0, 330.0)),
+        (2.1183, 0.0, 0.0055, 1.1113, (100.0, 400.0)),
     ),
     _add_material(
         "Glass",
-        (6.27, 0.0, 0.0043, 1.1925, (0.1, 100.0)),
-        (6.70, 0.0, 0.0042, 1.15, (100.0, 400.0)),
-        (6.01, 0.0, 0.0400, 0.81, (220.0, 450.0)),
+        (6.31, 0.0, 0.0036, 1.3394, (0.1, 100.0)),
+        (6.5767, 0.0, 0.0012, 1.4697, (100.0, 400.0)),
+        (5.79, 0.0, 0.0004, 1.658, (220.0, 450.0)),
     ),
     _add_material(
         "Clear Acrylic",
-        (2.57, 0.0, 0.0049, 1.0601, (1.0, 40.0)),
+        (2.58, 0.0, 0.0001, 1.6524, (110.0, 330.0)),
     ),
     _add_material(
         "Ceiling board",
-        (1.48, 0.0, 0.0011, 1.1278, (1.0, 100.0)),
-        (1.58, 0.0, 0.0014, 1.07, (100.0, 400.0)),
+        (1.48, 0.0, 0.0011, 1.0750, (1.0, 100.0)),
+        (1.52, 0.0, 0.0029, 1.029, (220.0, 450.0)),
+        (1.2567, 0.0, 0.00013, 1.454, (100.0, 400.0)),
     ),
     _add_material(
         "Chipboard",

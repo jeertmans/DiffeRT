@@ -267,10 +267,10 @@ impl<'de> Deserialize<'de> for Material {
                     "very_dry_ground" => [0.539, 0.319, 0.223],
                     "medium_dry_ground" => [0.539, 0.181, 0.076],
                     "wet_ground" => [0.539, 0.027, 0.147],
-                    "clear_acrylic" => [0.198, 0.804, 0.818],
-                    "vinyl_tile" => [0.334, 0.046, 0.670],
-                    "carpet_tile" => [0.836, 0.419, 0.888],
-                    "asphalt_concrete" => [0.119, 0.282, 0.297],
+                    "clear_acrylic" => [0.8, 0.9, 0.95],
+                    "vinyl_tile" => [0.75, 0.75, 0.72],
+                    "carpet_tile" => [0.32, 0.35, 0.42],
+                    "asphalt_concrete" => [0.18, 0.18, 0.18],
                     _ => {
                         log::warn!(
                             "unknown material type: {type:#?}, using default color, i.e., black",
@@ -702,7 +702,7 @@ mod tests {
         let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
 
         assert_eq!(material.name, "itu_clear_acrylic");
-        assert_eq!(material.color, [0.198, 0.804, 0.818]);
+        assert_eq!(material.color, [0.8, 0.9, 0.95]);
     }
 
     #[test]
@@ -716,7 +716,7 @@ mod tests {
         let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
 
         assert_eq!(material.name, "itu_vinyl_tile");
-        assert_eq!(material.color, [0.334, 0.046, 0.670]);
+        assert_eq!(material.color, [0.75, 0.75, 0.72]);
     }
 
     #[test]
@@ -730,7 +730,7 @@ mod tests {
         let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
 
         assert_eq!(material.name, "itu_carpet_tile");
-        assert_eq!(material.color, [0.836, 0.419, 0.888]);
+        assert_eq!(material.color, [0.32, 0.35, 0.42]);
     }
 
     #[test]
@@ -744,7 +744,7 @@ mod tests {
         let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
 
         assert_eq!(material.name, "itu_asphalt_concrete");
-        assert_eq!(material.color, [0.119, 0.282, 0.297]);
+        assert_eq!(material.color, [0.18, 0.18, 0.18]);
     }
 
     #[test]

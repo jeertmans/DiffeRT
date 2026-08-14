@@ -2,7 +2,10 @@
 beartype = [
   "beartype>=0.22.9",
 ]
-codspeed = ["pytest-codspeed>=2.2.0"]
+codspeed = [
+  "jax==0.8.1",  # Versions above seem to degrade performance
+  "pytest-codspeed>=2.2.0",
+]
 cuda = [
   "jax[cuda]>=0.8.1",
 ]
@@ -13,13 +16,11 @@ dev = [
   "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
   "prek>=0.4.11",
-  "ty==0.0.40",
 ]
 docs = [
   {include-group = "beartype"},
   {include-group = "sionna"},
   "differt[all]",
-  "jax==0.8.1",  # TODO: 0.8.2 introduced metaclass for jax.Array, breaking some references in the docs
   "myst-nb>=0.17.2",
   "pillow>=12.3.0",
   "plotly<6",
@@ -39,7 +40,7 @@ profiling = [
   "tensorflow>=2.19.0",
 ]
 sionna = [
-  "sionna-rt==1.1.0;python_version<'3.14' and sys_platform=='linux'",
+  "sionna-rt",
 ]
 tests = [
   {include-group = "beartype"},
@@ -309,6 +310,7 @@ required-version = ">=0.5.26"  # See: https://github.com/astral-sh/uv/pull/11075
 
 [tool.uv.sources]
 differt = {workspace = true}
+sionna-rt = {git = "https://github.com/NVlabs/sionna-rt", rev = "aeb346fe9ed1da24ff088a7acaa02252e45779eb"}  # This commit contains two patches: (1) fixed diffraction matrix and (2) newer ITU materials
 
 [tool.uv.workspace]
 members = ["differt", "differt-core"]

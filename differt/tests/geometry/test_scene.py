@@ -55,6 +55,11 @@ class TestScene:
                     assert len(scene.mesh.object_bounds) == len(sionna_scene.shapes)
 
     def test_from_sionna(self, sionna_folder: Path, subtests: SubTests) -> None:
+        mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+        try:
+            mi.set_variant("llvm_ad_mono_polarized")
+        except (AttributeError, ImportError, RuntimeError):
+            pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
         sionna = pytest.importorskip("sionna", reason="sionna not installed")
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
@@ -1094,7 +1099,10 @@ class TestScene:
             scene.launch_paths(order=None)
 
         # compute_paths deprecation and error handling
-        with pytest.raises(ValueError, match="You must specify one of"):
+        with (
+            pytest.warns(DeprecationWarning, match="compute_paths is deprecated"),
+            pytest.raises(ValueError, match="You must specify one of"),
+        ):
             scene.compute_paths(order=None, path_candidates=None)
 
     def test_compute_tx_mlm_height_from_receivers(self) -> None:

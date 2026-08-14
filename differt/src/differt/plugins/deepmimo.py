@@ -169,50 +169,106 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 - 1
             )
 
-            if vertices.shape != self.inter_pos.shape:  # pragma: no cover
+            if (
+                vertices.shape[:2] != self.inter_pos.shape[:2]
+                or vertices.shape[-1] != self.inter_pos.shape[-1]
+            ):  # pragma: no cover
                 msg = (
                     "Cannot sort based on provided paths: shape mismatch, got "
                     f"{vertices.shape!r} but expected {self.inter_pos.shape!r}."
                 )
                 raise ValueError(msg)
 
-            max_num_interactions = self.inter.shape[-1]
-            indices = (
-                jnp.linalg
-                .norm(
-                    self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
-                    - vertices.reshape(
-                        1,
-                        -1,
-                        max_num_interactions,
-                        3,
-                    ),
-                    axis=3,
-                )
-                .sum(
-                    axis=2,
-                    initial=jnp.where(
-                        (
-                            self.inter.reshape(-1, 1, max_num_interactions)
-                            == interactions.reshape(1, -1, max_num_interactions)
-                        ).all(axis=-1),
-                        jnp.inf,
-                        0,
-                    ),
-                    where=self.inter.reshape(-1, 1, max_num_interactions) != -1,
-                )
-                .argmin(axis=1)
+            max_num_interactions = max(self.inter.shape[-1], vertices.shape[-2])
+            inter_pos = jnp.pad(
+                self.inter_pos,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - self.inter_pos.shape[-2]),
+                    (0, 0),
+                ),
+            )
+            inter = jnp.pad(
+                self.inter,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - self.inter.shape[-1]),
+                ),
+                constant_values=-1,
+            )
+            vertices_pad = jnp.pad(
+                vertices,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - vertices.shape[-2]),
+                    (0, 0),
+                ),
+            )
+            interactions_pad = jnp.pad(
+                interactions,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - interactions.shape[-1]),
+                ),
+                constant_values=-1,
             )
 
-            shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+            # For each of our own paths (axis 0) and each Sionna path (axis 1),
+            # sum the vertex-position distance over our own valid interactions.
+            distances = jnp.linalg.norm(
+                inter_pos.reshape(-1, 1, max_num_interactions, 3)
+                - vertices_pad.reshape(
+                    1,
+                    -1,
+                    max_num_interactions,
+                    3,
+                ),
+                axis=3,
+            ).sum(
+                axis=2,
+                where=inter.reshape(-1, 1, max_num_interactions) != -1,
+            )
+            # Pairs whose interaction pattern doesn't match are disqualified
+            # (infinite distance), so that only structurally-compatible paths
+            # can be matched based on their (real) position distance. This must
+            # be applied after the sum (rather than via its 'initial' argument)
+            # because 'jnp.sum' silently ignores 'initial' when 'where' excludes
+            # every element being reduced, e.g., for line-of-sight paths.
+            matches = (
+                inter.reshape(-1, 1, max_num_interactions)
+                == interactions_pad.reshape(1, -1, max_num_interactions)
+            ).all(axis=-1)
+            distances = jnp.where(matches, distances, jnp.inf)
+            # For each Sionna path, find the index of our own closest-matching
+            # path (not the other way around), so that gathering with 'indices'
+            # below correctly reorders our paths into Sionna's order, even when
+            # the correspondence between the two orderings is not an involution.
+            indices = distances.argmin(axis=0)
+
+            orig_shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+            target_shape_prefix = (*vertices.shape[:3],)
 
             def sort_fn(x: Array) -> Array:
-                if x.shape[: len(shape_prefix)] != shape_prefix:
+                if (
+                    x is None
+                    or not isinstance(x, (np.ndarray, jax.Array))
+                    or x.shape[: len(orig_shape_prefix)] != orig_shape_prefix
+                ):
                     return x
 
-                y = x.reshape(-1, *x.shape[len(shape_prefix) :])
+                y = x.reshape(-1, *x.shape[len(orig_shape_prefix) :])
                 y = y[indices, ...]
-                return y.reshape(x.shape)
+                return y.reshape(
+                    *target_shape_prefix, *x.shape[len(orig_shape_prefix) :]
+                )
 
             return jax.tree.map(sort_fn, self)
 

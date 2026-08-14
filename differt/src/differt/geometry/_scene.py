@@ -532,7 +532,7 @@ class Scene(eqx.Module):
         mesh = Mesh.empty()
 
         for shape in mi_scene.shapes():
-            rm = shape.bsdf().radio_material
+            rm = shape.bsdf()
             mesh += (
                 Mesh(
                     vertices=shape.vertex_positions_buffer().jax().reshape(-1, 3),

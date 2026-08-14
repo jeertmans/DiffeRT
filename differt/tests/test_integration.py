@@ -114,7 +114,7 @@ def test_simple_street_canyon() -> None:
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
-    except AttributeError:
+    except (AttributeError, ImportError, RuntimeError):
         pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
     sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
@@ -196,26 +196,9 @@ def test_simple_street_canyon() -> None:
         )
 
 
-# Sionna RT still ships a pre-P.2040-4 ITU materials list: some materials are
-# missing entirely, others have coefficients that don't match DiffeRT's. An
-# upstream PR updates Sionna RT's list, but hasn't been merged (nor released)
-# yet, and DiffeRT's own coefficients for a couple of materials don't match that
-# PR either (possibly transcription discrepancies worth checking against the
-# primary ITU-R P.2040-4 recommendation):
-_SIONNA_ITU_UPDATE_PR = "https://github.com/NVlabs/sionna-rt/pull/70"
-_MATERIALS_MISSING_FROM_SIONNA = frozenset({
-    "itu_vacuum",
-    "itu_clear_acrylic",
-    "itu_vinyl_tile",
-    "itu_carpet_tile",
-    "itu_asphalt_concrete",
-})
-_MATERIALS_WITH_MISMATCHING_COEFFICIENTS = frozenset({
-    "itu_glass",
-    "itu_ceiling_board",
-    "itu_plasterboard",
-    "itu_brick",
-})
+# Sionna RT has no notion of a color for 'vacuum' (it isn't a rendered/physical
+# material), so there is nothing to compare its color against.
+_MATERIALS_WITHOUT_SIONNA_COLOR = frozenset({"itu_vacuum"})
 
 
 def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
@@ -239,7 +222,7 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
-    except AttributeError:
+    except (AttributeError, ImportError, RuntimeError):
         pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
     sionna = pytest.importorskip("sionna", reason="sionna not installed")
 
@@ -252,59 +235,14 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
             continue
 
         itu_type = mat_name.removeprefix("itu_")
-        missing_from_sionna = mat_name in _MATERIALS_MISSING_FROM_SIONNA
-        mismatching_coefficients = mat_name in _MATERIALS_WITH_MISMATCHING_COEFFICIENTS
 
-        with subtests.test(f"{mat_name} color"):
-            try:
+        if mat_name not in _MATERIALS_WITHOUT_SIONNA_COLOR:
+            with subtests.test(f"{mat_name} color"):
                 got_color = _differt_color(itu_type, tmp_path)
                 expected_color = sionna.rt.ITURadioMaterial.ITU_MATERIAL_COLORS[
                     itu_type
                 ]
                 chex.assert_trees_all_close(got_color, expected_color, atol=1e-6)
-            except (KeyError, AssertionError) as exc:
-                if not missing_from_sionna:
-                    raise
-                pytest.xfail(
-                    f"Sionna RT doesn't define a color for {itu_type!r} yet, see "
-                    f"{_SIONNA_ITU_UPDATE_PR} ({exc})."
-                )
-            else:
-                if missing_from_sionna:
-                    pytest.fail(
-                        f"Sionna RT now defines a color for {itu_type!r}; remove it "
-                        f"from _MATERIALS_MISSING_FROM_SIONNA ({_SIONNA_ITU_UPDATE_PR})."
-                    )
-
-        if missing_from_sionna or mismatching_coefficients:
-            with subtests.test(
-                f"{mat_name} properties (tracking {_SIONNA_ITU_UPDATE_PR})"
-            ):
-                f = 10e9
-                try:
-                    sionna_mat_relative_permittivity, sionna_mat_conductivity = (
-                        sionna.rt.radio_materials.itu.itu_material(itu_type, f)
-                    )
-                    chex.assert_trees_all_close(
-                        differt_mat.relative_permittivity(f),
-                        sionna_mat_relative_permittivity,
-                    )
-                    chex.assert_trees_all_close(
-                        differt_mat.conductivity(f), sionna_mat_conductivity
-                    )
-                except (ValueError, AssertionError) as exc:
-                    pytest.xfail(
-                        f"Sionna RT's coefficients for {itu_type!r} don't match "
-                        f"DiffeRT's yet, see {_SIONNA_ITU_UPDATE_PR} ({exc})."
-                    )
-                else:
-                    pytest.fail(
-                        f"Sionna RT's coefficients for {itu_type!r} now match "
-                        f"DiffeRT's; remove it from "
-                        f"_MATERIALS_WITH_MISMATCHING_COEFFICIENTS "
-                        f"({_SIONNA_ITU_UPDATE_PR})."
-                    )
-            continue
 
         # We multiply by 1.1 to avoid checking on freq. limits, because Sionna will fail
         for f in 1.1 * np.logspace(9 - 2, 9 + 3, 21):
@@ -324,11 +262,12 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
                     if differt_out_of_range:
                         # Both sides agree this frequency is out of range.
                         continue
-                    # DiffeRT's P.2040-4 update extends the frequency range for some
-                    # materials beyond what Sionna RT's (older) table covers.
+                    # DiffeRT treats 'vacuum' as valid at any frequency (it has no
+                    # measurement-derived validity range like other materials),
+                    # while Sionna RT restricts it to ITU-R P.2040-4's [0.001, 100] GHz.
                     pytest.xfail(
                         f"Sionna RT doesn't cover {f / 1e9:.3g} GHz for {itu_type!r} "
-                        f"yet, see {_SIONNA_ITU_UPDATE_PR} ({exc})."
+                        f"({exc})."
                     )
                 else:
                     if differt_out_of_range:
@@ -343,7 +282,6 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
                         sionna_mat_relative_permittivity,
                         custom_message=f"Mismatch for {mat_name = } @ {f / 1e9} GHz.",
                     )
-
                     chex.assert_trees_all_close(
                         differt_mat_conductivity,
                         sionna_mat_conductivity,

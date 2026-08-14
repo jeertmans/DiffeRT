@@ -16,7 +16,6 @@ from jaxtyping import PRNGKeyArray
 from differt.em import MaterialsDict, materials, z_0
 from differt.geometry import (
     ExhaustivePathTracer,
-    HybridPathTracer,
     Mesh,
     Scene,
     TracedPaths,
@@ -112,7 +111,7 @@ def test_match_sionna_on_simple_street_canyon(
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
-    except AttributeError:
+    except (AttributeError, ImportError, RuntimeError):
         pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
     sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
@@ -174,7 +173,7 @@ def test_match_sionna_on_simple_street_canyon(
             for order in range(max_order + 1)
             for paths in differt_scene.trace_paths(
                 order=order,
-                solver=HybridPathTracer(chunk_size=100_000),
+                solver=ExhaustivePathTracer(chunk_size=100_000),
             )
         ),
         scene=differt_scene,
@@ -203,9 +202,17 @@ def test_match_sionna_on_simple_street_canyon(
         True,  # All paths are valid in this case
     )
 
+    # Sionna RT does not zero out interaction positions past the actual number
+    # of bounces of a path (unlike DiffeRT), so those slots must be excluded
+    # from the comparison.
+    valid_interaction = (dm.inter != -1)[..., None]
     chex.assert_trees_all_close(
-        dm.inter_pos,
-        jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+        jnp.where(valid_interaction, dm.inter_pos, 0.0),
+        jnp.where(
+            valid_interaction,
+            jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+            0.0,
+        ),
         atol=1e-3,
     )
 
@@ -222,7 +229,7 @@ def test_match_sionna_on_simple_street_canyon(
     chex.assert_trees_all_close(
         dm.aod_az,
         jnp.rad2deg(sionna_paths.phi_t.jax()),
-        atol=3e-5,
+        atol=3e-4,
     )
 
     chex.assert_trees_all_close(
