@@ -9,7 +9,9 @@ from jaxtyping import Array, ArrayLike, Complex, Float
 from differt.em import (
     AbstractFieldSolver,
     AbstractScatteringPattern,
+    BackscatteringPattern,
     Dipole,
+    DirectivePattern,
     FarFieldDipoleAntenna,
     GeometricFieldSolver,
     InteractionType,
@@ -1003,3 +1005,101 @@ class TestScatteringMatrix:
         ).scattering_matrix(paths, mesh, 1e9)
 
         assert jnp.any(mat_lambertian != mat_isotropic)
+
+    def test_directive_pattern_peaks_at_specular_direction(self) -> None:
+        k_i = jnp.array([1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
+        n = jnp.array([0.0, 0.0, 1.0])
+        k_sp = k_i - 2.0 * jnp.sum(k_i * n) * n  # specular direction
+
+        pattern = DirectivePattern(alpha_r=10.0)
+
+        f_s_specular = pattern(k_i, k_sp, n)
+        f_s_normal = pattern(k_i, n, n)
+        f_s_grazing = pattern(k_i, jnp.array([-1.0, 0.0, 0.0]), n)
+
+        assert f_s_specular > f_s_normal > f_s_grazing
+
+    def test_directive_pattern_hemisphere_integral_approaches_one_for_large_alpha(
+        self,
+    ) -> None:
+        # Unlike the Lambertian pattern, DirectivePattern's normalization
+        # is only exact over the full sphere around the specular
+        # direction; a large 'alpha_r' concentrates the lobe well inside
+        # the physical hemisphere, so little of it is lost below the
+        # horizon and the hemispherical integral should approach 1.
+        k_i = jnp.array([0.3, 0.0, -jnp.sqrt(1.0 - 0.3**2)])
+        n = jnp.array([0.0, 0.0, 1.0])
+        pattern = DirectivePattern(alpha_r=50.0)
+
+        n_theta, n_phi = 300, 300
+        theta = jnp.linspace(0.0, jnp.pi / 2, n_theta)
+        phi = jnp.linspace(0.0, 2 * jnp.pi, n_phi, endpoint=False)
+        dtheta = theta[1] - theta[0]
+        dphi = phi[1] - phi[0]
+        th, ph = jnp.meshgrid(theta, phi, indexing="ij")
+        k_s = jnp.stack(
+            [jnp.sin(th) * jnp.cos(ph), jnp.sin(th) * jnp.sin(ph), jnp.cos(th)],
+            axis=-1,
+        )
+        f_s = pattern(
+            jnp.broadcast_to(k_i, k_s.shape), k_s, jnp.broadcast_to(n, k_s.shape)
+        )
+        integral = jnp.sum(f_s * jnp.sin(th)) * dtheta * dphi
+
+        chex.assert_trees_all_close(integral, 1.0, atol=1e-2)
+
+    def test_backscattering_pattern_reduces_to_directive_pattern_at_lambda_one(
+        self,
+    ) -> None:
+        k_i = jnp.array([1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
+        n = jnp.array([0.0, 0.0, 1.0])
+        k_s = jnp.array([0.0, 1.0, 1.0]) / jnp.sqrt(2.0)
+
+        directive = DirectivePattern(alpha_r=4.0)
+        backscattering = BackscatteringPattern(alpha_r=4.0, alpha_i=8.0, lambda_=1.0)
+
+        chex.assert_trees_all_close(directive(k_i, k_s, n), backscattering(k_i, k_s, n))
+
+    def test_backscattering_pattern_peaks_at_retroreflection_direction_when_lambda_zero(
+        self,
+    ) -> None:
+        k_i = jnp.array([1.0, 0.0, -1.0]) / jnp.sqrt(2.0)
+        n = jnp.array([0.0, 0.0, 1.0])
+
+        pattern = BackscatteringPattern(alpha_r=4.0, alpha_i=10.0, lambda_=0.0)
+
+        f_s_retro = pattern(k_i, -k_i, n)
+        f_s_normal = pattern(k_i, n, n)
+
+        assert f_s_retro > f_s_normal
+
+    def test_directive_and_backscattering_patterns_flow_through_scattering_matrix(
+        self,
+    ) -> None:
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.SCATTERING,
+        )
+        mesh = _ground_plane_mesh("Concrete")
+        lambertian_material = self._scattering_material(s=0.5)
+
+        for pattern in (
+            DirectivePattern(alpha_r=4.0),
+            BackscatteringPattern(alpha_r=4.0, alpha_i=4.0, lambda_=0.3),
+        ):
+            material = Material(
+                name="Concrete",
+                properties=lambertian_material.properties,
+                scattering_coefficient=0.5,
+                scattering_pattern=pattern,
+            )
+            mat = GeometricFieldSolver(
+                radio_materials={"Concrete": material}
+            ).scattering_matrix(paths, mesh, 1e9)
+
+            chex.assert_shape(mat, (1, 1, 2, 2))
+            assert jnp.iscomplexobj(mat)
+            assert jnp.all(jnp.isfinite(mat))
+            assert jnp.any(mat != 0.0)

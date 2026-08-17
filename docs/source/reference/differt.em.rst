@@ -113,6 +113,8 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    materials
    AbstractScatteringPattern
    LambertianPattern
+   DirectivePattern
+   BackscatteringPattern
 
 .. itu-materials-table::
 

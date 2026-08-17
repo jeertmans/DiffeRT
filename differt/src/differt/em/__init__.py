@@ -6,8 +6,10 @@ __all__ = (
     "AbstractFieldSolver",
     "AbstractRadiationPattern",
     "AbstractScatteringPattern",
+    "BackscatteringPattern",
     "BaseAntenna",
     "Dipole",
+    "DirectivePattern",
     "F",
     "FarFieldDipoleAntenna",
     "GeometricFieldSolver",
@@ -73,6 +75,8 @@ from ._fresnel import (
 from ._interaction_type import InteractionType
 from ._material import (
     AbstractScatteringPattern,
+    BackscatteringPattern,
+    DirectivePattern,
     LambertianPattern,
     Material,
     MaterialsDict,
