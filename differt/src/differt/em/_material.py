@@ -141,8 +141,25 @@ class DirectivePattern(AbstractScatteringPattern):
     a large :attr:`alpha_r` concentrates almost all power near the
     specular direction, approaching a purely specular reflection.
 
-    See :func:`_normalized_lobe<differt.em._material._normalized_lobe>`
-    for the lobe formula and its normalization caveat.
+    See :math:`F_\alpha` below for the lobe formula and its
+    normalization caveat.
+
+    .. math::
+        F_\alpha(\hat{k}_s, \hat{a}) = \frac{\alpha + 1}{4 \pi} \left(\frac{1 + \hat{a} \cdot \hat{k}_s}{2}\right)^\alpha,
+
+    where :math:`\hat{a}` is the lobe's axis (here, the specular
+    direction :math:`\hat{k}_{sp}`). Unlike :class:`LambertianPattern`,
+    :math:`F_\alpha` has no closed-form normalization over just the
+    hemisphere around an arbitrary surface normal (as opposed to around
+    :math:`\hat{a}` itself), so the constant :math:`(\alpha + 1) / (4\pi)`
+    instead normalizes the integral of :math:`F_\alpha` over the *full*
+    sphere centered on :math:`\hat{a}` to 1. Provided :math:`\hat{a}` lies
+    well inside the physical hemisphere and :math:`\alpha` is not too
+    small, only a small fraction of the lobe falls below the horizon, so
+    the hemispherical integral remains close to (but, unlike the
+    Lambertian pattern, not exactly) 1; expect visibly more energy than
+    the Lambertian pattern for a small :math:`\alpha` or a near-grazing
+    :math:`\hat{a}`.
     """
 
     alpha_r: Float[ArrayLike, ""] = eqx.field(default=1.0)
@@ -176,12 +193,13 @@ class BackscatteringPattern(AbstractScatteringPattern):
 
     Following Degli-Esposti's combined scattering model
     :cite:`rt-review` (as also used by Sionna RT's
-    ``BackscatteringPattern``), this mixes two
-    :func:`directive lobes<differt.em._material._normalized_lobe>`:
-    one centered on the specular direction :math:`\hat{k}_{sp}` (like
-    :class:`DirectivePattern`, with width :attr:`alpha_r`), and one
-    centered on the retroreflection direction :math:`-\hat{k}_i` (back
-    toward the transmitter, with width :attr:`alpha_i`), combined as
+    ``BackscatteringPattern``), this mixes two directive lobes
+    :math:`F_\alpha` (see :class:`DirectivePattern` for the lobe formula
+    and its normalization caveat): one centered on the specular direction
+    :math:`\hat{k}_{sp}` (like :class:`DirectivePattern`, with width
+    :attr:`alpha_r`), and one centered on the retroreflection direction
+    :math:`-\hat{k}_i` (back toward the transmitter, with width
+    :attr:`alpha_i`), combined as
 
     .. math::
         f_s(\hat{k}_i, \hat{k}_s, \hat{n}) = \Lambda F_{\alpha_R}(\hat{k}_s, \hat{k}_{sp}) + (1 - \Lambda) F_{\alpha_I}(\hat{k}_s, -\hat{k}_i),
