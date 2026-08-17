@@ -77,14 +77,14 @@ If you want to use those classes in another medium, you can do so
 by multiplying the output fields by relative permeabilities and permittivities,
 when relevant.
 
-Each :class:`Antenna` implements :meth:`Antenna.wavefront_radii`, which
+Each :class:`AbstractAntenna` implements :meth:`AbstractAntenna.wavefront_radii`, which
 tells :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>` the
 radius (or radii) of curvature of the wavefront it emits, overriding
 whatever :attr:`GeometricFieldSolver.tx_wavefront_radii` is set to: a
 single value describes a spherical wavefront (like :class:`Dipole`), a
 ``(rho_s, rho_p)`` tuple an astigmatic one, and :data:`None` a planar one
 (the far-field, plane-wave approximation). Subclass
-:class:`FarFieldAntenna` (instead of :class:`Antenna` directly) for an
+:class:`AbstractFarFieldAntenna` (instead of :class:`AbstractAntenna` directly) for an
 antenna that is only ever used in the far field, to get this last case
 for free; :class:`FarFieldDipoleAntenna` does exactly that for
 :class:`Dipole`.
@@ -93,9 +93,9 @@ for free; :class:`FarFieldDipoleAntenna` does exactly that for
    :toctree: _autosummary
 
    BaseAntenna
-   Antenna
+   AbstractAntenna
    Dipole
-   FarFieldAntenna
+   AbstractFarFieldAntenna
    FarFieldDipoleAntenna
 
 .. rubric:: Materials
@@ -111,7 +111,7 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    Material
    MaterialsDict
    materials
-   ScatteringPattern
+   AbstractScatteringPattern
    LambertianPattern
 
 .. itu-materials-table::
@@ -149,8 +149,8 @@ Unlike Sionna RT, which only supports a point source infinitely far away,
 (near-field) source, e.g., a focused beam, either isotropic (a single
 radius, spherical wavefront) or astigmatic (a ``(rho_s, rho_p)`` tuple of
 two independent principal radii); or, when :attr:`~GeometricFieldSolver.tx_polarization`
-is set to an :class:`Antenna` instance, whatever that antenna's own
-:meth:`Antenna.wavefront_radii` reports.
+is set to an :class:`AbstractAntenna` instance, whatever that antenna's own
+:meth:`AbstractAntenna.wavefront_radii` reports.
 
 .. autosummary::
    :toctree: _autosummary
@@ -199,6 +199,6 @@ The following utilities are still under development, and using them is not recom
    :toctree: _autosummary
 
    ShortDipole
-   RadiationPattern
+   AbstractRadiationPattern
    HWDipolePattern
    ShortDipolePattern

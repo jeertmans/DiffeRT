@@ -5,9 +5,9 @@ import pytest
 from jaxtyping import Array, ArrayLike, Float
 
 from differt.em import (
+    AbstractRadiationPattern,
     InteractionType,
     Material,
-    RadiationPattern,
     TracedFields,
     c,
     compute_received_fields,
@@ -246,7 +246,7 @@ def test_standalone_matrix_utilities() -> None:
 
 def test_radiation_pattern_polarization_vectors() -> None:
     # Test that an object implementing polarization_vectors works with compute_received_fields
-    class DummyPattern(RadiationPattern):
+    class DummyPattern(AbstractRadiationPattern):
         def polarization_vectors(
             self,
             r: Float[ArrayLike, "*#batch 3"],

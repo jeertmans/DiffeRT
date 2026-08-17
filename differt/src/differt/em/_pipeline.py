@@ -69,9 +69,9 @@ def compute_received_fields(
 
             May be omitted (left to :data:`None`) when ``solver``'s
             (or the ``tx_polarization`` solver keyword argument's)
-            ``tx_polarization`` is an :class:`Antenna<differt.em.Antenna>`
+            ``tx_polarization`` is an :class:`AbstractAntenna<differt.em.AbstractAntenna>`
             instance, in which case its own
-            :attr:`~differt.em.Antenna.frequency` is used instead.
+            :attr:`~differt.em.AbstractAntenna.frequency` is used instead.
         solver: The field solver configuration or string shortcut.
 
             Defaults to a plain :class:`GeometricFieldSolver<differt.em.GeometricFieldSolver>`.
@@ -89,7 +89,7 @@ def compute_received_fields(
         ValueError: If ``solver`` is an unknown string shortcut, if
             ``solver_kwargs`` is used together with a solver instance, or
             if ``frequency`` is omitted and cannot be derived from an
-            :class:`Antenna<differt.em.Antenna>` instance.
+            :class:`AbstractAntenna<differt.em.AbstractAntenna>` instance.
     """
     if isinstance(solver, str):
         if solver == "geometric":
@@ -107,7 +107,7 @@ def compute_received_fields(
         if frequency is None:
             msg = (
                 "'frequency' must be provided explicitly, unless "
-                "'tx_polarization' is an 'Antenna' instance."
+                "'tx_polarization' is an 'AbstractAntenna' instance."
             )
             raise ValueError(msg)
 

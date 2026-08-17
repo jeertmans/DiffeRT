@@ -8,13 +8,13 @@ from jaxtyping import Array, ArrayLike, Complex, Float
 
 from differt.em import (
     AbstractFieldSolver,
+    AbstractScatteringPattern,
     Dipole,
     FarFieldDipoleAntenna,
     GeometricFieldSolver,
     InteractionType,
     LambertianPattern,
     Material,
-    ScatteringPattern,
     compute_received_fields,
     compute_received_power,
     fspl,
@@ -489,7 +489,7 @@ class TestNonPlanarWavefront:
         assert jnp.all(jnp.isfinite(fields))
 
     def test_far_field_antenna_overrides_tx_wavefront_radii(self) -> None:
-        # When 'tx_polarization' is an Antenna, its own 'wavefront_radii'
+        # When 'tx_polarization' is an AbstractAntenna, its own 'wavefront_radii'
         # takes precedence over the explicit 'tx_wavefront_radii'
         # argument -- here, a 'FarFieldDipoleAntenna' always reports a
         # planar wavefront, so passing a (very different) explicit radius
@@ -520,7 +520,7 @@ class TestNonPlanarWavefront:
     def test_dipole_at_tx_position_matches_point_source_spreading(self) -> None:
         # A Dipole centered exactly at the transmitter (the typical usage)
         # reports a wavefront radius of 0 there, i.e., the same spreading
-        # behavior as the default point source -- using an Antenna as
+        # behavior as the default point source -- using an AbstractAntenna as
         # 'tx_polarization' must not, by itself, change the spreading law.
         tx = [0.0, 0.0, 0.0]
         rx = [50.0, 0.0, 0.0]
@@ -968,7 +968,7 @@ class TestScatteringMatrix:
         # An isotropic (rather than Lambertian) pattern should give a
         # different amplitude than the default, and should not depend on
         # the scattered direction (unlike the Lambertian one).
-        class IsotropicPattern(ScatteringPattern):
+        class IsotropicPattern(AbstractScatteringPattern):
             def __call__(
                 self,
                 k_i: Float[ArrayLike, "*#batch 3"],

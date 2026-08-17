@@ -9,9 +9,9 @@ from jaxtyping import PRNGKeyArray
 
 from differt.em import c
 from differt.em._antenna import (
-    Antenna,
+    AbstractAntenna,
+    AbstractFarFieldAntenna,
     Dipole,
-    FarFieldAntenna,
     FarFieldDipoleAntenna,
 )
 from differt.geometry import normalize, spherical_to_cartesian
@@ -31,30 +31,30 @@ def antenna() -> Dipole:
 
 
 class TestAntenna:
-    def test_frequency(self, antenna: Antenna) -> None:
+    def test_frequency(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_equal(antenna.frequency, 1e9)
 
-    def test_center(self, antenna: Antenna) -> None:
+    def test_center(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_equal(antenna.center, jnp.zeros(3))
 
-    def test_period(self, antenna: Antenna) -> None:
+    def test_period(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_close(antenna.period, 1 / 1e9)
 
-    def test_angular_frequency(self, antenna: Antenna) -> None:
+    def test_angular_frequency(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_close(antenna.angular_frequency, 2 * jnp.pi * 1e9)
 
-    def test_wavelength(self, antenna: Antenna) -> None:
+    def test_wavelength(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_close(antenna.wavelength, c / 1e9)
 
-    def test_wavenumber(self, antenna: Antenna) -> None:
+    def test_wavenumber(self, antenna: AbstractAntenna) -> None:
         chex.assert_trees_all_close(antenna.wavenumber, 2 * jnp.pi * 1e9 / c)
 
     def test_abstract(self) -> None:
         with pytest.raises(
             TypeError,
-            match="Can't instantiate abstract class Antenna",
+            match="Can't instantiate abstract class AbstractAntenna",
         ):
-            _ = Antenna(frequency=jnp.asarray(1e9))
+            _ = AbstractAntenna(frequency=jnp.asarray(1e9))
 
     @pytest.mark.parametrize("num_wavelengths", [None, 10.0])
     @pytest.mark.parametrize(
@@ -91,7 +91,7 @@ class TestAntenna:
         num_wavelengths: float | None,
         backend: str,
         expectation: AbstractContextManager[Exception],
-        antenna: Antenna,
+        antenna: AbstractAntenna,
     ) -> None:
         with expectation:
             _ = antenna.plot_radiation_pattern(
@@ -171,7 +171,7 @@ class TestDipole:
 
     def test_wavefront_radii(self) -> None:
         # A dipole is an ideal point source, with zero offset from its
-        # own 'center' in every direction (the default 'Antenna'
+        # own 'center' in every direction (the default 'AbstractAntenna'
         # behavior, which 'Dipole' does not override).
         dipole = Dipole(frequency=1e9, center=jnp.array([1.0, 2.0, 3.0]))
         chex.assert_trees_all_close(
@@ -214,8 +214,8 @@ class TestFarFieldDipoleAntenna:
         far_field = FarFieldDipoleAntenna(frequency=frequency, num_wavelengths=0.5)
 
         assert isinstance(far_field, Dipole)
-        assert isinstance(far_field, FarFieldAntenna)
-        assert isinstance(far_field, Antenna)
+        assert isinstance(far_field, AbstractFarFieldAntenna)
+        assert isinstance(far_field, AbstractAntenna)
 
         chex.assert_trees_all_close(far_field.moment, dipole.moment)
         chex.assert_trees_all_close(far_field.reference_power, dipole.reference_power)
@@ -227,10 +227,10 @@ class TestFarFieldDipoleAntenna:
         chex.assert_trees_all_close(b_dipole, b_far_field)
 
     def test_abstract_base_class(self) -> None:
-        # 'FarFieldAntenna' itself still needs 'fields' and
-        # 'reference_power' from a subclass, just like a plain 'Antenna'.
+        # 'AbstractFarFieldAntenna' itself still needs 'fields' and
+        # 'reference_power' from a subclass, just like a plain 'AbstractAntenna'.
         with pytest.raises(
             TypeError,
-            match="Can't instantiate abstract class FarFieldAntenna",
+            match="Can't instantiate abstract class AbstractFarFieldAntenna",
         ):
-            _ = FarFieldAntenna(frequency=jnp.asarray(1e9))
+            _ = AbstractFarFieldAntenna(frequency=jnp.asarray(1e9))

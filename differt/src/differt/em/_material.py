@@ -17,8 +17,8 @@ else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
 
 
-class ScatteringPattern(eqx.Module):
-    """A diffuse scattering pattern, must be subclassed."""
+class AbstractScatteringPattern(eqx.Module):
+    """Abstract base class for diffuse scattering patterns."""
 
     @abstractmethod
     def __call__(
@@ -43,7 +43,7 @@ class ScatteringPattern(eqx.Module):
         """
 
 
-class LambertianPattern(ScatteringPattern):
+class LambertianPattern(AbstractScatteringPattern):
     """The Lambertian (cosine) diffuse scattering pattern.
 
     This is the default :attr:`Material.scattering_pattern`.
@@ -124,7 +124,9 @@ class Material(eqx.Module):
     converted to the orthogonal polarization. Defaults to ``0.0``, i.e.,
     no cross-polarization.
     """
-    scattering_pattern: ScatteringPattern = eqx.field(default_factory=LambertianPattern)
+    scattering_pattern: AbstractScatteringPattern = eqx.field(
+        default_factory=LambertianPattern
+    )
     """
     The pattern that computes the angular density of the diffusely-scattered power.
 
@@ -132,7 +134,7 @@ class Material(eqx.Module):
     :meth:`GeometricFieldSolver.scattering_matrix<differt.em.GeometricFieldSolver.scattering_matrix>`
     together with :attr:`scattering_coefficient`. Defaults to
     :class:`LambertianPattern`. A custom (e.g., directive) pattern can be
-    provided instead, by subclassing :class:`ScatteringPattern`.
+    provided instead, by subclassing :class:`AbstractScatteringPattern`.
     """
     aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """

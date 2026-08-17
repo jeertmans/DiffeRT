@@ -42,7 +42,7 @@ def _wavefront_radii(
     (this is a static, Python-level choice, not a traced value, so it is
     safe to branch on under :func:`jax.jit`). A ``(rho_s, s_hat, rho_p,
     p_hat)`` 4-tuple, as returned by
-    :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`,
+    :meth:`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`,
     is also accepted, for convenience; ``s_hat``/``p_hat`` are dropped, as
     no formula using this helper's output currently consumes wavefront
     orientation.
@@ -338,7 +338,7 @@ def _wedge_static_geometry(
 
 class AbstractFieldSolver(eqx.Module):
     """
-    Base class for all EM field solvers.
+    Abstract base class for all EM field solvers.
 
     A field solver computes the received complex field(s) from a set of
     paths (however they were obtained) and the geometry/materials they
@@ -478,8 +478,8 @@ class GeometricFieldSolver(AbstractFieldSolver):
         ``tx_wavefront_radii``, see the test suite).
 
         When :attr:`tx_polarization` is set to an
-        :class:`Antenna<differt.em.Antenna>` instance, its own
-        :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
+        :class:`AbstractAntenna<differt.em.AbstractAntenna>` instance, its own
+        :meth:`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`
         is used *instead of* :attr:`tx_wavefront_radii`.
     """
 
@@ -500,18 +500,18 @@ class GeometricFieldSolver(AbstractFieldSolver):
     """The transmitter antenna polarization or pattern.
 
     Either ``"V"``, ``"H"``, a Jones vector, or an
-    :class:`Antenna<differt.em.Antenna>` (that provides ``.fields(...)``
+    :class:`AbstractAntenna<differt.em.AbstractAntenna>` (that provides ``.fields(...)``
     and ``.wavefront_radii(...)``).
 
     To model different antennas across a scene, pass a single antenna
     instance whose array fields carry their own batch dimension,
     broadcastable against the paths' batch dimensions -- either one
     antenna model shared by every transmitter, or one antenna model per
-    transmitter (:class:`Antenna<differt.em.Antenna>` is a
+    transmitter (:class:`AbstractAntenna<differt.em.AbstractAntenna>` is a
     :class:`equinox.Module`, so this works out of the box).
 
-    When this is an :class:`Antenna<differt.em.Antenna>` instance, its
-    :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
+    When this is an :class:`AbstractAntenna<differt.em.AbstractAntenna>` instance, its
+    :meth:`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`
     is used *instead of* :attr:`tx_wavefront_radii` (which only serves as
     a fallback for a plain polarization string/vector, since those carry
     no wavefront-curvature information of their own); its
@@ -541,12 +541,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
     matching Sionna RT's implicit assumption; :data:`None` is the
     far-distance limit (:math:`\rho_0 \to \infty`), an ideal plane wave,
     e.g., a source far enough away that its curvature is negligible --
-    see :class:`FarFieldAntenna<differt.em.FarFieldAntenna>`. Either of
+    see :class:`AbstractFarFieldAntenna<differt.em.AbstractFarFieldAntenna>`. Either of
     those, a single finite value (spherical wavefront), or a
     ``(rho_s, rho_p)`` tuple (astigmatic wavefront, with unequal
     principal radii along the s- and p-planes -- not supported together
     with a ``DIFFRACTION`` interaction) may be passed. Ignored when
-    :attr:`tx_polarization` is an :class:`Antenna<differt.em.Antenna>`
+    :attr:`tx_polarization` is an :class:`AbstractAntenna<differt.em.AbstractAntenna>`
     instance -- see :attr:`tx_polarization`.
     """
 
@@ -574,7 +574,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
 
         Uses ``self.tx_polarization.wavefront_radii(k_hat)`` (with
         ``k_hat`` the direction of each path's first segment) whenever
-        :attr:`tx_polarization` is an :class:`Antenna<differt.em.Antenna>`
+        :attr:`tx_polarization` is an :class:`AbstractAntenna<differt.em.AbstractAntenna>`
         (or, more precisely, provides a ``wavefront_radii`` method),
         falling back to :attr:`tx_wavefront_radii` otherwise.
 
@@ -678,9 +678,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
 
         The transmitter's non-planar wavefront (:attr:`tx_wavefront_radii`,
         or the value returned by
-        :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
+        :meth:`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`
         when :attr:`tx_polarization` is an
-        :class:`Antenna<differt.em.Antenna>`) only affects a
+        :class:`AbstractAntenna<differt.em.AbstractAntenna>`) only affects a
         ``DIFFRACTION`` bounce that is the *first* interaction along a
         path; see the note in :class:`GeometricFieldSolver`. :data:`None`
         (a planar wavefront, the :math:`\rho_0 \to \infty` limit) is
@@ -905,7 +905,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
         :math:`f_s(\hat{k}_i, \hat{k}_o, \hat{n}) = \max(\hat{n}\cdot\hat{k}_o, 0) / \pi`.
         A custom (e.g., directive) pattern can be set per-material by
         subclassing
-        :class:`ScatteringPattern<differt.em._material.ScatteringPattern>`.
+        :class:`AbstractScatteringPattern<differt.em._material.AbstractScatteringPattern>`.
         A final rotation mixes the s and p channels according to
         :attr:`Material.xpd_coefficient<differt.em._material.Material.xpd_coefficient>`.
 
@@ -1292,9 +1292,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         Compute the wavefront spreading factor for each path.
 
         Reads :attr:`tx_wavefront_radii` (or the value returned by
-        :meth:`Antenna.wavefront_radii<differt.em.Antenna.wavefront_radii>`
+        :meth:`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`
         when :attr:`tx_polarization` is an
-        :class:`Antenna<differt.em.Antenna>`) from ``self``.
+        :class:`AbstractAntenna<differt.em.AbstractAntenna>`) from ``self``.
 
         For a path with no diffraction interaction, this is the general
         astigmatic-ray-tube spreading factor,

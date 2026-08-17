@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class AbstractPathSolver(eqx.Module):
-    """Base class for all path solvers and launchers.
+    """Abstract base class for all path solvers and launchers.
 
     Subclasses should define concrete values for
     ``epsilon`` and ``hit_tol``.

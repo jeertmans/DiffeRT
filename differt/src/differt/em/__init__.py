@@ -1,12 +1,14 @@
 """Electromagnetic (EM) fields utilities."""
 
 __all__ = (
+    "AbstractAntenna",
+    "AbstractFarFieldAntenna",
     "AbstractFieldSolver",
-    "Antenna",
+    "AbstractRadiationPattern",
+    "AbstractScatteringPattern",
     "BaseAntenna",
     "Dipole",
     "F",
-    "FarFieldAntenna",
     "FarFieldDipoleAntenna",
     "GeometricFieldSolver",
     "HWDipolePattern",
@@ -15,8 +17,6 @@ __all__ = (
     "LambertianPattern",
     "Material",
     "MaterialsDict",
-    "RadiationPattern",
-    "ScatteringPattern",
     "ShortDipole",
     "ShortDipolePattern",
     "TracedFields",
@@ -50,13 +50,13 @@ __all__ = (
 )
 
 from ._antenna import (
-    Antenna,
+    AbstractAntenna,
+    AbstractFarFieldAntenna,
+    AbstractRadiationPattern,
     BaseAntenna,
     Dipole,
-    FarFieldAntenna,
     FarFieldDipoleAntenna,
     HWDipolePattern,
-    RadiationPattern,
     ShortDipole,
     ShortDipolePattern,
     poynting_vector,
@@ -72,10 +72,10 @@ from ._fresnel import (
 )
 from ._interaction_type import InteractionType
 from ._material import (
+    AbstractScatteringPattern,
     LambertianPattern,
     Material,
     MaterialsDict,
-    ScatteringPattern,
     materials,
 )
 from ._pipeline import (
