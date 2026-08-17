@@ -162,6 +162,40 @@ def _scattering_properties(
     return scattering_coefficient, xpd_coefficient
 
 
+def _scattering_pattern_values(
+    mesh: Mesh,
+    radio_materials: Mapping[str, Material],
+    k_in: Float[Array, "*batch order 3"],
+    k_out: Float[Array, "*batch order 3"],
+    obj_normals: Float[Array, "*batch order 3"],
+    mat_indices: Int[Array, "*batch order"],
+) -> Float[Array, "*batch order"]:
+    """Evaluate each material's (possibly distinct) scattering pattern on the shared per-bounce geometry, then select the per-bounce value.
+
+    Each material may define its own
+    :attr:`Material.scattering_pattern<differt.em._material.Material.scattering_pattern>`
+    callable, so (unlike a plain per-material scalar) this cannot be
+    reduced to a single array lookup: every material's pattern is
+    evaluated on the full per-bounce geometry, then the result for the
+    material actually hit at each bounce is selected.
+
+    Returns:
+        The per-bounce scattering pattern value.
+    """
+    f_s_per_material = jnp.stack(
+        [
+            jnp.asarray(
+                radio_materials[mat_name].scattering_pattern(k_in, k_out, obj_normals)
+            )
+            for mat_name in mesh.material_names
+        ],
+        axis=-1,
+    )
+    return jnp.take_along_axis(f_s_per_material, mat_indices[..., None], axis=-1)[
+        ..., 0
+    ]
+
+
 def _take_material_property(
     prop: Inexact[ArrayLike, "*#batch num_materials"],
     mat_indices: Int[Array, "*batch order"],
@@ -854,18 +888,25 @@ class GeometricFieldSolver(AbstractFieldSolver):
 
         Given the specular reflection coefficients :math:`r_s, r_p`
         (:meth:`reflection_matrix`, ignoring the scattering-coefficient
-        energy reduction) and the scattered direction :math:`\hat{k}_o`,
-        the per-polarization scattered amplitude is:
+        energy reduction) and the incident and scattered directions
+        :math:`\hat{k}_i, \hat{k}_o`, the per-polarization scattered
+        amplitude is:
 
         .. math::
-            a_{s,p} = S \sqrt{f_s(\hat{k}_o) \frac{\mathrm{d}A}{s^2}} \, |r_{s,p}|,
+            a_{s,p} = S \sqrt{f_s(\hat{k}_i, \hat{k}_o, \hat{n}) \frac{\mathrm{d}A}{s^2}} \, |r_{s,p}|,
 
         where :math:`S` is
         :attr:`Material.scattering_coefficient<differt.em._material.Material.scattering_coefficient>`
-        and :math:`f_s(\hat{k}_o) = \max(\hat{n}\cdot\hat{k}_o, 0) / \pi`
-        is the Lambertian scattering pattern (normalized so that its
-        integral over the hemisphere is 1). A final rotation mixes the s
-        and p channels according to
+        and :math:`f_s` is the material's
+        :attr:`Material.scattering_pattern<differt.em._material.Material.scattering_pattern>`
+        (normalized so that its integral over the hemisphere is 1),
+        which defaults to
+        :class:`LambertianPattern<differt.em._material.LambertianPattern>`,
+        :math:`f_s(\hat{k}_i, \hat{k}_o, \hat{n}) = \max(\hat{n}\cdot\hat{k}_o, 0) / \pi`.
+        A custom (e.g., directive) pattern can be set per-material by
+        subclassing
+        :class:`ScatteringPattern<differt.em._material.ScatteringPattern>`.
+        A final rotation mixes the s and p channels according to
         :attr:`Material.xpd_coefficient<differt.em._material.Material.xpd_coefficient>`.
 
         Args:
@@ -904,8 +945,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
         _, s = normalize(path_segments, keepdims=True)
         s_out = s[..., 1:, 0]
 
-        cos_theta_o = jnp.clip(jnp.sum(obj_normals * k_out, axis=-1), 0.0, 1.0)
-        f_s = cos_theta_o / jnp.pi
+        f_s = _scattering_pattern_values(
+            mesh, self._radio_materials, k_in, k_out, obj_normals, mat_indices
+        )
 
         solid_angle = safe_divide(triangle_area, s_out**2)
         amplitude = s_val * jnp.sqrt(f_s * solid_angle)

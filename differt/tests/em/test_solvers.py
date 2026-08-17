@@ -12,7 +12,9 @@ from differt.em import (
     FarFieldDipoleAntenna,
     GeometricFieldSolver,
     InteractionType,
+    LambertianPattern,
     Material,
+    ScatteringPattern,
     compute_received_fields,
     compute_received_power,
     fspl,
@@ -956,3 +958,48 @@ class TestScatteringMatrix:
         # d(solid angle) = sin(theta) dtheta dphi
         integral = jnp.sum(f_s * jnp.sin(theta)) * dtheta * dphi * n_phi
         chex.assert_trees_all_close(integral, 1.0, atol=1e-3)
+
+    def test_default_scattering_pattern_is_lambertian(self) -> None:
+        assert isinstance(
+            self._scattering_material(s=0.5).scattering_pattern, LambertianPattern
+        )
+
+    def test_custom_scattering_pattern_is_used(self) -> None:
+        # An isotropic (rather than Lambertian) pattern should give a
+        # different amplitude than the default, and should not depend on
+        # the scattered direction (unlike the Lambertian one).
+        class IsotropicPattern(ScatteringPattern):
+            def __call__(
+                self,
+                k_i: Float[ArrayLike, "*#batch 3"],
+                k_s: Float[ArrayLike, "*#batch 3"],
+                n: Float[ArrayLike, "*#batch 3"],
+            ) -> Float[Array, "*batch"]:
+                del k_i, k_s
+                return jnp.ones_like(jnp.asarray(n)[..., 0]) / (2.0 * jnp.pi)
+
+        isotropic_pattern = IsotropicPattern()
+
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.SCATTERING,
+        )
+        mesh = _ground_plane_mesh("Concrete")
+        lambertian_material = self._scattering_material(s=0.5)
+        isotropic_material = Material(
+            name="Concrete",
+            properties=lambertian_material.properties,
+            scattering_coefficient=0.5,
+            scattering_pattern=isotropic_pattern,
+        )
+
+        mat_lambertian = GeometricFieldSolver(
+            radio_materials={"Concrete": lambertian_material}
+        ).scattering_matrix(paths, mesh, 1e9)
+        mat_isotropic = GeometricFieldSolver(
+            radio_materials={"Concrete": isotropic_material}
+        ).scattering_matrix(paths, mesh, 1e9)
+
+        assert jnp.any(mat_lambertian != mat_isotropic)

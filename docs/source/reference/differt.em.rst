@@ -111,6 +111,8 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    Material
    MaterialsDict
    materials
+   ScatteringPattern
+   LambertianPattern
 
 .. itu-materials-table::
 

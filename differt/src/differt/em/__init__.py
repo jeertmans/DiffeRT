@@ -12,9 +12,11 @@ __all__ = (
     "HWDipolePattern",
     "InteractionType",
     "L_i",
+    "LambertianPattern",
     "Material",
     "MaterialsDict",
     "RadiationPattern",
+    "ScatteringPattern",
     "ShortDipole",
     "ShortDipolePattern",
     "TracedFields",
@@ -69,7 +71,13 @@ from ._fresnel import (
     slab_coefficients,
 )
 from ._interaction_type import InteractionType
-from ._material import Material, MaterialsDict, materials
+from ._material import (
+    LambertianPattern,
+    Material,
+    MaterialsDict,
+    ScatteringPattern,
+    materials,
+)
 from ._pipeline import (
     compute_cir,
     compute_received_fields,

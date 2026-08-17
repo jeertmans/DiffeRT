@@ -1,6 +1,7 @@
 # ruff:file-ignore[math-constant]
 
 import typing
+from abc import abstractmethod
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -14,6 +15,69 @@ if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+
+
+class ScatteringPattern(eqx.Module):
+    """A diffuse scattering pattern, must be subclassed."""
+
+    @abstractmethod
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the scattered power angular density.
+
+        Args:
+            k_i: The incident (unit) direction, from the previous path
+                vertex to the interaction point.
+            k_s: The scattered (unit) direction, from the interaction
+                point to the next path vertex.
+            n: The (unit) outward surface normal at the interaction point.
+
+        Returns:
+            The scattered power angular density, normalized so that its
+            integral over the hemisphere around ``n`` is 1.
+        """
+
+
+class LambertianPattern(ScatteringPattern):
+    """The Lambertian (cosine) diffuse scattering pattern.
+
+    This is the default :attr:`Material.scattering_pattern`.
+    """
+
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the Lambertian (cosine) diffuse scattering pattern.
+
+        .. math::
+            f_s(\hat{k}_s) = \frac{\max(\hat{n} \cdot \hat{k}_s, 0)}{\pi},
+
+        normalized so that its integral over the hemisphere around
+        :math:`\hat{n}` is 1. This pattern does not depend on the
+        incident direction :math:`\hat{k}_i`.
+
+        Args:
+            k_i: The incident (unit) direction.
+            k_s: The scattered (unit) direction.
+            n: The (unit) surface normal.
+
+        Returns:
+            The scattered power angular density.
+        """
+        del k_i
+        cos_theta_s = jnp.clip(
+            jnp.sum(jnp.asarray(n) * jnp.asarray(k_s), axis=-1), 0.0, 1.0
+        )
+        return cos_theta_s / jnp.pi
 
 
 class Material(eqx.Module):
@@ -59,6 +123,16 @@ class Material(eqx.Module):
     The fraction :math:`K_x` of the diffusely-scattered energy is
     converted to the orthogonal polarization. Defaults to ``0.0``, i.e.,
     no cross-polarization.
+    """
+    scattering_pattern: ScatteringPattern = eqx.field(default_factory=LambertianPattern)
+    """
+    The pattern that computes the angular density of the diffusely-scattered power.
+
+    Used by
+    :meth:`GeometricFieldSolver.scattering_matrix<differt.em.GeometricFieldSolver.scattering_matrix>`
+    together with :attr:`scattering_coefficient`. Defaults to
+    :class:`LambertianPattern`. A custom (e.g., directive) pattern can be
+    provided instead, by subclassing :class:`ScatteringPattern`.
     """
     aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """
