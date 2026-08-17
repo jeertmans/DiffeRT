@@ -595,6 +595,30 @@ class TestDiffractionAgainstSionna:
     (an orthogonal, benign labeling difference between the two tools'
     spherical-basis conventions) -- ``"H"`` is the matching polarization
     here.
+
+    .. note::
+
+        The expected values below were regenerated after fixing a sign
+        bug in :func:`diffraction_coefficients<differt.em.diffraction_coefficients>`:
+        the incident-shadow-boundary terms (:math:`D_1 + D_2`) were
+        missing the sign flip relative to the reflection-shadow-boundary
+        terms (:math:`D_3`, :math:`D_4`) that Sionna RT's own reference
+        implementation applies (``RadioMaterial._diffraction_matrix``
+        computes ``d12 = -(d1 + d2)`` before combining with ``d3``/``d4``).
+        Without it, the total (LoS + reflection + diffraction) field was
+        discontinuous across the ISB -- see
+        :class:`TestShadowBoundaryContinuity`, which only ever exercised
+        the RSB. A direct re-run against the installed ``sionna-rt==2.0.1``
+        confirms the fix is in the right direction and same order of
+        magnitude (same sign, within ~10% -- e.g. ``-8.31e-6+8.04e-6j`` for
+        ``symmetric_near`` with ``"V"``/``"V"``, matching DiffeRT's own
+        ``"V"``/``"V"`` output of ``-8.49e-6+7.11e-6j``, the natural
+        polarization correspondence now that the sign bug is fixed);
+        the residual gap is a separate, pre-existing approximation
+        (:meth:`GeometricFieldSolver.diffraction_matrix
+        <differt.em.GeometricFieldSolver.diffraction_matrix>` always
+        defaults ``L_r_n``/``L_r_o`` to ``L_i``) outside the scope of
+        this fix.
     """
 
     def _wedge_mesh(self) -> Mesh:
@@ -629,8 +653,8 @@ class TestDiffractionAgainstSionna:
     @pytest.mark.parametrize(
         ("tx", "rx", "expected_a"),
         [
-            ([-10.0, -5.0, 0.0], [5.0, 10.0, 0.0], -8.981767e-06 + 7.415503e-06j),
-            ([-20.0, -5.0, 0.0], [5.0, 20.0, 0.0], -2.5819693e-06 + 2.09219e-06j),
+            ([-10.0, -5.0, 0.0], [5.0, 10.0, 0.0], 3.186347e-06 - 4.595295e-06j),
+            ([-20.0, -5.0, 0.0], [5.0, 20.0, 0.0], 2.364276e-07 - 7.191544e-07j),
         ],
         ids=["symmetric_near", "symmetric_far"],
     )
@@ -761,6 +785,61 @@ class TestShadowBoundaryContinuity:
         # would have caught before the fix).
         jump = jnp.abs(total_power[idx + 1] - total_power[idx])
         assert jump < 0.15, f"discontinuous jump of {jump:.3f} dB at the RSB"
+
+    def test_incident_shadow_boundary_is_continuous(self) -> None:
+        wedge = self._wedge_mesh()
+        frequency = 3.5e9
+        tx = jnp.array([-10.0, -5.0, 0.0])
+
+        # A window straddling the ISB (found, for this geometry, at ~26.56
+        # deg), fine enough to resolve the transition without being so fine
+        # that float32 positions on either side of the boundary round to
+        # the same value. Regression test for a sign bug in
+        # 'diffraction_coefficients' (the D_1+D_2 terms need the opposite
+        # sign from D_3/D_4, see 'TestDiffractionAgainstSionna') that
+        # previously made this jump ~9.5 dB.
+        angle = jnp.radians(jnp.linspace(20.0, 35.0, 4000))
+        rx = 15.0 * jnp.stack(
+            [jnp.cos(angle), jnp.sin(angle), jnp.zeros_like(angle)], axis=-1
+        )
+
+        scene = Scene(transmitters=tx, receivers=rx, mesh=wedge)
+        los_paths = cast("TracedPaths", scene.trace_paths(order=0))
+        refl_paths = cast("TracedPaths", scene.trace_paths(order=1))
+        los_valid = jnp.any(los_paths.mask, axis=-1)
+        (transition_idx,) = jnp.nonzero(jnp.diff(los_valid.astype(int)))
+        assert transition_idx.size > 0, "expected an ISB within the sampled window"
+        idx = transition_idx[0]
+
+        los_field = compute_received_fields(los_paths, wedge, frequency)[..., 0]
+        refl_field = compute_received_fields(refl_paths, wedge, frequency).sum(axis=-1)
+        diffraction_point = jnp.zeros(3)
+        diffraction_paths = TracedPaths(
+            vertices=jnp.stack(
+                [
+                    jnp.broadcast_to(tx, rx.shape),
+                    jnp.broadcast_to(diffraction_point, rx.shape),
+                    rx,
+                ],
+                axis=-2,
+            ),
+            objects=jnp.stack(
+                [
+                    -jnp.ones(rx.shape[0], dtype=int),
+                    jnp.full(rx.shape[0], 5, dtype=int),
+                    -jnp.ones(rx.shape[0], dtype=int),
+                ],
+                axis=-1,
+            ),
+            mask=jnp.ones(rx.shape[0], dtype=bool),
+            interaction_types=jnp.full((rx.shape[0], 1), InteractionType.DIFFRACTION),
+        )
+        diff_field = compute_received_fields(diffraction_paths, wedge, frequency)
+
+        total_power = compute_received_power(los_field + refl_field + diff_field)
+
+        jump = jnp.abs(total_power[idx + 1] - total_power[idx])
+        assert jump < 0.15, f"discontinuous jump of {jump:.3f} dB at the ISB"
 
 
 class TestScatteringMatrix:

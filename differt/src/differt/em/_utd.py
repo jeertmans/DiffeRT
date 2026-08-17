@@ -333,9 +333,18 @@ def diffraction_coefficients(
     phi_1 = phi_d_arr - phi_i_arr
     phi_2 = phi_d_arr + phi_i_arr
 
-    # Compute the four terms using the NaN-safe helper
-    D_1 = _cot_times_F(phi_1, n_arr, k, L_i_arr, "+")
-    D_2 = _cot_times_F(phi_1, n_arr, k, L_i_arr, "-")
+    # Compute the four terms using the NaN-safe helper. The first pair
+    # (governing the incident shadow boundary) enters with the opposite
+    # sign from the second pair (governing the reflection shadow
+    # boundaries) -- confirmed against Sionna RT's own implementation
+    # (`RadioMaterial._diffraction_matrix`, which computes
+    # `d12 = -(d1 + d2)` before combining with `d3`/`d4`). Without this
+    # sign, D_1+D_2's shadow-boundary jump has the wrong sign and the
+    # total (GO + diffracted) field is discontinuous across the ISB,
+    # instead of compensating the geometrical-optics field's own jump
+    # there.
+    D_1 = -_cot_times_F(phi_1, n_arr, k, L_i_arr, "+")
+    D_2 = -_cot_times_F(phi_1, n_arr, k, L_i_arr, "-")
     D_3 = _cot_times_F(phi_2, n_arr, k, L_r_n_arr, "+")
     D_4 = _cot_times_F(phi_2, n_arr, k, L_r_o_arr, "-")
 
