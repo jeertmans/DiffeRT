@@ -1,0 +1,81 @@
+[[repos]]
+hooks = [
+  {id = "end-of-file-fixer", exclude = '.*\.svg$', priority = 100},
+  {id = "trailing-whitespace", priority = 100},
+]
+repo = "builtin"
+
+[[repos]]
+hooks = [
+  {id = "pretty-format-yaml", args = ["--autofix"], priority = 200},
+  {id = "pretty-format-toml", args = [
+    "--autofix",
+    "--trailing-commas",
+  ], exclude = '.*\.lock$', priority = 200},
+]
+repo = "https://github.com/macisamuele/language-formatters-pre-commit-hooks"
+rev = "v2.16.0"
+
+[[repos]]
+hooks = [
+  {id = "nbstripout", args = ["--keep-output"], priority = 203},
+]
+repo = "https://github.com/kynan/nbstripout"
+rev = "0.9.1"
+
+[[repos]]
+hooks = [
+  {id = "ruff-check", args = ["--fix"], types_or = [
+    "python",
+    "pyi",
+    "jupyter",
+  ], priority = 300},
+  {id = "ruff-format", types_or = [
+    "python",
+    "pyi",
+    "jupyter",
+  ], priority = 200},
+]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.16.2"
+
+[[repos]]
+hooks = [
+  {id = "ty", priority = 301},
+]
+repo = "https://github.com/astral-sh/ty-pre-commit"
+rev = "v0.0.69"
+
+[[repos]]
+hooks = [
+  {id = "uv-lock", priority = 100},
+]
+repo = "https://github.com/astral-sh/uv-pre-commit"
+rev = "0.12.3"
+
+[[repos]]
+hooks = [
+  {id = "cargo-check", name = "cargo check", description = "Check that Rust project can compile", entry = "cargo +stable check", language = "system", types = ["rust"], pass_filenames = false, priority = 300},
+  {id = "cargo-fmt", name = "cargo fmt", description = "Format files with cargo fmt", entry = "cargo +nightly fmt --", language = "system", types = ["rust"], priority = 200},
+  {id = "cargo-clippy", name = "cargo clippy", description = "Check files with cargo clippy", entry = "cargo +stable clippy", language = "system", types = ["rust"], pass_filenames = false, priority = 300},
+  {id = "nbsetup", name = "nbsetup", description = "Add install preamble to Jupyter Notebooks", entry = "./scripts/nbsetup.py", language = "python", types = ["jupyter"], priority = 202},
+  {id = "sync-sampling-paths-tutorial", name = "sync sampling-paths tutorial", description = "Sync sampling paths tutorial notebook", entry = "./scripts/sync_sampling_paths_tutorial.py", language = "python", pass_filenames = false, priority = 999},
+]
+repo = "local"
+
+[[repos]]
+hooks = [
+  {id = "bibfmt", args = [
+    "--sort-by-bibkey",
+    "--drop=abstract",
+  ], priority = 200},
+]
+repo = "https://github.com/flying-sheep/bibfmt"
+rev = "v4.3.0"
+
+[[repos]]
+hooks = [
+  {id = "codespell", additional_dependencies = ["tomli"], exclude_types = ["jupyter"], priority = 300},
+]
+repo = "https://github.com/codespell-project/codespell"
+rev = "v2.4.3"

@@ -95,7 +95,7 @@ def _(
     triangles: Int[ArrayLike, "num_triangles 3"],
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Mesh  # noqa: PLC0415
+    from vispy.scene.visuals import Mesh  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -217,7 +217,7 @@ def _(
     paths: Real[ArrayLike, "*batch path_length 3"],
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import LinePlot  # noqa: PLC0415
+    from vispy.scene.visuals import LinePlot  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -371,7 +371,7 @@ def _(
     ratio: Float[ArrayLike, ""] = 0.1,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Arrow  # noqa: PLC0415
+    from vispy.scene.visuals import Arrow  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -534,7 +534,10 @@ def _(
     text_kwargs: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Markers, Text  # noqa: PLC0415
+    from vispy.scene.visuals import (  # ruff:ignore[import-outside-top-level]
+        Markers,
+        Text,
+    )
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -616,8 +619,8 @@ def draw_image(
     data: Real[ArrayLike, "rows cols"]
     | Real[ArrayLike, "rows cols 3"]
     | Real[ArrayLike, "rows cols 4"],
-    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
-    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas | MplFigure | Figure:
@@ -639,8 +642,14 @@ def draw_image(
         kwargs: Keyword arguments passed to
             :class:`Image<vispy.scene.visuals.Image>`,
             :meth:`contourf<mpl_toolkits.mplot3d.axes3d.Axes3D.contourf>`,
-            or :class:`Mesh3d<plotly.graph_objects.Surface>`, depending on the
+            or :class:`Surface<plotly.graph_objects.Surface>`, depending on the
             backend.
+
+            .. important::
+
+                If data is RGB or RGBA, Plotly's :class:`Mesh3d<plotly.graph_objects.Mesh3d>`
+                is used instead of :class:`Surface<plotly.graph_objects.Surface>`
+                to display the image.
 
     Returns:
         The resulting plot output.
@@ -670,6 +679,26 @@ def draw_image(
             >>> fig2 = draw_image(Z, x=x, y=y, backend="plotly")
             >>> fig2  # doctest: +SKIP
 
+        The next example shows how to plot an RGBA image.
+
+        .. plotly::
+
+            >>> from differt.plotting import draw_image
+            >>>
+            >>> x = np.linspace(-1.0, +1.0, 100)
+            >>> y = np.linspace(-4.0, +4.0, 200)
+            >>> X, Y = np.meshgrid(x, y)
+            >>> Z = np.sin(X) * np.cos(Y)
+            >>> # Let's mask some values to draw a ring
+            >>> R = np.sqrt(16 * X * X + Y * Y)
+            >>> r = (X + 1.0) / 2.0
+            >>> g = (Y + 4.0) / 8.0
+            >>> b = (Z + 1.0) / 2.0
+            >>> a = np.where((R > 0.5) & (R < 1.5), 0.0, 0.5)
+            >>> rgba_image = np.stack([r, g, b, a], axis=-1)
+            >>> fig = draw_image(rgba_image, backend="plotly")
+            >>> fig  # doctest: +SKIP
+
     """
     raise NotImplementedError
 
@@ -679,13 +708,15 @@ def _(
     data: Real[ArrayLike, "rows cols"]
     | Real[ArrayLike, "rows cols 3"]
     | Real[ArrayLike, "rows cols 4"],
-    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
-    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Image  # noqa: PLC0415
-    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+    from vispy.scene.visuals import Image  # ruff:ignore[import-outside-top-level]
+    from vispy.visuals.transforms import (  # ruff:ignore[import-outside-top-level]
+        STTransform,
+    )
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -727,8 +758,8 @@ def _(
     data: Real[ArrayLike, "rows cols"]
     | Real[ArrayLike, "rows cols 3"]
     | Real[ArrayLike, "rows cols 4"],
-    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
-    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> MplFigure:
@@ -751,17 +782,89 @@ def _(
     data: Real[ArrayLike, "rows cols"]
     | Real[ArrayLike, "rows cols 3"]
     | Real[ArrayLike, "rows cols 4"],
-    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
-    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
     **kwargs: Any,
 ) -> Figure:
     fig = process_plotly_kwargs(kwargs)
 
     data = np.asarray(data)
+
     x = None if x is None else np.asarray(x)
     y = None if y is None else np.asarray(y)
 
+    kwargs.setdefault("hoverinfo", "skip")
+
+    if data.ndim == 3 and data.shape[-1] in {3, 4}:  # ruff:ignore[magic-value-comparison]
+        rows, cols, channels = data.shape
+        if x is not None and x.ndim == 1 and len(x) == cols:
+            dx = np.diff(x)
+            dx = np.append(dx, dx[-1]) if len(dx) > 0 else np.array([1.0])
+            x_edges = np.concatenate([
+                [x[0] - dx[0] / 2],
+                x[:-1] + dx[:-1] / 2,
+                [x[-1] + dx[-1] / 2],
+            ])
+        else:
+            x_edges = np.arange(cols + 1)
+
+        if y is not None and y.ndim == 1 and len(y) == rows:
+            dy = np.diff(y)
+            dy = np.append(dy, dy[-1]) if len(dy) > 0 else np.array([1.0])
+            y_edges = np.concatenate([
+                [y[0] - dy[0] / 2],
+                y[:-1] + dy[:-1] / 2,
+                [y[-1] + dy[-1] / 2],
+            ])
+        else:
+            y_edges = np.arange(rows + 1)
+
+        x, y = np.meshgrid(x_edges, y_edges)
+        x = x.ravel()
+        y = y.ravel()
+        z = np.full_like(x, z0)
+
+        # 2. Build Triangles (2 per pixel)
+        r = np.arange(rows)
+        c = np.arange(cols)
+        c, r = np.meshgrid(c, r)
+        c = c.ravel()
+        r = r.ravel()
+
+        v0 = r * (cols + 1) + c
+        v1 = r * (cols + 1) + (c + 1)
+        v2 = (r + 1) * (cols + 1) + c
+        v3 = (r + 1) * (cols + 1) + (c + 1)
+
+        # Triangle 1 (v0, v1, v2) and Triangle 2 (v1, v3, v2)
+        i = np.concatenate([v0, v1])
+        j = np.concatenate([v1, v3])
+        k = np.concatenate([v2, v2])
+
+        facecolors = data.reshape(-1, channels)
+        facecolors = np.concatenate(
+            [
+                facecolors,
+                facecolors,
+            ],
+            axis=0,
+        )
+
+        kwargs.setdefault("flatshading", False)
+        kwargs.setdefault(
+            "lighting",
+            {
+                "ambient": 1.0,
+                "diffuse": 0.0,
+                "specular": 0.0,
+                "roughness": 1.0,
+                "fresnel": 0.0,
+            },
+        )
+        return fig.add_mesh3d(
+            x=x, y=y, z=z, i=i, j=j, k=k, facecolor=facecolors, **kwargs
+        )
     return fig.add_surface(
         x=x,
         y=y,
@@ -774,8 +877,8 @@ def _(
 @dispatch
 def draw_contour(
     data: Real[ArrayLike, "rows cols"],
-    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
-    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols 3"] | None = None,
+    x: Real[ArrayLike, " cols"] | Real[ArrayLike, "rows cols"] | None = None,
+    y: Real[ArrayLike, " rows"] | Real[ArrayLike, "rows cols"] | None = None,
     z0: float = 0.0,
     levels: int | Real[ArrayLike, " num_levels"] | None = None,
     fill: bool = False,
@@ -844,8 +947,10 @@ def _(
     fill: bool = False,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import Isocurve  # noqa: PLC0415
-    from vispy.visuals.transforms import STTransform  # noqa: PLC0415
+    from vispy.scene.visuals import Isocurve  # ruff:ignore[import-outside-top-level]
+    from vispy.visuals.transforms import (  # ruff:ignore[import-outside-top-level]
+        STTransform,
+    )
 
     data = np.asarray(data)
 
@@ -1044,7 +1149,7 @@ def _(
     colors: Real[ArrayLike, "rows cols"] | Real[ArrayLike, "rows cols 3"] | None = None,
     **kwargs: Any,
 ) -> Canvas:
-    from vispy.scene.visuals import SurfacePlot  # noqa: PLC0415
+    from vispy.scene.visuals import SurfacePlot  # ruff:ignore[import-outside-top-level]
 
     canvas, view = process_vispy_kwargs(kwargs)
 
@@ -1090,7 +1195,7 @@ def _(
 
     if colors is not None and "facecolors" not in kwargs:
         colors = np.asarray(colors)
-        if colors.ndim != 3:  # noqa: PLR2004
+        if colors.ndim != 3:  # ruff:ignore[magic-value-comparison]
             msg = "Matplotlib requires 'colors' to be RGB or RGBA values."
             warnings.warn(msg, UserWarning, stacklevel=2)
             c_min = colors.min()

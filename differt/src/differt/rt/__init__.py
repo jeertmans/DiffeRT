@@ -1,36 +1,45 @@
-"""Ray Tracing utilities."""
+"""Deprecated module."""
+
+# ruff:file-ignore[non-empty-init-module, module-import-not-at-top-of-file]
+import warnings
+
+warnings.warn(
+    "The differt.rt module is deprecated and will be removed in a future version. "
+    "Please use differt.geometry instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+from differt.geometry import (
+    SizedIterator,
+    consecutive_vertices_are_on_same_side_of_mirror,
+    fermat_path_on_linear_objects,
+    fermat_path_on_planar_mirrors,
+    first_triangle_hit_by_ray,
+    generate_all_path_candidates,
+    generate_all_path_candidates_chunks_iter,
+    generate_all_path_candidates_iter,
+    image_method,
+    image_of_vertex_with_respect_to_mirror,
+    intersection_of_ray_with_plane,
+    ray_intersect_any_triangle,
+    ray_intersect_triangle,
+    triangles_visible_from_vertex,
+)
 
 __all__ = (
     "SizedIterator",
-    "consecutive_vertices_are_on_same_side_of_mirrors",
+    "consecutive_vertices_are_on_same_side_of_mirror",
     "fermat_path_on_linear_objects",
     "fermat_path_on_planar_mirrors",
-    "first_triangles_hit_by_rays",
+    "first_triangle_hit_by_ray",
     "generate_all_path_candidates",
     "generate_all_path_candidates_chunks_iter",
     "generate_all_path_candidates_iter",
     "image_method",
-    "image_of_vertices_with_respect_to_mirrors",
-    "intersection_of_rays_with_planes",
-    "rays_intersect_any_triangle",
-    "rays_intersect_triangles",
-    "triangles_visible_from_vertices",
-)
-
-from ._fermat import fermat_path_on_linear_objects, fermat_path_on_planar_mirrors
-from ._image_method import (
-    consecutive_vertices_are_on_same_side_of_mirrors,
-    image_method,
-    image_of_vertices_with_respect_to_mirrors,
-    intersection_of_rays_with_planes,
-)
-from ._utils import (
-    SizedIterator,
-    first_triangles_hit_by_rays,
-    generate_all_path_candidates,
-    generate_all_path_candidates_chunks_iter,
-    generate_all_path_candidates_iter,
-    rays_intersect_any_triangle,
-    rays_intersect_triangles,
-    triangles_visible_from_vertices,
+    "image_of_vertex_with_respect_to_mirror",
+    "intersection_of_ray_with_plane",
+    "ray_intersect_any_triangle",
+    "ray_intersect_triangle",
+    "triangles_visible_from_vertex",
 )

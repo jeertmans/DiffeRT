@@ -1,3 +1,10 @@
+#!/usr/bin/env uv run
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "nbformat>=5.11.0",
+# ]
+# ///
 """Read a list of Jupyter Notebook files and append some installation preamble if needed."""
 
 import sys
@@ -17,9 +24,9 @@ CELL = nbf.NotebookNode(
         "# Run this cell to install DiffeRT and its dependencies, e.g., on Google Colab\n"
         "\n"
         "try:\n"
-        "    import differt  # noqa: F401\n"
+        "    import differt  # ruff: ignore[unused-import]\n"
         "except ImportError:\n"
-        "    import sys  # noqa: F401\n"
+        "    import sys  # ruff: ignore[unused-import]\n"
         "\n"
         "    !{sys.executable} -m pip install differt[all]"
     ),

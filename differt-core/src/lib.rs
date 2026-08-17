@@ -1,8 +1,6 @@
 use pyo3::{prelude::*, wrap_pymodule};
 
 pub mod geometry;
-pub mod rt;
-pub mod scene;
 
 /// Core of DiffeRT module, implemented in Rust.
 #[cfg(not(tarpaulin_include))]
@@ -20,7 +18,5 @@ fn _differt_core(m: Bound<'_, PyModule>) -> PyResult<()> {
     );
     m.add("__version_info__", version_info)?;
     m.add_wrapped(wrap_pymodule!(geometry::geometry))?;
-    m.add_wrapped(wrap_pymodule!(rt::rt))?;
-    m.add_wrapped(wrap_pymodule!(scene::scene))?;
     Ok(())
 }

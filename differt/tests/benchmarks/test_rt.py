@@ -7,20 +7,23 @@ import pytest
 from jaxtyping import Array, PRNGKeyArray
 from pytest_codspeed import BenchmarkFixture
 
-from differt.geometry import fibonacci_lattice
-from differt.rt import (
+from differt.geometry import (
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    Scene,
+    TracedPaths,
     fermat_path_on_planar_mirrors,
-    first_triangles_hit_by_rays,
+    fibonacci_lattice,
+    first_triangle_hit_by_ray,
     image_method,
-    rays_intersect_any_triangle,
-    triangles_visible_from_vertices,
+    ray_intersect_any_triangle,
+    triangles_visible_from_vertex,
 )
-from differt.scene._triangle_scene import TriangleScene
 
-from ..rt.utils import PlanarMirrorsSetup
+from ..geometry.utils import PlanarMirrorsSetup
 
 
-def random_scene(scene: TriangleScene, *, key: PRNGKeyArray) -> TriangleScene:
+def random_scene(scene: Scene, *, key: PRNGKeyArray) -> Scene:
     sample_objects = scene.mesh.object_bounds is not None
     return eqx.tree_at(
         lambda s: s.mesh,
@@ -71,9 +74,9 @@ def test_fermat(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="rays_intersect_any_triangle")
-def test_rays_intersect_any_triangle(
-    bench_scene: TriangleScene,
+@pytest.mark.benchmark(group="ray_intersect_any_triangle")
+def test_ray_intersect_any_triangle(
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -85,7 +88,7 @@ def test_rays_intersect_any_triangle(
 
     @jax.block_until_ready
     def bench_fun() -> Array:
-        return rays_intersect_any_triangle(
+        return ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             scene.mesh.triangle_vertices,
@@ -97,9 +100,9 @@ def test_rays_intersect_any_triangle(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="triangles_visible_from_vertices")
+@pytest.mark.benchmark(group="triangles_visible_from_vertex")
 def test_transmitter_visibility(
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -107,7 +110,7 @@ def test_transmitter_visibility(
 
     @jax.block_until_ready
     def bench_fun() -> Array:
-        return triangles_visible_from_vertices(
+        return triangles_visible_from_vertex(
             scene.transmitters,
             scene.mesh.triangle_vertices,
             active_triangles=scene.mesh.mask,
@@ -119,9 +122,9 @@ def test_transmitter_visibility(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="first_triangles_hit_by_rays")
-def test_first_triangles_hit_by_rays(
-    bench_scene: TriangleScene,
+@pytest.mark.benchmark(group="first_triangle_hit_by_ray")
+def test_first_triangle_hit_by_ray(
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -133,7 +136,7 @@ def test_first_triangles_hit_by_rays(
 
     @jax.block_until_ready
     def bench_fun() -> tuple[Array, Array]:
-        return first_triangles_hit_by_rays(
+        return first_triangle_hit_by_ray(
             ray_origins,
             ray_directions,
             scene.mesh.triangle_vertices,
@@ -157,7 +160,7 @@ def test_first_triangles_hit_by_rays(
 def test_compute_paths(
     method: Literal["exhaustive", "hybrid"],
     disconnect_inactive_triangles: bool,
-    bench_scene: TriangleScene,
+    bench_scene: Scene,
     benchmark: BenchmarkFixture,
     key: PRNGKeyArray,
 ) -> None:
@@ -173,12 +176,18 @@ def test_compute_paths(
             0,
             1,
         ]:  # TODO: add higher orders once the implementation is faster / uses less memory
-            paths = scene.compute_paths(
+            if method == "hybrid":
+                solver = HybridPathTracer(num_rays=10_000)
+            else:
+                solver = ExhaustivePathTracer(
+                    disconnect_inactive_triangles=disconnect_inactive_triangles
+                )
+
+            paths = scene.trace_paths(
                 order=order,
-                method=method,
-                num_rays=10_000,  # TODO: increase this number once the implementation is faster / uses less memory
-                disconnect_inactive_triangles=disconnect_inactive_triangles,
+                solver=solver,
             )
+            assert isinstance(paths, TracedPaths)
             num_valid_paths += paths.num_valid_paths
         return num_valid_paths
 

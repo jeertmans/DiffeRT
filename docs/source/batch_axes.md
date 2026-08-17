@@ -22,7 +22,7 @@ will work just fine if you do not provide any additional dimensions.
 
 However, in Ray Tracing applications, many functions are called
 repeatedly on a number of samples, e.g.,
-the {func}`image_method<differt.rt.image_method>` will be
+the {func}`image_method<differt.geometry.image_method>` will be
 called on thousands, if not millions, of path candidates. For
 every path candidate, you may also want to repeat for every pair of
 transmitter and receiver locations.
@@ -103,7 +103,7 @@ the size of some dimensions can rapidly become so large that they
 cannot fit in memory.
 This is also why we propose chunked iterators
 (e.g.,
-{class}`AllPathsFromCompleteGraphChunksIter<differt_core.rt.AllPathsFromCompleteGraphChunksIter>`)
+{class}`AllPathsFromCompleteGraphChunksIter<differt_core.geometry.AllPathsFromCompleteGraphChunksIter>`)
 as an alternative.
 
 Likewise, when a dimension is getting too big,

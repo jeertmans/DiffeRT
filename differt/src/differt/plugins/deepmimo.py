@@ -2,6 +2,7 @@
 
 __all__ = ("DeepMIMO", "export")
 
+import functools
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import KW_ONLY, asdict
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeGuard
@@ -10,25 +11,27 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, ArrayLike, Bool, Float, Int, Shaped
+from jaxtyping import Array, ArrayLike, Bool, Complex, Float, Int, Shaped
 
 from differt.em import (
     InteractionType,
     Material,
     c,
+    epsilon_0,
     materials,
     reflection_coefficients,
     sp_directions,
+    sp_rotation_matrix,
     z_0,
 )
 from differt.geometry import (
-    Paths,
+    Scene,
+    SizedIterator,
+    TracedPaths,
     cartesian_to_spherical,
     normalize,
 )
 from differt.plotting import PlotOutput, draw_paths, reuse
-from differt.rt import SizedIterator
-from differt.scene import TriangleScene
 from differt.utils import safe_divide
 
 from ._deepmimo_types import ArrayType
@@ -158,7 +161,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         self,
         paths: SionnaPaths,
     ) -> "DeepMIMO[Array]":
-        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # noqa: DOC201, DOC501
+        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # ruff:ignore[docstring-missing-returns, docstring-missing-exception]
         if _is_jax_dtype(self):
             vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
             interactions = (
@@ -166,54 +169,110 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 - 1
             )
 
-            if vertices.shape != self.inter_pos.shape:  # pragma: no cover
+            if (
+                vertices.shape[:2] != self.inter_pos.shape[:2]
+                or vertices.shape[-1] != self.inter_pos.shape[-1]
+            ):  # pragma: no cover
                 msg = (
                     "Cannot sort based on provided paths: shape mismatch, got "
                     f"{vertices.shape!r} but expected {self.inter_pos.shape!r}."
                 )
                 raise ValueError(msg)
 
-            max_num_interactions = self.inter.shape[-1]
-            indices = (
-                jnp.linalg
-                .norm(
-                    self.inter_pos.reshape(-1, 1, max_num_interactions, 3)
-                    - vertices.reshape(
-                        1,
-                        -1,
-                        max_num_interactions,
-                        3,
-                    ),
-                    axis=3,
-                )
-                .sum(
-                    axis=2,
-                    initial=jnp.where(
-                        (
-                            self.inter.reshape(-1, 1, max_num_interactions)
-                            == interactions.reshape(1, -1, max_num_interactions)
-                        ).all(axis=-1),
-                        jnp.inf,
-                        0,
-                    ),
-                    where=self.inter.reshape(-1, 1, max_num_interactions) != -1,
-                )
-                .argmin(axis=1)
+            max_num_interactions = max(self.inter.shape[-1], vertices.shape[-2])
+            inter_pos = jnp.pad(
+                self.inter_pos,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - self.inter_pos.shape[-2]),
+                    (0, 0),
+                ),
+            )
+            inter = jnp.pad(
+                self.inter,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - self.inter.shape[-1]),
+                ),
+                constant_values=-1,
+            )
+            vertices_pad = jnp.pad(
+                vertices,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - vertices.shape[-2]),
+                    (0, 0),
+                ),
+            )
+            interactions_pad = jnp.pad(
+                interactions,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (0, 0),
+                    (0, max_num_interactions - interactions.shape[-1]),
+                ),
+                constant_values=-1,
             )
 
-            shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+            # For each of our own paths (axis 0) and each Sionna path (axis 1),
+            # sum the vertex-position distance over our own valid interactions.
+            distances = jnp.linalg.norm(
+                inter_pos.reshape(-1, 1, max_num_interactions, 3)
+                - vertices_pad.reshape(
+                    1,
+                    -1,
+                    max_num_interactions,
+                    3,
+                ),
+                axis=3,
+            ).sum(
+                axis=2,
+                where=inter.reshape(-1, 1, max_num_interactions) != -1,
+            )
+            # Pairs whose interaction pattern doesn't match are disqualified
+            # (infinite distance), so that only structurally-compatible paths
+            # can be matched based on their (real) position distance. This must
+            # be applied after the sum (rather than via its 'initial' argument)
+            # because 'jnp.sum' silently ignores 'initial' when 'where' excludes
+            # every element being reduced, e.g., for line-of-sight paths.
+            matches = (
+                inter.reshape(-1, 1, max_num_interactions)
+                == interactions_pad.reshape(1, -1, max_num_interactions)
+            ).all(axis=-1)
+            distances = jnp.where(matches, distances, jnp.inf)
+            # For each Sionna path, find the index of our own closest-matching
+            # path (not the other way around), so that gathering with 'indices'
+            # below correctly reorders our paths into Sionna's order, even when
+            # the correspondence between the two orderings is not an involution.
+            indices = distances.argmin(axis=0)
+
+            orig_shape_prefix = (self.num_tx, self.num_rx, self.num_paths)
+            target_shape_prefix = (*vertices.shape[:3],)
 
             def sort_fn(x: Array) -> Array:
-                if x.shape[: len(shape_prefix)] != shape_prefix:
+                if (
+                    x is None
+                    or not isinstance(x, (np.ndarray, jax.Array))
+                    or x.shape[: len(orig_shape_prefix)] != orig_shape_prefix
+                ):
                     return x
 
-                y = x.reshape(-1, *x.shape[len(shape_prefix) :])
+                y = x.reshape(-1, *x.shape[len(orig_shape_prefix) :])
                 y = y[indices, ...]
-                return y.reshape(x.shape)
+                return y.reshape(
+                    *target_shape_prefix, *x.shape[len(orig_shape_prefix) :]
+                )
 
             return jax.tree.map(sort_fn, self)
 
-        return self.jax()._sort(paths)  # noqa: SLF001
+        return self.jax()._sort(paths)  # ruff:ignore[private-member-access]
 
     def jax(self) -> "DeepMIMO[Array]":
         """
@@ -299,11 +358,11 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
                 >>> import equinox as eqx
                 >>> from differt.plugins import deepmimo
-                >>> from differt.scene import TriangleScene, get_sionna_scene
+                >>> from differt.geometry import Scene, get_sionna_scene
                 >>> from differt.plotting import reuse
                 >>>
                 >>> file = get_sionna_scene("simple_street_canyon")
-                >>> scene = TriangleScene.load_xml(file)
+                >>> scene = Scene.load_xml(file)
                 >>> scene = eqx.tree_at(
                 ...     lambda s: s.transmitters, scene, jnp.array([-33.0, 0.0, 32.0])
                 ... )
@@ -313,9 +372,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
                 >>>
                 >>> with reuse(backend="plotly") as fig:  # doctest: +SKIP
                 ...     scene.plot()
-                ...     paths = (
-                ...         scene.compute_paths(order=order) for order in [0, 1, 2]
-                ...     )
+                ...     paths = (scene.trace_paths(order=order) for order in [0, 1, 2])
                 ...     dm = deepmimo.export(paths=paths, scene=scene, frequency=2.4e9)
                 ...     dm.plot_paths()
                 >>> fig  # doctest: +SKIP
@@ -329,31 +386,109 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         return output
 
 
+@jax.jit
+def _spherical_basis(
+    k: Float[Array, "*batch 3"],
+) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+    """
+    Compute the spherical basis unit vectors theta_hat and phi_hat for given wave vectors k.
+
+    Args:
+        k: The wave vectors.
+
+    Returns:
+        A tuple containing:
+            * theta_hat: The unit vectors in the direction of increasing theta.
+            * phi_hat: The unit vectors in the direction of increasing phi.
+    """
+    x = k[..., 0]
+    y = k[..., 1]
+    z = jnp.clip(k[..., 2], -1.0, 1.0)
+    theta = jnp.arccos(z)
+    phi = jnp.arctan2(y, x)
+
+    sin_theta = jnp.sin(theta)
+    cos_theta = jnp.cos(theta)
+    sin_phi = jnp.sin(phi)
+    cos_phi = jnp.cos(phi)
+
+    theta_hat = jnp.stack(
+        [cos_theta * cos_phi, cos_theta * sin_phi, -sin_theta], axis=-1
+    )
+    phi_hat = jnp.stack([-sin_phi, cos_phi, jnp.zeros_like(phi)], axis=-1)
+    return theta_hat, phi_hat
+
+
+@jax.jit
+def _get_reflection_coefficients(
+    n_r: Complex[Array, "*batch"],
+    cos_theta_i: Float[Array, "*batch"],
+    thickness: Float[Array, "*batch"],
+    wavelength: Float[ArrayLike, ""],
+) -> tuple[Complex[Array, "*batch"], Complex[Array, "*batch"]]:
+    """
+    Compute reflection coefficients for s- and p-polarized fields.
+
+    Uses infinite-boundary formulas when thickness is negative,
+    and slab-boundary formulas (including multiple reflections) when thickness is non-negative.
+
+    Args:
+        n_r: The complex refractive index of the materials.
+        cos_theta_i: The cosine of the incident angles.
+        thickness: The thickness of the materials (negative for infinite/semi-infinite thickness).
+        wavelength: The wavelength of the propagation wave.
+
+    Returns:
+        A tuple containing:
+            * r_s: The s-polarization reflection coefficients.
+            * r_p: The p-polarization reflection coefficients.
+    """
+    r_s_inf, r_p_inf = reflection_coefficients(n_r, cos_theta_i)
+
+    eta = n_r**2
+    sin_theta_sqr = 1.0 - cos_theta_i**2
+    a = jnp.sqrt(eta - sin_theta_sqr)
+
+    q = (2.0 * jnp.pi * thickness / wavelength) * a
+    exp_j_2q = jnp.exp(-2j * q)
+
+    r_s_slab = safe_divide(r_s_inf * (1.0 - exp_j_2q), 1.0 - r_s_inf**2 * exp_j_2q)
+    r_p_slab = safe_divide(r_p_inf * (1.0 - exp_j_2q), 1.0 - r_p_inf**2 * exp_j_2q)
+
+    use_slab = thickness >= 0.0
+    r_s = jnp.where(use_slab, r_s_slab, r_s_inf)
+    r_p = jnp.where(use_slab, r_p_slab, r_p_inf)
+    return r_s, r_p
+
+
 def export(
     *,
-    paths: Paths | Iterable[Paths],
-    scene: TriangleScene,
+    paths: TracedPaths | Iterable[TracedPaths],
+    scene: Scene,
     radio_materials: Mapping[str, Material] | None = None,
     frequency: Float[ArrayLike, ""],
     include_primitives: bool = False,
-    polarization: Literal["V", "H"] | Float[ArrayLike, "3"] = "V",
+    polarization: (
+        Literal["V", "H"]
+        | Float[ArrayLike, "3"]
+        | tuple[
+            Literal["V", "H"] | Float[ArrayLike, "3"],
+            Literal["V", "H"] | Float[ArrayLike, "3"],
+        ]
+    ) = "V",
 ) -> DeepMIMO[Array]:
     """
     Export a Ray Tracing simulation to the DeepMIMO format.
 
     .. note::
-        The current implementation assumes far-field propagation in free space, and isotropic antennas with a single polarization.
-
-        While tests show a good match with Sionna's :class:`sionna.rt.PathSolver` for most attributes,
-        :attr:`DeepMIMO.power` and :attr:`DeepMIMO.phase` are not exactly equal, and we don't know yet if our implementation is 100% correct.
-        If you know how to improve this, please open an issue or a pull-request on GitHub!
+        The current implementation assumes far-field propagation in free space and isotropic antennas.
 
     Args:
         paths: The geometrical paths.
 
             You can provide paths with different numbers of interactions by passing an iterable.
 
-            E.g., the return value of :meth:`TriangleScene.compute_paths<differt.scene.TriangleScene.compute_paths>`.
+            E.g., the return value of :meth:`Scene.trace_paths<differt.geometry.Scene.trace_paths>`.
 
         scene: The scene that was used to compute the paths.
         radio_materials: The list of materials in the scene.
@@ -361,8 +496,9 @@ def export(
             If not provided, :data:`materials<differt.em._material.materials>` will be used.
         frequency: The operating frequency (in Hz).
         include_primitives: If :data:`True`, include the primitive indices in the output.
-        polarization: The antenna polarization.
-            Can be either ``"V"`` (vertical, z-axis up), ``"H"`` (horizontal, x-axis up), or a 3D unit vector.
+        polarization: The antennas polarization.
+            Can be either ``"V"`` (vertical, z-axis up), ``"H"`` (horizontal, x-axis up),
+            a 3D unit vector, or a tuple of ``(tx_polarization, rx_polarization)``.
 
     Returns:
         The exported DeepMIMO data as JAX arrays.
@@ -376,14 +512,32 @@ def export(
     if radio_materials is None:
         radio_materials = materials
 
-    paths_iter = [paths] if isinstance(paths, Paths) else paths
+    if isinstance(polarization, tuple) and len(polarization) == 2:  # ruff:ignore[magic-value-comparison]
+        tx_polarization, rx_polarization = polarization
+    else:
+        tx_polarization = rx_polarization = polarization
+
+    paths_iter = [paths] if isinstance(paths, TracedPaths) else paths
     del paths
 
     eta_r = jnp.array([
-        materials[mat_name].relative_permittivity(frequency)
+        radio_materials[mat_name].relative_permittivity(frequency)
         for mat_name in scene.mesh.material_names
     ])
-    n_r = jnp.sqrt(eta_r)
+    conductivity = jnp.array([
+        radio_materials[mat_name].conductivity(frequency)
+        for mat_name in scene.mesh.material_names
+    ])
+    thickness = jnp.array([
+        radio_materials[mat_name].thickness
+        if radio_materials[mat_name].thickness is not None
+        else -1.0
+        for mat_name in scene.mesh.material_names
+    ])
+    omega = 2.0 * jnp.pi * frequency
+    epsilon_complex = eta_r - 1j * conductivity / (omega * epsilon_0)
+    n_complex = jnp.sqrt(epsilon_complex)
+    wavelength = c / frequency
 
     tx_pos = scene.transmitters.reshape(-1, 3)
     num_tx = tx_pos.shape[0]
@@ -392,14 +546,9 @@ def export(
 
     no_interaction = -1  # Placeholder for no interaction
 
-    # Fields array
-    fields = jnp.zeros((num_tx, num_rx, 0, 3), dtype=complex)
-    if polarization == "V":
-        polarization = jnp.array([0.0, 0.0, 1.0], dtype=float)
-    elif polarization == "H":
-        polarization = jnp.array([1.0, 0.0, 0.0], dtype=float)
-    else:  # pragma: no cover
-        polarization = jnp.asarray(polarization)
+    # Channel coefficients array
+    a_all = jnp.zeros((num_tx, num_rx, 0), dtype=complex)
+
     # Direction of departure (DoD) and direction of arrival (DoA) segments
     k_d = jnp.zeros((num_tx, num_rx, 0, 3), dtype=float)
     k_a = jnp.zeros_like(k_d)
@@ -419,7 +568,7 @@ def export(
 
     for paths in paths_iter:
         # Reshape any batch of tx and rx positions into the expected shape
-        paths = paths.reshape(num_tx, num_rx, -1)  # noqa: PLW2901
+        paths = paths.reshape(num_tx, num_rx, -1)  # ruff:ignore[redefined-loop-name]
 
         # [num_tx num_rx num_path_candidates order+1 3]
         path_segments = jnp.diff(paths.vertices, axis=-2)
@@ -452,16 +601,34 @@ def export(
         # [num_tx num_rx num_path_candidates order+1 3],
         # [num_tx num_rx num_path_candidates order+1 1]
         k, s = normalize(path_segments, keepdims=True)
-        # [num_tx num_rx num_path_candidates order 3]
-        k_i = k[..., :-1, :]
-        k_r = k[..., +1:, :]
         # [num_tx num_rx num_paths 3]
         k_d = jnp.concatenate((k_d, k[..., 0, :]), axis=-2)
         k_a = jnp.concatenate((k_a, -k[..., -1, :]), axis=-2)
 
-        # Dummy isotropic antenna fields
-        # [num_tx num_rx num_paths 3]
-        fields_i = polarization.astype(fields.dtype)
+        # Compute spherical basis unit vectors for all segments
+        theta_hat_arr, phi_hat_arr = _spherical_basis(k)
+
+        # Determine initial field e_field
+        theta_hat_0 = theta_hat_arr[..., 0, :]
+        phi_hat_0 = phi_hat_arr[..., 0, :]
+
+        if tx_polarization == "V":
+            e_field = jnp.stack(
+                [jnp.ones(theta_hat_0.shape[:-1]), jnp.zeros(theta_hat_0.shape[:-1])],
+                axis=-1,
+            ).astype(complex)
+        elif tx_polarization == "H":
+            e_field = jnp.stack(
+                [jnp.zeros(theta_hat_0.shape[:-1]), jnp.ones(theta_hat_0.shape[:-1])],
+                axis=-1,
+            ).astype(complex)
+        else:
+            p = jnp.asarray(tx_polarization, dtype=complex)
+            p_dot_theta = jnp.sum(p * theta_hat_0, axis=-1)
+            p_dot_phi = jnp.sum(p * phi_hat_0, axis=-1)
+            e_field = jnp.stack([p_dot_theta, p_dot_phi], axis=-1)
+
+        e_field_vec = e_field[..., None]  # shape [..., 2, 1]
 
         if paths.order > 0:
             # [num_tx num_rx num_path_candidates order]
@@ -470,40 +637,91 @@ def export(
             mat_indices = jnp.take(scene.mesh.face_materials, obj_indices, axis=0)
             # [num_tx num_rx num_path_candidates order 3]
             obj_normals = jnp.take(scene.mesh.normals, obj_indices, axis=0)
+
+            # [num_tx num_rx num_path_candidates order 3]
+            k_in = k[..., :-1, :]
+            k_out = k[..., 1:, :]
+            n = obj_normals
             # [num_tx num_rx num_path_candidates order]
-            obj_n_r = jnp.take(n_r, mat_indices, axis=0)
+            mat_idx = mat_indices
+
+            # [num_tx num_rx num_path_candidates order]
+            n_r_val = jnp.take(n_complex, mat_idx, axis=0)
+            thickness_val = jnp.take(thickness, mat_idx, axis=0)
+
             # [num_tx num_rx num_path_candidates order 3]
-            (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
-            # [num_tx num_rx num_path_candidates order 1]
-            cos_theta = jnp.sum(obj_normals * -k_i, axis=-1, keepdims=True)
-            # [num_tx num_rx num_path_candidates order 1]
-            r_s, r_p = reflection_coefficients(obj_n_r[..., None], cos_theta)
-            # [num_tx num_rx num_path_candidates 1]
-            r_s = jnp.prod(r_s, axis=-2)
-            r_p = jnp.prod(r_p, axis=-2)
+            (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, n)
+
+            # [num_tx num_rx num_path_candidates order]
+            cos_theta_i = jnp.sum(n * -k_in, axis=-1)
+
+            # [num_tx num_rx num_path_candidates order]
+            r_s, r_p = _get_reflection_coefficients(
+                n_r_val, cos_theta_i, thickness_val, wavelength
+            )
+
+            # Change of basis rotation matrices
             # [num_tx num_rx num_path_candidates order 3]
-            (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_i, k_r, obj_normals)
-            # [num_tx num_rx num_path_candidates 1]
-            fields_i_s = jnp.sum(fields_i * e_i_s[..., 0, :], axis=-1, keepdims=True)
-            fields_i_p = jnp.sum(fields_i * e_i_p[..., 0, :], axis=-1, keepdims=True)
-            # [num_tx num_rx num_path_candidates 1]
-            fields_r_s = r_s * fields_i_s
-            fields_r_p = r_p * fields_i_p
-            # [num_tx num_rx num_path_candidates 3]
-            fields_r = fields_r_s * e_r_s[..., -1, :] + fields_r_p * e_r_p[..., -1, :]
+            theta_in = theta_hat_arr[..., :-1, :]
+            phi_in = phi_hat_arr[..., :-1, :]
+            theta_out = theta_hat_arr[..., 1:, :]
+            phi_out = phi_hat_arr[..., 1:, :]
+
+            # [num_tx num_rx num_path_candidates order 2 2]
+            in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
+            out_rot = sp_rotation_matrix(e_r_s, e_r_p, theta_out, phi_out)
+
+            # Construct d_j = diag(r_s, r_p)
+            # [num_tx num_rx num_path_candidates order]
+            zero = jnp.zeros_like(r_s)
+            # [num_tx num_rx num_path_candidates order 2 2]
+            d_j = jnp.stack(
+                [jnp.stack([r_s, zero], axis=-1), jnp.stack([zero, r_p], axis=-1)],
+                axis=-2,
+            )
+
+            # [num_tx num_rx num_path_candidates order 2 2]
+            j_mat = jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
+
+            # Multiply transition matrices sequentially along the order dimension
+            # [order] list of [num_tx num_rx num_path_candidates 2 2]
+            j_list = [j_mat[..., j, :, :] for j in range(paths.order)]
+            # [num_tx num_rx num_path_candidates 2 2]
+            j_total = functools.reduce(lambda x, y: jnp.matmul(y, x), j_list)
+            # [num_tx num_rx num_path_candidates 2 1]
+            e_field_vec = jnp.matmul(j_total, e_field_vec)
+            # [num_tx num_rx num_path_candidates 2]
+            e_field = e_field_vec[..., 0]
+
+        # Project final field onto receiver polarization in propagation basis
+        theta_hat_last = theta_hat_arr[..., -1, :]
+        phi_hat_last = phi_hat_arr[..., -1, :]
+
+        if rx_polarization == "V":
+            theta_hat_neg_k_last = _spherical_basis(-k[..., -1, :])[0]
+            a_coeff = jnp.sum(theta_hat_last * theta_hat_neg_k_last, axis=-1)
+            u = jnp.stack([a_coeff, jnp.zeros_like(a_coeff)], axis=-1)
+        elif rx_polarization == "H":
+            theta_hat_neg_k_last = _spherical_basis(-k[..., -1, :])[0]
+            a_coeff = jnp.sum(theta_hat_last * theta_hat_neg_k_last, axis=-1)
+            u = jnp.stack([jnp.zeros_like(a_coeff), -a_coeff], axis=-1)
         else:
-            # [num_tx num_rx num_path_candidates 3]
-            fields_r = fields_i
+            p = jnp.asarray(rx_polarization)
+            p_dot_theta = jnp.sum(p * theta_hat_last, axis=-1)
+            p_dot_phi = jnp.sum(p * phi_hat_last, axis=-1)
+            u = jnp.stack([p_dot_theta, p_dot_phi], axis=-1)
 
-        # [num_tx num_rx num_path_candidates 1]
+        a_r = jnp.sum(u * e_field, axis=-1)
+
+        # Spreading factor and phase shift
         s_tot = s.sum(axis=-2)
-        spreading_factor = safe_divide(1.0, s_tot)  # Far-field approximation
-        phase = -2 * jnp.pi * frequency * s_tot / c
-        phase_shift = jax.lax.complex(jnp.cos(phase), jnp.sin(phase))
-        # [num_tx num_rx num_path_candidates 3]
-        fields_r *= spreading_factor * phase_shift
+        spreading_factor = safe_divide(1.0, s_tot)
+        phase_val = -2.0 * jnp.pi * frequency * s_tot / c
+        phase_shift = jax.lax.complex(jnp.cos(phase_val), jnp.sin(phase_val))
 
-        fields = jnp.concatenate((fields, fields_r), axis=-2)
+        a_r *= (spreading_factor * phase_shift)[..., 0]
+
+        a_all = jnp.concatenate((a_all, a_r), axis=-1)
 
         # [num_tx num_rx num_paths]
         lengths = jnp.concatenate(
@@ -522,7 +740,7 @@ def export(
             axis=-1,
         )
 
-    a = jnp.sum(fields * polarization, axis=-1)
+    a = a_all
     wavelength = c / frequency
     a *= wavelength / (4 * jnp.pi)
     power = jnp.abs(a) ** 2 / z_0

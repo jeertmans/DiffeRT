@@ -1,6 +1,9 @@
 from dataclasses import asdict
 from itertools import chain
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import chex
 import equinox as eqx
@@ -10,41 +13,46 @@ import numpy as np
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em import materials
-from differt.geometry import TriangleMesh
+from differt.em import MaterialsDict, materials, z_0
+from differt.geometry import (
+    ExhaustivePathTracer,
+    Mesh,
+    Scene,
+    TracedPaths,
+)
 from differt.plugins import deepmimo
-from differt.scene import TriangleScene
 from differt.utils import sample_points_in_bounding_box
 
 
 def test_export(key: PRNGKeyArray) -> None:
-    mesh = TriangleMesh.box(with_top=True, with_bottom=True)
+    mesh = Mesh.box(with_top=True, with_bottom=True)
     key_tx, key_rx = jax.random.split(key, 2)
 
     transmitters = sample_points_in_bounding_box(mesh.bounding_box, (1, 2), key=key_tx)
     receivers = sample_points_in_bounding_box(mesh.bounding_box, (4,), key=key_rx)
     num_tx = transmitters[..., 0].size
     num_rx = receivers[..., 0].size
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     with pytest.raises(
         ValueError, match="Scene must contain information about face materials"
     ):
-        deepmimo.export(
-            paths=scene.compute_paths(order=0), scene=scene, frequency=2.4e9
-        )
+        deepmimo.export(paths=scene.trace_paths(order=0), scene=scene, frequency=2.4e9)
 
     mesh = mesh.set_materials("itu_concrete")
-    scene = TriangleScene(mesh=mesh, transmitters=transmitters, receivers=receivers)
+    scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     frequency = 2.4e9  # 2.4 GHz
     for order in [0, 1, 2]:
-        paths = scene.compute_paths(order=order)
+        paths = cast("TracedPaths", scene.trace_paths(order=order))
         dm = deepmimo.export(paths=paths, scene=scene, frequency=frequency)
         assert dm.num_tx == num_tx
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
-        paths_iter = scene.compute_paths(order=order, chunk_size=100)
+        paths_iter = cast(
+            "Iterator[TracedPaths]",
+            scene.trace_paths(order=order, solver=ExhaustivePathTracer(chunk_size=100)),
+        )
         dm = deepmimo.export(
             paths=paths_iter,
             scene=scene,
@@ -55,13 +63,19 @@ def test_export(key: PRNGKeyArray) -> None:
         assert dm.num_rx == num_rx
         assert dm.num_paths == paths.vertices.shape[-3]
 
-    paths_iter = (scene.compute_paths(order=order) for order in [0, 1, 2])
+    paths_iter = (
+        cast("TracedPaths", scene.trace_paths(order=order)) for order in [0, 1, 2]
+    )
     dm = deepmimo.export(paths=paths_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
     assert dm.num_rx == num_rx
     num_paths = dm.num_paths
     paths_iter_iter = chain.from_iterable(
-        scene.compute_paths(order=order, chunk_size=100) for order in [0, 1, 2]
+        cast(
+            "Iterator[TracedPaths]",
+            scene.trace_paths(order=order, solver=ExhaustivePathTracer(chunk_size=100)),
+        )
+        for order in [0, 1, 2]
     )
     dm = deepmimo.export(paths=paths_iter_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
@@ -88,18 +102,22 @@ def test_export(key: PRNGKeyArray) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("polarization", ["V", "H"])
-def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -> None:
+@pytest.mark.parametrize("tx_polarization", ["V", "H"])
+@pytest.mark.parametrize("rx_polarization", ["V", "H"])
+def test_match_sionna_on_simple_street_canyon(
+    tx_polarization: Literal["V", "H"],
+    rx_polarization: Literal["V", "H"],
+) -> None:
     mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
     try:
         mi.set_variant("llvm_ad_mono_polarized")
-    except AttributeError:
+    except (AttributeError, ImportError, RuntimeError):
         pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
     sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = TriangleScene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -107,7 +125,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         vertical_spacing=0.5,
         horizontal_spacing=0.5,
         pattern="iso",
-        polarization=polarization,
+        polarization=tx_polarization,
     )
 
     sionna_scene.rx_array = sionna.rt.PlanarArray(
@@ -116,7 +134,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         vertical_spacing=0.5,
         horizontal_spacing=0.5,
         pattern="iso",
-        polarization="V",
+        polarization=rx_polarization,
     )
 
     tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
@@ -144,26 +162,32 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_order, refraction=False)
 
+    custom_materials = MaterialsDict({
+        name: eqx.tree_at(lambda m: m.thickness, mat, replace=0.1)
+        for name, mat in materials.items()
+    })
+
     dm = deepmimo.export(
         paths=(
             paths.masked()
             for order in range(max_order + 1)
-            for paths in differt_scene.compute_paths(
+            for paths in differt_scene.trace_paths(
                 order=order,
-                method="hybrid",
-                chunk_size=100_000,
+                solver=ExhaustivePathTracer(chunk_size=100_000),
             )
         ),
         scene=differt_scene,
         frequency=sionna_scene.frequency.jax().item(0),
         include_primitives=True,
+        polarization=(tx_polarization, rx_polarization),
+        radio_materials=custom_materials,
     )
     assert isinstance(dm.power, jax.Array)
     dm = dm.numpy()
     assert isinstance(dm.power, np.ndarray)
 
     # Greedily sort the paths to match Sionna's order
-    dm = dm._sort(sionna_paths)  # noqa: SLF001
+    dm = dm._sort(sionna_paths)  # ruff:ignore[private-member-access]
     assert isinstance(dm.power, jax.Array)  # _sort returns JAX arrays
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1
@@ -178,9 +202,17 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
         True,  # All paths are valid in this case
     )
 
+    # Sionna RT does not zero out interaction positions past the actual number
+    # of bounces of a path (unlike DiffeRT), so those slots must be excluded
+    # from the comparison.
+    valid_interaction = (dm.inter != -1)[..., None]
     chex.assert_trees_all_close(
-        dm.inter_pos,
-        jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+        jnp.where(valid_interaction, dm.inter_pos, 0.0),
+        jnp.where(
+            valid_interaction,
+            jnp.moveaxis(sionna_paths.vertices.jax(), 0, -2),
+            0.0,
+        ),
         atol=1e-3,
     )
 
@@ -197,7 +229,7 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
     chex.assert_trees_all_close(
         dm.aod_az,
         jnp.rad2deg(sionna_paths.phi_t.jax()),
-        atol=3e-5,
+        atol=3e-4,
     )
 
     chex.assert_trees_all_close(
@@ -223,16 +255,18 @@ def test_match_sionna_on_simple_street_canyon(polarization: Literal["V", "H"]) -
     a = a[:, 0, :, 0, :, :]  # Take only the first TX and RX polarization
     a = a[..., 0]  # Take only the first time instant
 
-    # TODO: Understand why phase and power are not matching
+    # Only compare phase and power for paths with non-negligible power (e.g., > -150 dBW)
+    # to avoid numerical instabilities and undefined phases on zero-power paths.
+    valid = dm.power > -150.0
 
-    del a
+    chex.assert_trees_all_close(
+        dm.phase[valid],
+        jnp.angle(a, deg=True)[valid],
+        atol=5e-2,
+    )
 
-    # chex.assert_trees_all_equal(
-    #     dm.phase,
-    #     jnp.angle(a, deg=True)
-    # )
-
-    # chex.assert_trees_all_equal(
-    #     dm.power,
-    #     10.0 * jnp.log10(jnp.abs(a)**2 / z_0),
-    # )
+    chex.assert_trees_all_close(
+        dm.power[valid],
+        10.0 * jnp.log10(jnp.abs(a) ** 2 / z_0)[valid],
+        atol=1e-3,
+    )

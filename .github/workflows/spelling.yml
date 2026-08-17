@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Strip cell output
       run: |
@@ -18,7 +18,7 @@ jobs:
         find . -name '*.ipynb' -exec nbstripout {} +
 
     - name: Check and report
-      uses: reviewdog/action-languagetool@v1
+      uses: reviewdog/action-languagetool@afd06e9b0f782c9562c92efffb66a49c09b2b4f4 # v1.23.0
       with:
         reporter: github-pr-review
         patterns: '*.md src/**.rs python/differt/**.py docs/source/**.md docs/source/**.ipynb'
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Strip cell output
       run: |

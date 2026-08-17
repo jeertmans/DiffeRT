@@ -16,5 +16,5 @@ def test_import_with_missing_backends(
 ) -> None:
     with missing_modules(*backends):
         importlib.reload(dplt)
-        importlib.reload(dplt._core)  # noqa: SLF001
-        importlib.reload(dplt._utils)  # noqa: SLF001
+        importlib.reload(dplt._core)  # ruff:ignore[private-member-access]
+        importlib.reload(dplt._utils)  # ruff:ignore[private-member-access]

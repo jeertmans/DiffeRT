@@ -1,11 +1,13 @@
 # Python build files and cache
 
 *.pyc
+*.pyd
 *.so
 *.egg-info
 
 dist/
 target/
+__pycache__/
 
 # Docs
 
@@ -15,8 +17,8 @@ docs/source/reference/_autosummary/
 
 # Sionna data
 
-differt/src/differt/scene/scenes.lock
-differt/src/differt/scene/scenes/
+differt/src/differt/geometry/scenes.lock
+differt/src/differt/geometry/scenes/
 
 # Notebooks
 
