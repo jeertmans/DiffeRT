@@ -974,8 +974,6 @@ class TestMesh:
     def test_load_ply_with_colors(
         self, cube_ply_file: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        caplog.clear()
-
         with caplog.at_level(logging.INFO):
             mesh = Mesh.load_ply(cube_ply_file)
 

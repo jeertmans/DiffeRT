@@ -214,8 +214,6 @@ class TestDiGraph:
         graph = CompleteGraph(num_nodes)
         from_, to = num_nodes, num_nodes + 1
 
-        caplog.clear()
-
         with caplog.at_level(logging.WARNING):
             _ = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
 
