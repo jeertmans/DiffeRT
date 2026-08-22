@@ -88,7 +88,7 @@ class AbstractAntenna(BaseAntenna):
 
         This is the maximal value of the Poynting vector at a distance
         of one meter from this antenna, multiplied by the area of the sphere
-        (:math:`4\phi`),
+        (:math:`4\pi`),
         to obtain a power.
         """
 
@@ -555,7 +555,7 @@ class ShortDipole(Dipole):
     However, fields are only derived for far field.
 
     Warning:
-        Not implemented yed.
+        Not implemented yet.
     """
 
     @eqx.filter_jit
@@ -772,7 +772,7 @@ class AbstractRadiationPattern(BaseAntenna):
 
 
 class HWDipolePattern(AbstractRadiationPattern):
-    """An half-wave dipole radiation pattern."""
+    """A half-wave dipole radiation pattern."""
 
     direction: Float[Array, "3"]
     """The dipole direction."""
@@ -796,7 +796,7 @@ class HWDipolePattern(AbstractRadiationPattern):
 
 
 class ShortDipolePattern(AbstractRadiationPattern):
-    """An short dipole radiation pattern."""
+    """A short dipole radiation pattern."""
 
     direction: Float[Array, "3"]
     """The dipole direction."""
