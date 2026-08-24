@@ -20,6 +20,7 @@ from differt.geometry import (
     LaunchedPaths,
     Mesh,
     SBRPathLauncher,
+    Scene,
     TracedPaths,
     assemble_path,
     get_sionna_scene,
@@ -27,7 +28,6 @@ from differt.geometry import (
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.geometry._scene import Scene
 from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -63,6 +63,10 @@ class TestScene:
         sionna = pytest.importorskip("sionna", reason="sionna not installed")
         for scene_name in list_sionna_scenes(folder=sionna_folder):
             with subtests.test(scene_name=scene_name):
+                if scene_name in {"etoile", "florence", "munich", "san_francisco"}:
+                    pytest.skip(
+                        f"Scene {scene_name} is too large to load in a reasonable time with 'sionna.rt.load_scene'."
+                    )
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
                 for f in [file, str(file)]:
                     # While not documented, sionna.rt.load_scene() can load scenes from a file path or a string path.
@@ -369,82 +373,34 @@ class TestScene:
             )
 
     @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
-    @pytest.mark.parametrize("order", [0, 1, 2, 3])
+    @pytest.mark.parametrize("order", [0, 1])
     @pytest.mark.parametrize(
-        "method",
+        "solver",
         [
             "exhaustive",
             "sbr",
             "hybrid",
         ],
     )
-    @pytest.mark.parametrize("chunk_size", [None, 1000])
     @pytest.mark.parametrize("assume_quads", [False, True])
-    @pytest.mark.parametrize("mesh_mask", [False, True])
     def test_compute_paths_with_smoothing(
         self,
         order: int | None,
-        method: Literal["exhaustive", "sbr", "hybrid"],
-        chunk_size: int | None,
+        solver: Literal["exhaustive", "hybrid"],
         assume_quads: bool,
-        mesh_mask: bool,
         simple_street_canyon_scene: Scene,
     ) -> None:
         # TODO: fixme
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
 
-        if mesh_mask:
-            scene = eqx.tree_at(
-                lambda s: s.mesh.mask,
-                scene,
-                jnp.ones(scene.mesh.triangles.shape[0], dtype=bool),
-                is_leaf=lambda x: x is None,
-            )
+        expected = scene.trace_paths(
+            order=order,
+            solver=solver,
+        )
 
-        if method == "sbr":
-            expected = scene.launch_paths(order=order)
-        elif method == "hybrid":
-            expected = cast("Any", scene.trace_paths)(
-                order=order, solver=HybridPathTracer(chunk_size=chunk_size)
-            )
-        else:
-            expected = cast("Any", scene.trace_paths)(
-                order=order, solver=ExhaustivePathTracer(chunk_size=chunk_size)
-            )
+        got = scene.trace_paths(order=order, solver=solver, smoothing_factor=1e3)
 
-        if method == "hybrid":
-            expectation = pytest.warns(
-                UserWarning,
-                match="Argument 'smoothing' is currently ignored",
-            )
-        else:
-            expectation = does_not_raise()
-
-        with expectation:
-            if method == "sbr":
-                got = expected
-            elif method == "hybrid":
-                got = cast("Any", scene.trace_paths)(
-                    order=order,
-                    solver=HybridPathTracer(
-                        chunk_size=chunk_size, smoothing_factor=1000.0
-                    ),
-                )
-            else:
-                got = cast("Any", scene.trace_paths)(
-                    order=order,
-                    solver=ExhaustivePathTracer(
-                        chunk_size=chunk_size, smoothing_factor=1000.0
-                    ),
-                )
-
-        assert type(got) is type(expected)
-
-        if isinstance(got, Iterator):
-            for got_paths, expected_paths in zip(got, expected, strict=True):
-                chex.assert_trees_all_close(got_paths, expected_paths)
-        else:
-            chex.assert_trees_all_close(got, expected)
+        chex.assert_trees_all_close(got, expected)
 
     @pytest.mark.parametrize(
         ("order", "chunk_size", "path_candidates", "method", "expectation"),

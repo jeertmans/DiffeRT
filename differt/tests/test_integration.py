@@ -196,11 +196,6 @@ def test_simple_street_canyon() -> None:
         )
 
 
-# Sionna RT has no notion of a color for 'vacuum' (it isn't a rendered/physical
-# material), so there is nothing to compare its color against.
-_MATERIALS_WITHOUT_SIONNA_COLOR = frozenset({"itu_vacuum"})
-
-
 def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
     """Parse the color DiffeRT assigns to an ITU radio material, via a minimal Sionna scene."""
     xml = f"""<scene version="2.1.0">
@@ -236,7 +231,7 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
 
         itu_type = mat_name.removeprefix("itu_")
 
-        if mat_name not in _MATERIALS_WITHOUT_SIONNA_COLOR:
+        if mat_name != "itu_vacuum":
             with subtests.test(f"{mat_name} color"):
                 got_color = _differt_color(itu_type, tmp_path)
                 expected_color = sionna.rt.ITURadioMaterial.ITU_MATERIAL_COLORS[
@@ -265,9 +260,12 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
                     # DiffeRT treats 'vacuum' as valid at any frequency (it has no
                     # measurement-derived validity range like other materials),
                     # while Sionna RT restricts it to ITU-R P.2040-4's [0.001, 100] GHz.
-                    pytest.xfail(
+                    if mat_name == "itu_vacuum" and not (1e6 <= f <= 1e11):
+                        continue
+
+                    pytest.fail(
                         f"Sionna RT doesn't cover {f / 1e9:.3g} GHz for {itu_type!r} "
-                        f"({exc})."
+                        f"({exc}), but DiffeRT has a value for it."
                     )
                 else:
                     if differt_out_of_range:
