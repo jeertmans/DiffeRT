@@ -27,18 +27,17 @@ with one *slight* but **important** difference:
 - Added an automatically generated ITU radio materials summary table in Sphinx documentation using a custom Sphinx extension and directive `.. itu-materials-table::` (by <gh-user:jeertmans>, in <gh-pr:504>).
 - Added an extensible EM field-solver architecture ({class}`AbstractFieldSolver<differt.em.AbstractFieldSolver>`, {class}`GeometricFieldSolver<differt.em.GeometricFieldSolver>`) and high-level pipeline utilities ({class}`TracedFields<differt.em.TracedFields>`, {func}`compute_received_fields<differt.em.compute_received_fields>`, {func}`compute_received_power<differt.em.compute_received_power>`, {func}`compute_cir<differt.em.compute_cir>`), integrated with {meth}`Scene.trace_fields<differt.geometry.Scene.trace_fields>` and {meth}`TracedPaths.to_fields<differt.geometry.TracedPaths.to_fields>`, supporting reflection, transmission (slab model), UTD edge diffraction, and diffuse scattering (Lambertian, directive, and backscattering patterns) (by <gh-user:jeertmans>, in <gh-pr:460>).
 - Added customizable incident wavefront curvature (`tx_wavefront_radii` for planar, spherical, or astigmatic wavefronts), {meth}`AbstractAntenna.wavefront_radii<differt.em.AbstractAntenna.wavefront_radii>`, {class}`AbstractFarFieldAntenna<differt.em.AbstractFarFieldAntenna>`, and automatic operating frequency derivation from antennas (by <gh-user:jeertmans>, in <gh-pr:460>).
-- Added topology-aware diffraction edge detection properties (`diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`Mesh<differt.geometry.Mesh>` (by <gh-user:jeertmans>, in <gh-pr:460>).
 - Added a dedicated tutorial on EM field fundamentals ({doc}`EM Fields' ABC <notebooks/em_fields_abc>`) and streamlined the {doc}`Quickstart tutorial <notebooks/quickstart>` (by <gh-user:jeertmans>, in <gh-pr:460>).
 
 ### Changed
 
-- Removed warning message in {meth}`Mesh.keep_all_within<differt.geometry.Mesh.keep_all_within>` and {meth}`Mesh.keep_any_within<differt.geometry.Mesh.keep_any_within>` when `preserve_objects=True` is used, as the feature is fully supported and the previous warning introduced in <gr-pr:452> was unnecessary since the unexpected filtering was caused by merged mesh geometries in scene files rather than the function implementation (by <gh-user:jeertmans>, in <gh-pr:456>).
-- Refactored {func}`deepmimo.export<differt.plugins.deepmimo.export>` to leverage the new unified JAX-compatible `compute_received_fields` pipeline, reducing duplicate code and improving consistency (by <gh-user:Antigravity>).
-- Removed the broken, unimplemented `differt.em.transition_matrix` stub, superseded by {meth}`GeometricFieldSolver.transition_matrices<differt.em.GeometricFieldSolver.transition_matrices>` (by <gh-user:jeertmans>, in <gh-pr:460>).
 - All file reader methods now support {class}`os.PathLike[str]<os.PathLike>` in addition to {class}`str` input types (by <gh-user:jeertmans>, in <gh-pr:517>).
 - **Breaking change**: The {func}`get_sionna_scene<differt.geometry.get_sionna_scene>` function now returns a {class}`pathlib.Path`, instead of a {class}`str` (by <gh-user:jeertmans>, in <gh-pr:517>).
 - Updated built-in ITU radio materials list in ``materials`` to **Recommendation ITU-R P.2040-4** (09/2025), including updated electrical parameters ($a, b, c, d, \text{frequency range}$) and default Sionna-RT RGB color mappings (by <gh-user:jeertmans>, in <gh-pr:504>).
 - Improved {class}`Material<differt.em._material.Material>` and ``materials`` string representations (`__repr__`) to display clean summaries with registered aliases instead of internal JIT function pointers (by <gh-user:jeertmans>, in <gh-pr:504>).
+- Refactored {func}`deepmimo.export<differt.plugins.deepmimo.export>` to leverage the new unified JAX-compatible `compute_received_fields` pipeline, reducing duplicate code and improving consistency (by <gh-user:Antigravity>).
+- All file reader methods now support {class}`os.PathLike[str]<os.PathLike>` in addition to {class}`str` input types (by <gh-user:jeertmans>, in <gh-pr:517>).
+- Removed the broken, unimplemented `differt.em.transition_matrix` stub, superseded by {meth}`GeometricFieldSolver.transition_matrices<differt.em.GeometricFieldSolver.transition_matrices>` (by <gh-user:jeertmans>, in <gh-pr:460>).
 
 ## [0.10.0](https://github.com/jeertmans/DiffeRT/compare/v0.9.1...v0.10.0)
 
@@ -71,7 +70,7 @@ with one *slight* but **important** difference:
     - Renamed `refractive_indices` to {func}`refractive_index<differt.em.refractive_index>`
     - Renamed `lengths_to_delays` to {func}`length_to_delay<differt.em.length_to_delay>`
     - Renamed `path_delays` to {func}`path_delay<differt.em.path_delay>`
-    - Renamed `transition_matrices` to `transition_matrix` (later superseded by {meth}`GeometricFieldSolver.transition_matrices<differt.em.GeometricFieldSolver.transition_matrices>`)
+    - Renamed `transition_matrices` to `transition_matrix`
   - Additionally, parameter names in these functions and their docstrings were renamed from plural to singular forms (e.g., `vertices` -> `vertex`, `from_vertices` -> `from_vertex`, etc.) to match the new convention (by <gh-user:jeertmans>, in <gh-pr:478>).
 - **Breaking change**: Refactored the monolithic `TriangleScene.compute_paths` method into two distinct methods (`trace_paths` for exact tracing and `launch_paths` for ray launching) and marked `compute_paths` as deprecated (by <gh-user:jeertmans>, in <gh-pr:491>).
 - **Breaking change**: Renamed `Paths` to {class}`TracedPaths<differt.geometry.TracedPaths>` and `SBRPaths` to {class}`LaunchedPaths<differt.geometry.LaunchedPaths>`, separating them structurally to avoid inheritance dependencies. Added backwards-compatible aliases and properties (by <gh-user:jeertmans>, in <gh-pr:491>).
@@ -106,7 +105,7 @@ with one *slight* but **important** difference:
 
 ### Added
 
-- Added {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` method to only renumber triangles to refer to the first occurrence of each unique vertex coordinate, thrust preserving the original vertices and their ordering (by <gh-user:jeertmans>, in <gh-pr:463>).
+- Added {meth}`TriangleMesh.dedup_vertices<differt.geometry.Mesh.dedup_vertices>` method to only renumber triangles to refer to the first occurrence of each unique vertex coordinate, thus preserving the original vertices and their ordering (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added {meth}`TriangleMesh.drop_unused_vertices<differt.geometry.Mesh.drop_unused_vertices>` method to remove vertices that are not referenced by any triangle (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added diffraction edge detection properties (`diffraction_edges_mask`, `diffraction_edges`, `wedge_angles`, `wedge_parameters`) on {class}`TriangleMesh<differt.geometry.Mesh>` to support edge adjacency, quad diagonal exclusion, non-manifold edge warnings, and convex/concave/knife-edge wedge angle classification (by <gh-user:jeertmans>, in <gh-pr:463>).
 - Added Warp-accelerated methods on {class}`TriangleMesh<differt.geometry.Mesh>` to significantly improve performance of ray-triangle intersections, first hit search, and visibility checks when smoothing is disabled (by <gh-user:jeertmans>, in <gh-pr:467>).

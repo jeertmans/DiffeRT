@@ -4,7 +4,6 @@
 *.pyd
 *.so
 *.egg-info
-__pycache__/
 
 dist/
 target/
