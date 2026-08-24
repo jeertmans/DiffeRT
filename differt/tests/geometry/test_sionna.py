@@ -1,6 +1,10 @@
+import io
+import tarfile
+from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
 from timeit import timeit
+from typing import ClassVar
 
 import pytest
 from pytest_subtests import SubTests
@@ -32,8 +36,40 @@ def test_download_sionna_scenes_cached(sionna_folder: Path) -> None:
 
 
 @pytest.mark.slow
-def test_download_sionna_scenes_existing_empty_folder(empty_folder: Path) -> None:
-    download_sionna_scenes(folder=empty_folder, cached=False)
+def test_download_sionna_scenes_existing_empty_folder(
+    empty_folder: Path,
+    sionna_folder: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = io.BytesIO()
+
+    with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+        for path in sionna_folder.rglob("*"):
+            if path.relative_to(sionna_folder).parts[0] == "simple_street_canyon":
+                arcname = Path(
+                    "sionna-rt-main/src/sionna/rt/scenes",
+                    path.relative_to(sionna_folder),
+                )
+                tar.add(path, arcname=arcname)
+
+    archive_data = archive.getvalue()
+
+    class FakeResponse:
+        headers: ClassVar[dict[str, str]] = {"content-length": str(len(archive_data))}
+
+        def iter_content(self, chunk_size: int) -> Iterator[bytes]:
+            stream = io.BytesIO(archive_data)
+            while chunk := stream.read(chunk_size):
+                yield chunk
+
+    with monkeypatch.context() as m:
+        m.setattr(
+            "differt.geometry._sionna.requests.get",
+            lambda *_args, **_kwargs: FakeResponse(),
+        )
+        download_sionna_scenes(folder=empty_folder, cached=False)
+
+    assert list_sionna_scenes(folder=empty_folder) == ["simple_street_canyon"]
 
 
 def test_download_sionna_scenes_existing_non_empty_folder(sionna_folder: Path) -> None:

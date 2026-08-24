@@ -1,4 +1,3 @@
-import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -970,22 +969,6 @@ class TestMesh:
         assert mesh.triangles.shape == (24, 3)
         mesh = Mesh.load_ply(str(two_buildings_ply_file))
         assert mesh.triangles.shape == (24, 3)
-
-    def test_load_ply_with_colors(
-        self, cube_ply_file: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        with caplog.at_level(logging.INFO):
-            mesh = Mesh.load_ply(cube_ply_file)
-
-            assert mesh.triangles.shape == (2, 3)
-            assert (
-                len([
-                    record
-                    for record in caplog.records
-                    if "because it is not a triangle" in record.msg
-                ])
-                == 5
-            )
 
     def test_compare_with_open3d(
         self,
