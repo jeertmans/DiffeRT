@@ -5,6 +5,8 @@ from enum import IntEnum, unique
 class InteractionType(IntEnum):
     """Enumeration of interaction types."""
 
+    NONE = -1
+    """No interaction (placeholder)."""
     REFLECTION = 0
     """Specular reflection on a surface."""
     DIFFRACTION = 1

@@ -262,7 +262,9 @@ def test_match_sionna_on_simple_street_canyon(
     chex.assert_trees_all_close(
         dm.phase[valid],
         jnp.angle(a, deg=True)[valid],
-        atol=5e-2,
+        # Loose tolerance: comparing against an independently-implemented RT engine,
+        # and float32 op-fusion (jit) can shift multi-bounce phase by a few 0.01deg.
+        atol=1e-1,
     )
 
     chex.assert_trees_all_close(

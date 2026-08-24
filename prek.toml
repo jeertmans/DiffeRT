@@ -37,21 +37,21 @@ hooks = [
   ], priority = 200},
 ]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "v0.16.2"
+rev = "v0.16.4"
 
 [[repos]]
 hooks = [
   {id = "ty", priority = 301},
 ]
 repo = "https://github.com/astral-sh/ty-pre-commit"
-rev = "v0.0.69"
+rev = "v0.0.74"
 
 [[repos]]
 hooks = [
   {id = "uv-lock", priority = 100},
 ]
 repo = "https://github.com/astral-sh/uv-pre-commit"
-rev = "0.12.3"
+rev = "0.12.5"
 
 [[repos]]
 hooks = [

@@ -218,7 +218,8 @@ filterwarnings = [
   'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
   '''ignore:Due to '_pack_', the '.*' Structure will use memory layout compatible with MSVC \(Windows\):DeprecationWarning''',  # Warning from warp-lang
 ]
-log_level = "INFO"
+log_cli = false
+log_level = "WARNING"
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "serial",

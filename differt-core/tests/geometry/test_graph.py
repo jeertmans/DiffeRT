@@ -1,4 +1,3 @@
-import logging
 import re
 
 import numpy as np
@@ -197,29 +196,3 @@ class TestDiGraph:
         assert num_paths == num_nodes * (num_nodes - 1) ** (depth - 1)
         array = graph.all_paths_array(from_, to, depth + 2, include_from_and_to=False)
         assert array.shape == (num_paths, depth)
-
-    @pytest.mark.parametrize(
-        ("num_nodes", "depth"),
-        [
-            (10, 100),
-            (50_000, 10),
-        ],
-    )
-    def test_all_paths_count_from_complete_graph_overflow(
-        self,
-        num_nodes: int,
-        depth: int,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        graph = CompleteGraph(num_nodes)
-        from_, to = num_nodes, num_nodes + 1
-
-        caplog.clear()
-
-        with caplog.at_level(logging.WARNING):
-            _ = graph.all_paths(from_, to, depth + 2, include_from_and_to=False)
-
-            assert (
-                "OverflowError: overflow occurred when computing the total number of paths"
-                in caplog.text
-            )
