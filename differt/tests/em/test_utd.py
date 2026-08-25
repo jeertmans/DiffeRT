@@ -8,7 +8,7 @@ import pytest
 import scipy.special as sp
 from jaxtyping import PRNGKeyArray
 
-from differt.em._utd import F, L_i, _cot_times_F, diffraction_coefficients
+from differt.em._utd import F, L_i, _a, _cot_times_F, diffraction_coefficients
 
 
 def test_L_i(key: PRNGKeyArray) -> None:
@@ -164,6 +164,24 @@ def test_diffraction_coefficients() -> None:
     )
     assert not jnp.any(jnp.isnan(D_s_exact))
     assert not jnp.any(jnp.isnan(D_h_exact))
+
+
+def test_a() -> None:
+    """The ``_a`` helper should equal ``2 sin^2(delta / 2)`` where ``delta`` is the
+    signed distance to the nearest shadow-boundary angle for the given mode."""
+    beta = jnp.asarray([0.7, -1.3, 2.9])
+    n = jnp.asarray([1.2, 1.5, 2.0])
+
+    for mode in ("+", "-"):
+        mode_sign = 1.0 if mode == "+" else -1.0
+        got = _a(beta, n, mode)
+
+        N = jnp.round((beta + mode_sign * jnp.pi) / (2 * n * jnp.pi))
+        beta_boundary = 2 * n * jnp.pi * N - mode_sign * jnp.pi
+        delta = beta - beta_boundary
+        expected = 2.0 * jnp.sin(delta / 2.0) ** 2
+
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
 
 
 def test_cot_times_f_boundary_limit_matches_formula_away_from_boundary() -> None:

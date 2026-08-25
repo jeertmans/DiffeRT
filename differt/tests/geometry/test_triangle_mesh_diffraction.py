@@ -2,7 +2,7 @@ import chex
 import jax.numpy as jnp
 import pytest
 
-from differt.geometry._triangle_mesh import TriangleMesh
+from differt.geometry._mesh import Mesh
 
 
 def test_boundary_edges() -> None:
@@ -13,7 +13,7 @@ def test_boundary_edges() -> None:
         [0.0, 1.0, 0.0],
     ])
     triangles = jnp.array([[0, 1, 2]])
-    mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+    mesh = Mesh(vertices=vertices, triangles=triangles)
 
     assert mesh.diffraction_edges_mask.shape == (1, 3)
     assert not jnp.any(mesh.diffraction_edges_mask)
@@ -34,7 +34,7 @@ def test_coplanar_edges() -> None:
         [0, 1, 2],
         [1, 3, 2],
     ])
-    mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=False)
+    mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=False)
 
     # They share an edge but they are coplanar, so they should NOT be diffraction edges.
     assert not jnp.any(mesh.diffraction_edges_mask)
@@ -56,7 +56,7 @@ def test_convex_and_concave_wedges() -> None:
         [0, 1, 2],
         [1, 3, 2],
     ])
-    mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=False)
+    mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=False)
 
     # Edge (1, 2) is shared.
     # Normal 1 = [0, 0, 1], Normal 2 = [1, 0, 0].
@@ -67,9 +67,10 @@ def test_convex_and_concave_wedges() -> None:
         jnp.sum(mask) == 2
     )  # shared edge is represented once for each of the two adjacent triangles
 
+    # wedge_parameters is deduplicated to one value per physical edge.
     n = mesh.wedge_parameters
-    assert n.shape == (2,)
-    chex.assert_trees_all_close(n, jnp.array([1.5, 1.5]))
+    assert n.shape == (1,)
+    chex.assert_trees_all_close(n, jnp.array([1.5]))
 
 
 def test_assume_quads() -> None:
@@ -84,10 +85,10 @@ def test_assume_quads() -> None:
         [0, 1, 2],
         [1, 3, 2],
     ])
-    mesh = TriangleMesh(vertices=vertices, triangles=triangles, assume_quads=True)
+    mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=True)
 
     # The shared diagonal should be ignored because assume_quads=True.
-    adj_t, _ = mesh._connectivity  # ruff:ignore[private-member-access]
+    adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
     assert jnp.all(adj_t == -1)
 
 
@@ -106,6 +107,6 @@ def test_non_manifold_edges() -> None:
         [0, 1, 4],
     ])
 
-    mesh = TriangleMesh(vertices=vertices, triangles=triangles)
+    mesh = Mesh(vertices=vertices, triangles=triangles)
     with pytest.warns(UserWarning, match="The mesh contains non-manifold edges"):
         _ = mesh.diffraction_edges_mask

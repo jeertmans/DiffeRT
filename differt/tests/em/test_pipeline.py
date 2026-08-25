@@ -1,15 +1,52 @@
 import chex
 import jax
 import jax.numpy as jnp
+import pytest
 
 from differt.em import (
+    GeometricFieldSolver,
+    InteractionType,
     c,
     compute_cir,
     compute_received_fields,
     compute_received_power,
+    diffraction_matrix,
     fspl,
+    reflection_matrix,
+    ris_matrix,
+    scattering_matrix,
+    transition_matrix,
+    transmission_matrix,
 )
 from differt.geometry import Mesh, TracedPaths
+
+
+def _single_bounce_paths(interaction_type: int) -> TracedPaths:
+    # A single reflection-like bounce off the ground plane (z=0):
+    # TX at (0, 0, 1), bounce at (5, 0, 0), RX at (10, 0, 1).
+    vertices = jnp.array([[[0.0, 0.0, 1.0], [5.0, 0.0, 0.0], [10.0, 0.0, 1.0]]])
+    objects = jnp.array([[-1, 0, -1]])
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.array([[interaction_type]])
+    return TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
+
+
+def _ground_plane_mesh() -> Mesh:
+    return Mesh(
+        vertices=jnp.array([
+            [-100.0, -100.0, 0.0],
+            [100.0, -100.0, 0.0],
+            [0.0, 100.0, 0.0],
+        ]),
+        triangles=jnp.array([[0, 1, 2]]),
+        face_materials=jnp.array([0]),
+        material_names=("Metal",),
+    )
 
 
 def test_los_received_power_matches_fspl() -> None:
@@ -128,3 +165,125 @@ def test_compute_received_power_coherent_vs_non_coherent() -> None:
     expected_power_nc = 10.0 * jnp.log10(7.0 / z_0_val)
     power_nc = compute_received_power(fields, z_0=z_0_val, coherent=False, axis=-1)
     chex.assert_trees_all_close(power_nc, jnp.array([expected_power_nc]), atol=1e-5)
+
+
+@pytest.mark.require_no_typechecker
+def test_compute_received_fields_unknown_solver_string_raises() -> None:
+    vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
+    objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+    paths = TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
+    mesh = Mesh.empty()
+
+    with pytest.raises(ValueError, match="Unknown solver"):
+        compute_received_fields(paths, mesh, 1e9, solver="not-a-real-solver")  # type: ignore[arg-type]
+
+
+def test_compute_received_fields_solver_kwargs_with_instance_raises() -> None:
+    vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
+    objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+    paths = TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
+    mesh = Mesh.empty()
+    solver = GeometricFieldSolver()
+
+    with pytest.raises(ValueError, match="solver_kwargs cannot be used"):
+        compute_received_fields(paths, mesh, 1e9, solver=solver, tx_polarization="H")
+
+
+def test_compute_received_fields_missing_frequency_raises() -> None:
+    # Default 'tx_polarization' is the plain string "V" (not an
+    # AbstractAntenna instance), so it carries no 'frequency' attribute
+    # and the frequency cannot be inferred.
+    vertices = jnp.array([[[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
+    objects = jnp.full(vertices.shape[:-1], -1, dtype=int)
+    mask = jnp.ones(vertices.shape[:-2], dtype=bool)
+    interaction_types = jnp.empty((*vertices.shape[:-2], 0), dtype=int)
+    paths = TracedPaths(
+        vertices=vertices,
+        objects=objects,
+        mask=mask,
+        interaction_types=interaction_types,
+    )
+    mesh = Mesh.empty()
+
+    with pytest.raises(ValueError, match="'frequency' must be provided explicitly"):
+        compute_received_fields(paths, mesh)
+
+
+@pytest.mark.parametrize(
+    ("fn", "match"),
+    [
+        (transition_matrix, "solver_kwargs cannot be used"),
+        (reflection_matrix, "solver_kwargs cannot be used"),
+        (diffraction_matrix, "solver_kwargs cannot be used"),
+        (scattering_matrix, "solver_kwargs cannot be used"),
+        (transmission_matrix, "solver_kwargs cannot be used"),
+        (ris_matrix, "solver_kwargs cannot be used"),
+    ],
+)
+def test_matrix_functions_solver_kwargs_with_instance_raises(fn, match) -> None:  # noqa: ANN001
+    paths = _single_bounce_paths(InteractionType.REFLECTION)
+    mesh = _ground_plane_mesh()
+    solver = GeometricFieldSolver()
+
+    with pytest.raises(ValueError, match=match):
+        fn(paths, mesh, 1e9, solver=solver, tx_polarization="H")
+
+
+@pytest.mark.parametrize(
+    ("fn", "method_name"),
+    [
+        (transition_matrix, "transition_matrices"),
+        (reflection_matrix, "reflection_matrix"),
+        (diffraction_matrix, "diffraction_matrix"),
+        (scattering_matrix, "scattering_matrix"),
+        (transmission_matrix, "transmission_matrix"),
+    ],
+)
+def test_matrix_functions_default_solver_matches_geometric_field_solver(
+    fn,  # noqa: ANN001
+    method_name: str,
+) -> None:
+    # 'solver=None' (the default) must instantiate a plain
+    # 'GeometricFieldSolver' from 'solver_kwargs' and delegate to the
+    # matching method, exactly as if constructed and called manually.
+    paths = _single_bounce_paths(InteractionType.REFLECTION)
+    mesh = _ground_plane_mesh()
+    frequency = 1e9
+
+    got = fn(paths, mesh, frequency, tx_polarization="H")
+    expected = getattr(GeometricFieldSolver(tx_polarization="H"), method_name)(
+        paths, mesh, frequency
+    )
+
+    chex.assert_trees_all_close(got, expected)
+
+
+def test_ris_matrix_default_solver_raises_not_implemented() -> None:
+    # 'ris_matrix' (the wrapper) must still instantiate a default
+    # 'GeometricFieldSolver' when 'solver=None', even though
+    # 'GeometricFieldSolver.ris_matrix' unconditionally raises.
+    paths = _single_bounce_paths(InteractionType.REFLECTION)
+    mesh = _ground_plane_mesh()
+
+    with pytest.raises(NotImplementedError, match="not implemented"):
+        ris_matrix(paths, mesh, 1e9)
+
+
+def test_transition_matrices_is_transition_matrix_alias() -> None:
+    from differt.em import transition_matrices
+
+    assert transition_matrices is transition_matrix

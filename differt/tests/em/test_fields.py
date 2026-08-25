@@ -6,6 +6,8 @@ from jaxtyping import Array, ArrayLike, Float
 
 from differt.em import (
     AbstractRadiationPattern,
+    Dipole,
+    GeometricFieldSolver,
     InteractionType,
     Material,
     TracedFields,
@@ -264,6 +266,112 @@ def test_radiation_pattern_polarization_vectors() -> None:
         paths, mesh, tx_polarization=pattern, rx_polarization=pattern
     )
     assert jnp.all(jnp.isfinite(fields))
+
+
+def test_traced_fields_float_mask_properties() -> None:
+    fields = jnp.array([1.0 + 1.0j, 2.0 + 2.0j, 3.0 + 3.0j])
+    delay = jnp.array([1.0e-8, 2.0e-8, 3.0e-8])
+    freq = jnp.array(1.0e9)
+    mask = jnp.array([0.9, 0.4, 0.6])
+
+    tf = TracedFields(
+        fields=fields,
+        delay=delay,
+        frequency=freq,
+        mask=mask,
+        confidence_threshold=0.5,
+    )
+
+    assert tf.num_valid_paths == 2
+
+    chex.assert_trees_all_equal(tf.masked_fields, jnp.array([1.0 + 1.0j, 3.0 + 3.0j]))
+    chex.assert_trees_all_equal(tf.masked_delay, jnp.array([1.0e-8, 3.0e-8]))
+
+
+def test_traced_fields_squeeze_errors() -> None:
+    fields_0d = jnp.array(1.0 + 0j)
+    delay_0d = jnp.array(1.0e-8)
+    freq = jnp.array(1.0e9)
+    mask_0d = jnp.array(True)
+
+    tf_0d = TracedFields(fields=fields_0d, delay=delay_0d, frequency=freq, mask=mask_0d)
+
+    with pytest.raises(ValueError, match="Cannot squeeze a 0-dimensional batch"):
+        tf_0d.squeeze(axis=0)
+
+    fields_1d = jnp.array([1.0 + 0j, 2.0 + 0j])
+    delay_1d = jnp.array([1.0e-8, 2.0e-8])
+    mask_1d = jnp.array([True, True])
+
+    tf_1d = TracedFields(fields=fields_1d, delay=delay_1d, frequency=freq, mask=mask_1d)
+
+    with pytest.raises(ValueError, match="out-of-bounds"):
+        tf_1d.squeeze(axis=5)
+
+
+def test_traced_fields_reduce_with_float_mask() -> None:
+    fields = jnp.array([1.0 + 0j, 2.0 + 0j, 3.0 + 0j])
+    delay = jnp.array([1.0e-8, 2.0e-8, 3.0e-8])
+    freq = jnp.array(1.0e9)
+    mask = jnp.array([0.9, 0.4, 0.6])
+
+    tf = TracedFields(
+        fields=fields,
+        delay=delay,
+        frequency=freq,
+        mask=mask,
+        confidence_threshold=0.5,
+    )
+
+    sum_val = tf.reduce(jnp.abs)
+    expected = jnp.sum(jnp.abs(fields) * mask)
+    chex.assert_trees_all_close(sum_val, expected)
+
+
+@pytest.mark.require_no_typechecker
+def test_traced_fields_from_paths_unknown_solver() -> None:
+    # The public signature types 'solver' as 'AbstractFieldSolver | Literal["geometric"]',
+    # so under the project's runtime type checking (jaxtyping + beartype), passing any
+    # other string is rejected by beartype itself before 'from_paths' body ever runs.
+    # This test only runs in the CI job with type checking disabled, matching the
+    # 'Unknown solver' precedent in 'test_scene.py'.
+    paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+    mesh = Mesh.empty()
+
+    with pytest.raises(ValueError, match="Unknown solver"):
+        TracedFields.from_paths(paths, mesh, 1.0e9, solver="not-a-solver")
+
+
+def test_traced_fields_from_paths_solver_kwargs_with_instance() -> None:
+    paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+    mesh = Mesh.empty()
+    solver = GeometricFieldSolver()
+
+    with pytest.raises(
+        ValueError,
+        match="solver_kwargs cannot be used when a solver instance is provided",
+    ):
+        TracedFields.from_paths(paths, mesh, 1.0e9, solver=solver, tx_polarization="H")
+
+
+def test_traced_fields_from_paths_frequency_inferred_from_antenna() -> None:
+    paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+    mesh = Mesh.empty()
+    antenna = Dipole(frequency=2.4e9)
+    solver = GeometricFieldSolver(tx_polarization=antenna)
+
+    tf = TracedFields.from_paths(paths, mesh, solver=solver)
+
+    chex.assert_trees_all_close(tf.frequency, jnp.array(2.4e9))
+
+
+def test_traced_fields_from_paths_missing_frequency() -> None:
+    paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+    mesh = Mesh.empty()
+    solver = GeometricFieldSolver()  # tx_polarization defaults to "V", no .frequency
+
+    with pytest.raises(ValueError, match="'frequency' must be provided explicitly"):
+        TracedFields.from_paths(paths, mesh, solver=solver)
 
 
 def test_jit_and_gradients_on_traced_fields() -> None:

@@ -13,7 +13,6 @@ from differt.geometry._utils import (
     spherical_to_cartesian,
 )
 from differt.plotting import PlotOutput, draw_surface
-from differt.utils import safe_divide
 
 from ._constants import c, epsilon_0, mu_0
 
@@ -535,7 +534,7 @@ class Dipole(AbstractAntenna):
 
         p = self.moment / jnp.linalg.norm(self.moment)
 
-        sin_theta = jnp.cross(r, p)
+        sin_theta = jnp.linalg.norm(jnp.cross(r, p), axis=-1)
 
         return u, v, 1.5 * jax.lax.integer_pow(sin_theta, 2)
 
@@ -772,7 +771,11 @@ class AbstractRadiationPattern(BaseAntenna):
 
 
 class HWDipolePattern(AbstractRadiationPattern):
-    """A half-wave dipole radiation pattern."""
+    """A half-wave dipole radiation pattern.
+
+    Warning:
+        Not implemented yet.
+    """
 
     direction: Float[Array, "3"]
     """The dipole direction."""
@@ -781,17 +784,6 @@ class HWDipolePattern(AbstractRadiationPattern):
         self,
         r: Float[ArrayLike, "*#batch 3"],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        r = jnp.asarray(r)
-        r_hat, r = normalize(r - self.center, keepdims=True)
-
-        cos_theta = jnp.sum(r_hat * self.direction, axis=-1)
-        sin_theta = jnp.sqrt(1 - cos_theta**2)
-
-        d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
-
-        cos_theta = jnp.sum(d * d, axis=-1)
-        sin_theta = jnp.sin(d)
-        _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
         raise NotImplementedError
 
 

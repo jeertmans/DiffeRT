@@ -8,6 +8,7 @@ from jaxtyping import Array, ArrayLike, Complex, Float
 
 from differt.em import (
     AbstractFieldSolver,
+    AbstractRadiationPattern,
     AbstractScatteringPattern,
     BackscatteringPattern,
     Dipole,
@@ -23,6 +24,7 @@ from differt.em import (
     materials,
     refraction_coefficients,
 )
+from differt.em._solvers import _spherical_basis, _wavefront_radii
 from differt.geometry import Mesh, Scene, TracedPaths
 
 
@@ -68,6 +70,41 @@ def _ground_plane_mesh(material_name: str = "Metal") -> Mesh:
         face_materials=jnp.array([0]),
         material_names=(material_name,),
     )
+
+
+class _ConstantPolarizationPattern(AbstractRadiationPattern):
+    """A minimal concrete radiation pattern with direction-independent polarization vectors.
+
+    Used to exercise the ``hasattr(..., "polarization_vectors")`` branch of
+    ``tx_polarization``/``rx_polarization`` handling in
+    :meth:`GeometricFieldSolver.compute_fields
+    <differt.em.GeometricFieldSolver.compute_fields>`.
+    """
+
+    def polarization_vectors(
+        self,
+        r: Float[ArrayLike, "*#batch 3"],
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        r = jnp.asarray(r)
+        s = jnp.broadcast_to(jnp.array([1.0, 0.0, 0.0]), r.shape)
+        p = jnp.broadcast_to(jnp.array([0.0, 1.0, 0.0]), r.shape)
+        return s, p
+
+
+def test_wavefront_radii_4_tuple_drops_orientation() -> None:
+    # A '(rho_s, s_hat, rho_p, p_hat)' 4-tuple, as returned by
+    # 'AbstractAntenna.wavefront_radii', must reduce to the same
+    # '(rho_s, rho_p)' pair as the plain 2-tuple, with 's_hat'/'p_hat'
+    # simply dropped.
+    rho_s = jnp.array(2.0)
+    rho_p = jnp.array(3.0)
+    s_hat = jnp.array([1.0, 0.0, 0.0])
+    p_hat = jnp.array([0.0, 1.0, 0.0])
+
+    got = _wavefront_radii((rho_s, s_hat, rho_p, p_hat))
+    expected = _wavefront_radii((rho_s, rho_p))
+
+    chex.assert_trees_all_close(got, expected)
 
 
 class TestGeometricFieldSolver:
@@ -250,6 +287,38 @@ class TestGeometricFieldSolver:
         # Should not raise, unlike the default solver.
         fields = compute_received_fields(paths, mesh, 1e9, solver=solver)
         assert jnp.all(jnp.isfinite(fields))
+
+    def test_reflection_matrix_requires_face_materials(self) -> None:
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.REFLECTION,
+        )
+        # No 'face_materials' at all (unlike '_ground_plane_mesh').
+        mesh = Mesh(
+            vertices=jnp.array([
+                [-100.0, -100.0, 0.0],
+                [100.0, -100.0, 0.0],
+                [0.0, 100.0, 0.0],
+            ]),
+            triangles=jnp.array([[0, 1, 2]]),
+        )
+
+        with pytest.raises(ValueError, match="face materials to compute surface"):
+            GeometricFieldSolver().reflection_matrix(paths, mesh, 1e9)
+
+    def test_ris_matrix_raises_not_implemented(self) -> None:
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.RIS,
+        )
+        mesh = _ground_plane_mesh("Metal")
+
+        with pytest.raises(NotImplementedError, match="not implemented"):
+            GeometricFieldSolver().ris_matrix(paths, mesh, 1e9)
 
 
 class TestNonPlanarWavefront:
@@ -698,6 +767,35 @@ class TestDiffractionAgainstSionna:
 
         chex.assert_trees_all_close(a[0], expected, rtol=1e-2)
 
+    def test_diffraction_matrix_requires_face_materials(self) -> None:
+        # Unlike 'reflection_matrix'/'transmission_matrix'/'scattering_matrix'
+        # (which delegate to '_surface_interaction_geometry' for this check),
+        # 'diffraction_matrix' validates 'face_materials' itself, with its
+        # own error message.
+        vertices = jnp.array([
+            [0.0, -30.0, -15.0],
+            [0.0, -30.0, 15.0],
+            [0.0, 0.0, 15.0],
+            [0.0, 0.0, -15.0],
+            [30.0, 0.0, 15.0],
+            [30.0, 0.0, -15.0],
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3], [3, 2, 4], [3, 4, 5]])
+        wedge = Mesh(vertices=vertices, triangles=triangles)  # no 'face_materials'
+
+        tx = jnp.array([-10.0, -5.0, 0.0])
+        diffraction_point = jnp.array([0.0, 0.0, 0.0])
+        rx = jnp.array([5.0, 10.0, 0.0])
+        paths = TracedPaths(
+            vertices=jnp.array([[tx, diffraction_point, rx]]),
+            objects=jnp.array([[-1, 5, -1]]),
+            mask=jnp.array([True]),
+            interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
+        )
+
+        with pytest.raises(ValueError, match="face materials to compute diffraction"):
+            GeometricFieldSolver().diffraction_matrix(paths, wedge, 3.5e9)
+
 
 class TestShadowBoundaryContinuity:
     """
@@ -1103,3 +1201,125 @@ class TestScatteringMatrix:
             assert jnp.iscomplexobj(mat)
             assert jnp.all(jnp.isfinite(mat))
             assert jnp.any(mat != 0.0)
+
+
+class TestPolarizationVariants:
+    """Exercises the non-string branches of ``tx_polarization``/``rx_polarization``.
+
+    ``"V"``, ``"H"``, and an :class:`AbstractAntenna<differt.em.AbstractAntenna>`
+    used as ``tx_polarization`` are already covered elsewhere (e.g.
+    :class:`TestGeometricFieldSolver`, :class:`TestNonPlanarWavefront`); this
+    class covers the remaining combinations: a plain Jones vector, an
+    :class:`AbstractRadiationPattern<differt.em.AbstractRadiationPattern>`
+    (``.polarization_vectors(...)``), and an
+    :class:`AbstractAntenna<differt.em.AbstractAntenna>` (``.fields(...)``)
+    used as ``rx_polarization``.
+    """
+
+    def test_tx_custom_jones_vector_matches_h_polarization(self) -> None:
+        # The 'else' branch for 'tx_polarization' projects an arbitrary
+        # Cartesian vector onto the local (theta, phi) basis of the first
+        # path segment; since that basis is always orthonormal, choosing
+        # the vector to be exactly 'phi_hat_0' must reproduce "H" exactly.
+        tx = [0.0, 0.0, 0.0]
+        rx = [10.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+
+        k_hat = jnp.array(rx) - jnp.array(tx)
+        k_hat = k_hat / jnp.linalg.norm(k_hat)
+        _, phi_hat_0 = _spherical_basis(k_hat)
+
+        got = compute_received_fields(
+            paths, mesh, frequency, tx_polarization=phi_hat_0, rx_polarization="V"
+        )
+        expected = compute_received_fields(
+            paths, mesh, frequency, tx_polarization="H", rx_polarization="V"
+        )
+
+        chex.assert_trees_all_close(got, expected, atol=1e-6)
+
+    def test_rx_custom_jones_vector_gives_zero_cross_polarization(self) -> None:
+        # Symmetric case for 'rx_polarization': the 'else' branch projects
+        # an arbitrary vector onto the (orthonormal) local basis of the
+        # last path segment. Choosing it to be exactly 'phi_hat_last' picks
+        # out only the phi-component of the (already-mixed) field, which
+        # must be exactly zero for a purely theta-polarized ("V") transmitter.
+        tx = [0.0, 0.0, 0.0]
+        rx = [10.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+
+        k_hat = jnp.array(rx) - jnp.array(tx)
+        k_hat = k_hat / jnp.linalg.norm(k_hat)
+        _, phi_hat_last = _spherical_basis(k_hat)
+
+        got = compute_received_fields(
+            paths, mesh, frequency, tx_polarization="V", rx_polarization=phi_hat_last
+        )
+
+        chex.assert_trees_all_close(got, jnp.zeros_like(got), atol=1e-6)
+
+    def test_tx_polarization_pattern_matches_equivalent_jones_vector(self) -> None:
+        # An 'AbstractRadiationPattern' (providing 'polarization_vectors(...)'
+        # rather than 'fields(...)') as 'tx_polarization' combines its s- and
+        # p-vectors and projects the sum exactly like a plain Jones vector.
+        tx = [0.0, 0.0, 0.0]
+        rx = [10.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+        pattern = _ConstantPolarizationPattern(frequency=jnp.asarray(frequency))
+
+        got = compute_received_fields(
+            paths, mesh, frequency, tx_polarization=pattern, rx_polarization="V"
+        )
+        expected = compute_received_fields(
+            paths,
+            mesh,
+            frequency,
+            tx_polarization=jnp.array([1.0, 1.0, 0.0]),
+            rx_polarization="V",
+        )
+
+        chex.assert_trees_all_close(got, expected)
+
+    def test_rx_polarization_pattern_matches_equivalent_jones_vector(self) -> None:
+        # Symmetric case for 'rx_polarization'.
+        tx = [0.0, 0.0, 0.0]
+        rx = [10.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+        pattern = _ConstantPolarizationPattern(frequency=jnp.asarray(frequency))
+
+        got = compute_received_fields(
+            paths, mesh, frequency, tx_polarization="H", rx_polarization=pattern
+        )
+        expected = compute_received_fields(
+            paths,
+            mesh,
+            frequency,
+            tx_polarization="H",
+            rx_polarization=jnp.array([1.0, 1.0, 0.0]),
+        )
+
+        chex.assert_trees_all_close(got, expected)
+
+    def test_rx_polarization_antenna_fields_branch_is_finite(self) -> None:
+        # An 'AbstractAntenna' (providing '.fields(...)') as 'rx_polarization'
+        # takes the same code path already exercised for 'tx_polarization'
+        # elsewhere (e.g. 'TestNonPlanarWavefront'), just on the receive side.
+        tx = [0.0, 0.0, 0.0]
+        rx = [10.0, 0.0, 0.0]
+        paths = _los_paths(tx, rx)
+        mesh = Mesh.empty()
+        frequency = 1e9
+        dipole = Dipole(frequency=frequency)
+
+        fields = compute_received_fields(paths, mesh, frequency, rx_polarization=dipole)
+
+        assert jnp.all(jnp.isfinite(fields))
+        assert jnp.any(fields != 0.0)
