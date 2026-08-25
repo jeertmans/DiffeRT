@@ -5,6 +5,7 @@
 *.so
 *.egg-info
 
+.venv/
 dist/
 target/
 __pycache__/

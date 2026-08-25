@@ -346,6 +346,8 @@ def fix_reference(
                 uri = (
                     "https://docs.kidger.site/equinox/api/manipulation/#equinox.tree_at"
                 )
+            elif target.endswith("error_if"):
+                uri = "https://docs.kidger.site/equinox/api/errors/#equinox.error_if"
             elif node["reftype"] == "mod":
                 uri = "https://docs.kidger.site/equinox/"
             else:

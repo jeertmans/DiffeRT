@@ -15,6 +15,7 @@ from differt.geometry import Mesh, Scene
 from differt.geometry._utils import (
     assemble_path,
     cartesian_to_spherical,
+    check_path_candidates,
     fibonacci_lattice,
     first_triangle_hit_by_ray,
     generate_all_path_candidates,
@@ -550,6 +551,54 @@ def test_generate_all_path_candidates_chunks_iter(
         last_chunk_size, last_chunk_order = previous_chunk.shape
         assert last_chunk_size <= chunk_size
         assert last_chunk_order == order
+
+
+@pytest.mark.parametrize(
+    "path_candidates",
+    [
+        [1, 2, 3, -1],
+        [-1, -1, -1, -1],
+        [1, 2, 3, 4],
+        [1, 2, -1, -1],
+        [-1],
+        [0],
+    ],
+)
+def test_check_path_candidates_valid(path_candidates: list[int]) -> None:
+    arr = jnp.asarray(path_candidates)
+    got = check_path_candidates(arr)
+    chex.assert_trees_all_equal(got, arr)
+
+
+@pytest.mark.parametrize(
+    "path_candidates",
+    [
+        [1, -1, 3, 2],
+        [-1, 1, -1, -1],
+        [-1, 2, 3, -1],
+    ],
+)
+def test_check_path_candidates_invalid(path_candidates: list[int]) -> None:
+    with pytest.raises(Exception, match="Invalid path candidates"):
+        check_path_candidates(jnp.asarray(path_candidates))
+
+
+def test_check_path_candidates_batched() -> None:
+    # A batch of candidates is valid only if every row is individually valid.
+    valid = jnp.array([
+        [1, 2, 3, -1],
+        [-1, -1, -1, -1],
+        [1, 2, 3, 4],
+        [1, 2, -1, -1],
+    ])
+    chex.assert_trees_all_equal(check_path_candidates(valid), valid)
+
+    invalid = jnp.array([
+        [1, 2, 3, -1],
+        [1, -1, 3, 2],  # Invalid row among otherwise valid ones.
+    ])
+    with pytest.raises(Exception, match="Invalid path candidates"):
+        check_path_candidates(invalid)
 
 
 @pytest.mark.parametrize(

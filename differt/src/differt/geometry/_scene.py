@@ -2,7 +2,7 @@ import dataclasses
 import math
 import typing
 import warnings
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from os import PathLike
 from typing import (
     TYPE_CHECKING,
@@ -33,9 +33,11 @@ from ._solvers import (
     ExhaustivePathTracer,
     HybridPathTracer,
     SBRPathLauncher,
+    SBRPathTracer,
     _ExhaustivePathTracerKwargs,
     _HybridPathTracerKwargs,
     _SBRPathLauncherKwargs,
+    _SBRPathTracerKwargs,
 )
 from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
 
@@ -55,9 +57,7 @@ else:
     SionnaScene = Any
 
 
-from differt.geometry._mesh import (
-    _WARP_MESHES_CACHE,  # TODO: should we create a separate cache here?
-)
+from differt.geometry._warp_utils import _Batched, _get_warp_mesh, _warp_launch
 
 _C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
 _C_MAGIC_2 = wp.constant(wp.uint32(0x045D9F3B))
@@ -191,22 +191,19 @@ def _compute_tx_mlm_func(
     max_y: float,
     output: wp.array(dtype=wp.uint32, ndim=3),
 ) -> None:
-    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func' in '_mesh.py'.
-        wp_mesh = wp.Mesh(points=wp.clone(mesh_points), indices=wp.clone(mesh_indices))
-        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
+    wp_mesh = _get_warp_mesh(mesh_id, mesh_points, mesh_indices)
 
     output.zero_()
 
     num_tx = ray_origins.shape[0]
 
-    wp.launch(
+    _warp_launch(
         _compute_tx_mlm_kernel,
         dim=(num_tx, num_rays),
         inputs=[
             wp_mesh.id,
-            ray_origins,
-            ray_directions,
+            _Batched(ray_origins, axis=1),
+            _Batched(ray_directions, axis=1),
             dim_x,
             dim_y,
             max_order,
@@ -218,8 +215,13 @@ def _compute_tx_mlm_func(
             min_y,
             max_y,
         ],
+        # 'output' has shape '(num_tx, dim_x, dim_y)', unrelated to
+        # 'num_rays': every chunk safely shares the same, whole array, and
+        # writes to it via 'wp.atomic_or', which is safe under concurrent
+        # writes regardless of how the ray axis is chunked.
         outputs=[output],
         device=ray_origins.device,
+        chunk_axis=1,
     )
 
 
@@ -282,6 +284,7 @@ def _compute_tx_mlm(
     return wp.jax_callable(
         _compute_tx_mlm_func,
         output_dims=(num_tx, dim_x, dim_y),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
         mesh_id,
         points,
@@ -594,7 +597,7 @@ class Scene(eqx.Module):
         self,
         order: None = ...,
         *,
-        solver: Literal["exhaustive"] = "exhaustive",
+        solver: Literal["exhaustive"],
         path_candidates: Int[ArrayLike, "num_path_candidates order"],
         **solver_kwargs: Unpack[_ExhaustivePathTracerKwargs],
     ) -> TracedPaths: ...
@@ -614,6 +617,16 @@ class Scene(eqx.Module):
         self,
         order: None = ...,
         *,
+        solver: Literal["sbr"] = "sbr",
+        path_candidates: Int[ArrayLike, "num_path_candidates order"],
+        **solver_kwargs: Unpack[_SBRPathTracerKwargs],
+    ) -> TracedPaths: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: None = ...,
+        *,
         solver: AbstractPathTracer,
         path_candidates: Int[ArrayLike, "num_path_candidates order"],
     ) -> TracedPaths: ...
@@ -621,9 +634,9 @@ class Scene(eqx.Module):
     @overload
     def trace_paths(
         self,
-        order: int,
+        order: int | Sequence[int] | slice,
         *,
-        solver: Literal["exhaustive"] = "exhaustive",
+        solver: Literal["exhaustive"],
         path_candidates: None = ...,
         **solver_kwargs: Unpack[_ExhaustivePathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
@@ -631,7 +644,7 @@ class Scene(eqx.Module):
     @overload
     def trace_paths(
         self,
-        order: int,
+        order: int | Sequence[int] | slice,
         *,
         solver: Literal["hybrid"],
         path_candidates: None = ...,
@@ -641,7 +654,17 @@ class Scene(eqx.Module):
     @overload
     def trace_paths(
         self,
-        order: int,
+        order: int | Sequence[int] | slice,
+        *,
+        solver: Literal["sbr"] = "sbr",
+        path_candidates: None = ...,
+        **solver_kwargs: Unpack[_SBRPathTracerKwargs],
+    ) -> TracedPaths | Iterator[TracedPaths]: ...
+
+    @overload
+    def trace_paths(
+        self,
+        order: int | Sequence[int] | slice,
         *,
         solver: AbstractPathTracer,
         path_candidates: None = ...,
@@ -649,9 +672,9 @@ class Scene(eqx.Module):
 
     def trace_paths(
         self,
-        order: int | None = None,
+        order: int | Sequence[int] | slice | None = None,
         *,
-        solver: AbstractPathTracer | Literal["exhaustive", "hybrid"] = "exhaustive",
+        solver: AbstractPathTracer | Literal["exhaustive", "hybrid", "sbr"] = "sbr",
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
         **solver_kwargs: Any,
     ) -> TracedPaths | SizedIterator[TracedPaths] | Iterator[TracedPaths]:
@@ -663,20 +686,56 @@ class Scene(eqx.Module):
             This method is Warp-accelerated (via :class:`Mesh<differt.geometry.Mesh>`) and only supports CPU and CUDA-enabled GPU platforms.
             It does not support TPUs or other non-CUDA GPUs.
 
+        .. important::
+
+            The default solver, ``'sbr'``, *discovers* path candidates from a bounded
+            population of shooting-and-bouncing rays, see
+            :class:`SBRPathTracer<differt.geometry.SBRPathTracer>`. This scales
+            far better than ``'exhaustive'`` or ``'hybrid'`` as the scene size or
+            ``order`` grows, but the search is **not guaranteed to be
+            exhaustive**: some valid paths may be missed. If you need a
+            deterministic, exhaustive search (e.g., for reference results,
+            small scenes, or low orders), pass ``solver='exhaustive'`` (or
+            ``'hybrid'``) explicitly.
+
         Note:
             Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
             using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
             and path tracing methods will be added in the future, so stay tuned!
 
         Args:
-            order: The number of interactions (bounces).
+            order: The number of interactions (bounces), or a sequence of
+                orders (also accepted as a :class:`range`, e.g.,
+                ``range(0, 6)``, or a ``slice`` with a defined ``stop``,
+                e.g., ``slice(0, 6)``) to combine into a single result,
+                e.g., ``[1, 2, 3]``. When combining multiple orders, path
+                candidates are generated for every requested order and
+                combined into a single array (see
+                :meth:`AbstractPathTracer.generate_path_candidates<differt.geometry.AbstractPathTracer.generate_path_candidates>`),
+                with lower-order candidates padded with ``-1`` up to the
+                maximum requested order, then traced in a single call; this
+                is not compatible with a solver's ``chunk_size``.
                 This or ``path_candidates`` must be specified.
             solver: The solver configuration or string shortcut.
+
+                * If ``'sbr'`` (the default), path candidates are *discovered*
+                  with a bounded population of shooting-and-bouncing rays
+                  instead of being enumerated, using
+                  :class:`SBRPathTracer<differt.geometry.SBRPathTracer>`. Unlike
+                  ``'exhaustive'`` and ``'hybrid'``, candidate generation cost
+                  does not grow combinatorially with ``order``, but the search
+                  is not guaranteed to be exhaustive.
+                * If ``'exhaustive'``, all possible path candidates are
+                  generated and tested, using :class:`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`.
+                * If ``'hybrid'``, a visibility graph is used to prune path
+                  candidates before an exhaustive search, using
+                  :class:`HybridPathTracer<differt.geometry.HybridPathTracer>`.
             path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
                 This is helpful to only generate paths on a subset of the scene.
                 If :attr:`self.mesh.assume_quads<differt.geometry.Mesh.assume_quads>`
                 is :data:`True`, then path candidates are rounded down toward the nearest
-                even value.
+                even value. When provided, ``order`` is not needed (and, in
+                fact, must be left unset).
             **solver_kwargs: Parameters passed  to the solver configuration when it is
                 instantiated from a string shortcut. Any parameters that were also passed as
                 arguments to the function call will override the corresponding values
@@ -698,6 +757,8 @@ class Scene(eqx.Module):
                 solver = ExhaustivePathTracer(**solver_kwargs)
             elif solver == "hybrid":
                 solver = HybridPathTracer(**solver_kwargs)
+            elif solver == "sbr":
+                solver = SBRPathTracer(**solver_kwargs)
             else:
                 msg = f"Unknown solver: {solver}"
                 raise ValueError(msg)
@@ -710,54 +771,53 @@ class Scene(eqx.Module):
             and getattr(solver, "smoothing_factor", None) is not None
         ):
             warnings.warn(
-                "Argument 'smoothing' is currently ignored when using HybridPathTracer.",
+                f"Argument 'smoothing' is currently ignored when using {type(solver).__name__}.",
                 UserWarning,
                 stacklevel=2,
             )
-        if isinstance(solver, HybridPathTracer) and order is None:
-            msg = "Argument 'order' is required when using HybridPathTracer."
-            raise ValueError(msg)
-        if (path_candidates is not None) and getattr(
-            solver, "chunk_size", None
-        ) is not None:
+        tx_batch = self.transmitters.shape[:-1]
+        rx_batch = self.receivers.shape[:-1]
+
+        if path_candidates is None:
+            order = cast("int | Sequence[int] | slice", order)
+            chunk_size: int | None = getattr(solver, "chunk_size", None)
+            result = solver.trace_paths(self, order, chunk_size=chunk_size)
+            if isinstance(result, TracedPaths):
+                return result.reshape(*tx_batch, *rx_batch, result.objects.shape[-2])
+            return SizedIterator(
+                (
+                    chunk.reshape(*tx_batch, *rx_batch, chunk.objects.shape[-2])
+                    for chunk in result
+                ),
+                size=result.__len__,
+            )
+
+        # Note: 'order' is only used to generate path candidates, so it is not
+        # required (and is actually unset, per the check above) when
+        # 'path_candidates' is explicitly provided.
+        if getattr(solver, "chunk_size", None) is not None:
             warnings.warn(
                 "Argument 'chunk_size' is ignored when 'path_candidates' is provided.",
                 UserWarning,
                 stacklevel=2,
             )
             solver = dataclasses.replace(solver, chunk_size=None)
-        tx_batch = self.transmitters.shape[:-1]
-        rx_batch = self.receivers.shape[:-1]
 
-        # TODO: simplify logic below:
-        # if path_candidates is passed, then we can bypass the pass candidates generation (chunk_size is then ignored)
-
-        if path_candidates is None:
-            order = cast("int", order)
-            chunk_size = getattr(solver, "chunk_size", None)
-            if chunk_size is not None:
-                chunks_iter = solver.generate_path_candidates_chunks_iter(
-                    self, order, chunk_size=chunk_size
-                )
-                it: Iterator[TracedPaths] = (
-                    solver.trace_path_candidates(
-                        self, chunk_cands, chunk_types
-                    ).reshape(*tx_batch, *rx_batch, chunk_cands.shape[0])
-                    for chunk_cands, chunk_types in chunks_iter
-                )
-                if hasattr(chunks_iter, "__len__"):
-                    size = cast("Callable[[], int]", chunks_iter.__len__)
-                    return SizedIterator(it, size=size)
-                return it
-
-            candidates, interaction_types = solver.generate_path_candidates(self, order)
-        else:
-            path_candidates_arr = jnp.asarray(path_candidates)
-            if self.mesh.assume_quads:
-                path_candidates_arr -= path_candidates_arr % 2
-            candidates = path_candidates_arr
-            # Default: all specular reflections (value 0)
-            interaction_types = jnp.zeros_like(candidates, dtype=jnp.int32)
+        path_candidates_arr = jnp.asarray(path_candidates)
+        # '-1' placeholders must be preserved as-is: rounding them down
+        # like a genuine (non-negative) primitive index would turn them
+        # into '-2', silently defeating 'check_path_candidates' below.
+        active = path_candidates_arr >= 0
+        if self.mesh.assume_quads:
+            path_candidates_arr = jnp.where(
+                active,
+                path_candidates_arr - path_candidates_arr % 2,
+                path_candidates_arr,
+            )
+        candidates = path_candidates_arr
+        # Default: all specular reflections (value 0); '-1' placeholders
+        # (inactive/padded interactions) are kept as '-1'.
+        interaction_types = jnp.where(active, 0, -1).astype(jnp.int32)
 
         return solver.trace_path_candidates(
             self, candidates, interaction_types
