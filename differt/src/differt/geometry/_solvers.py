@@ -1643,22 +1643,16 @@ class SBRPathTracer(HybridPathTracer):
     combinatorially with ``order`` or the number of primitives in the scene.
     Because many rays typically converge onto the same discrete sequence of
     primitives, especially at low orders, the discovered candidates are
-    deduplicated (using a fixed-size buffer, see :attr:`max_num_candidates`)
+    deduplicated (and bounded by :attr:`max_num_candidates`)
     before being passed to the same exact image-method solver used by
     :class:`ExhaustivePathTracer` and :class:`HybridPathTracer`.
 
     When ``order`` is a sequence (or a :class:`range`/``slice``), rays are
-    launched only once, up to the maximum requested order: each ray's own,
-    *natural* number of interactions (i.e., how many bounces it completes
-    before exiting the scene) decides which requested order, if any, it is a
-    candidate for. Trajectories whose natural order is not one of the
-    requested orders are simply not written to the buffer, rather than being
-    truncated (or extended) to fit a nearby one. As a result, the combined
-    output remains bounded by :attr:`max_num_candidates` alone, regardless
-    of how many orders are requested, unlike :class:`ExhaustivePathTracer`
-    and :class:`HybridPathTracer`, whose combined output size grows with the
-    number of requested orders (see
-    :meth:`AbstractPathTracer.generate_path_candidates<differt.geometry.AbstractPathTracer.generate_path_candidates>`).
+    launched only once, up to the maximum requested order: candidates for
+    every requested order (including order 0 for line-of-sight if requested)
+    are collected, padded up to the maximum requested order with ``-1``
+    placeholders, and combined into a single array bounded by
+    :attr:`max_num_candidates`.
 
     .. important::
 
@@ -1674,26 +1668,13 @@ class SBRPathTracer(HybridPathTracer):
         Like :class:`HybridPathTracer`, this tracer is best used for a small
         number of transmitters (rays are only launched from transmitters, not
         receivers).
-
-    .. important::
-
-        Whenever :attr:`max_num_candidates` exceeds the number of *distinct*
-        candidates actually discovered, the fixed-size buffer is padded with
-        extra all-``-1`` rows (see :func:`check_path_candidates
-        <differt.geometry.check_path_candidates>`), each of which is a valid
-        (degenerate) line-of-sight candidate. As a result, the line-of-sight
-        path may appear as many duplicate valid entries whenever it exists.
-        Use :meth:`TracedPaths.mask_duplicate_objects<differt.geometry.TracedPaths.mask_duplicate_objects>`
-        on the result if you need an accurate count of *distinct* valid
-        paths.
     """
 
     max_num_candidates: int = int(1e5)
     """The maximum number of (deduplicated) path candidates that are kept.
 
-    This acts as a fixed-size buffer, similar to :attr:`num_rays`: if more
-    unique candidates are discovered than this value, the extra candidates
-    are silently dropped.
+    If more unique candidates are discovered than this value, the extra
+    candidates are silently dropped.
     """
 
     def _launch_and_record(
@@ -1758,9 +1739,9 @@ class SBRPathTracer(HybridPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
-        """Deduplicate discovered ray trajectories into a fixed-size buffer.
+        """Deduplicate discovered ray trajectories into a bounded buffer.
 
-        The output size only depends on :attr:`max_num_candidates`, regardless
+        The output size is bounded by :attr:`max_num_candidates`, regardless
         of the order or the number of rays that discovered each sequence.
 
         Args:
@@ -1770,13 +1751,13 @@ class SBRPathTracer(HybridPathTracer):
         Returns:
             The deduplicated, bounded path candidates and interaction types.
         """
-        path_candidates = jnp.unique(
-            candidates, axis=0, size=self.max_num_candidates, fill_value=-1
-        ).astype(int)
+        path_candidates = jnp.unique(candidates, axis=0).astype(int)
+        if path_candidates.shape[0] > self.max_num_candidates:
+            path_candidates = path_candidates[: self.max_num_candidates]
 
         # Default: all specular reflections (value 0);
-        # -1 marks inactive/padded interactions (e.g., rays that never
-        # completed 'order' bounces, or unused buffer slots).
+        # -1 marks inactive/padded interactions (e.g., lower-order candidates
+        # padded with placeholders up to max_order).
         interaction_types = jnp.where(path_candidates >= 0, 0, -1).astype(jnp.int32)
 
         return path_candidates, interaction_types
@@ -1791,15 +1772,6 @@ class SBRPathTracer(HybridPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
-        # A bare 'int' order and a sequence containing that single order are
-        # *not* equivalent for this tracer (unlike for 'ExhaustivePathTracer'
-        # and 'HybridPathTracer'): a bare order includes every ray trajectory
-        # up to that many bounces (shorter, naturally-terminating ones
-        # included, padded with '-1'), whereas a sequence only keeps
-        # trajectories whose natural number of interactions exactly matches
-        # one of the requested orders (see the multi-order branch below).
-        # This distinction must be captured before normalizing, since
-        # '_normalize_order' always returns a sequence.
         single_order = isinstance(order, int)
         order = _normalize_order(order)
 
@@ -1811,9 +1783,11 @@ class SBRPathTracer(HybridPathTracer):
                 interaction_types = jnp.zeros((1, 0), dtype=jnp.int32)
                 return path_candidates, interaction_types
 
-            candidates = self._launch_and_record(scene, order)
+            raw = self._launch_and_record(scene, order)
+            hits = raw[:, :order]
+            hits = hits[hits[:, order - 1] >= 0]
 
-            return self._deduplicate_candidates(candidates)
+            return self._deduplicate_candidates(hits)
 
         order_list = sorted({int(o) for o in order})
 
@@ -1827,23 +1801,27 @@ class SBRPathTracer(HybridPathTracer):
             return self.generate_path_candidates(scene, 0)
 
         # A single ray population is shared across all requested orders,
-        # launched once, up to 'max_order' bounces. Each ray's own,
-        # natural number of interactions (i.e., how many bounces it
-        # completes before exiting the scene) decides which requested
-        # order it is a candidate for: trajectories whose natural order
-        # is not in 'order_list' are dropped (replaced by a degenerate,
-        # all-'-1' row, indistinguishable from unused buffer capacity,
-        # see :attr:`max_num_candidates`), instead of being truncated
-        # to fit a nearby requested order. As a result, the combined
-        # output is bounded by 'max_num_candidates' alone, regardless of
-        # how many orders are requested.
-        trajectories = self._launch_and_record(scene, max_order)
-        num_interactions = jnp.sum(trajectories >= 0, axis=-1)
-        requested_orders = jnp.asarray(order_list)
-        discard = ~jnp.isin(num_interactions, requested_orders)
-        trajectories = jnp.where(discard[:, None], -1, trajectories)
+        # launched once, up to 'max_order' bounces. For each requested order,
+        # the prefix of each ray trajectory up to that depth (for rays that
+        # completed at least that many bounces) is collected, padded with
+        # placeholders up to 'max_order', and combined into a single array
+        # bounded by 'max_num_candidates'.
+        raw = self._launch_and_record(scene, max_order)
+        all_candidates: list[Int[Array, "... max_order"]] = []
+        for o in order_list:
+            if o == 0:
+                all_candidates.append(jnp.full((1, max_order), -1, dtype=int))
+            else:
+                hits = raw[:, :o]
+                hits = hits[hits[:, o - 1] >= 0]
+                hits = jnp.unique(hits, axis=0).astype(int)
+                cands_o, _ = _pad_path_candidates(
+                    hits, jnp.zeros_like(hits, dtype=jnp.int32), max_order
+                )
+                all_candidates.append(cands_o)
 
-        return self._deduplicate_candidates(trajectories)
+        combined = jnp.concatenate(all_candidates, axis=0)
+        return self._deduplicate_candidates(combined)
 
     def generate_path_candidates_chunks_iter(
         self,

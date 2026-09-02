@@ -303,7 +303,7 @@ class TestMaterialsDict:
         # reachable with runtime type checking disabled.
         d = MaterialsDict()
         d["raw_key"] = "not-a-material"  # type: ignore[assignment]
-        assert dict.__getitem__(d, "raw_key") == "not-a-material"
+        assert dict.get(d, "raw_key") == "not-a-material"
 
     def test_delitem(self) -> None:
         d = MaterialsDict(materials)

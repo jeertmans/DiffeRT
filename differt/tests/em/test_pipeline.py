@@ -15,6 +15,7 @@ from differt.em import (
     reflection_matrix,
     ris_matrix,
     scattering_matrix,
+    transition_matrices,
     transition_matrix,
     transmission_matrix,
 )
@@ -284,6 +285,4 @@ def test_ris_matrix_default_solver_raises_not_implemented() -> None:
 
 
 def test_transition_matrices_is_transition_matrix_alias() -> None:
-    from differt.em import transition_matrices
-
     assert transition_matrices is transition_matrix

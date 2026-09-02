@@ -294,7 +294,7 @@ extend-ignore-names = ["T"]
   "missing-f-string-syntax",
   "print",
 ]
-"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "assert", "import-private-name", "too-many-positional-arguments", "magic-value-comparison", "no-self-use", "multiple-with-statements", "relative-imports"]
+"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "assert", "import-private-name", "too-many-positional-arguments", "magic-value-comparison", "no-self-use", "multiple-with-statements", "relative-imports", "pytest-fixture-autouse"]
 "scripts/*" = ["implicit-namespace-package"]
 
 [tool.ruff.lint.pydocstyle]

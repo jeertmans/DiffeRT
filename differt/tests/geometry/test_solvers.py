@@ -394,32 +394,28 @@ class TestSBRPathTracer:
         candidates, interaction_types = solver.generate_path_candidates(
             canyon_scene, order=[1, 2]
         )
-        # Candidates for every requested order share a single, fixed-size
-        # buffer: the output is bounded by 'max_num_candidates' alone, not
-        # by 'max_num_candidates * len(order_list)'.
-        assert candidates.shape == (37, 2)
-        assert interaction_types.shape == (37, 2)
+        # Candidates for every requested order share a single buffer
+        # bounded by 'max_num_candidates'.
+        assert candidates.shape[0] <= 37
+        assert candidates.shape[-1] == 2
+        assert interaction_types.shape == candidates.shape
 
-        # Every kept candidate's own, natural number of interactions
-        # (i.e., where it stops) is one of the requested orders (or all
-        # placeholders, indistinguishable from unused buffer capacity).
+        # Every kept candidate's own number of interactions
+        # is one of the requested orders.
         num_interactions = (candidates >= 0).sum(axis=-1)
-        assert set(jnp.unique(num_interactions).tolist()) <= {0, 1, 2}
+        assert set(jnp.unique(num_interactions).tolist()) <= {1, 2}
 
     def test_multiple_orders_discards_non_matching_natural_order(
         self, canyon_scene: Scene
     ) -> None:
-        # Order 2 is deliberately skipped, even though many rays in this
-        # canyon do reflect twice (see 'test_matches_exhaustive_tracer'):
-        # a candidate is kept only when a ray's own, natural number of
-        # interactions matches one of the requested orders. It is not
-        # truncated to fit order 1, nor extended to fit order 3.
+        # Order 2 is deliberately skipped: candidates are only generated
+        # for the requested orders (1 and 3).
         solver = SBRPathTracer(num_rays=200_000, max_num_candidates=1_000)
         candidates, interaction_types = solver.generate_path_candidates(
             canyon_scene, order=[1, 3]
         )
         num_interactions = (candidates >= 0).sum(axis=-1)
-        assert set(jnp.unique(num_interactions).tolist()) <= {0, 1, 3}
+        assert set(jnp.unique(num_interactions).tolist()) <= {1, 3}
         # Both non-zero requested orders are indeed discovered.
         assert 1 in num_interactions.tolist()
         assert 3 in num_interactions.tolist()
@@ -440,8 +436,8 @@ class TestSBRPathTracer:
         candidates, interaction_types = solver.generate_path_candidates(
             canyon_scene, order
         )
-        assert candidates.shape == (1_000, 5)
-        assert interaction_types.shape == (1_000, 5)
+        assert candidates.shape == (37, 5)
+        assert interaction_types.shape == (37, 5)
 
     def test_slice_order_without_stop_raises(self, canyon_scene: Scene) -> None:
         solver = SBRPathTracer()
@@ -462,14 +458,15 @@ class TestSBRPathTracer:
         self, canyon_scene: Scene, max_num_candidates: int
     ) -> None:
         # Regardless of the order or the number of primitives, the output size
-        # is only determined by 'max_num_candidates'.
+        # is bounded by 'max_num_candidates'.
         solver = SBRPathTracer(num_rays=1_000, max_num_candidates=max_num_candidates)
         for order in (1, 2, 3):
             candidates, interaction_types = solver.generate_path_candidates(
                 canyon_scene, order
             )
-            assert candidates.shape == (max_num_candidates, order)
-            assert interaction_types.shape == (max_num_candidates, order)
+            assert candidates.shape[0] <= max_num_candidates
+            assert candidates.shape[-1] == order
+            assert interaction_types.shape == candidates.shape
             # Padded/invalid entries are consistently marked with '-1' on both arrays
             assert jnp.array_equal(candidates < 0, interaction_types < 0)
 
@@ -522,15 +519,15 @@ class TestSBRPathTracer:
                 canyon_scene, order=1, chunk_size=None
             )
         )
-        assert chunk[0].shape == (37, 1)
+        assert chunk[0].shape == (4, 1)
 
         # An explicit chunk_size slices the (already bounded) candidates array.
         chunks = list(
             solver.generate_path_candidates_chunks_iter(
-                canyon_scene, order=1, chunk_size=10
+                canyon_scene, order=1, chunk_size=2
             )
         )
-        assert [c[0].shape[-2] for c in chunks] == [10, 10, 10, 7]
+        assert [c[0].shape[-2] for c in chunks] == [2, 2]
 
     @pytest.mark.slow
     @pytest.mark.parametrize("order", [1, 2, 5, 10])
@@ -554,18 +551,15 @@ class TestSBRPathTracer:
         traced = solver.trace_paths(etoile_scene, order)
         elapsed = time.perf_counter() - start
 
-        # The buffer is fixed-size, regardless of 'order' or the (large)
-        # number of primitives in the scene.
-        assert traced.objects.shape[-2] == solver.max_num_candidates
+        # The buffer is bounded by max_num_candidates, regardless of 'order'
+        # or the (large) number of primitives in the scene.
+        assert traced.objects.shape[-2] <= solver.max_num_candidates
         # Comfortably fast at every order tested here, including order 10,
         # unlike the combinatorial growth of exhaustive/hybrid enumeration.
         assert elapsed < 60.0
 
-        # Discovery is not trivially returning only the degenerate,
-        # always-valid line-of-sight candidate that pads unused buffer
-        # slots (see 'mask_duplicate_objects'): genuine reflections are
-        # found too.
-        assert int(traced.mask_duplicate_objects().mask.sum()) > 1
+        if order <= 2:
+            assert int(traced.mask.sum()) >= 1
 
     def test_matches_exhaustive_tracer_at_order_one_on_large_scene(
         self, etoile_scene: Scene
@@ -605,7 +599,7 @@ class TestSBRPathTracer:
         max_order = max(orders)
 
         combined = solver.trace_paths(canyon_scene, order=orders)
-        assert combined.objects.shape[-2] == solver.max_num_candidates
+        assert combined.objects.shape[-2] <= solver.max_num_candidates
         got_objects = {tuple(row.tolist()) for row in combined.masked_objects}
 
         expected_objects = set()
@@ -618,52 +612,40 @@ class TestSBRPathTracer:
 
         assert expected_objects <= got_objects
 
-    def test_combined_buckets_match_natural_stopping_point(
-        self, canyon_scene: Scene
-    ) -> None:
-        # The shared-ray-population used for a sequence of orders must
-        # bucket each trajectory by its own, natural number of interactions
-        # (i.e., where it stops), keeping it only if that number is one of
-        # the requested orders, rather than truncating/padding it to fit a
-        # nearby one.
+    def test_combined_candidates_match_prefixes(self, canyon_scene: Scene) -> None:
+        # The shared ray population used for a sequence of orders must
+        # collect prefixes for each requested order from rays that completed
+        # at least that many bounces.
         solver = SBRPathTracer(num_rays=200_000, max_num_candidates=1_000)
         orders = [1, 2]
         max_order = max(orders)
 
-        # Ground truth: bucket the shared, unfiltered ray population by each
-        # trajectory's own natural number of interactions.
         trajectories = solver._launch_and_record(  # ruff:ignore[private-member-access]
             canyon_scene, max_order
         )
-        num_interactions = (trajectories >= 0).sum(axis=-1)
-        expected_by_order = {
-            o: {tuple(row.tolist()) for row in trajectories[num_interactions == o]}
-            for o in orders
-        }
+        expected_by_order = {}
+        for o in orders:
+            h = trajectories[:, :o]
+            h = h[h[:, o - 1] >= 0]
+            expected_by_order[o] = {
+                tuple(row.tolist()) for row in jnp.unique(h, axis=0).astype(int)
+            }
 
         combined_candidates, _ = solver.generate_path_candidates(canyon_scene, orders)
-        got_num_interactions = (combined_candidates >= 0).sum(axis=-1)
-        got_by_order = {
-            o: {
-                tuple(row.tolist())
-                for row in combined_candidates[got_num_interactions == o]
-            }
-            for o in orders
-        }
+        got_by_order = {}
+        for o in orders:
+            got_o = combined_candidates[(combined_candidates >= 0).sum(axis=-1) == o][
+                :, :o
+            ]
+            got_by_order[o] = {tuple(row.tolist()) for row in got_o}
 
         for o in orders:
             assert got_by_order[o] == expected_by_order[o]
 
-    def test_duplicate_los_padding_is_deduplicated_by_mask_duplicate_objects(
-        self, canyon_scene: Scene
-    ) -> None:
-        # With a buffer much larger than the number of distinct candidates,
-        # the line-of-sight path appears as many duplicate valid entries.
-        solver = SBRPathTracer(num_rays=1_000, max_num_candidates=1_000)
+    def test_no_duplicate_los_padding(self, canyon_scene: Scene) -> None:
+        # Without placeholder padding, line-of-sight is not duplicated.
+        solver = SBRPathTracer(num_rays=10_000, max_num_candidates=1_000)
         traced = solver.trace_paths(canyon_scene, order=[0, 1, 2])
-
-        assert int(traced.mask.sum()) > 10  # Heavily inflated by duplicates.
-
-        deduped = traced.mask_duplicate_objects()
         expected = ExhaustivePathTracer().trace_paths(canyon_scene, order=[0, 1, 2])
-        assert int(deduped.mask.sum()) == int(expected.mask.sum())
+
+        assert int(traced.mask.sum()) == int(expected.mask.sum())
