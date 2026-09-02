@@ -79,6 +79,15 @@ def simple_street_canyon_scene(sionna_folder: Path) -> Scene:
     return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+22.0, 0.0, 32.0]))
 
 
+@pytest.fixture(scope="module")
+def etoile_scene(sionna_folder: Path) -> Scene:
+    """The 'etoile' scene from Sionna RT: a large (~13k triangles) scene used to test that candidate generation stays bounded/fast even on large scenes and at high orders."""
+    file = get_sionna_scene("etoile", folder=sionna_folder)
+    scene = Scene.load_xml(file)
+    scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-30.0, 40.0, 25.0]))
+    return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+30.0, -40.0, 1.5]))
+
+
 @pytest.fixture(scope="session")
 def basic_planar_mirrors_setup() -> PlanarMirrorsSetup:
     """

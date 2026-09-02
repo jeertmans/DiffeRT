@@ -1132,6 +1132,76 @@ def generate_all_path_candidates_chunks_iter(
     return SizedIterator(m, size=it.__len__)
 
 
+@eqx.filter_jit
+def check_path_candidates(
+    path_candidates: Int[ArrayLike, "*batch order"],
+) -> Int[Array, "*batch order"]:
+    """
+    Check that path candidates are well-formed, and return them unchanged.
+
+    A path candidate is a 1D array of primitive indices, where a value of
+    ``-1`` is a placeholder indicating an inactive (padded) interaction, see
+    :ref:`path_candidates`. Placeholders are used, e.g., to combine path
+    candidates of different orders into a single array, by padding
+    lower-order candidates up to some maximum order.
+
+    For this padding to be unambiguous, placeholders must only appear as a
+    trailing suffix of a path candidate: once a placeholder value is found,
+    every following value must also be a placeholder. E.g., ``[1, 2, -1]``
+    is valid (order 2, i.e., 1 padded interaction), but ``[1, -1, 2]`` is
+    not, because a placeholder is immediately followed by a non-placeholder
+    value.
+
+    This function is automatically called on every array of path candidates
+    passed to
+    :meth:`AbstractPathTracer.trace_path_candidates<differt.geometry.AbstractPathTracer.trace_path_candidates>`,
+    so you usually do not need to call it yourself, unless you want to
+    validate path candidates ahead of time (e.g., before generating an
+    expensive scene).
+
+    Args:
+        path_candidates: The array of path candidates to check. Can have
+            any number of leading batch dimensions.
+
+    Returns:
+        The exact same path candidates, unchanged, if they are valid.
+
+    Raises:
+        RuntimeError: If any placeholder (``-1``) value is immediately
+            followed by a non-placeholder value, for any path candidate in
+            the batch (raised as an ``EquinoxRuntimeError``). See
+            :func:`equinox.error_if` for how this error is raised (e.g., how
+            it interacts with :func:`jax.jit`), and how it can be disabled
+            by setting the ``EQX_ON_ERROR`` environment variable.
+
+    Examples:
+        >>> from differt.geometry import check_path_candidates
+        >>>
+        >>> check_path_candidates(
+        ...     jnp.array([1, 2, 3, -1])
+        ... )  # OK: valid trailing padding
+        Array([ 1,  2,  3, -1], dtype=int32)
+        >>> check_path_candidates(jnp.array([-1, -1, -1, -1]))  # OK: order 0 (LOS)
+        Array([-1, -1, -1, -1], dtype=int32)
+        >>> check_path_candidates(
+        ...     jnp.array([1, -1, 3, 2])
+        ... )  # Not OK: placeholder followed by a real value # doctest: +SKIP
+        Traceback (most recent call last):
+        ...
+        equinox.EquinoxRuntimeError: Invalid path candidates: placeholder value '-1' cannot be immediately followed by a non-placeholder value; placeholders must only appear as a trailing suffix.
+    """  # ruff:ignore[docstring-extraneous-exception]
+    path_candidates = jnp.asarray(path_candidates)
+    is_placeholder = path_candidates == -1
+    invalid = is_placeholder[..., :-1] & ~is_placeholder[..., 1:]
+    return eqx.error_if(
+        path_candidates,
+        jnp.any(invalid),
+        "Invalid path candidates: placeholder value '-1' cannot be "
+        "immediately followed by a non-placeholder value; placeholders "
+        "must only appear as a trailing suffix.",
+    )
+
+
 @overload
 def ray_intersect_triangle(
     ray_origins: Float[ArrayLike, "*#batch 3"],

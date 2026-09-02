@@ -10,6 +10,7 @@ from pytest_codspeed import BenchmarkFixture
 from differt.geometry import (
     ExhaustivePathTracer,
     HybridPathTracer,
+    SBRPathTracer,
     Scene,
     TracedPaths,
     fermat_path_on_planar_mirrors,
@@ -151,14 +152,18 @@ def test_first_triangle_hit_by_ray(
 @pytest.mark.benchmark(group="compute_paths")
 @pytest.mark.parametrize(
     "method",
-    [pytest.param("exhaustive", id="exhaustive"), pytest.param("hybrid", id="hybrid")],
+    [
+        pytest.param("exhaustive", id="exhaustive"),
+        pytest.param("hybrid", id="hybrid"),
+        pytest.param("sbr", id="sbr"),
+    ],
 )
 @pytest.mark.parametrize(
     "disconnect_inactive_triangles",
     [pytest.param(False, id="no_disconnect"), pytest.param(True, id="disconnect")],
 )
 def test_compute_paths(
-    method: Literal["exhaustive", "hybrid"],
+    method: Literal["exhaustive", "hybrid", "sbr"],
     disconnect_inactive_triangles: bool,
     bench_scene: Scene,
     benchmark: BenchmarkFixture,
@@ -168,6 +173,10 @@ def test_compute_paths(
 
     if method == "hybrid" and not disconnect_inactive_triangles:
         pytest.skip("Triangles are always disconnected for 'hybrid' method.")
+    if method == "sbr" and not disconnect_inactive_triangles:
+        pytest.skip(
+            "'sbr' method always disconnects inactive triangles, so this test is not applicable."
+        )
 
     @jax.block_until_ready
     def bench_fun() -> Array:
@@ -178,6 +187,8 @@ def test_compute_paths(
         ]:  # TODO: add higher orders once the implementation is faster / uses less memory
             if method == "hybrid":
                 solver = HybridPathTracer(num_rays=10_000)
+            elif method == "sbr":
+                solver = SBRPathTracer(num_rays=10_000)
             else:
                 solver = ExhaustivePathTracer(
                     disconnect_inactive_triangles=disconnect_inactive_triangles

@@ -20,6 +20,7 @@ from differt.geometry import (
     LaunchedPaths,
     Mesh,
     SBRPathLauncher,
+    SBRPathTracer,
     Scene,
     TracedPaths,
     assemble_path,
@@ -316,7 +317,7 @@ class TestScene:
         if assume_quads:
             expected_objects -= expected_objects % 2
 
-        got = scene.trace_paths(order)
+        got = scene.trace_paths(order, solver="exhaustive")
         if isinstance(got, Iterator):
             got = next(got)
         assert isinstance(got, TracedPaths)
@@ -346,7 +347,7 @@ class TestScene:
         self, order: int, assume_quads: bool, simple_street_canyon_scene: Scene
     ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
-        expected = scene.trace_paths(order=order)
+        expected = scene.trace_paths(order=order, solver="exhaustive")
         if isinstance(expected, Iterator):
             expected = next(expected)
         assert isinstance(expected, TracedPaths)
@@ -371,6 +372,40 @@ class TestScene:
                 True,
                 custom_message=f"Path candidate should be valid: {path_candidate}",
             )
+
+    def test_compute_paths_with_padded_path_candidates_and_assume_quads(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        # Regression test: user-supplied path candidates padded with '-1'
+        # placeholders must keep '-1' unchanged (not '-2') when the mesh
+        # rounds primitive indices down to the nearest even value, and the
+        # corresponding 'interaction_types' entries must stay '-1' (inactive)
+        # rather than '0' (specular), matching the placeholder convention
+        # documented for 'check_path_candidates'.
+        scene = simple_street_canyon_scene.set_assume_quads(True)
+
+        path_candidates = jnp.array([[1, -1], [-1, -1]])
+        got = scene.trace_paths(path_candidates=path_candidates)
+        assert isinstance(got, TracedPaths)
+
+        # The odd triangle index is rounded down to its quad's even index;
+        # the placeholder is preserved exactly, not corrupted into '-2'.
+        chex.assert_trees_all_equal(
+            got.objects[:, 1:-1], jnp.array([[0, -1], [-1, -1]])
+        )
+        chex.assert_trees_all_equal(
+            got.interaction_types, jnp.array([[0, -1], [-1, -1]])
+        )
+
+        # The padded candidate must resolve exactly like its unpadded,
+        # order-1 counterpart (the placeholder collapses onto the receiver).
+        unpadded = scene.trace_paths(
+            path_candidates=jnp.array([[0]]), solver="exhaustive"
+        )
+        assert isinstance(unpadded, TracedPaths)
+        chex.assert_trees_all_close(
+            got.vertices[0, :-1, :], unpadded.vertices[0], atol=1e-5
+        )
 
     @pytest.mark.xfail(reason="Not yet (correctly) implemented.")
     @pytest.mark.parametrize("order", [0, 1])
@@ -440,7 +475,7 @@ class TestScene:
                 None,
                 jnp.empty((1, 0), dtype=jnp.int32),
                 "hybrid",
-                pytest.raises(ValueError, match="Argument 'order' is required"),
+                does_not_raise(),
             ),
         ],
     )
@@ -508,7 +543,7 @@ class TestScene:
         scene = scene.with_transmitters_grid(m_tx, n_tx)
         scene = scene.with_receivers_grid(m_rx, n_rx)
 
-        paths = cast("TracedPaths", scene.trace_paths(order=1))
+        paths = cast("TracedPaths", scene.trace_paths(order=1, solver="exhaustive"))
 
         if n_tx is None:
             n_tx = m_tx
@@ -881,7 +916,7 @@ class TestScene:
         self, simple_street_canyon_scene: Scene
     ) -> None:
         scene = simple_street_canyon_scene
-        # 1. trace_paths with chunk_size in kwargs (exhaustive, default)
+        # 1. trace_paths with chunk_size in kwargs (sbr, default)
         got1 = scene.trace_paths(order=1, chunk_size=10)
         assert isinstance(got1, Iterator)
         # 2. trace_paths with hybrid solver and chunk_size in kwargs
@@ -966,17 +1001,20 @@ class TestScene:
         launcher = DummyLauncher()
         _ = launcher.launch_paths(simple_street_canyon_scene, order=1)
 
-        # Test NotImplementedError for multiple orders
-        with pytest.raises(NotImplementedError):
-            ExhaustivePathTracer().generate_path_candidates(
-                simple_street_canyon_scene, order=[1, 2]
-            )
+        # Multiple orders are generated directly, as a single padded array.
+        candidates, types = ExhaustivePathTracer().generate_path_candidates(
+            simple_street_canyon_scene, order=[1, 2]
+        )
+        assert candidates.shape[-1] == 2
+        assert types.shape == candidates.shape
 
-        with pytest.raises(NotImplementedError):
-            HybridPathTracer(chunk_size=10).generate_path_candidates(
-                simple_street_canyon_scene, order=[1, 2]
-            )
+        candidates, types = HybridPathTracer(chunk_size=10).generate_path_candidates(
+            simple_street_canyon_scene, order=[1, 2]
+        )
+        assert candidates.shape[-1] == 2
+        assert types.shape == candidates.shape
 
+        # Chunking a sequence of orders remains unsupported.
         with pytest.raises(NotImplementedError):
             HybridPathTracer(chunk_size=10).generate_path_candidates_chunks_iter(
                 simple_street_canyon_scene, order=[1, 2]
@@ -1011,12 +1049,14 @@ class TestScene:
                 )
 
         with pytest.deprecated_call():
-            with pytest.raises(ValueError, match="order' is required"):
-                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
-                    order=None,
-                    path_candidates=path_candidates,
-                    method="hybrid",
-                )
+            # 'order' is not required for 'hybrid' when 'path_candidates' is
+            # explicitly provided.
+            got_hybrid_from_candidates = scene.compute_paths(  # type: ignore[ty:no-matching-overload]
+                order=None,
+                path_candidates=path_candidates,
+                method="hybrid",
+            )
+            assert isinstance(got_hybrid_from_candidates, TracedPaths)
 
         with pytest.deprecated_call():
             got_sbr = scene.compute_paths(order=1, method="sbr", num_rays=500)
@@ -1042,6 +1082,20 @@ class TestScene:
         with pytest.warns(UserWarning, match="smoothing' is currently ignored"):
             scene.trace_paths(order=1, solver=HybridPathTracer(smoothing_factor=0.1))
 
+        # trace_paths with 'sbr' string shortcut dispatches to SBRPathTracer,
+        # and the warning message correctly names the actual subclass
+        with pytest.warns(UserWarning, match="ignored when using SBRPathTracer"):
+            scene.trace_paths(
+                order=1, solver=SBRPathTracer(num_rays=100, smoothing_factor=0.1)
+            )
+        # 'order' is not required when 'path_candidates' is given explicitly,
+        # even for a HybridPathTracer-family solver (including the default 'sbr').
+        got_from_candidates = scene.trace_paths(
+            path_candidates=jnp.zeros((1, 1), dtype=jnp.int32),
+            solver="sbr",
+        )
+        assert isinstance(got_from_candidates, TracedPaths)
+
         # trace_paths with path_candidates and chunk_size warning
         path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
         with pytest.warns(UserWarning, match="chunk_size' is ignored"):
@@ -1049,6 +1103,10 @@ class TestScene:
                 path_candidates=path_candidates,
                 solver=ExhaustivePathTracer(chunk_size=10),
             )
+
+        # trace_paths with a sequence of orders and a chunked solver
+        with pytest.raises(NotImplementedError, match="Chunked generation"):
+            scene.trace_paths(order=[1, 2], solver=ExhaustivePathTracer(chunk_size=10))
 
         # launch_paths with order is None
         with pytest.raises(ValueError, match="order' is required"):
@@ -1060,6 +1118,59 @@ class TestScene:
             pytest.raises(ValueError, match="You must specify one of"),
         ):
             scene.compute_paths(order=None, path_candidates=None)
+
+    @pytest.mark.parametrize("solver", ["exhaustive", "hybrid"])
+    def test_trace_paths_multiple_orders(
+        self,
+        advanced_path_tracing_example_scene: Scene,
+        solver: Literal["exhaustive", "hybrid"],
+    ) -> None:
+        scene = advanced_path_tracing_example_scene
+        orders = [0, 1, 2]
+        extra_kwargs = {"num_rays": int(1e6)} if solver == "hybrid" else {}
+
+        combined = cast(
+            "TracedPaths",
+            scene.trace_paths(order=orders, solver=solver, **extra_kwargs),
+        )
+        individual = [
+            cast(
+                "TracedPaths",
+                scene.trace_paths(order=o, solver=solver, **extra_kwargs),
+            )
+            for o in orders
+        ]
+
+        assert combined.order == max(orders)
+        assert int(combined.mask.sum()) == sum(int(p.mask.sum()) for p in individual)
+
+        combined_objects = {tuple(row.tolist()) for row in combined.masked_objects}
+        for p in individual:
+            for row in p.masked_objects.tolist():
+                # Padding is inserted between the last mirror and the
+                # receiver (the last element), not appended at the very end.
+                missing = max(orders) - (len(row) - 2)
+                padded_row = (*row[:-1], *([-1] * missing), row[-1])
+                assert padded_row in combined_objects
+
+    def test_trace_paths_multiple_orders_sbr_dispatch(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        # 'sbr' is the default solver for Scene.trace_paths; unlike
+        # 'exhaustive'/'hybrid' (see 'test_trace_paths_multiple_orders'
+        # above), its combined multi-order result is not required to match
+        # the sum of individually-traced orders (see
+        # 'SBRPathTracer.generate_path_candidates'), so this only checks
+        # that dispatch and reshaping match a direct solver call.
+        scene = simple_street_canyon_scene
+        combined = cast("TracedPaths", scene.trace_paths(order=[0, 1, 2]))
+        expected = SBRPathTracer().trace_paths(scene, order=[0, 1, 2])
+        assert combined.shape == (
+            *scene.transmitters.shape[:-1],
+            *scene.receivers.shape[:-1],
+            expected.shape[-1],
+        )
+        assert int(combined.mask.sum()) == int(expected.mask.sum())
 
     def test_compute_tx_mlm_height_from_receivers(self) -> None:
         mesh = Mesh.box()

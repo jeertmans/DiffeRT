@@ -37,14 +37,18 @@ def test_export(key: PRNGKeyArray) -> None:
     with pytest.raises(
         ValueError, match="Scene must contain information about face materials"
     ):
-        deepmimo.export(paths=scene.trace_paths(order=0), scene=scene, frequency=2.4e9)
+        deepmimo.export(
+            paths=scene.trace_paths(order=0, solver="exhaustive"),
+            scene=scene,
+            frequency=2.4e9,
+        )
 
     mesh = mesh.set_materials("itu_concrete")
     scene = Scene(mesh=mesh, transmitters=transmitters, receivers=receivers)
 
     frequency = 2.4e9  # 2.4 GHz
     for order in [0, 1, 2]:
-        paths = cast("TracedPaths", scene.trace_paths(order=order))
+        paths = cast("TracedPaths", scene.trace_paths(order=order, solver="exhaustive"))
         dm = deepmimo.export(paths=paths, scene=scene, frequency=frequency)
         assert dm.num_tx == num_tx
         assert dm.num_rx == num_rx
@@ -64,7 +68,8 @@ def test_export(key: PRNGKeyArray) -> None:
         assert dm.num_paths == paths.vertices.shape[-3]
 
     paths_iter = (
-        cast("TracedPaths", scene.trace_paths(order=order)) for order in [0, 1, 2]
+        cast("TracedPaths", scene.trace_paths(order=order, solver="exhaustive"))
+        for order in [0, 1, 2]
     )
     dm = deepmimo.export(paths=paths_iter, scene=scene, frequency=frequency)
     assert dm.num_tx == num_tx
