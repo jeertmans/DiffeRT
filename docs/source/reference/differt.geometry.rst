@@ -72,6 +72,7 @@ Methods and classes for simulating electromagnetic wave propagation, path tracin
    AbstractPathLauncher
    ExhaustivePathTracer
    HybridPathTracer
+   SBRPathTracer
    SBRPathLauncher
 
 .. rubric:: Image method
@@ -150,6 +151,7 @@ Utilities to check that ray paths are physically valid.
 .. autosummary::
    :toctree: _autosummary
 
+   check_path_candidates
    consecutive_vertices_are_on_same_side_of_mirror
    first_triangle_hit_by_ray
    ray_intersect_any_triangle

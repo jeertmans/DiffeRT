@@ -1,11 +1,12 @@
 import abc
 from collections.abc import Callable, Iterator, Sequence
-from typing import TYPE_CHECKING, Any, TypedDict, overload
+from typing import TYPE_CHECKING, Any, TypedDict, no_type_check, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+import warp as wp
 from equinox import AbstractVar
 from jaxtyping import Array, ArrayLike, Bool, Float, Int
 
@@ -21,19 +22,54 @@ from ._solver_image_method import (
 from ._utils import (
     SizedIterator,
     assemble_path,
+    check_path_candidates,
     fibonacci_lattice,
     ray_intersect_any_triangle,
     ray_intersect_triangle,
     viewing_frustum,
 )
+from ._warp_utils import _Batched, _get_warp_mesh, _warp_launch
 
 if TYPE_CHECKING:
     from ._scene import Scene
 
 
-# ---------------------------------------------------------------------------
-# Abstract base classes
-# ---------------------------------------------------------------------------
+def _normalize_order(order: int | Sequence[int] | slice) -> Sequence[int]:
+    """Normalize an ``order`` argument into a sequence of (non-negative) orders.
+
+    A bare ``int`` is wrapped into a single-element tuple, and a ``slice``
+    is converted into an equivalent :class:`range`; a :class:`~collections.abc.Sequence`
+    (e.g., a :class:`range`) is left untouched. This way, callers never need
+    to special-case whether ``order`` was given as a single order or as a
+    sequence thereof.
+
+    Args:
+        order: The order, as accepted by path solver methods.
+
+    Returns:
+        The order(s), always as a :class:`~collections.abc.Sequence` of
+        non-negative integers.
+
+    Raises:
+        ValueError: If ``order`` is a ``slice`` with an undefined ``stop``,
+            or if any order is negative.
+    """
+    if isinstance(order, int):
+        order = (order,)
+    elif isinstance(order, slice):
+        if order.stop is None:
+            msg = (
+                "A 'slice' order must have a defined 'stop', "
+                "e.g., 'slice(0, 6)' or 'slice(None, 6)'."
+            )
+            raise ValueError(msg)
+        order = range(order.start or 0, order.stop, order.step or 1)
+
+    if any(o < 0 for o in order):
+        msg = f"Order(s) must be non-negative, got {order!r}."
+        raise ValueError(msg)
+
+    return order
 
 
 class AbstractPathSolver(eqx.Module):
@@ -62,7 +98,7 @@ class AbstractPathTracer(AbstractPathSolver):
     def generate_path_candidates(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         specular_reflection: bool = True,
         diffuse_scattering: bool = False,
     ) -> tuple[
@@ -75,13 +111,27 @@ class AbstractPathTracer(AbstractPathSolver):
         ``path_candidates`` contains triangle indices.
         ``interaction_types`` classifies the bounce (e.g., ``0`` for specular).
         A value of ``-1`` in either array indicates an "inactive" interaction
-        or padded bounce (used when combining paths of different reflection
-        orders).
+        or padded bounce.
+
+        ``order`` may also be a sequence of orders, e.g., ``[1, 2, 3]``, a
+        :class:`range` (e.g., ``range(0, 6)``), or a ``slice`` with a
+        defined ``stop`` (e.g., ``slice(0, 6)``, equivalent to
+        ``range(0, 6)``), to combine candidates of multiple orders into a
+        single array, with lower-order candidates padded with ``-1`` up to
+        the maximum requested order, see :func:`check_path_candidates
+        <differt.geometry.check_path_candidates>` for the exact placeholder
+        convention. For most solvers, candidates are generated independently
+        for each order and concatenated, so the size of the returned arrays
+        is known ahead of time: it is the sum of the number of candidates
+        generated for each individual order. :class:`SBRPathTracer` is a
+        notable exception: it shares a single, fixed-size buffer across all
+        requested orders instead, see its documentation for details.
 
         Args:
             scene: The scene.
             order: The path order (number of bounces), or a sequence of
-                orders to combine.
+                orders (also accepted as a :class:`range` or ``slice``) to
+                combine.
             specular_reflection: Whether to include specular reflections.
             diffuse_scattering: Whether to include diffuse scattering
                 (not yet implemented).
@@ -93,7 +143,7 @@ class AbstractPathTracer(AbstractPathSolver):
     def generate_path_candidates_chunks_iter(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         *args: Any,
         chunk_size: int,
         pad_chunks: bool = False,
@@ -197,7 +247,7 @@ class AbstractPathTracer(AbstractPathSolver):
     def trace_paths(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         chunk_size: None = None,
         pad_chunks: bool = False,
     ) -> TracedPaths: ...
@@ -206,24 +256,32 @@ class AbstractPathTracer(AbstractPathSolver):
     def trace_paths(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         chunk_size: int,
         pad_chunks: bool = False,
-    ) -> Iterator[TracedPaths]: ...
+    ) -> SizedIterator[TracedPaths]: ...
 
     def trace_paths(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         chunk_size: int | None = None,
         pad_chunks: bool = False,
-    ) -> TracedPaths | Iterator[TracedPaths]:
+    ) -> TracedPaths | SizedIterator[TracedPaths]:
         """
         Trace paths for the given scene and order(s).
 
         If ``chunk_size`` is provided, returns an iterator of
         :class:`~differt.geometry.TracedPaths` (one per chunk);
         otherwise returns a single :class:`~differt.geometry.TracedPaths`.
+
+        If ``order`` is a sequence of orders, e.g., ``[1, 2, 3]``, then
+        :meth:`generate_path_candidates` directly generates path candidates
+        for every requested order, combining them into a single array, with
+        lower-order candidates padded (with ``-1``) up to the maximum
+        requested order; the (single) combined array is then traced in one
+        call to :meth:`trace_path_candidates`. This is not compatible with
+        ``chunk_size``.
 
         Args:
             scene: The scene.
@@ -234,14 +292,26 @@ class AbstractPathTracer(AbstractPathSolver):
                 pad the last chunk.
 
         Returns:
-            Traced paths, or an iterator thereof.
+            Traced paths, or a sized iterator thereof.
+
+        Raises:
+            NotImplementedError: If ``order`` is a sequence of orders and
+                ``chunk_size`` is not :data:`None`.
         """
+        if not isinstance(order, int) and chunk_size is not None:
+            msg = "Chunked generation ('chunk_size') is not supported when 'order' is a sequence of orders."  # TODO: implement me, this should be relatively easy to do
+            raise NotImplementedError(msg)
+
         if chunk_size is not None:
-            return (
-                self.trace_path_candidates(scene, cands, types)
-                for cands, types in self.generate_path_candidates_chunks_iter(
-                    scene, order, chunk_size=chunk_size, pad_chunks=pad_chunks
-                )
+            chunks_iter = self.generate_path_candidates_chunks_iter(
+                scene, order, chunk_size=chunk_size, pad_chunks=pad_chunks
+            )
+            return SizedIterator(
+                (
+                    self.trace_path_candidates(scene, cands, types)
+                    for cands, types in chunks_iter
+                ),
+                size=chunks_iter.__len__,
             )
         candidates, interactions = self.generate_path_candidates(scene, order)
         return self.trace_path_candidates(scene, candidates, interactions)
@@ -491,11 +561,6 @@ class AbstractPathLauncher(AbstractPathSolver):
         )
 
 
-# ---------------------------------------------------------------------------
-# Helper: trace path candidates (image method + validation)
-# ---------------------------------------------------------------------------
-
-
 @eqx.filter_jit
 def _trace_path_candidates(
     mesh: Mesh,
@@ -517,22 +582,38 @@ def _trace_path_candidates(
 
     min_len = jnp.asarray(min_len)
 
-    # 1 - Broadcast arrays
+    # 0 - Validate path candidates and identify placeholder ('-1') interactions
+
+    path_candidates = check_path_candidates(path_candidates)
 
     num_tx_vertices = tx_vertices.shape[0]
     num_rx_vertices = rx_vertices.shape[0]
     num_path_candidates, order = path_candidates.shape
 
+    # [num_path_candidates order] - 'True' for genuine interactions, 'False' for
+    # placeholder ('-1') ones, used to pad path candidates of a lower order.
+    active = path_candidates >= 0
+    # [num_path_candidates order] - like 'path_candidates', but with placeholder
+    # values replaced by a valid (dummy) index, so it is always safe to use
+    # for array indexing. Because placeholder positions are excluded below
+    # from every validity criterion, which dummy primitive is used does not
+    # affect the result.
+    safe_path_candidates = jnp.where(active, path_candidates, 0)
+
+    # 1 - Broadcast arrays
+
     if mesh.assume_quads:
         # [num_path_candidates 2*order]
-        path_candidates = jnp.repeat(path_candidates, 2, axis=-1)
-        path_candidates = path_candidates.at[..., 1::2].add(1)  # Shift odd indices by 1
+        quad_path_candidates = jnp.repeat(safe_path_candidates, 2, axis=-1)
+        # Shift odd indices by 1
+        quad_path_candidates = quad_path_candidates.at[..., 1::2].add(1)
         k = 2
     else:
+        quad_path_candidates = safe_path_candidates
         k = 1
 
     # [num_path_candidates k*order 3]
-    triangles = jnp.take(mesh.triangles, path_candidates, axis=0).reshape(
+    triangles = jnp.take(mesh.triangles, quad_path_candidates, axis=0).reshape(
         num_path_candidates, k * order, 3
     )  # reshape required if mesh is empty
 
@@ -543,8 +624,11 @@ def _trace_path_candidates(
 
     if mesh.mask is not None:
         # For a ray to be active, it must hit triangles that are not masked out (i.e, inactive).
+        # Placeholder interactions are excluded from this requirement.
         # [num_path_candidates]
-        active_rays = jnp.take(mesh.mask, path_candidates, axis=0).all(axis=-1)
+        active_rays = (jnp.take(mesh.mask, safe_path_candidates, axis=0) | ~active).all(
+            axis=-1
+        )
     else:
         active_rays = None
 
@@ -557,9 +641,7 @@ def _trace_path_candidates(
     ]  # Only one vertex per triangle is needed
 
     # [num_path_candidates order 3]
-    mirror_normals = jnp.take(
-        mesh.normals, path_candidates[..., :: (2 if mesh.assume_quads else 1)], axis=0
-    )
+    mirror_normals = jnp.take(mesh.normals, safe_path_candidates, axis=0)
 
     # 2 - Trace paths
 
@@ -572,12 +654,33 @@ def _trace_path_candidates(
             (num_tx_vertices, num_rx_vertices, 0, order + 2, 3), dtype=dtype
         )
     else:
+        # Placeholder interactions must not contribute any actual reflection.
+        # We replace their mirror by the (receiver-dependent) infinite plane
+        # that goes through the receiver: because the receiver trivially lies
+        # on that plane, both the image (forward pass) and the intersection
+        # point (backward pass) of the image method recursion collapse to the
+        # receiver itself, for every placeholder position. As placeholders
+        # only ever appear as a trailing suffix (checked above), this exactly
+        # produces a path that reaches the receiver after its last genuine
+        # interaction, then stays there for the remaining (padded) positions.
+        # [num_rx_vertices num_path_candidates order 3]
+        mirror_vertices_for_image_method = jnp.where(
+            active[None, ..., None],
+            mirror_vertices[None, ...],
+            rx_vertices[:, None, None, :],
+        )
+        mirror_normals_for_image_method = jnp.where(
+            active[None, ..., None],
+            mirror_normals[None, ...],
+            jnp.zeros_like(mirror_normals)[None, ...],
+        )
+
         # [num_tx_vertices num_rx_vertices num_path_candidates order 3]
         paths = image_method(
             tx_vertices[:, None, None, :],
             rx_vertices[None, :, None, :],
-            mirror_vertices,
-            mirror_normals,
+            mirror_vertices_for_image_method,
+            mirror_normals_for_image_method,
         )
         full_paths = assemble_path(
             tx_vertices[:, None, None, :],
@@ -591,6 +694,15 @@ def _trace_path_candidates(
     ray_origins = full_paths[..., :-1, :]
     # [num_tx_vertices num_rx_vertices num_path_candidates order+1 3]
     ray_directions = jnp.diff(full_paths, axis=-2)
+
+    # A path segment is genuine if it starts from the transmitter or from a
+    # genuine interaction (the segment reaching the receiver right after the
+    # last genuine interaction is also genuine); segments in between two
+    # placeholder interactions are not, and must not affect validity.
+    # [num_path_candidates order+1]
+    segment_active = jnp.concatenate(
+        (jnp.ones((num_path_candidates, 1), dtype=bool), active), axis=-1
+    )
 
     # 3.1 - Check if paths vertices are inside respective triangles
 
@@ -609,8 +721,10 @@ def _trace_path_candidates(
                     num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
                 )
                 .max(axis=-1, initial=0.0)
-                .min(axis=-1, initial=1.0)
-            )  # Reduce on 'order' axis and on the two triangles (per quad)
+            )  # Reduce on the two triangles (per quad)
+            inside_triangles = jnp.where(active, inside_triangles, 1.0).min(
+                axis=-1, initial=1.0
+            )  # Reduce on 'order' axis, ignoring placeholder interactions
         else:
             inside_triangles = (
                 ray_intersect_triangle(
@@ -623,8 +737,10 @@ def _trace_path_candidates(
                     num_tx_vertices, num_rx_vertices, num_path_candidates, order, 2
                 )
                 .any(axis=-1)
-                .all(axis=-1)
-            )  # Reduce on 'order' axis and on the two triangles (per quad)
+            )  # Reduce on the two triangles (per quad)
+            inside_triangles = (inside_triangles | ~active).all(
+                axis=-1
+            )  # Reduce on 'order' axis, ignoring placeholder interactions
     elif smoothing_factor is not None:
         inside_triangles = ray_intersect_triangle(
             ray_origins[..., :-1, :],
@@ -632,14 +748,20 @@ def _trace_path_candidates(
             triangle_vertices,
             epsilon=epsilon,
             smoothing_factor=smoothing_factor,
-        )[1].min(axis=-1, initial=1.0)  # Reduce on 'order' axis
+        )[1]
+        inside_triangles = jnp.where(active, inside_triangles, 1.0).min(
+            axis=-1, initial=1.0
+        )  # Reduce on 'order' axis, ignoring placeholder interactions
     else:
         inside_triangles = ray_intersect_triangle(
             ray_origins[..., :-1, :],
             ray_directions[..., :-1, :],
             triangle_vertices,
             epsilon=epsilon,
-        )[1].all(axis=-1)  # Reduce on 'order' axis
+        )[1]
+        inside_triangles = (inside_triangles | ~active).all(
+            axis=-1
+        )  # Reduce on 'order' axis, ignoring placeholder interactions
 
     # 3.2 - Check if consecutive path vertices are on the same side of mirrors
 
@@ -650,13 +772,19 @@ def _trace_path_candidates(
             mirror_vertices,
             mirror_normals,
             smoothing_factor=smoothing_factor,
-        ).min(axis=-1, initial=1.0)  # Reduce on 'order'
+        )
+        valid_reflections = jnp.where(active, valid_reflections, 1.0).min(
+            axis=-1, initial=1.0
+        )  # Reduce on 'order', ignoring placeholder interactions
     else:
         valid_reflections = consecutive_vertices_are_on_same_side_of_mirror(
             full_paths,
             mirror_vertices,
             mirror_normals,
-        ).all(axis=-1)  # Reduce on 'order'
+        )
+        valid_reflections = (valid_reflections | ~active).all(
+            axis=-1
+        )  # Reduce on 'order', ignoring placeholder interactions
 
     # 3.3 - Identify paths that are blocked by other objects
 
@@ -671,26 +799,34 @@ def _trace_path_candidates(
             hit_tol=hit_tol,
             smoothing_factor=smoothing_factor,
             batch_size=batch_size,
-        ).max(axis=-1, initial=0.0)  # Reduce on 'order'
+        )
+        blocked = jnp.where(segment_active, blocked, 0.0).max(
+            axis=-1, initial=0.0
+        )  # Reduce on segments, ignoring non-genuine ones
     else:  # Use faster implementation
         blocked = mesh.ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             hit_tol=hit_tol,
-        ).any(axis=-1)  # Reduce on 'order'
+        )
+        blocked = (blocked & segment_active).any(
+            axis=-1
+        )  # Reduce on segments, ignoring non-genuine ones
 
     # 3.4 - Identify path segments that are too small (e.g., double-reflection inside an edge)
 
     ray_lengths = jnp.sum(ray_directions * ray_directions, axis=-1)  # Squared norm
 
     if smoothing_factor is not None:
-        too_small = smoothing_function(min_len - ray_lengths, smoothing_factor).max(
+        too_small = smoothing_function(min_len - ray_lengths, smoothing_factor)
+        too_small = jnp.where(segment_active, too_small, 0.0).max(
             axis=-1, initial=0.0
-        )  # Any path segment being too small
+        )  # Any genuine path segment being too small
     else:
-        too_small = (ray_lengths < min_len).any(
+        too_small = ray_lengths < min_len
+        too_small = (too_small & segment_active).any(
             axis=-1
-        )  # Any path segment being too small
+        )  # Any genuine path segment being too small
 
     # 3.5 - Identify paths that are not finite
     is_finite = jnp.isfinite(full_paths).all(axis=(-1, -2))
@@ -734,7 +870,7 @@ def _trace_path_candidates(
         (num_tx_vertices, num_rx_vertices, num_path_candidates, 1),
     )
     path_candidates_for_objects = jnp.broadcast_to(
-        path_candidates[:, ::k],
+        path_candidates,
         (
             num_tx_vertices,
             num_rx_vertices,
@@ -770,9 +906,97 @@ def _trace_path_candidates(
     )
 
 
-# ---------------------------------------------------------------------------
-# Concrete solvers
-# ---------------------------------------------------------------------------
+def _pad_path_candidates(
+    path_candidates: Int[Array, "num_path_candidates order"],
+    interaction_types: Int[Array, "num_path_candidates order"],
+    order: int,
+) -> tuple[
+    Int[Array, "num_path_candidates {order}"], Int[Array, "num_path_candidates {order}"]
+]:
+    """Pad path candidates of a lower order up to ``order`` with placeholders.
+
+    Args:
+        path_candidates: The path candidates to pad.
+        interaction_types: The corresponding interaction types.
+        order: The target order, which must be greater than or equal to the
+            current order (``path_candidates.shape[-1]``).
+
+    Returns:
+        The padded path candidates and interaction types.
+
+    Raises:
+        ValueError: If ``order`` is smaller than the current order.
+    """
+    current_order = path_candidates.shape[-1]
+    missing = order - current_order
+
+    if missing == 0:
+        return path_candidates, interaction_types
+    if missing < 0:
+        msg = f"Cannot pad path candidates of order {current_order} down to a lower order {order}."
+        raise ValueError(msg)
+
+    pad_width = ((0, 0), (0, missing))
+    path_candidates = jnp.pad(path_candidates, pad_width, constant_values=-1)
+    interaction_types = jnp.pad(interaction_types, pad_width, constant_values=-1)
+
+    return path_candidates, interaction_types
+
+
+def _generate_path_candidates_for_orders(
+    solver: "ExhaustivePathTracer | HybridPathTracer",
+    scene: "Scene",
+    orders: Sequence[int],
+    specular_reflection: bool,
+    diffuse_scattering: bool,
+) -> tuple[
+    Int[Array, "num_path_candidates max_order"],
+    Int[Array, "num_path_candidates max_order"],
+]:
+    """Generate path candidates independently for each order, then combine them.
+
+    Each order is generated with its own, unpadded call to
+    ``solver._generate_path_candidates_for_one_order``. The resulting
+    candidates are then padded (see :func:`_pad_path_candidates`) up to the
+    maximum requested order, and concatenated into a single array, whose
+    size is known ahead of time (the sum of the number of candidates
+    generated for each individual order).
+
+    Args:
+        solver: The path tracer used to generate candidates for each order.
+        scene: The scene.
+        orders: The (non-empty) sequence of orders to generate and combine.
+        specular_reflection: Whether to include specular reflections.
+        diffuse_scattering: Whether to include diffuse scattering.
+
+    Returns:
+        The combined path candidates and interaction types.
+
+    Raises:
+        ValueError: If ``orders`` is empty.
+    """
+    order_list = sorted({int(o) for o in orders})
+
+    if not order_list:
+        msg = "You must provide at least one order when 'order' is a sequence."
+        raise ValueError(msg)
+
+    max_order = order_list[-1]
+
+    candidates_and_types = [
+        _pad_path_candidates(
+            *solver._generate_path_candidates_for_one_order(  # ruff:ignore[private-member-access]
+                scene, o, specular_reflection, diffuse_scattering
+            ),
+            max_order,
+        )
+        for o in order_list
+    ]
+
+    return (
+        jnp.concatenate([c for c, _ in candidates_and_types], axis=0),
+        jnp.concatenate([t for _, t in candidates_and_types], axis=0),
+    )
 
 
 class ExhaustivePathTracer(AbstractPathTracer):
@@ -803,17 +1027,28 @@ class ExhaustivePathTracer(AbstractPathTracer):
     def generate_path_candidates(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
-        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
+        order: int | Sequence[int] | slice,
+        specular_reflection: bool = True,
+        diffuse_scattering: bool = False,
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
-        if isinstance(order, Sequence):
-            msg = "ExhaustivePathTracer does not support multiple orders yet."
-            raise NotImplementedError(msg)
+        order = _normalize_order(order)
+        return _generate_path_candidates_for_orders(
+            self, scene, order, specular_reflection, diffuse_scattering
+        )
 
+    def _generate_path_candidates_for_one_order(
+        self,
+        scene: "Scene",
+        order: int,
+        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
         graph = CompleteGraph(scene.mesh.num_primitives)
         assume_quads = scene.mesh.assume_quads
 
@@ -850,7 +1085,7 @@ class ExhaustivePathTracer(AbstractPathTracer):
     def generate_path_candidates_chunks_iter(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         *args: Any,
         chunk_size: int | None = None,
         pad_chunks: bool = False,
@@ -875,9 +1110,16 @@ class ExhaustivePathTracer(AbstractPathTracer):
             )
             return SizedIterator(iter([(candidates, interactions)]), size=1)
 
-        if isinstance(order, Sequence):
-            msg = "ExhaustivePathTracer does not support multiple orders yet."
+        if not isinstance(order, int):
+            msg = (
+                "ExhaustivePathTracer.generate_path_candidates_chunks_iter does "
+                "not support a sequence of orders; call "
+                "generate_path_candidates(order=[...]) directly instead "
+                "(without chunking)."
+            )
             raise NotImplementedError(msg)
+
+        (order,) = _normalize_order(order)
 
         graph = CompleteGraph(scene.mesh.num_primitives)
         assume_quads = scene.mesh.assume_quads
@@ -993,17 +1235,28 @@ class HybridPathTracer(AbstractPathTracer):
     def generate_path_candidates(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
-        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
+        order: int | Sequence[int] | slice,
+        specular_reflection: bool = True,
+        diffuse_scattering: bool = False,
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
-        if isinstance(order, Sequence):
-            msg = "HybridPathTracer does not support multiple orders yet."
-            raise NotImplementedError(msg)
+        order = _normalize_order(order)
+        return _generate_path_candidates_for_orders(
+            self, scene, order, specular_reflection, diffuse_scattering
+        )
 
+    def _generate_path_candidates_for_one_order(
+        self,
+        scene: "Scene",
+        order: int,
+        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
         tx_vertices = scene.transmitters.reshape(-1, 3)
         rx_vertices = scene.receivers.reshape(-1, 3)
 
@@ -1060,7 +1313,7 @@ class HybridPathTracer(AbstractPathTracer):
     def generate_path_candidates_chunks_iter(
         self,
         scene: "Scene",
-        order: int | Sequence[int],
+        order: int | Sequence[int] | slice,
         *args: Any,
         chunk_size: int | None = None,
         pad_chunks: bool = False,  # ruff:ignore[unused-method-argument]
@@ -1083,9 +1336,16 @@ class HybridPathTracer(AbstractPathTracer):
             )
             return SizedIterator(iter([(candidates, interactions)]), size=1)
 
-        if isinstance(order, Sequence):
-            msg = "HybridPathTracer does not support multiple orders yet."
+        if not isinstance(order, int):
+            msg = (
+                "HybridPathTracer.generate_path_candidates_chunks_iter does "
+                "not support a sequence of orders; call "
+                "generate_path_candidates(order=[...]) directly instead "
+                "(without chunking)."
+            )
             raise NotImplementedError(msg)
+
+        (order,) = _normalize_order(order)
 
         tx_vertices = scene.transmitters.reshape(-1, 3)
         rx_vertices = scene.receivers.reshape(-1, 3)
@@ -1226,6 +1486,407 @@ class SBRPathLauncher(AbstractPathLauncher):
         return ray_origins, ray_directions
 
 
+_SBR_TRACE_EPSILON = 1e-5
+"""Offset applied to ray origins before each hit test, matching the value
+used by :func:`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`."""
+
+
+@no_type_check
+@wp.kernel
+def _sbr_trace_kernel(
+    mesh_id: wp.uint64,
+    normals: wp.array(dtype=wp.vec3),
+    ray_origins: wp.array(dtype=wp.vec3),
+    ray_directions: wp.array(dtype=wp.vec3),
+    max_order: int,
+    epsilon: float,
+    assume_quads: wp.bool,
+    output: wp.array(dtype=wp.int32),
+) -> None:  # pragma: no cover
+    # 'output' is a flat, row-major '[num_rays, max_order]' buffer (reshaped
+    # on the JAX side): a 2D 'wp.array2d' output currently incurs much
+    # higher overhead through the JAX/Warp FFI bridge than a flat one. It is
+    # pre-filled with '-1' (inactive) by the caller; only genuine hits are
+    # written below, before a ray goes inactive.
+    tid = wp.tid()
+    row = tid * max_order
+
+    origin = ray_origins[tid]
+    direction = ray_directions[tid]
+
+    for i in range(max_order):
+        query_origin = origin + direction * epsilon
+        res = wp.mesh_query_ray(mesh_id, query_origin, direction, wp.inf)
+
+        if not res.result:
+            # Once a ray exits the scene, it (and all of its future
+            # bounces) stays inactive: leave the rest of the row as '-1'.
+            break
+
+        face = res.face
+        if assume_quads:
+            # Store the primitive (quad) index, encoded as the index of the
+            # first of its two triangles, matching the convention used by
+            # 'ExhaustivePathTracer' and 'HybridPathTracer'.
+            output[row + i] = (face // 2) * 2
+        else:
+            output[row + i] = face
+
+        origin = origin + direction * (res.t + epsilon)
+        normal = normals[face]
+        direction = direction - 2.0 * wp.dot(direction, normal) * normal
+
+
+@no_type_check
+def _sbr_trace_func(
+    mesh_id: int,
+    points: wp.array[wp.vec3],
+    indices: wp.array[wp.int32],
+    normals: wp.array[wp.vec3],
+    ray_origins: wp.array[wp.vec3],
+    ray_directions: wp.array[wp.vec3],
+    max_order: int,
+    assume_quads: wp.bool,
+    output: wp.array[wp.int32],
+) -> None:
+    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    output.fill_(-1)
+    _warp_launch(
+        _sbr_trace_kernel,
+        dim=ray_origins.shape[0],
+        inputs=[
+            wp_mesh.id,
+            normals,
+            _Batched(ray_origins),
+            _Batched(ray_directions),
+            max_order,
+            _SBR_TRACE_EPSILON,
+            assume_quads,
+        ],
+        outputs=[_Batched(output, row_size=max_order)],
+        device=ray_origins.device,
+    )
+
+
+def _sbr_trace(
+    mesh: Mesh,
+    flat_ray_origins: Float[Array, "num_rays_total 3"],
+    flat_ray_directions: Float[Array, "num_rays_total 3"],
+    max_order: int,
+) -> Int[Array, "num_rays_total max_order"]:
+    """Discover, for every ray, the sequence of primitives it bounces on.
+
+    Unlike :meth:`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`,
+    which performs a single hit test per call, this launches a single Warp
+    kernel that performs the *entire* bounce loop for every ray, with a
+    per-ray early exit as soon as a ray leaves the scene. Compared to
+    calling :meth:`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`
+    once per bounce from a ``jax.lax.scan`` (as a naive implementation
+    would), this avoids ``max_order`` separate JAX/Warp round-trips and the
+    corresponding intermediate ray-state materialization in between.
+
+    Path candidates (triangle indices) are never differentiated (only the
+    downstream, exact image-method solve is), so this helper is
+    intentionally forward-only: gradients are stopped on all inputs.
+
+    Args:
+        mesh: The scene mesh.
+        flat_ray_origins: The (flattened) ray origins.
+        flat_ray_directions: The (flattened) ray directions.
+        max_order: The maximum number of bounces to simulate.
+
+    Returns:
+        For each launched ray, the sequence of (at most ``max_order``)
+        primitive indices it bounced on, using the same ``-1`` placeholder
+        convention as path candidates.
+    """
+    triangles = mesh.triangles
+    if mesh.mask is not None:
+        triangles = jnp.where(mesh.mask[:, None], mesh.triangles, 0)
+
+    mesh_id = np.uint64(id(mesh))
+    num_rays = flat_ray_origins.shape[0]
+
+    (recorded,) = wp.jax_callable(
+        _sbr_trace_func,
+        output_dims=(num_rays * max_order,),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
+    )(
+        mesh_id,
+        jax.lax.stop_gradient(mesh.vertices),
+        triangles.ravel(),
+        jax.lax.stop_gradient(mesh.normals),
+        jax.lax.stop_gradient(flat_ray_origins),
+        jax.lax.stop_gradient(flat_ray_directions),
+        max_order,
+        mesh.assume_quads,
+    )
+    return jax.lax.stop_gradient(recorded).reshape(num_rays, max_order)
+
+
+class SBRPathTracer(HybridPathTracer):
+    """
+    Shooting-and-bouncing ray (SBR) path tracer.
+
+    Instead of enumerating a (possibly visibility-pruned) complete graph, like
+    :class:`ExhaustivePathTracer` and :class:`HybridPathTracer` do, this tracer
+    *discovers* candidate interaction sequences by launching a fixed, bounded
+    population of rays from each transmitter and following their specular
+    bounces, closely following the shooting-and-bouncing-rays (SBR) candidate
+    generation procedure used by Sionna RT :cite:`sionna-rt`; see its
+    `technical report <https://nvlabs.github.io/sionna/rt/tech-report/S3.html#SS1>`_
+    for a detailed description of the algorithm this class is based on.
+
+    Every ray trajectory yields (at most) one candidate sequence of primitive
+    indices, so the memory needed to generate candidates only depends on
+    :attr:`num_rays` and :attr:`max_num_candidates`, and no longer grows
+    combinatorially with ``order`` or the number of primitives in the scene.
+    Because many rays typically converge onto the same discrete sequence of
+    primitives, especially at low orders, the discovered candidates are
+    deduplicated (using a fixed-size buffer, see :attr:`max_num_candidates`)
+    before being passed to the same exact image-method solver used by
+    :class:`ExhaustivePathTracer` and :class:`HybridPathTracer`.
+
+    When ``order`` is a sequence (or a :class:`range`/``slice``), rays are
+    launched only once, up to the maximum requested order: each ray's own,
+    *natural* number of interactions (i.e., how many bounces it completes
+    before exiting the scene) decides which requested order, if any, it is a
+    candidate for. Trajectories whose natural order is not one of the
+    requested orders are simply not written to the buffer, rather than being
+    truncated (or extended) to fit a nearby one. As a result, the combined
+    output remains bounded by :attr:`max_num_candidates` alone, regardless
+    of how many orders are requested, unlike :class:`ExhaustivePathTracer`
+    and :class:`HybridPathTracer`, whose combined output size grows with the
+    number of requested orders (see
+    :meth:`AbstractPathTracer.generate_path_candidates<differt.geometry.AbstractPathTracer.generate_path_candidates>`).
+
+    .. important::
+
+        Because candidates are discovered from a finite ray population, this
+        tracer is **not guaranteed to be exhaustive**: it may miss valid paths
+        that subtend a small solid angle as seen from the transmitters,
+        especially at high orders or in scenes with many small primitives.
+        Increasing :attr:`num_rays` improves coverage, at the cost of memory
+        and runtime.
+
+    .. important::
+
+        Like :class:`HybridPathTracer`, this tracer is best used for a small
+        number of transmitters (rays are only launched from transmitters, not
+        receivers).
+
+    .. important::
+
+        Whenever :attr:`max_num_candidates` exceeds the number of *distinct*
+        candidates actually discovered, the fixed-size buffer is padded with
+        extra all-``-1`` rows (see :func:`check_path_candidates
+        <differt.geometry.check_path_candidates>`), each of which is a valid
+        (degenerate) line-of-sight candidate. As a result, the line-of-sight
+        path may appear as many duplicate valid entries whenever it exists.
+        Use :meth:`TracedPaths.mask_duplicate_objects<differt.geometry.TracedPaths.mask_duplicate_objects>`
+        on the result if you need an accurate count of *distinct* valid
+        paths.
+    """
+
+    max_num_candidates: int = int(1e5)
+    """The maximum number of (deduplicated) path candidates that are kept.
+
+    This acts as a fixed-size buffer, similar to :attr:`num_rays`: if more
+    unique candidates are discovered than this value, the extra candidates
+    are silently dropped.
+    """
+
+    def _launch_and_record(
+        self,
+        scene: "Scene",
+        max_order: int,
+    ) -> Int[Array, "num_rays_total max_order"]:
+        """Launch rays and record the sequence of primitives each one hits.
+
+        This is the core, discovery-only part of :meth:`generate_path_candidates`:
+        it does not deduplicate nor bound the result, so that a single ray
+        population can be shared to generate candidates for multiple orders
+        at once (see :meth:`generate_path_candidates`, with a sequence of
+        orders), by keeping only the trajectories whose natural number of
+        interactions (i.e., where each one stops) matches one of the
+        requested orders.
+
+        Args:
+            scene: The scene.
+            max_order: The maximum number of bounces to simulate.
+
+        Returns:
+            For each launched ray, the sequence of (at most ``max_order``)
+            primitive indices it bounced on, using the same ``-1`` placeholder
+            convention as path candidates: once a ray exits the scene (or
+            hits a masked-out triangle), all of its remaining, unrealized
+            bounces are set to ``-1``.
+        """
+        mesh = scene.mesh
+
+        tx_vertices = scene.transmitters.reshape(-1, 3)
+        rx_vertices = scene.receivers.reshape(-1, 3)
+        num_tx_vertices = tx_vertices.shape[0]
+
+        world_vertices = jnp.concatenate(
+            (mesh.triangle_vertices.reshape(-1, 3), rx_vertices), axis=0
+        )
+        frustums = jax.vmap(viewing_frustum, in_axes=(0, None))(
+            tx_vertices, world_vertices
+        )
+
+        ray_origins = jnp.broadcast_to(
+            tx_vertices[:, None, :], (num_tx_vertices, self.num_rays, 3)
+        )
+        ray_directions = jax.vmap(
+            lambda frustum: fibonacci_lattice(self.num_rays, frustum=frustum)
+        )(frustums)
+
+        # A single Warp kernel launch performs the entire bounce loop, for
+        # every ray, with a per-ray early exit; see '_sbr_trace'.
+        return _sbr_trace(
+            mesh,
+            ray_origins.reshape(-1, 3),
+            ray_directions.reshape(-1, 3),
+            max_order,
+        )
+
+    def _deduplicate_candidates(
+        self,
+        candidates: Int[Array, "num_rays_total order"],
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
+        """Deduplicate discovered ray trajectories into a fixed-size buffer.
+
+        The output size only depends on :attr:`max_num_candidates`, regardless
+        of the order or the number of rays that discovered each sequence.
+
+        Args:
+            candidates: The (possibly duplicated, unbounded) discovered
+                trajectories, see :meth:`_launch_and_record`.
+
+        Returns:
+            The deduplicated, bounded path candidates and interaction types.
+        """
+        path_candidates = jnp.unique(
+            candidates, axis=0, size=self.max_num_candidates, fill_value=-1
+        ).astype(int)
+
+        # Default: all specular reflections (value 0);
+        # -1 marks inactive/padded interactions (e.g., rays that never
+        # completed 'order' bounces, or unused buffer slots).
+        interaction_types = jnp.where(path_candidates >= 0, 0, -1).astype(jnp.int32)
+
+        return path_candidates, interaction_types
+
+    def generate_path_candidates(
+        self,
+        scene: "Scene",
+        order: int | Sequence[int] | slice,
+        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
+        # A bare 'int' order and a sequence containing that single order are
+        # *not* equivalent for this tracer (unlike for 'ExhaustivePathTracer'
+        # and 'HybridPathTracer'): a bare order includes every ray trajectory
+        # up to that many bounces (shorter, naturally-terminating ones
+        # included, padded with '-1'), whereas a sequence only keeps
+        # trajectories whose natural number of interactions exactly matches
+        # one of the requested orders (see the multi-order branch below).
+        # This distinction must be captured before normalizing, since
+        # '_normalize_order' always returns a sequence.
+        single_order = isinstance(order, int)
+        order = _normalize_order(order)
+
+        if single_order:
+            (order,) = order
+
+            if order == 0:
+                path_candidates = jnp.zeros((1, 0), dtype=int)
+                interaction_types = jnp.zeros((1, 0), dtype=jnp.int32)
+                return path_candidates, interaction_types
+
+            candidates = self._launch_and_record(scene, order)
+
+            return self._deduplicate_candidates(candidates)
+
+        order_list = sorted({int(o) for o in order})
+
+        if not order_list:
+            msg = "You must provide at least one order when 'order' is a sequence."
+            raise ValueError(msg)
+
+        max_order = order_list[-1]
+
+        if max_order == 0:  # 'order_list' can only be '[0]' in this case.
+            return self.generate_path_candidates(scene, 0)
+
+        # A single ray population is shared across all requested orders,
+        # launched once, up to 'max_order' bounces. Each ray's own,
+        # natural number of interactions (i.e., how many bounces it
+        # completes before exiting the scene) decides which requested
+        # order it is a candidate for: trajectories whose natural order
+        # is not in 'order_list' are dropped (replaced by a degenerate,
+        # all-'-1' row, indistinguishable from unused buffer capacity,
+        # see :attr:`max_num_candidates`), instead of being truncated
+        # to fit a nearby requested order. As a result, the combined
+        # output is bounded by 'max_num_candidates' alone, regardless of
+        # how many orders are requested.
+        trajectories = self._launch_and_record(scene, max_order)
+        num_interactions = jnp.sum(trajectories >= 0, axis=-1)
+        requested_orders = jnp.asarray(order_list)
+        discard = ~jnp.isin(num_interactions, requested_orders)
+        trajectories = jnp.where(discard[:, None], -1, trajectories)
+
+        return self._deduplicate_candidates(trajectories)
+
+    def generate_path_candidates_chunks_iter(
+        self,
+        scene: "Scene",
+        order: int | Sequence[int] | slice,
+        *args: Any,
+        chunk_size: int | None = None,
+        pad_chunks: bool = False,
+        **kwargs: Any,
+    ) -> SizedIterator[
+        tuple[
+            Int[Array, "... chunk_size order"],
+            Int[Array, "... chunk_size order"],
+        ]
+    ]:
+        """Fall back to the default slice-based chunking.
+
+        Unlike :class:`HybridPathTracer`, this tracer does not build a
+        visibility graph, so there is nothing to chunk natively: candidates
+        are generated all at once (bounded by :attr:`max_num_candidates`)
+        and then sliced into chunks.
+
+        Returns:
+            An iterator over path candidates chunks.
+        """
+        effective_chunk_size = chunk_size or self.chunk_size
+        if effective_chunk_size is None:
+            candidates, interactions = self.generate_path_candidates(
+                scene, order, *args, **kwargs
+            )
+            return SizedIterator(iter([(candidates, interactions)]), size=1)
+
+        return AbstractPathTracer.generate_path_candidates_chunks_iter(
+            self,
+            scene,
+            order,
+            *args,
+            chunk_size=effective_chunk_size,
+            pad_chunks=pad_chunks,
+            **kwargs,
+        )
+
+
 class _ExhaustivePathTracerKwargs(TypedDict, total=False):
     epsilon: Float[ArrayLike, ""] | None
     hit_tol: Float[ArrayLike, ""] | None
@@ -1255,8 +1916,21 @@ class _SBRPathLauncherKwargs(TypedDict, total=False):
     max_dist: Float[ArrayLike, ""]
 
 
+class _SBRPathTracerKwargs(TypedDict, total=False):
+    num_rays: int
+    epsilon: Float[ArrayLike, ""] | None
+    hit_tol: Float[ArrayLike, ""] | None
+    min_len: Float[ArrayLike, ""] | None
+    smoothing_factor: Float[ArrayLike, ""] | None
+    confidence_threshold: Float[ArrayLike, ""]
+    batch_size: int | None
+    chunk_size: int | None
+    max_num_candidates: int
+
+
 __all__ = [
     "_ExhaustivePathTracerKwargs",
     "_HybridPathTracerKwargs",
     "_SBRPathLauncherKwargs",
+    "_SBRPathTracerKwargs",
 ]

@@ -34,6 +34,13 @@ from ._utils import (
     rotation_matrix_along_axis,
     viewing_frustum,
 )
+from ._warp_utils import (
+    _Batched,
+    _clear_warp_mesh_cache,
+    _get_warp_mesh,
+    _Offset,
+    _warp_launch,
+)
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -44,15 +51,6 @@ else:
 # TODO: still allow setting log level and initialization from environ variable?
 wp.config.log_level = wp.LOG_ERROR
 wp.init()
-
-# NOTE: Cache meshes to avoid re-creating them over and over.
-# A problem with the current implementation is that @eqx.filter_jit
-# creates a new Mesh instance every time the function is recompiled,
-# which creates cache misses. We could create a 'permanent' id for each mesh,
-# e.g., when instantiating the Mesh instance and passing it around,
-# only updating it when it changes. However, this also means that we must keep
-# track of all Mesh instances that point to the same id.
-_WARP_MESHES_CACHE: dict[int, wp.Mesh] = {}
 
 
 class _AtIndexingKwargs(TypedDict):
@@ -167,16 +165,17 @@ def _ray_intersect_any_triangle_anyhit_func(
     max_t: wp.array[wp.float32],
     output: wp.array[wp.bool],
 ) -> None:
-    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        # Clone points/indices: JAX may later free or reuse this memory,
-        # which would otherwise cause segfaults once the mesh is reused.
-        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
-        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
-    wp.launch(
+    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    _warp_launch(
         _ray_intersect_any_triangle_kernel,
         dim=ray_origins.shape[0],
-        inputs=[wp_mesh.id, ray_origins, ray_directions, max_t],
-        outputs=[output],
+        inputs=[
+            wp_mesh.id,
+            _Batched(ray_origins),
+            _Batched(ray_directions),
+            _Batched(max_t),
+        ],
+        outputs=[_Batched(output)],
         device=ray_origins.device,
     )
 
@@ -209,16 +208,13 @@ def _first_triangle_hit_by_ray_func(
     output_face: wp.array[wp.int32],
     output_dist: wp.array[wp.float32],
 ) -> None:
-    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
-        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
-        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
+    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
     epsilon = 1e-5
-    wp.launch(
+    _warp_launch(
         _first_triangle_hit_by_ray_kernel,
         dim=ray_origins.shape[0],
-        inputs=[wp_mesh.id, ray_origins, ray_directions, epsilon],
-        outputs=[output_face, output_dist],
+        inputs=[wp_mesh.id, _Batched(ray_origins), _Batched(ray_directions), epsilon],
+        outputs=[_Batched(output_face), _Batched(output_dist)],
         device=ray_origins.device,
     )
 
@@ -267,6 +263,7 @@ def _first_triangle_hit_by_ray_helper(
         _first_triangle_hit_by_ray_func,
         num_outputs=2,
         output_dims=(flat_ray_origins.shape[0],),
+        graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
         mesh_id,
         vertices,
@@ -351,12 +348,17 @@ def _triangles_visible_from_vertex_kernel(
     ray_origins: wp.array[wp.vec3],
     ray_directions: wp.array[wp.vec3],
     epsilon: float,
+    tid_offset: int,
     num_rays: int,
     num_triangles: int,
     output_visible: wp.array[wp.bool],
 ) -> None:  # pragma: no cover
     tid = wp.tid()
-    batch_idx = tid // num_rays
+    # 'ray_origins'/'ray_directions' are indexed by the chunk-local 'tid'
+    # (they are sliced per-chunk by the caller, see '_warp_launch'),
+    # but the batch index depends on the *global* ray index, so it must
+    # account for 'tid_offset' (0 unless the launch was split into chunks).
+    batch_idx = (tid_offset + tid) // num_rays
 
     origin = ray_origins[tid] + ray_directions[tid] * epsilon
     res = wp.mesh_query_ray(mesh_id, origin, ray_directions[tid], wp.inf)
@@ -377,22 +379,24 @@ def _triangles_visible_from_vertex_func(
     num_triangles: int,
     output_visible: wp.array[wp.bool],
 ) -> None:
-    if (wp_mesh := _WARP_MESHES_CACHE.get(mesh_id)) is None:
-        # Clone points/indices, see '_ray_intersect_any_triangle_anyhit_func'.
-        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
-        _WARP_MESHES_CACHE[mesh_id] = wp_mesh
+    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
 
     epsilon = 1e-5
     output_visible.zero_()
 
-    wp.launch(
+    # NOTE: 'output_visible' is intentionally *not* wrapped in '_Batched':
+    # its size doesn't match 'dim' (it is indexed by 'batch_idx * num_triangles
+    # + res.face', not by 'tid'), and concurrent writes of 'True' to the same
+    # address are benign, so every chunk safely shares the same, whole array.
+    _warp_launch(
         _triangles_visible_from_vertex_kernel,
         dim=ray_origins.shape[0],
         inputs=[
             wp_mesh.id,
-            ray_origins,
-            ray_directions,
+            _Batched(ray_origins),
+            _Batched(ray_directions),
             epsilon,
+            _Offset(),
             num_rays,
             num_triangles,
         ],
@@ -696,7 +700,7 @@ class Mesh(eqx.Module):
             raise ValueError(msg)
 
     def __del__(self) -> None:
-        _WARP_MESHES_CACHE.pop(id(self), None)
+        _clear_warp_mesh_cache(id(self))
 
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
         """Return a new instance of this mesh, taking only specific triangles.
@@ -3082,6 +3086,7 @@ class Mesh(eqx.Module):
         output = wp.jax_callable(
             _ray_intersect_any_triangle_anyhit_func,
             output_dims=(flat_ray_origins.shape[0],),
+            graph_mode=wp.JaxCallableGraphMode.NONE,
         )(
             mesh_id,
             jax.lax.stop_gradient(self.vertices),
@@ -3239,6 +3244,7 @@ class Mesh(eqx.Module):
         out_visible = wp.jax_callable(
             _triangles_visible_from_vertex_func,
             output_dims=(total_batches * num_triangles,),
+            graph_mode=wp.JaxCallableGraphMode.NONE,
         )(
             mesh_id,
             jax.lax.stop_gradient(self.vertices),
