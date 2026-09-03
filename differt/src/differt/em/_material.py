@@ -11,6 +11,9 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
 
+if TYPE_CHECKING:
+    import differt_core.geometry
+
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
@@ -501,6 +504,13 @@ class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
         super().__init__()
         self.update(other, **kwargs)
 
+    def __hash__(self) -> int:  # type: ignore[override]
+        # 'dict' is unhashable, but this mapping is used as (conceptually
+        # immutable) static data on 'GeometricFieldSolver.radio_materials'
+        # and 'Scene.radio_materials', which must be hashable to be usable
+        # as a JIT static argument/aux-data.
+        return hash(tuple(sorted(self.items())))
+
     def _resolve(self, key: Any) -> Any:
         """Return the primary key that ``key`` (a name or alias) maps to, or ``key`` unchanged if unknown."""
         if not isinstance(key, str) or super().__contains__(key):
@@ -684,3 +694,81 @@ or by its Sionna-compatible alias (e.g., ``'itu_concrete'``).
 See :ref:`itu-materials-table` for a table of all available ITU radio materials, their aliases, and electrical properties."""
 
 del _materials
+
+
+def materials_from_scene(
+    sionna_materials: Iterable["differt_core.geometry.Material"],
+    base_materials: Mapping[str, Material] = materials,
+) -> dict[str, Material]:
+    """
+    Build a radio materials mapping from the materials of a loaded Sionna-compatible XML scene.
+
+    Each ITU radio material (``<bsdf type="itu-radio-material" ...>``) parsed from the scene
+    file may carry per-shape overrides (currently, only ``thickness``, read from a
+    ``<float name="thickness" value="..."/>`` child element). :meth:`Scene.load_xml<differt.geometry.Scene.load_xml>`
+    and :meth:`Scene.from_sionna<differt.geometry.Scene.from_sionna>` key
+    :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>` accordingly: whenever two
+    (or more) materials share the same ITU type but disagree on an override (e.g., two
+    ``type="glass"`` shapes with different ``thickness`` values), each is kept under its own,
+    unique XML id instead, so they remain distinguishable; every other material, including one
+    that is the only instance of its type, or several that all agree on the same override, still
+    shares the generic, ITU-type-derived name (e.g., ``'itu_glass'``), exactly as if no override
+    had been specified. This function mirrors that same logic, so its output can be indexed with
+    the exact same keys as :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>`.
+
+    Args:
+        sionna_materials: The materials of a loaded scene, e.g., the values of
+            ``differt_core.geometry.SionnaScene.load_xml(file).materials``.
+        base_materials: The base ITU radio materials to look up each material's electrical
+            properties from, matched by :attr:`Material.name<differt.em._material.Material.name>`
+            (or one of its :attr:`Material.aliases<differt.em._material.Material.aliases>`).
+            Materials that do not match any entry (e.g., non-ITU, purely visual materials)
+            are skipped.
+
+    Returns:
+        A mapping suitable for
+        :attr:`GeometricFieldSolver.radio_materials<differt.em.GeometricFieldSolver.radio_materials>`.
+
+    Examples:
+        .. code-block:: python
+
+            from differt.em import materials_from_scene
+            from differt.geometry import Scene
+            from differt_core.geometry import SionnaScene
+
+            scene = Scene.load_xml(file)
+            radio_materials = materials_from_scene(
+                SionnaScene.load_xml(file).materials.values()
+            )
+    """
+    sionna_materials = list(sionna_materials)
+
+    seen: dict[str, float | None] = {}
+    non_uniform_names: set[str] = set()
+    for mat in sionna_materials:
+        if mat.name in seen:
+            if seen[mat.name] != mat.thickness:
+                non_uniform_names.add(mat.name)
+        else:
+            seen[mat.name] = mat.thickness
+
+    result: dict[str, Material] = {}
+
+    for mat in sionna_materials:
+        base = base_materials.get(mat.name)
+        if base is None:
+            continue
+
+        key = mat.id if mat.name in non_uniform_names else mat.name
+
+        if mat.thickness is not None:
+            base = eqx.tree_at(
+                lambda m: m.thickness,
+                base,
+                replace=mat.thickness,
+                is_leaf=lambda x: x is None,
+            )
+
+        result[key] = base
+
+    return result

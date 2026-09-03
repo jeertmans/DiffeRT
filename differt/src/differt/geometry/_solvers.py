@@ -79,7 +79,6 @@ class AbstractPathSolver(eqx.Module):
     ``epsilon`` and ``hit_tol``.
     """
 
-    # TODO: define default initialization for these in subclasses
     epsilon: AbstractVar[float]
     """Tolerance for checking ray / object intersections."""
     hit_tol: AbstractVar[float]
@@ -222,6 +221,52 @@ class AbstractPathTracer(AbstractPathSolver):
                     yield remainder_slice
 
         return SizedIterator(iter_chunks(), size=total_chunks)
+
+    def _single_chunk_fallback(
+        self,
+        scene: "Scene",
+        order: int | Sequence[int] | slice,
+        *args: Any,
+        chunk_size: int | None,
+        **kwargs: Any,
+    ) -> (
+        SizedIterator[
+            tuple[
+                Int[Array, "... num_path_candidates max_order"],
+                Int[Array, "... num_path_candidates max_order"],
+            ]
+        ]
+        | None
+    ):
+        """Fall back to a single, unchunked chunk when no ``chunk_size`` is set.
+
+        Shared by :class:`ExhaustivePathTracer`, :class:`HybridPathTracer`, and
+        :class:`SBRPathTracer`'s ``generate_path_candidates_chunks_iter`` overrides:
+        each first resolves its own effective chunk size (e.g., ``chunk_size or
+        self.chunk_size``) and calls this helper with that value, returning its
+        result directly whenever it is not :data:`None`; otherwise, native
+        chunked generation proceeds using the (necessarily non-``None``)
+        effective chunk size.
+
+        Args:
+            scene: The scene.
+            order: The path order(s).
+            *args: Forwarded to :meth:`generate_path_candidates`.
+            chunk_size: The caller's already-resolved effective chunk size.
+            **kwargs: Forwarded to :meth:`generate_path_candidates`.
+
+        Returns:
+            A :class:`~differt.geometry.SizedIterator` wrapping a single chunk
+            with all path candidates, if ``chunk_size`` is :data:`None`;
+            otherwise :data:`None`.
+        """
+        if chunk_size is not None:
+            return None
+
+        candidates, interactions = self.generate_path_candidates(
+            scene, order, *args, **kwargs
+        )
+        return SizedIterator(iter([(candidates, interactions)]), size=1)
 
     @abc.abstractmethod
     def trace_path_candidates(
@@ -1039,16 +1084,23 @@ class ExhaustivePathTracer(AbstractPathTracer):
             self, scene, order, specular_reflection, diffuse_scattering
         )
 
-    def _generate_path_candidates_for_one_order(
+    def _build_graph(
         self,
         scene: "Scene",
-        order: int,
-        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
-    ) -> tuple[
-        Int[Array, "num_candidates order"],
-        Int[Array, "num_candidates order"],
-    ]:
+    ) -> tuple[CompleteGraph | DiGraph, int, int]:
+        """Build the (optionally mask-filtered) graph used to enumerate path candidates.
+
+        Shared by :meth:`_generate_path_candidates_for_one_order` and
+        :meth:`generate_path_candidates_chunks_iter`, which only diverge on
+        how they walk the resulting graph (:meth:`~differt_core.geometry.CompleteGraph.all_paths_array`
+        vs. :meth:`~differt_core.geometry.CompleteGraph.all_paths_array_chunks`).
+
+        Args:
+            scene: The scene.
+
+        Returns:
+            A tuple of ``(graph, from_, to)``.
+        """
         graph = CompleteGraph(scene.mesh.num_primitives)
         assume_quads = scene.mesh.assume_quads
 
@@ -1063,6 +1115,21 @@ class ExhaustivePathTracer(AbstractPathTracer):
         else:
             from_ = graph.num_nodes
             to = from_ + 1
+
+        return graph, from_, to
+
+    def _generate_path_candidates_for_one_order(
+        self,
+        scene: "Scene",
+        order: int,
+        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
+        graph, from_, to = self._build_graph(scene)
+        assume_quads = scene.mesh.assume_quads
 
         path_candidates = jnp.asarray(
             graph.all_paths_array(
@@ -1103,12 +1170,11 @@ class ExhaustivePathTracer(AbstractPathTracer):
         """
         # Use instance chunk_size if not explicitly provided
         effective_chunk_size = chunk_size or self.chunk_size
-        if effective_chunk_size is None:
-            # Fall back to generating all at once and wrapping as a single chunk
-            candidates, interactions = self.generate_path_candidates(
-                scene, order, *args, **kwargs
-            )
-            return SizedIterator(iter([(candidates, interactions)]), size=1)
+        fallback = self._single_chunk_fallback(
+            scene, order, *args, chunk_size=effective_chunk_size, **kwargs
+        )
+        if fallback is not None:
+            return fallback
 
         if not isinstance(order, int):
             msg = (
@@ -1121,20 +1187,8 @@ class ExhaustivePathTracer(AbstractPathTracer):
 
         (order,) = _normalize_order(order)
 
-        graph = CompleteGraph(scene.mesh.num_primitives)
+        graph, from_, to = self._build_graph(scene)
         assume_quads = scene.mesh.assume_quads
-
-        if self.disconnect_inactive_triangles and scene.mesh.mask is not None:
-            mask = scene.mesh.mask
-            if assume_quads:
-                mask = mask[0::2] & mask[1::2]
-
-            graph = DiGraph.from_complete_graph(graph)
-            from_, to = graph.insert_from_and_to_nodes()
-            graph.filter_by_mask(np.asarray(mask), fast_mode=True)
-        else:
-            from_ = graph.num_nodes
-            to = from_ + 1
 
         path_candidates_iter = graph.all_paths_array_chunks(
             from_=from_,
@@ -1247,16 +1301,23 @@ class HybridPathTracer(AbstractPathTracer):
             self, scene, order, specular_reflection, diffuse_scattering
         )
 
-    def _generate_path_candidates_for_one_order(
+    def _build_visibility_graph(
         self,
         scene: "Scene",
-        order: int,
-        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
-    ) -> tuple[
-        Int[Array, "num_candidates order"],
-        Int[Array, "num_candidates order"],
-    ]:
+    ) -> tuple[DiGraph, int, int]:
+        """Build the visibility-pruned graph used to enumerate path candidates.
+
+        Shared by :meth:`_generate_path_candidates_for_one_order` and
+        :meth:`generate_path_candidates_chunks_iter`, which only diverge on
+        how they walk the resulting graph (:meth:`~differt_core.geometry.CompleteGraph.all_paths_array`
+        vs. :meth:`~differt_core.geometry.CompleteGraph.all_paths_array_chunks`).
+
+        Args:
+            scene: The scene.
+
+        Returns:
+            A tuple of ``(graph, from_, to)``.
+        """
         tx_vertices = scene.transmitters.reshape(-1, 3)
         rx_vertices = scene.receivers.reshape(-1, 3)
 
@@ -1291,6 +1352,21 @@ class HybridPathTracer(AbstractPathTracer):
             if assume_quads:
                 mask = mask[0::2] & mask[1::2]
             graph.filter_by_mask(np.asarray(mask), fast_mode=True)
+
+        return graph, from_, to
+
+    def _generate_path_candidates_for_one_order(
+        self,
+        scene: "Scene",
+        order: int,
+        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
+        graph, from_, to = self._build_visibility_graph(scene)
+        assume_quads = scene.mesh.assume_quads
 
         path_candidates = jnp.asarray(
             graph.all_paths_array(
@@ -1330,11 +1406,11 @@ class HybridPathTracer(AbstractPathTracer):
             An iterator over path candidates chunks.
         """
         effective_chunk_size = chunk_size or self.chunk_size
-        if effective_chunk_size is None:
-            candidates, interactions = self.generate_path_candidates(
-                scene, order, *args, **kwargs
-            )
-            return SizedIterator(iter([(candidates, interactions)]), size=1)
+        fallback = self._single_chunk_fallback(
+            scene, order, *args, chunk_size=effective_chunk_size, **kwargs
+        )
+        if fallback is not None:
+            return fallback
 
         if not isinstance(order, int):
             msg = (
@@ -1347,40 +1423,8 @@ class HybridPathTracer(AbstractPathTracer):
 
         (order,) = _normalize_order(order)
 
-        tx_vertices = scene.transmitters.reshape(-1, 3)
-        rx_vertices = scene.receivers.reshape(-1, 3)
-
+        graph, from_, to = self._build_visibility_graph(scene)
         assume_quads = scene.mesh.assume_quads
-        graph = CompleteGraph(scene.mesh.num_primitives)
-
-        triangles_visible_from_tx = scene.mesh.triangles_visible_from_vertex(
-            tx_vertices,
-            num_rays=self.num_rays,
-        ).any(axis=0)
-
-        triangles_visible_from_rx = scene.mesh.triangles_visible_from_vertex(
-            rx_vertices,
-            num_rays=self.num_rays,
-        ).any(axis=0)
-
-        if assume_quads:
-            triangles_visible_from_tx = triangles_visible_from_tx.reshape(-1, 2).any(
-                axis=-1
-            )
-            triangles_visible_from_rx = triangles_visible_from_rx.reshape(-1, 2).any(
-                axis=-1
-            )
-
-        graph = DiGraph.from_complete_graph(graph)
-        from_, to = graph.insert_from_and_to_nodes(
-            from_adjacency=np.asarray(triangles_visible_from_tx),
-            to_adjacency=np.asarray(triangles_visible_from_rx),
-        )
-        if scene.mesh.mask is not None:
-            mask = scene.mesh.mask
-            if assume_quads:
-                mask = mask[0::2] & mask[1::2]
-            graph.filter_by_mask(np.asarray(mask), fast_mode=True)
 
         path_candidates_iter = graph.all_paths_array_chunks(
             from_=from_,
@@ -1848,11 +1892,11 @@ class SBRPathTracer(HybridPathTracer):
             An iterator over path candidates chunks.
         """
         effective_chunk_size = chunk_size or self.chunk_size
-        if effective_chunk_size is None:
-            candidates, interactions = self.generate_path_candidates(
-                scene, order, *args, **kwargs
-            )
-            return SizedIterator(iter([(candidates, interactions)]), size=1)
+        fallback = self._single_chunk_fallback(
+            scene, order, *args, chunk_size=effective_chunk_size, **kwargs
+        )
+        if fallback is not None:
+            return fallback
 
         return AbstractPathTracer.generate_path_candidates_chunks_iter(
             self,

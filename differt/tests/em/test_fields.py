@@ -19,7 +19,6 @@ from differt.em import (
     reflection_matrix,
     ris_matrix,
     scattering_matrix,
-    transition_matrices,
     transition_matrix,
     transmission_matrix,
 )
@@ -213,11 +212,9 @@ def test_standalone_matrix_utilities() -> None:
 
     # Transition matrix
     t_mat = transition_matrix(paths, mesh, freq)
-    t_mats = transition_matrices(paths, mesh, freq)
     r_mat = reflection_matrix(paths, mesh, freq)
 
     chex.assert_shape(t_mat, (1, 1, 2, 2))
-    chex.assert_trees_all_equal(t_mat, t_mats)
     chex.assert_trees_all_equal(t_mat, r_mat)
 
     # Diffraction matrix

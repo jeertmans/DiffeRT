@@ -9,17 +9,13 @@ __all__ = (
     "LaunchedPaths",
     "Material",
     "Mesh",
-    "Paths",
     "SBRPathLauncher",
     "SBRPathTracer",
-    "SBRPaths",
     "Scene",
     "Shape",
     "SionnaScene",
     "SizedIterator",
     "TracedPaths",
-    "TriangleMesh",
-    "TriangleScene",
     "assemble_path",
     "cartesian_to_spherical",
     "check_path_candidates",
@@ -59,11 +55,10 @@ from differt_core.geometry import Material, Shape, SionnaScene
 
 from ._mesh import (
     Mesh,
-    TriangleMesh,
     triangle_contains_vertex_assuming_inside_same_plane,
 )
-from ._paths import LaunchedPaths, Paths, SBRPaths, TracedPaths, merge_cell_ids
-from ._scene import Scene, TriangleScene
+from ._paths import LaunchedPaths, TracedPaths, merge_cell_ids
+from ._scene import Scene
 from ._sionna import (
     download_sionna_scenes,
     get_sionna_scene,

@@ -29,10 +29,8 @@ if TYPE_CHECKING:
     from vispy.scene.widgets.viewbox import ViewBox
 
     T = TypeVar("T", Canvas, MplFigure, Figure)
-    PlotOutput = Canvas | MplFigure | Figure
 else:
     T = TypeVar("T")
-    PlotOutput = Any
 
 BackendName = Literal["vispy", "matplotlib", "plotly"]
 P = ParamSpec("P")

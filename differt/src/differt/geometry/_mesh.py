@@ -3257,21 +3257,3 @@ class Mesh(eqx.Module):
 
         batch_shape = vertex.shape[:-1]
         return jax.lax.stop_gradient(out_visible.reshape(*batch_shape, num_triangles))
-
-
-# Deprecated alias
-class TriangleMesh(Mesh):
-    """
-    Deprecated alias for :class:`Mesh`.
-
-    .. deprecated:: 0.10
-        Use :class:`Mesh` instead.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "TriangleMesh is deprecated, use Mesh instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -33,7 +33,7 @@ In terms of features, DiffeRT does not aim to match the extensive functionality 
 4. **Lightweight and Broadcastable Design:** DiffeRT's design philosophy prioritizes transparency and usability for RT applications, avoiding the heavier abstractions often seen in other libraries. Classes aim to store as few attributes as possible, and most utilities accept input arrays with arbitrary sized inputs, which makes it very easy, e.g., to compute the same operation for one receiving (RX) antenna, or on a two-dimensional grid of RXs.
 
 [^2]: There are some exceptions, like the internal machinery behind
-  {meth}`Scene.compute_paths<differt.geometry.Scene.compute_paths>`,
+  {meth}`Scene.trace_paths<differt.geometry.Scene.trace_paths>`,
   but we then provide detailed tutorials to help the user understand and build their version of the function,
   if they wish to do so, e.g., with {ref}`advanced_path_tracing`.
 

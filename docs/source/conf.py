@@ -86,6 +86,10 @@ nitpick_ignore = (
     ("py:obj", "None.ArrayType"),
     ("py:class", "setup.<locals>.ArrayType"),
     ("py:class", "equinox._module._better_abstract.AbstractVar"),
+    (
+        "py:attr",
+        "differt.geometry.Paths.mask",
+    ),  # TODO: remove this once the sampling path notebook is fixed upstream
 )
 
 nitpick_ignore_regex = [

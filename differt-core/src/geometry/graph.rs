@@ -1,5 +1,3 @@
-#![allow(unknown_lints, non_local_definitions)]
-
 use std::collections::VecDeque;
 
 use numpy::{
@@ -156,7 +154,7 @@ pub mod complete {
         ///
         ///     Therefore, those iterators are equivalents:
         ///
-        ///     >>> from differt_core.rt import CompleteGraph, DiGraph
+        ///     >>> from differt_core.geometry import CompleteGraph, DiGraph
         ///     >>>
         ///     >>> num_nodes, depth = 100, 5
         ///     >>> complete_graph = CompleteGraph(num_nodes)

@@ -111,6 +111,7 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    Material
    MaterialsDict
    materials
+   materials_from_scene
    AbstractScatteringPattern
    LambertianPattern
    DirectivePattern
@@ -175,7 +176,6 @@ End-to-end pipelines and high-level wrappers to compute received fields, Channel
    reflection_matrix
    ris_matrix
    scattering_matrix
-   transition_matrices
    transition_matrix
    transmission_matrix
 

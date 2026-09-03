@@ -33,6 +33,7 @@ __all__ = (
     "fspl",
     "length_to_delay",
     "materials",
+    "materials_from_scene",
     "mu_0",
     "path_delay",
     "poynting_vector",
@@ -45,7 +46,6 @@ __all__ = (
     "slab_coefficients",
     "sp_directions",
     "sp_rotation_matrix",
-    "transition_matrices",
     "transition_matrix",
     "transmission_matrix",
     "z_0",
@@ -81,6 +81,7 @@ from ._material import (
     Material,
     MaterialsDict,
     materials,
+    materials_from_scene,
 )
 from ._pipeline import (
     compute_cir,
@@ -90,7 +91,6 @@ from ._pipeline import (
     reflection_matrix,
     ris_matrix,
     scattering_matrix,
-    transition_matrices,
     transition_matrix,
     transmission_matrix,
 )

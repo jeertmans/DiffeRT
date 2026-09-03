@@ -234,12 +234,15 @@ def _surface_interaction_geometry(
     Float[Array, "*batch order"],
     Float[Array, "*batch order"],
     Float[Array, "*#batch"],
+    Int[Array, "*batch order"],
+    Int[Array, "*batch order"],
 ]:
     """
     Shared per-bounce geometry/material extraction for surface interactions.
 
     Returns:
-        A tuple of ``(k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength)``.
+        A tuple of ``(k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i,
+        wavelength, obj_indices, mat_indices)``.
 
     Raises:
         ValueError: If the mesh does not contain face materials.
@@ -270,7 +273,17 @@ def _surface_interaction_geometry(
     cos_theta_i = jnp.sum(obj_normals * -k_in, axis=-1)
     wavelength = c / frequency
 
-    return k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength
+    return (
+        k,
+        k_in,
+        obj_normals,
+        n_r_val,
+        thickness_val,
+        cos_theta_i,
+        wavelength,
+        obj_indices,
+        mat_indices,
+    )
 
 
 def _wedge_static_geometry(
@@ -611,9 +624,17 @@ class GeometricFieldSolver(AbstractFieldSolver):
             One transition matrix per bounce.
         """
         frequency = jnp.asarray(frequency)
-        k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength = (
-            _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
-        )
+        (
+            k,
+            k_in,
+            obj_normals,
+            n_r_val,
+            thickness_val,
+            cos_theta_i,
+            wavelength,
+            _obj_indices,
+            mat_indices,
+        ) = _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
         k_out = k[..., 1:, :]
 
         (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, obj_normals)
@@ -626,8 +647,6 @@ class GeometricFieldSolver(AbstractFieldSolver):
         # a fraction S^2 of the reflected power is diverted to diffuse
         # scattering (see 'scattering_matrix'); reduce the specular
         # amplitude accordingly to conserve energy between the two.
-        obj_indices = jnp.clip(paths.objects[..., 1:-1], 0, mesh.num_triangles - 1)
-        mat_indices = jnp.take(mesh.face_materials, obj_indices, axis=0)
         scattering_coefficient, _ = _scattering_properties(mesh, self._radio_materials)
         s_val = _take_material_property(scattering_coefficient, mat_indices)
         specular_factor = jnp.sqrt(1.0 - s_val**2)
@@ -918,9 +937,17 @@ class GeometricFieldSolver(AbstractFieldSolver):
             One transition matrix per bounce.
         """
         frequency = jnp.asarray(frequency)
-        k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength = (
-            _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
-        )
+        (
+            k,
+            k_in,
+            obj_normals,
+            n_r_val,
+            thickness_val,
+            cos_theta_i,
+            wavelength,
+            obj_indices,
+            mat_indices,
+        ) = _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
         k_out = k[..., 1:, :]
 
         r_s, r_p = _get_reflection_coefficients(
@@ -928,8 +955,6 @@ class GeometricFieldSolver(AbstractFieldSolver):
         )
         gamma_s, gamma_p = jnp.abs(r_s), jnp.abs(r_p)
 
-        obj_indices = jnp.clip(paths.objects[..., 1:-1], 0, mesh.num_triangles - 1)
-        mat_indices = jnp.take(mesh.face_materials, obj_indices, axis=0)
         scattering_coefficient, xpd_coefficient = _scattering_properties(
             mesh, self._radio_materials
         )
@@ -1020,7 +1045,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
             One transition matrix per bounce.
         """
         frequency = jnp.asarray(frequency)
-        k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength = (
+        k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength, _, _ = (
             _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
         )
 
@@ -1130,7 +1155,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
             mat = jnp.where(is_type[..., None, None], type_mat, mat)
             covered = covered | is_type
 
-        is_padding = interaction_types == -1
+        is_padding = interaction_types == InteractionType.NONE
         unsupported = covered | is_padding
         return eqx.error_if(
             mat,

@@ -38,13 +38,6 @@ from differt_core.geometry import SionnaScene
 from ..plotting.params import matplotlib, plotly, vispy
 
 
-def test_triangle_scene_deprecated() -> None:
-    from differt.geometry import TriangleScene  # ruff:ignore[import-outside-top-level]
-
-    with pytest.warns(DeprecationWarning, match="TriangleScene is deprecated"):
-        _ = TriangleScene(transmitters=jnp.zeros((1, 3)), receivers=jnp.zeros((1, 3)))
-
-
 class TestScene:
     def test_load_xml(self, sionna_folder: Path, subtests: SubTests) -> None:
         # Sionne scenes are all triangle scenes
@@ -188,7 +181,7 @@ class TestScene:
         "method",
         ["exhaustive", "sbr", "hybrid"],
     )
-    def test_compute_paths_on_advanced_path_tracing_example(
+    def test_trace_paths_and_launch_paths_on_advanced_path_tracing_example(
         self,
         order: int,
         expected_path_vertices: Array,
@@ -303,7 +296,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_on_simple_street_canyon(
+    def test_trace_paths_on_simple_street_canyon(
         self,
         order: int,
         expected_path_vertices: Array,
@@ -347,7 +340,7 @@ class TestScene:
 
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_path_candidates_matches_exhaustive(
+    def test_trace_paths_with_path_candidates_matches_exhaustive(
         self, order: int, assume_quads: bool, simple_street_canyon_scene: Scene
     ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
@@ -377,7 +370,7 @@ class TestScene:
                 custom_message=f"Path candidate should be valid: {path_candidate}",
             )
 
-    def test_compute_paths_with_padded_path_candidates_and_assume_quads(
+    def test_trace_paths_with_padded_path_candidates_and_assume_quads(
         self, simple_street_canyon_scene: Scene
     ) -> None:
         # Regression test: user-supplied path candidates padded with '-1'
@@ -422,7 +415,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_smoothing(
+    def test_trace_paths_with_smoothing(
         self,
         order: int | None,
         solver: Literal["exhaustive", "hybrid"],
@@ -484,7 +477,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_on_empty_scene(
+    def test_trace_paths_and_launch_paths_on_empty_scene(
         self,
         order: int | None,
         chunk_size: int | None,
@@ -535,7 +528,7 @@ class TestScene:
 
     @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
     @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
-    def test_compute_paths_on_grid(
+    def test_trace_paths_on_grid(
         self,
         m_tx: int,
         n_tx: int | None,
@@ -591,7 +584,7 @@ class TestScene:
             "hybrid",
         ],
     )
-    def test_compute_paths_with_mesh_mask_matches_sub_mesh_without_mask(
+    def test_trace_paths_and_launch_paths_with_mesh_mask_matches_sub_mesh_without_mask(
         self,
         order: int,
         method: Literal["exhaustive", "sbr", "hybrid"],
@@ -647,7 +640,7 @@ class TestScene:
         chex.assert_trees_all_equal(got, expected)
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_no_path_candidate(
+    def test_trace_paths_with_no_path_candidate(
         self,
         assume_quads: bool,
     ) -> None:
@@ -678,7 +671,7 @@ class TestScene:
         )
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_disconnect_inactive_triangles(
+    def test_trace_paths_with_disconnect_inactive_triangles(
         self,
         assume_quads: bool,
     ) -> None:
@@ -724,7 +717,7 @@ class TestScene:
         )
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_hybrid_always_disconnects(
+    def test_trace_paths_hybrid_always_disconnects(
         self,
         assume_quads: bool,
     ) -> None:
@@ -1006,13 +999,6 @@ class TestScene:
                 order=1, frequency=1e9, chunk_size=10
             )
 
-    def test_compute_paths_deprecation_warning(
-        self, simple_street_canyon_scene: Scene
-    ) -> None:
-        scene = simple_street_canyon_scene
-        with pytest.warns(DeprecationWarning, match="compute_paths is deprecated"):
-            scene.compute_paths(order=1)
-
     def test_solvers_coverage(self, simple_street_canyon_scene: Scene) -> None:
 
         class DummyTracer(AbstractPathTracer):
@@ -1110,39 +1096,6 @@ class TestScene:
             )
         )
 
-    def test_compute_paths_delegation_and_errors(
-        self, simple_street_canyon_scene: Scene
-    ) -> None:
-        scene = simple_street_canyon_scene
-
-        path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
-
-        with pytest.deprecated_call():
-            with pytest.raises(ValueError, match="order' is required"):
-                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
-                    order=None,
-                    path_candidates=path_candidates,
-                    method="sbr",
-                )
-
-        with pytest.deprecated_call():
-            # 'order' is not required for 'hybrid' when 'path_candidates' is
-            # explicitly provided.
-            got_hybrid_from_candidates = scene.compute_paths(  # type: ignore[ty:no-matching-overload]
-                order=None,
-                path_candidates=path_candidates,
-                method="hybrid",
-            )
-            assert isinstance(got_hybrid_from_candidates, TracedPaths)
-
-        with pytest.deprecated_call():
-            got_sbr = scene.compute_paths(order=1, method="sbr", num_rays=500)
-            assert isinstance(got_sbr, LaunchedPaths)
-
-        with pytest.deprecated_call():
-            got_hybrid = scene.compute_paths(order=1, method="hybrid", num_rays=500)
-            assert isinstance(got_hybrid, TracedPaths)
-
     @pytest.mark.require_no_typechecker
     def test_trace_paths_and_launch_paths_errors_and_warnings(
         self, simple_street_canyon_scene: Scene
@@ -1188,13 +1141,6 @@ class TestScene:
         # launch_paths with order is None
         with pytest.raises(ValueError, match="order' is required"):
             scene.launch_paths(order=None)
-
-        # compute_paths deprecation and error handling
-        with (
-            pytest.warns(DeprecationWarning, match="compute_paths is deprecated"),
-            pytest.raises(ValueError, match="You must specify one of"),
-        ):
-            scene.compute_paths(order=None, path_candidates=None)
 
     @pytest.mark.parametrize("solver", ["exhaustive", "hybrid"])
     def test_trace_paths_multiple_orders(

@@ -91,15 +91,38 @@ def compute_received_fields(
             if ``frequency`` is omitted and cannot be derived from an
             :class:`AbstractAntenna<differt.em.AbstractAntenna>` instance.
     """
+    solver, frequency, err = _resolve_solver_and_frequency(
+        solver, frequency, solver_kwargs
+    )
+    if err is not None:
+        raise ValueError(err)
+    return solver.compute_fields(paths, mesh, frequency)
+
+
+def _resolve_solver_and_frequency(
+    solver: AbstractFieldSolver | Literal["geometric"],
+    frequency: Float[ArrayLike, "*#batch"] | None,
+    solver_kwargs: dict[str, Any],
+) -> tuple[AbstractFieldSolver | None, Float[Array, "*#batch"] | None, str | None]:
+    """
+    Resolve a solver shortcut and operating frequency.
+
+    Returns:
+        A ``(solver, frequency, error)`` tuple, where ``error`` is an error message
+        (and ``solver``/``frequency`` are :data:`None`) if resolution failed,
+        instead of raising directly.
+    """
     if isinstance(solver, str):
         if solver == "geometric":
             solver = GeometricFieldSolver(**solver_kwargs)
         else:
-            msg = f"Unknown solver: {solver}"
-            raise ValueError(msg)
+            return None, None, f"Unknown solver: {solver}"
     elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+        return (
+            None,
+            None,
+            "solver_kwargs cannot be used when a solver instance is provided.",
+        )
 
     if frequency is None:
         tx_polarization = getattr(solver, "tx_polarization", None)
@@ -109,9 +132,9 @@ def compute_received_fields(
                 "'frequency' must be provided explicitly, unless "
                 "'tx_polarization' is an 'AbstractAntenna' instance."
             )
-            raise ValueError(msg)
+            return None, None, msg
 
-    return solver.compute_fields(paths, mesh, frequency)
+    return solver, jnp.asarray(frequency), None
 
 
 @jax.jit(static_argnames=("coherent", "axis"))
@@ -166,6 +189,24 @@ def compute_cir(
     return delay, fields
 
 
+def _resolve_geometric_solver(
+    solver: GeometricFieldSolver | None,
+    solver_kwargs: dict[str, Any],
+) -> tuple[GeometricFieldSolver | None, str | None]:
+    """
+    Resolve a ``GeometricFieldSolver`` instance (or None).
+
+    Returns:
+        A ``(solver, error)`` tuple, where ``error`` is an error message (and
+        ``solver`` is :data:`None`) if resolution failed, instead of raising directly.
+    """
+    if solver is None:
+        return GeometricFieldSolver(**solver_kwargs), None
+    if solver_kwargs:
+        return None, "solver_kwargs cannot be used when a solver instance is provided."
+    return solver, None
+
+
 def transition_matrix(
     paths: TracedPaths,
     mesh: Mesh,
@@ -192,15 +233,10 @@ def transition_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.transition_matrices(paths, mesh, frequency)
-
-
-transition_matrices = transition_matrix
 
 
 def reflection_matrix(
@@ -227,11 +263,9 @@ def reflection_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.reflection_matrix(paths, mesh, frequency)
 
 
@@ -259,11 +293,9 @@ def diffraction_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.diffraction_matrix(paths, mesh, frequency)
 
 
@@ -291,11 +323,9 @@ def scattering_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.scattering_matrix(paths, mesh, frequency)
 
 
@@ -323,11 +353,9 @@ def transmission_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.transmission_matrix(paths, mesh, frequency)
 
 
@@ -355,9 +383,7 @@ def ris_matrix(
     Raises:
         ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver, err = _resolve_geometric_solver(solver, solver_kwargs)
+    if err is not None:
+        raise ValueError(err)
     return solver.ris_matrix(paths, mesh, frequency)

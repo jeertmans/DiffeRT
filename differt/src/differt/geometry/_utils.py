@@ -1015,7 +1015,7 @@ class SizedIterator(Iterator[_T], Sized):
     Examples:
         The following example shows how to create a sized iterator.
 
-        >>> from differt.rt import SizedIterator
+        >>> from differt.geometry import SizedIterator
         >>> l = [1, 2, 3, 4, 5]
         >>> it = SizedIterator(iter=iter(l), size=5)
         >>> len(it)
@@ -1273,16 +1273,14 @@ def ray_intersect_triangle(
         .. plotly::
 
             >>> import equinox as eqx
-            >>> from differt.geometry import fibonacci_lattice
-            >>> from differt.plotting import draw_rays
-            >>> from differt.rt import (
+            >>> from differt.geometry import (
+            ...     Scene,
+            ...     download_sionna_scenes,
+            ...     fibonacci_lattice,
+            ...     get_sionna_scene,
             ...     ray_intersect_triangle,
             ... )
-            >>> from differt.geometry import (
-            ...     get_sionna_scene,
-            ...     download_sionna_scenes,
-            ... )
-            >>> from differt.geometry import Scene
+            >>> from differt.plotting import draw_rays
             >>>
             >>> download_sionna_scenes()  # doctest: +SKIP
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -1664,13 +1662,11 @@ def triangles_visible_from_vertex(
             :context: reset
 
             >>> import equinox as eqx
-            >>> from differt.rt import (
-            ...     triangles_visible_from_vertex,
-            ... )
             >>> from differt.geometry import (
             ...     Scene,
-            ...     get_sionna_scene,
             ...     download_sionna_scenes,
+            ...     get_sionna_scene,
+            ...     triangles_visible_from_vertex,
             ... )
             >>>
             >>> download_sionna_scenes()  # doctest: +SKIP
