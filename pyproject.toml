@@ -232,42 +232,42 @@ preview = true
 
 [tool.ruff.lint]
 extend-ignore = [
-  "any-type",
-  "complex-structure",
-  "missing-trailing-comma",  # conflicts with formatter
-  "prohibited-trailing-comma",  # conflicts with formatter
-  "missing-copyright-notice",
-  "incorrect-blank-line-before-class",
-  "docstring-tab-indentation",  # conflicts with formatter
-  "multi-line-summary-first-line",
-  "triple-single-quotes",  # conflicts with formatter
-  "missing-dashed-underline-after-section",
-  "indentation-with-invalid-multiple",  # conflicts with formatter
-  "indentation-with-invalid-multiple-comment",  # conflicts with formatter
-  "over-indented",  # conflicts with formatter
-  "line-too-long",  # conflicts with formatter
-  "commented-out-code",
-  "forward-annotation-syntax-error",
-  "future-rewritable-type-annotation",
-  "boolean-type-hint-positional-argument",
-  "boolean-default-value-positional-argument",
-  "line-contains-todo",  # comment this to find where TODOs are
-  "single-line-implicit-string-concatenation",  # conflicts with formatter
-  "multi-line-implicit-string-concatenation",  # conflicts with formatter
   "PD",  # pandas-vet
-  "too-many-public-methods",  # counts @overload...
   "PLR091",  # too-many-*
-  "non-augmented-assignment",
+  "any-type",
+  "avoidable-escaped-quote",  # conflicts with formatter
+  "bad-quotes-docstring",  # conflicts with formatter
   "bad-quotes-inline-string",  # conflicts with formatter
   "bad-quotes-multiline-string",  # conflicts with formatter
-  "bad-quotes-docstring",  # conflicts with formatter
-  "avoidable-escaped-quote",  # conflicts with formatter
+  "boolean-default-value-positional-argument",
+  "boolean-type-hint-positional-argument",
+  "commented-out-code",
+  "complex-structure",
+  "docstring-tab-indentation",  # conflicts with formatter
   "float-equality-comparison",
+  "forward-annotation-syntax-error",
+  "future-rewritable-type-annotation",
+  "incorrect-blank-line-before-class",
+  "indentation-with-invalid-multiple",  # conflicts with formatter
+  "indentation-with-invalid-multiple-comment",  # conflicts with formatter
+  "line-contains-todo",  # comment this to find where TODOs are
+  "line-too-long",  # conflicts with formatter
+  "missing-copyright-notice",
+  "missing-dashed-underline-after-section",
   "missing-todo-author",  # I am currently the only author
   "missing-todo-link",
+  "missing-trailing-comma",  # conflicts with formatter
+  "multi-line-implicit-string-concatenation",  # conflicts with formatter
+  "multi-line-summary-first-line",
+  "non-augmented-assignment",
   "noqa-comments",
+  "over-indented",  # conflicts with formatter
+  "prohibited-trailing-comma",  # conflicts with formatter
   "rule-codes-in-suppression-comments",
+  "single-line-implicit-string-concatenation",  # conflicts with formatter
   "tab-indentation",  # conflicts with formatter
+  "too-many-public-methods",  # counts @overload...
+  "triple-single-quotes",  # conflicts with formatter
 ]
 isort = {known-first-party = ["differt", "differt_core", "tests"]}
 preview = true
@@ -288,13 +288,25 @@ extend-ignore-names = ["T"]
 
 [tool.ruff.lint.per-file-ignores]
 "**.ipynb" = [
-  "useless-expression",
-  "non-lowercase-variable-in-function",
+  "D",
+  "DOC",
+  "assert",
   "magic-value-comparison",
   "missing-f-string-syntax",
+  "non-lowercase-variable-in-function",
   "print",
+  "useless-expression",
 ]
-"**/{conftest.py,tests/*.py,test_*.py,*.ipynb}" = ["D", "DOC", "assert", "import-private-name", "too-many-positional-arguments", "magic-value-comparison", "no-self-use", "multiple-with-statements", "relative-imports", "pytest-fixture-autouse"]
+"**/conftest.py" = ["pytest-fixture-autouse"]
+"**/test_*.py" = ["magic-value-comparison", "multiple-with-statements", "no-self-use"]
+"**/{conftest.py,tests/*.py,test_*.py}" = [
+  "D",
+  "DOC",
+  "assert",
+  "import-private-name",
+  "too-many-positional-arguments",
+  "relative-imports",
+]
 "scripts/*" = ["implicit-namespace-package"]
 
 [tool.ruff.lint.pydocstyle]
