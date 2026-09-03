@@ -585,6 +585,15 @@ class TestLaunchedPaths:
         ):
             squeezed_launch_paths.squeeze(axis=(1, 5))
 
+        launch_paths_0d = LaunchedPaths(
+            paths.vertices[0, 0],
+            paths.objects[0, 0],
+            masks=masks[0, 0],
+            interaction_types=paths.interaction_types[0, 0],
+        )
+        with pytest.raises(ValueError, match="Cannot squeeze a 0-dimensional batch!"):
+            launch_paths_0d.squeeze(axis=-1)
+
         # Test __iter__
         got_iter = list(launch_paths)
         assert len(got_iter) == launch_paths.masked().num_valid_paths

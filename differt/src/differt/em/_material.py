@@ -1,6 +1,7 @@
 # ruff:file-ignore[math-constant]
 
 import typing
+from abc import abstractmethod
 from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -14,6 +15,232 @@ if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+
+
+class AbstractScatteringPattern(eqx.Module):
+    """Abstract base class for diffuse scattering patterns."""
+
+    @abstractmethod
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the scattered power angular density.
+
+        Args:
+            k_i: The incident (unit) direction, from the previous path
+                vertex to the interaction point.
+            k_s: The scattered (unit) direction, from the interaction
+                point to the next path vertex.
+            n: The (unit) outward surface normal at the interaction point.
+
+        Returns:
+            The scattered power angular density, normalized so that its
+            integral over the hemisphere around ``n`` is 1.
+        """
+
+
+class LambertianPattern(AbstractScatteringPattern):
+    """The Lambertian (cosine) diffuse scattering pattern.
+
+    This is the default :attr:`Material.scattering_pattern`.
+    """
+
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the Lambertian (cosine) diffuse scattering pattern.
+
+        .. math::
+            f_s(\hat{k}_s) = \frac{\max(\hat{n} \cdot \hat{k}_s, 0)}{\pi},
+
+        normalized so that its integral over the hemisphere around
+        :math:`\hat{n}` is 1. This pattern does not depend on the
+        incident direction :math:`\hat{k}_i`.
+
+        Args:
+            k_i: The incident (unit) direction.
+            k_s: The scattered (unit) direction.
+            n: The (unit) surface normal.
+
+        Returns:
+            The scattered power angular density.
+        """
+        del k_i
+        cos_theta_s = jnp.clip(
+            jnp.sum(jnp.asarray(n) * jnp.asarray(k_s), axis=-1), 0.0, 1.0
+        )
+        return cos_theta_s / jnp.pi
+
+
+def _specular_direction(
+    k_i: Float[Array, "*batch 3"],
+    n: Float[Array, "*batch 3"],
+) -> Float[Array, "*batch 3"]:
+    """Mirror-reflect the incident direction about the surface normal.
+
+    Returns:
+        The specular reflection direction.
+    """
+    return k_i - 2.0 * jnp.sum(k_i * n, axis=-1, keepdims=True) * n
+
+
+def _normalized_lobe(
+    k_s: Float[Array, "*batch 3"],
+    axis: Float[Array, "*batch 3"],
+    alpha: Float[ArrayLike, ""],
+) -> Float[Array, "*batch"]:
+    r"""
+    Evaluate a directive power-cosine lobe centered on ``axis``.
+
+    .. math::
+        F_\alpha(\hat{k}_s, \hat{a}) = \frac{\alpha + 1}{4 \pi} \left(\frac{1 + \hat{a} \cdot \hat{k}_s}{2}\right)^\alpha,
+
+    following Degli-Esposti's directive scattering model
+    :cite:`rt-review`. Unlike
+    :class:`LambertianPattern`, :math:`F_\alpha` has no closed-form
+    normalization over just the hemisphere around an arbitrary surface
+    normal (as opposed to around ``axis`` itself), so the constant
+    :math:`(\alpha + 1) / (4\pi)` instead normalizes the integral of
+    :math:`F_\alpha` over the *full* sphere centered on ``axis`` to 1.
+    Provided ``axis`` lies well inside the physical hemisphere and
+    :math:`\alpha` is not too small, only a small fraction of the lobe
+    falls below the horizon, so the hemispherical integral remains close
+    to (but, unlike the Lambertian pattern, not exactly) 1; expect
+    visibly more energy than the Lambertian pattern for a small
+    :math:`\alpha` or a near-grazing ``axis``.
+
+    Returns:
+        The lobe's angular density.
+    """
+    cos_psi = jnp.clip(jnp.sum(k_s * axis, axis=-1), -1.0, 1.0)
+    alpha = jnp.asarray(alpha)
+    c = (alpha + 1.0) / (4.0 * jnp.pi)
+    return c * ((1.0 + cos_psi) / 2.0) ** alpha
+
+
+class DirectivePattern(AbstractScatteringPattern):
+    r"""
+    A directive diffuse scattering pattern, with a lobe centered on the specular direction.
+
+    Following Degli-Esposti's directive model :cite:`rt-review`
+    (as also used by Sionna RT's ``DirectivePattern``), the scattered
+    power is concentrated around the specular reflection direction
+    :math:`\hat{k}_{sp}` (the mirror image of :math:`\hat{k}_i` about
+    :math:`\hat{n}`), with :attr:`alpha_r` controlling how narrow the
+    lobe is: :attr:`alpha_r` :math:`= 1` gives a broad lobe (similar in
+    shape to, but distinct from, :class:`LambertianPattern`, since it is
+    centered on :math:`\hat{k}_{sp}` rather than :math:`\hat{n}`), while
+    a large :attr:`alpha_r` concentrates almost all power near the
+    specular direction, approaching a purely specular reflection.
+
+    See :math:`F_\alpha` below for the lobe formula and its
+    normalization caveat.
+
+    .. math::
+        F_\alpha(\hat{k}_s, \hat{a}) = \frac{\alpha + 1}{4 \pi} \left(\frac{1 + \hat{a} \cdot \hat{k}_s}{2}\right)^\alpha,
+
+    where :math:`\hat{a}` is the lobe's axis (here, the specular
+    direction :math:`\hat{k}_{sp}`). Unlike :class:`LambertianPattern`,
+    :math:`F_\alpha` has no closed-form normalization over just the
+    hemisphere around an arbitrary surface normal (as opposed to around
+    :math:`\hat{a}` itself), so the constant :math:`(\alpha + 1) / (4\pi)`
+    instead normalizes the integral of :math:`F_\alpha` over the *full*
+    sphere centered on :math:`\hat{a}` to 1. Provided :math:`\hat{a}` lies
+    well inside the physical hemisphere and :math:`\alpha` is not too
+    small, only a small fraction of the lobe falls below the horizon, so
+    the hemispherical integral remains close to (but, unlike the
+    Lambertian pattern, not exactly) 1; expect visibly more energy than
+    the Lambertian pattern for a small :math:`\alpha` or a near-grazing
+    :math:`\hat{a}`.
+    """
+
+    alpha_r: Float[ArrayLike, ""] = eqx.field(default=1.0)
+    r"""The lobe width parameter :math:`\alpha_R \geq 1`; larger values give a narrower lobe."""
+
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the directive diffuse scattering pattern.
+
+        Args:
+            k_i: The incident (unit) direction.
+            k_s: The scattered (unit) direction.
+            n: The (unit) surface normal.
+
+        Returns:
+            The scattered power angular density.
+        """
+        k_i, k_s, n = jnp.asarray(k_i), jnp.asarray(k_s), jnp.asarray(n)
+        k_sp = _specular_direction(k_i, n)
+        return _normalized_lobe(k_s, k_sp, self.alpha_r)
+
+
+class BackscatteringPattern(AbstractScatteringPattern):
+    r"""
+    A diffuse scattering pattern combining a forward and a backscattering lobe.
+
+    Following Degli-Esposti's combined scattering model
+    :cite:`rt-review` (as also used by Sionna RT's
+    ``BackscatteringPattern``), this mixes two directive lobes
+    :math:`F_\alpha` (see :class:`DirectivePattern` for the lobe formula
+    and its normalization caveat): one centered on the specular direction
+    :math:`\hat{k}_{sp}` (like :class:`DirectivePattern`, with width
+    :attr:`alpha_r`), and one centered on the retroreflection direction
+    :math:`-\hat{k}_i` (back toward the transmitter, with width
+    :attr:`alpha_i`), combined as
+
+    .. math::
+        f_s(\hat{k}_i, \hat{k}_s, \hat{n}) = \Lambda F_{\alpha_R}(\hat{k}_s, \hat{k}_{sp}) + (1 - \Lambda) F_{\alpha_I}(\hat{k}_s, -\hat{k}_i),
+
+    where :math:`\Lambda \in [0, 1]` (:attr:`lambda_`) is the forward
+    lobe's weight; :math:`\Lambda = 1` reduces to :class:`DirectivePattern`,
+    while :math:`\Lambda = 0` gives a purely retroreflective (backscattering)
+    lobe, e.g., as observed on rough surfaces exhibiting a strong return
+    toward the transmitter (e.g., vegetation, some building facades).
+    """
+
+    alpha_r: Float[ArrayLike, ""] = eqx.field(default=1.0)
+    r"""The forward-lobe width parameter :math:`\alpha_R \geq 1`."""
+    alpha_i: Float[ArrayLike, ""] = eqx.field(default=1.0)
+    r"""The backward-lobe width parameter :math:`\alpha_I \geq 1`."""
+    lambda_: Float[ArrayLike, ""] = eqx.field(default=0.5)
+    r"""The forward-lobe weight :math:`\Lambda \in [0, 1]`."""
+
+    def __call__(
+        self,
+        k_i: Float[ArrayLike, "*#batch 3"],
+        k_s: Float[ArrayLike, "*#batch 3"],
+        n: Float[ArrayLike, "*#batch 3"],
+    ) -> Float[Array, "*batch"]:
+        r"""
+        Compute the combined forward/backscattering diffuse scattering pattern.
+
+        Args:
+            k_i: The incident (unit) direction.
+            k_s: The scattered (unit) direction.
+            n: The (unit) surface normal.
+
+        Returns:
+            The scattered power angular density.
+        """
+        k_i, k_s, n = jnp.asarray(k_i), jnp.asarray(k_s), jnp.asarray(n)
+        k_sp = _specular_direction(k_i, n)
+        forward = _normalized_lobe(k_s, k_sp, self.alpha_r)
+        backward = _normalized_lobe(k_s, -k_i, self.alpha_i)
+        lambda_ = jnp.asarray(self.lambda_)
+        return lambda_ * forward + (1.0 - lambda_) * backward
 
 
 class Material(eqx.Module):
@@ -40,6 +267,38 @@ class Material(eqx.Module):
     """
     thickness: Float[ArrayLike, ""] | None = eqx.field(default=None)
     """The thickness of the material."""
+    scattering_coefficient: Float[ArrayLike, ""] = eqx.field(default=0.0)
+    r"""
+    The (rough-surface) scattering coefficient :math:`S \in [0, 1]`.
+
+    The fraction :math:`S^2` of the reflected power is diverted to
+    diffuse scattering (see
+    :meth:`GeometricFieldSolver.scattering_matrix<differt.em.GeometricFieldSolver.scattering_matrix>`),
+    with the remaining :math:`1 - S^2` staying specular. Defaults to
+    ``0.0``, i.e., a perfectly smooth surface with no diffuse scattering,
+    matching the behavior of materials that do not set this value
+    explicitly.
+    """
+    xpd_coefficient: Float[ArrayLike, ""] = eqx.field(default=0.0)
+    r"""
+    The cross-polarization discrimination coefficient :math:`K_x \in [0, 1]` of the scattered field.
+
+    The fraction :math:`K_x` of the diffusely-scattered energy is
+    converted to the orthogonal polarization. Defaults to ``0.0``, i.e.,
+    no cross-polarization.
+    """
+    scattering_pattern: AbstractScatteringPattern = eqx.field(
+        default_factory=LambertianPattern
+    )
+    """
+    The pattern that computes the angular density of the diffusely-scattered power.
+
+    Used by
+    :meth:`GeometricFieldSolver.scattering_matrix<differt.em.GeometricFieldSolver.scattering_matrix>`
+    together with :attr:`scattering_coefficient`. Defaults to
+    :class:`LambertianPattern`. A custom (e.g., directive) pattern can be
+    provided instead, by subclassing :class:`AbstractScatteringPattern`.
+    """
     aliases: tuple[str, ...] = eqx.field(default=(), static=True)
     """
     A tuple of name aliases for the material.

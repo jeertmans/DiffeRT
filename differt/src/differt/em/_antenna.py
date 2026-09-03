@@ -7,13 +7,12 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float, Inexact
 
-from differt.geometry import (
+from differt.geometry._utils import (
     cartesian_to_spherical,
     normalize,
     spherical_to_cartesian,
 )
 from differt.plotting import PlotOutput, draw_surface
-from differt.utils import safe_divide
 
 from ._constants import c, epsilon_0, mu_0
 
@@ -39,7 +38,7 @@ def poynting_vector(
 
 
 class BaseAntenna(eqx.Module):
-    """An antenna class, base class for :class:`Antenna` and :class:`RadiationPattern`."""
+    """An antenna class, base class for :class:`AbstractAntenna` and :class:`AbstractRadiationPattern`."""
 
     frequency: Float[Array, ""]
     """The frequency :math:`f` at which the antenna is operating."""
@@ -78,8 +77,8 @@ class BaseAntenna(eqx.Module):
         return self.wavelength**2 / (4 * jnp.pi)
 
 
-class Antenna(BaseAntenna):
-    """An antenna class, must be subclassed."""
+class AbstractAntenna(BaseAntenna):
+    """Abstract base class for antennas."""
 
     @property
     @abstractmethod
@@ -88,7 +87,7 @@ class Antenna(BaseAntenna):
 
         This is the maximal value of the Poynting vector at a distance
         of one meter from this antenna, multiplied by the area of the sphere
-        (:math:`4\phi`),
+        (:math:`4\pi`),
         to obtain a power.
         """
 
@@ -113,6 +112,73 @@ class Antenna(BaseAntenna):
 
             Fields can be either real or complex-valued.
         """
+
+    def wavefront_radii(  # ruff:ignore[no-self-use]
+        self,
+        k_hat: Float[ArrayLike, "*#batch 3"],
+    ) -> (
+        Float[Array, "*batch"]
+        | tuple[
+            Float[Array, "*batch"],
+            Float[Array, "*batch 3"],
+            Float[Array, "*batch"],
+            Float[Array, "*batch 3"],
+        ]
+        | None
+    ):
+        r"""
+        Return the radii of curvature of the wavefront this antenna emits, in the given direction(s).
+
+        This is an *offset* distance (or pair of distances) -- the same
+        quantity as, and with the same sign convention as,
+        ``tx_wavefront_radii`` -- added to the geometric path length by
+        :meth:`GeometricFieldSolver.spreading_factor
+        <differt.em.GeometricFieldSolver.spreading_factor>`, rather than
+        the (generally much larger, and direction-*independent* only for
+        an isotropic source) total radius of curvature at some distant
+        observation point. :meth:`GeometricFieldSolver.compute_fields
+        <differt.em.GeometricFieldSolver.compute_fields>` calls this with
+        the direction of the first path segment (leaving the
+        transmitter) whenever ``tx_polarization`` is set to an
+        :class:`AbstractAntenna` instance, using the result *instead of* the
+        solver's own ``tx_wavefront_radii`` attribute.
+
+        A single position-like argument cannot, by itself, encode an
+        astigmatic wavefront's orientation (its two principal radii apply
+        along two specific, generally direction-dependent axes, not just
+        "the wavefront's curvature at that point"); this is why the
+        argument here is the propagation *direction* rather than a
+        position -- see the ``(rho_s, s_hat, rho_p, p_hat)`` return case
+        below.
+
+        Args:
+            k_hat: The (unit-length) direction of propagation away from
+                this antenna, towards the observation point.
+
+        Returns:
+            :data:`None` for a planar wavefront (the far-field, plane-wave
+            approximation -- see :class:`AbstractFarFieldAntenna`); a single value
+            for an isotropic (spherical) wavefront, the same in every
+            direction; or a ``(rho_s, s_hat, rho_p, p_hat)`` 4-tuple for a
+            general astigmatic wavefront, where ``rho_s`` and ``rho_p``
+            are the two principal radii and ``s_hat``/``p_hat`` are unit
+            vectors (orthogonal to ``k_hat`` and to each other) giving
+            the direction each one applies along -- the same (explicit
+            vector pair, rather than a bare angle) convention used
+            elsewhere in this module for a local s-/p-plane basis, see
+            :func:`sp_directions<differt.em.sp_directions>` and
+            :func:`sp_rotation_matrix<differt.em.sp_rotation_matrix>`
+            (which a subclass reporting an astigmatic wavefront can reuse
+            to derive ``s_hat``/``p_hat`` from ``k_hat`` and its own
+            fixed reference axis, e.g. :attr:`Dipole.moment`, exactly as
+            :func:`sp_directions<differt.em.sp_directions>` derives a
+            local basis from a ray direction and a surface normal).
+
+            The default implementation returns ``0`` for every direction,
+            i.e., an ideal point source located exactly at this
+            antenna's :attr:`~BaseAntenna.center` (no offset at all).
+        """
+        return jnp.zeros(jnp.shape(jnp.asarray(k_hat))[:-1])
 
     @eqx.filter_jit
     def poynting_vector(
@@ -263,7 +329,7 @@ class Antenna(BaseAntenna):
         )
 
 
-class Dipole(Antenna):
+class Dipole(AbstractAntenna):
     r"""
     A simple electrical (or Hertzian) dipole.
 
@@ -468,7 +534,7 @@ class Dipole(Antenna):
 
         p = self.moment / jnp.linalg.norm(self.moment)
 
-        sin_theta = jnp.cross(r, p)
+        sin_theta = jnp.linalg.norm(jnp.cross(r, p), axis=-1)
 
         return u, v, 1.5 * jax.lax.integer_pow(sin_theta, 2)
 
@@ -488,7 +554,7 @@ class ShortDipole(Dipole):
     However, fields are only derived for far field.
 
     Warning:
-        Not implemented yed.
+        Not implemented yet.
     """
 
     @eqx.filter_jit
@@ -508,18 +574,63 @@ class ShortDipole(Dipole):
         Float[Array, "2*{num_points} {num_points}"],
     ]:
         # Bypass Dipole's specialized implementation
-        return Antenna.directivity(self, num_points=num_points)
+        return AbstractAntenna.directivity(self, num_points=num_points)
 
     def directive_gain(
         self,
         num_points: int = int(1e2),
     ) -> Float[Array, ""]:
         # Bypass Dipole's specialized implementation
-        return Antenna.directive_gain(self, num_points=num_points)
+        return AbstractAntenna.directive_gain(self, num_points=num_points)
 
 
-class RadiationPattern(BaseAntenna):
-    """An antenna radiation pattern class, must be subclassed."""
+class AbstractFarFieldAntenna(AbstractAntenna):
+    """
+    Abstract base class for antennas that are only ever used in the far field.
+
+    Subclass this (instead of :class:`AbstractAntenna`) when your antenna's
+    intended use is the far field, i.e., a locally planar wavefront:
+    :meth:`wavefront_radii` is implemented once and for all here, always
+    returning :data:`None`, so subclasses only need to implement
+    :meth:`~AbstractAntenna.fields` and :attr:`~AbstractAntenna.reference_power` (exactly
+    like a plain :class:`AbstractAntenna`).
+
+    When used as ``tx_polarization`` in
+    :meth:`GeometricFieldSolver.compute_fields
+    <differt.em.GeometricFieldSolver.compute_fields>`, this makes the
+    solver treat the source as an ideal point source infinitely far away
+    (plane-wave incidence), regardless of whatever ``tx_wavefront_radii``
+    attribute the solver was configured with -- see
+    :meth:`AbstractAntenna.wavefront_radii` and
+    :meth:`GeometricFieldSolver.spreading_factor
+    <differt.em.GeometricFieldSolver.spreading_factor>`.
+    """
+
+    def wavefront_radii(  # ruff:ignore[no-self-use]
+        self,
+        k_hat: Float[  # ruff:ignore[unused-method-argument]
+            ArrayLike, "*#batch 3"
+        ],
+    ) -> None:
+        """Return :data:`None` (a planar wavefront), unconditionally."""
+        return
+
+
+class FarFieldDipoleAntenna(AbstractFarFieldAntenna, Dipole):
+    """
+    A :class:`Dipole` restricted to the far field (a planar, rather than spherical, wavefront).
+
+    Otherwise identical to :class:`Dipole` (same constructor, same
+    :meth:`~AbstractAntenna.fields`); only :meth:`~AbstractFarFieldAntenna.wavefront_radii`
+    differs, see :class:`AbstractFarFieldAntenna`.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        Dipole.__init__(self, *args, **kwargs)
+
+
+class AbstractRadiationPattern(BaseAntenna):
+    """Abstract base class for antenna radiation patterns."""
 
     @abstractmethod
     def polarization_vectors(
@@ -659,8 +770,12 @@ class RadiationPattern(BaseAntenna):
         )
 
 
-class HWDipolePattern(RadiationPattern):
-    """An half-wave dipole radiation pattern."""
+class HWDipolePattern(AbstractRadiationPattern):
+    """A half-wave dipole radiation pattern.
+
+    Warning:
+        Not implemented yet.
+    """
 
     direction: Float[Array, "3"]
     """The dipole direction."""
@@ -669,22 +784,11 @@ class HWDipolePattern(RadiationPattern):
         self,
         r: Float[ArrayLike, "*#batch 3"],
     ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
-        r = jnp.asarray(r)
-        r_hat, r = normalize(r - self.center, keepdims=True)
-
-        cos_theta = jnp.sum(r_hat * self.direction, axis=-1)
-        sin_theta = jnp.sqrt(1 - cos_theta**2)
-
-        d = 1.640922376984585  # Directive gain: 4 / Cin(2*pi)
-
-        cos_theta = jnp.sum(d * d, axis=-1)
-        sin_theta = jnp.sin(d)
-        _d = safe_divide(jnp.cos(0.5 * jnp.pi * cos_theta), sin_theta)
         raise NotImplementedError
 
 
-class ShortDipolePattern(RadiationPattern):
-    """An short dipole radiation pattern."""
+class ShortDipolePattern(AbstractRadiationPattern):
+    """A short dipole radiation pattern."""
 
     direction: Float[Array, "3"]
     """The dipole direction."""

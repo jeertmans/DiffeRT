@@ -8,7 +8,9 @@ import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
+import warp as wp
 from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
@@ -29,6 +31,8 @@ from differt.geometry import (
     normalize,
     rotation_matrix_along_x_axis,
 )
+from differt.geometry._mesh import _WARP_MESHES_CACHE
+from differt.geometry._scene import _compute_tx_mlm_func
 from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -928,6 +932,79 @@ class TestScene:
         # 4. Should raise ValueError if kwargs are provided with a solver instance
         with pytest.raises(ValueError, match="solver_kwargs cannot be used"):
             scene.trace_paths(order=1, solver=ExhaustivePathTracer(), chunk_size=10)  # type: ignore[ty:no-matching-overload]
+        # 5. Same check for launch_paths with a solver instance
+        with pytest.raises(ValueError, match="solver_kwargs cannot be used"):
+            scene.launch_paths(order=1, solver=SBRPathLauncher(), num_rays=500)  # type: ignore[ty:invalid-argument-type]
+
+    def test_trace_paths_chunked_without_len(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        """A custom solver whose chunk iterator has no '__len__' should fall back to a plain iterator."""
+
+        class DummyChunkedTracer(AbstractPathTracer):
+            epsilon: float = 0.0
+            hit_tol: float = 0.0
+            chunk_size: int | None = 2
+
+            def generate_path_candidates(
+                self,
+                scene: Any,
+                order: Any,
+                specular_reflection: Any = True,
+                diffuse_scattering: Any = False,
+            ) -> Any:
+                _ = (scene, order, specular_reflection, diffuse_scattering)
+                return jnp.zeros((4, 1), dtype=int), jnp.zeros((4, 1), dtype=int)
+
+            def generate_path_candidates_chunks_iter(
+                self,
+                scene: Any,
+                order: Any,
+                *args: Any,
+                chunk_size: Any = None,
+                pad_chunks: Any = False,
+                **kwargs: Any,
+            ) -> Any:
+                _ = (args, chunk_size, pad_chunks, kwargs)
+                candidates, interaction_types = self.generate_path_candidates(
+                    scene, order
+                )
+
+                def gen() -> Iterator[Any]:
+                    yield candidates, interaction_types
+
+                return gen()  # A plain generator has no '__len__'.
+
+            def trace_path_candidates(
+                self, scene: Any, path_candidates: Any, interaction_types: Any
+            ) -> Any:
+                _ = (scene, interaction_types)
+                n = path_candidates.shape[0]
+                return TracedPaths(
+                    vertices=jnp.empty((n, 3, 3)),
+                    objects=jnp.empty((n, 3), dtype=int),
+                    interaction_types=jnp.empty((n, 1), dtype=int),
+                    mask=jnp.empty(n, dtype=bool),
+                )
+
+        got = simple_street_canyon_scene.trace_paths(
+            order=1, solver=DummyChunkedTracer()
+        )
+        assert isinstance(got, Iterator)
+        assert not hasattr(got, "__len__")
+        chunks = list(got)
+        assert len(chunks) == 1
+
+    def test_trace_fields_chunked_error(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        with pytest.raises(
+            TypeError,
+            match="Chunked / iterated paths cannot be directly converted to TracedFields",
+        ):
+            simple_street_canyon_scene.trace_fields(
+                order=1, frequency=1e9, chunk_size=10
+            )
 
     def test_compute_paths_deprecation_warning(
         self, simple_street_canyon_scene: Scene
@@ -1188,3 +1265,60 @@ class TestScene:
         pytest.importorskip(backend)
         scene = simple_street_canyon_scene
         _ = scene.plot(backend=backend)
+
+
+def test_compute_tx_mlm_func_populates_mesh_cache() -> None:
+    # '_compute_tx_mlm_func' is normally only invoked through 'wp.jax_callable',
+    # as an FFI callback dispatched by JAX/XLA on a thread that Python's
+    # coverage tracer never attaches to, so its (plain Python, non-kernel)
+    # mesh-caching logic is invisible to line coverage when exercised only
+    # through 'Scene.compute_tx_mlm'. Call it directly instead.
+    mesh_id = id(object())
+    assert mesh_id not in _WARP_MESHES_CACHE
+
+    points = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32
+    )
+    indices = np.array([0, 1, 2], dtype=np.int32)
+    mesh_points = wp.array(points, dtype=wp.vec3)
+    mesh_indices = wp.array(indices, dtype=wp.int32)
+
+    ray_origins = wp.array(
+        np.array([[[0.0, 0.0, 1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
+    )
+    ray_directions = wp.array(
+        np.array([[[0.0, 0.0, -1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
+    )
+    output = wp.zeros((1, 2, 2), dtype=wp.uint32)
+
+    call_args = (
+        mesh_id,
+        mesh_points,
+        mesh_indices,
+        ray_origins,
+        ray_directions,
+        2,  # dim_x
+        2,  # dim_y
+        1,  # num_rays
+        1,  # max_order
+        0,  # min_order
+        False,  # assume_quads
+        0.0,  # receiver_height
+        -1.0,  # min_x
+        1.0,  # max_x
+        -1.0,  # min_y
+        1.0,  # max_y
+        output,
+    )
+
+    try:
+        # First call: cache miss, populates '_WARP_MESHES_CACHE'.
+        _compute_tx_mlm_func(*call_args)
+        assert mesh_id in _WARP_MESHES_CACHE
+
+        # Second call, same 'mesh_id': cache hit, reuses the cached mesh.
+        wp_mesh = _WARP_MESHES_CACHE[mesh_id]
+        _compute_tx_mlm_func(*call_args)
+        assert _WARP_MESHES_CACHE[mesh_id] is wp_mesh
+    finally:
+        _WARP_MESHES_CACHE.pop(mesh_id, None)

@@ -487,6 +487,73 @@ def reflection_coefficients(
     return fresnel_coefficients(n_r, cos_theta_i)[0]
 
 
+@jax.jit
+def slab_coefficients(
+    n_r: Inexact[ArrayLike, " *#batch"],
+    cos_theta_i: Float[ArrayLike, " *#batch"],
+    thickness: Float[ArrayLike, " *#batch"],
+    wavelength: Float[ArrayLike, " *#batch"],
+) -> tuple[
+    tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]],
+    tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]],
+]:
+    r"""
+    Compute the Fresnel reflection and transmission coefficients of a finite-thickness dielectric slab.
+
+    Unlike :func:`fresnel_coefficients`, which assumes a single interface
+    between two infinite half-spaces, this function accounts for the
+    coherent sum of all internal multiple reflections inside a slab of
+    the given ``thickness`` (e.g., a wall), following
+    :cite:`itu-r-2040{eq. 43-44}`:
+
+    .. math::
+        q &= \frac{2\pi d}{\lambda}\sqrt{n_r^2 - \sin^2\theta_i},\\
+        R &= r\frac{1 - e^{-2jq}}{1 - r^2e^{-2jq}},\\
+        T &= (1 - r^2)\frac{e^{-jq}}{1 - r^2e^{-2jq}},
+
+    where :math:`r` is the (single-interface) Fresnel reflection
+    coefficient returned by :func:`reflection_coefficients`, :math:`d` is
+    the ``thickness``, and :math:`\lambda` is the ``wavelength``. The
+    same formula is used independently for the s and p polarizations.
+
+    This matches the transmission and (dielectric wedge face) diffraction
+    models used in Sionna RT's ``RadioMaterial``.
+
+    Args:
+        n_r: The relative refractive index.
+
+            This is the ratio of the refractive index of the slab
+            over the refractive index of the surrounding medium.
+        cos_theta_i: The (cosine of the) angle of incidence.
+        thickness: The thickness of the slab.
+        wavelength: The wavelength, in the same unit as ``thickness``.
+
+    Returns:
+        The reflection and transmission coefficients for s and p
+        polarizations.
+
+    .. seealso::
+
+        :func:`fresnel_coefficients`
+    """
+    r_s_inf, r_p_inf = reflection_coefficients(n_r, cos_theta_i)
+
+    eta = jax.lax.integer_pow(jnp.asarray(n_r), 2)
+    sin_theta_i_sqr = 1.0 - jax.lax.integer_pow(jnp.asarray(cos_theta_i), 2)
+    a = jnp.sqrt(eta - sin_theta_i_sqr)
+
+    q = (2.0 * jnp.pi * thickness / wavelength) * a
+    exp_j_q = jnp.exp(-1j * q)
+    exp_j_2q = jnp.exp(-2j * q)
+
+    r_s = safe_divide(r_s_inf * (1.0 - exp_j_2q), 1.0 - r_s_inf**2 * exp_j_2q)
+    r_p = safe_divide(r_p_inf * (1.0 - exp_j_2q), 1.0 - r_p_inf**2 * exp_j_2q)
+    t_s = safe_divide((1.0 - r_s_inf**2) * exp_j_q, 1.0 - r_s_inf**2 * exp_j_2q)
+    t_p = safe_divide((1.0 - r_p_inf**2) * exp_j_q, 1.0 - r_p_inf**2 * exp_j_2q)
+
+    return (r_s, r_p), (t_s, t_p)
+
+
 @eqx.filter_jit
 def refraction_coefficients(
     n_r: Inexact[ArrayLike, " *#batch"],

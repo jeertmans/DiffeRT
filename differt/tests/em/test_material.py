@@ -296,6 +296,15 @@ class TestMaterialsDict:
         assert d["Brick"] is mat2
         assert d["itu_brick"] is mat2
 
+    @pytest.mark.require_no_typechecker
+    def test_setitem_non_material_value_new_key(self) -> None:
+        # 'value' is typed as 'Material', so this bypasses the alias-registration
+        # logic entirely and falls back to plain 'dict.__setitem__' -- only
+        # reachable with runtime type checking disabled.
+        d = MaterialsDict()
+        d["raw_key"] = "not-a-material"  # type: ignore[assignment]
+        assert dict.get(d, "raw_key") == "not-a-material"
+
     def test_delitem(self) -> None:
         d = MaterialsDict(materials)
         assert "Concrete" in d
@@ -338,6 +347,16 @@ class TestMaterialsDict:
             d.update(1, 2)  # type: ignore[call-arg]
         with pytest.raises(TypeError, match="not iterable"):
             d.update(123)  # type: ignore[arg-type]
+
+    def test_update_with_kwargs(self) -> None:
+        d = MaterialsDict()
+        mat = Material(
+            name="Glass", properties=_dummy_properties, aliases=("itu_glass",)
+        )
+        d.update(Glass=mat)
+        assert len(d) == 1
+        assert d["Glass"] is mat
+        assert d["itu_glass"] is mat
 
     def test_repr(self) -> None:
         mat = Material(

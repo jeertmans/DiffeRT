@@ -1,20 +1,33 @@
 """Electromagnetic (EM) fields utilities."""
 
 __all__ = (
-    "Antenna",
+    "AbstractAntenna",
+    "AbstractFarFieldAntenna",
+    "AbstractFieldSolver",
+    "AbstractRadiationPattern",
+    "AbstractScatteringPattern",
+    "BackscatteringPattern",
     "BaseAntenna",
     "Dipole",
+    "DirectivePattern",
     "F",
+    "FarFieldDipoleAntenna",
+    "GeometricFieldSolver",
     "HWDipolePattern",
     "InteractionType",
     "L_i",
+    "LambertianPattern",
     "Material",
     "MaterialsDict",
-    "RadiationPattern",
     "ShortDipole",
     "ShortDipolePattern",
+    "TracedFields",
     "c",
+    "compute_cir",
+    "compute_received_fields",
+    "compute_received_power",
     "diffraction_coefficients",
+    "diffraction_matrix",
     "epsilon_0",
     "fresnel_coefficients",
     "fspl",
@@ -24,33 +37,64 @@ __all__ = (
     "path_delay",
     "poynting_vector",
     "reflection_coefficients",
+    "reflection_matrix",
     "refraction_coefficients",
     "refractive_index",
+    "ris_matrix",
+    "scattering_matrix",
+    "slab_coefficients",
     "sp_directions",
     "sp_rotation_matrix",
+    "transition_matrices",
     "transition_matrix",
+    "transmission_matrix",
     "z_0",
 )
 
 from ._antenna import (
-    Antenna,
+    AbstractAntenna,
+    AbstractFarFieldAntenna,
+    AbstractRadiationPattern,
     BaseAntenna,
     Dipole,
+    FarFieldDipoleAntenna,
     HWDipolePattern,
-    RadiationPattern,
     ShortDipole,
     ShortDipolePattern,
     poynting_vector,
 )
 from ._constants import c, epsilon_0, mu_0, z_0
+from ._fields import TracedFields
 from ._fresnel import (
     fresnel_coefficients,
     reflection_coefficients,
     refraction_coefficients,
     refractive_index,
+    slab_coefficients,
 )
 from ._interaction_type import InteractionType
-from ._material import Material, MaterialsDict, materials
+from ._material import (
+    AbstractScatteringPattern,
+    BackscatteringPattern,
+    DirectivePattern,
+    LambertianPattern,
+    Material,
+    MaterialsDict,
+    materials,
+)
+from ._pipeline import (
+    compute_cir,
+    compute_received_fields,
+    compute_received_power,
+    diffraction_matrix,
+    reflection_matrix,
+    ris_matrix,
+    scattering_matrix,
+    transition_matrices,
+    transition_matrix,
+    transmission_matrix,
+)
+from ._solvers import AbstractFieldSolver, GeometricFieldSolver
 from ._utd import F, L_i, diffraction_coefficients
 from ._utils import (
     fspl,
@@ -58,5 +102,4 @@ from ._utils import (
     path_delay,
     sp_directions,
     sp_rotation_matrix,
-    transition_matrix,
 )

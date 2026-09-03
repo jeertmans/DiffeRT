@@ -2,7 +2,7 @@ import typing
 import warnings
 from collections.abc import Callable, Iterator, Sequence
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import equinox as eqx
 import jax
@@ -11,10 +11,15 @@ from jaxtyping import Array, ArrayLike, Bool, Float, Int, Num, Shaped
 
 from differt.plotting import PlotOutput, draw_paths, reuse
 
+from ._mesh import Mesh
+
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
+
+if TYPE_CHECKING:
+    from differt.em import AbstractFieldSolver, TracedFields
 
 
 @jax.jit
@@ -477,6 +482,36 @@ class TracedPaths(eqx.Module):
             return jnp.sum(fun(self.vertices) * self.mask, axis=axis)
 
         return jnp.sum(fun(self.vertices), axis=axis, where=self.mask)
+
+    def to_fields(
+        self,
+        mesh: Mesh,
+        frequency: Float[ArrayLike, "*#batch"] | None = None,
+        *,
+        solver: "AbstractFieldSolver | Literal['geometric']" = "geometric",
+        **solver_kwargs: Any,
+    ) -> "TracedFields":
+        """
+        Compute electromagnetic fields for these paths and return a :class:`~differt.em.TracedFields` instance.
+
+        Args:
+            mesh: The triangle mesh of the scene.
+            frequency: The operating frequency (or frequencies) in Hz.
+            solver: The field solver configuration or string shortcut.
+            **solver_kwargs: Parameters passed to the field solver.
+
+        Returns:
+            The computed fields as a :class:`~differt.em.TracedFields` instance.
+        """
+        from differt.em import TracedFields  # noqa: PLC0415
+
+        return TracedFields.from_paths(
+            self,
+            mesh,
+            frequency=frequency,
+            solver=solver,
+            **solver_kwargs,
+        )
 
     def plot(self, **kwargs: Any) -> PlotOutput:
         """

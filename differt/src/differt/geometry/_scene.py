@@ -56,6 +56,9 @@ else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
     SionnaScene = Any
 
+if TYPE_CHECKING:
+    from differt.em import AbstractFieldSolver, TracedFields
+
 
 from differt.geometry._warp_utils import _Batched, _get_warp_mesh, _warp_launch
 
@@ -822,6 +825,58 @@ class Scene(eqx.Module):
         return solver.trace_path_candidates(
             self, candidates, interaction_types
         ).reshape(*tx_batch, *rx_batch, candidates.shape[0])
+
+    def trace_fields(
+        self,
+        order: int | None = None,
+        frequency: Float[ArrayLike, "*#batch"] | None = None,
+        *,
+        solver: "AbstractFieldSolver | Literal['geometric']" = "geometric",
+        path_solver: AbstractPathTracer
+        | Literal["exhaustive", "hybrid"] = "exhaustive",
+        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        field_solver_kwargs: Mapping[str, Any] | None = None,
+        **path_solver_kwargs: Any,
+    ) -> "TracedFields":
+        """
+        Trace paths in the scene and compute their electromagnetic fields as a :class:`~differt.em.TracedFields` instance.
+
+        Args:
+            order: The number of interactions (bounces).
+            frequency: The operating frequency (or frequencies) in Hz.
+            solver: The field solver configuration or string shortcut (defaults to ``"geometric"``).
+            path_solver: The path solver configuration or string shortcut (defaults to ``"exhaustive"``).
+            path_candidates: An optional array of path candidates.
+            field_solver_kwargs: Optional keyword arguments passed to the field solver.
+            **path_solver_kwargs: Parameters passed to the path solver.
+
+        Returns:
+            A :class:`~differt.em.TracedFields` instance containing the computed EM fields.
+
+        Raises:
+            TypeError: If the traced paths cannot be converted to fields in one call
+                (e.g., chunked iterator).
+        """
+        from differt.em import TracedFields  # noqa: PLC0415
+
+        paths = self.trace_paths(
+            order=order,
+            solver=path_solver,
+            path_candidates=path_candidates,
+            **path_solver_kwargs,
+        )
+        if isinstance(paths, Iterator):
+            msg = "Chunked / iterated paths cannot be directly converted to TracedFields in one call. Iterate and convert each chunk individually."
+            raise TypeError(msg)
+
+        field_kwargs = dict(field_solver_kwargs or {})
+        return TracedFields.from_paths(
+            paths,
+            self.mesh,
+            frequency=frequency,
+            solver=solver,
+            **field_kwargs,
+        )
 
     @overload
     def launch_paths(

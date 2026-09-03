@@ -1,12 +1,14 @@
-# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function]
+# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function, invalid-argument-name]
 # type: ignore  # ruff:ignore[blanket-type-ignore]
-from typing import Any, Literal, overload
+from typing import Literal, overload
 
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.scipy.special as jsp
-from jaxtyping import Array, Complex, Float
+from jaxtyping import Array, ArrayLike, Complex, Float
+
+from differt.em._fresnel import reflection_coefficients, slab_coefficients
 
 # TODO: use ArrayLike instead of Array as inputs
 
@@ -28,7 +30,7 @@ def _N(
 ) -> Float[Array, " *batch"]:
     if mode == "+":
         return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
-    return jnp.round((beta + jnp.pi) / (2 * n * jnp.pi))
+    return jnp.round((beta - jnp.pi) / (2 * n * jnp.pi))
 
 
 @jax.jit(inline=True, static_argnames=("mode"))
@@ -222,81 +224,183 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     return 2j * sqrt_z * jnp.exp(1j * z) * (factor * ((1 - 1j) / 2 - c + 1j * s))
 
 
+@jax.jit(inline=True, static_argnames=("mode"))
+def _cot_times_F(
+    beta: Float[Array, " *#batch"],
+    n: Float[Array, " *#batch"],
+    k: Float[Array, " *#batch"],
+    L_val: Float[Array, " *#batch"],
+    mode: Literal["+", "-"],
+) -> Complex[Array, " *batch"]:
+    mode_sign = 1.0 if mode == "+" else -1.0
+    N = _N(beta, n, mode)
+    beta_boundary = 2 * n * jnp.pi * N - mode_sign * jnp.pi
+    delta = beta - beta_boundary
+
+    threshold = 1e-5
+    is_near_boundary = jnp.abs(delta) < threshold
+
+    # Limit value as delta -> 0, i.e., lim cot(x) * F(z) as x -> N*pi, using
+    # cot(x) ~ 1/(x - N*pi) and the small-z asymptotic F(z) ~ (1+j) sqrt(pi z / 2)
+    # (both to first order in delta): cot(x_safe) ~ 2n*mode_sign/delta and
+    # F(z_safe) ~ (1+j) |delta| sqrt(pi k L_val) / 2, whose product is
+    # n * mode_sign * sign(delta) * (1+j) * sqrt(pi k L_val).
+    limit_val = mode_sign * _sign(delta) * n * (1.0 + 1j) * jnp.sqrt(jnp.pi * k * L_val)
+
+    # Safe delta to prevent division by zero/NaN inside unselected paths in jnp.where
+    delta_safe = jnp.where(is_near_boundary, threshold, delta)
+    x_safe = N * jnp.pi + mode_sign * delta_safe / (2 * n)
+    a_safe = 2.0 * jnp.sin(delta_safe / 2.0) ** 2
+    z_safe = k * L_val * a_safe
+
+    prod_safe = _cot(x_safe) * F(z_safe)
+    return jnp.where(is_near_boundary, limit_val, prod_safe)
+
+
 @jax.jit
 def diffraction_coefficients(
-    *_args: Any,
-) -> None:
-    """
+    wavenumber: Float[ArrayLike, " *batch"],
+    n: Float[ArrayLike, " *batch"],
+    phi_i: Float[ArrayLike, " *batch"],
+    phi_d: Float[ArrayLike, " *batch"],
+    L_i: Float[ArrayLike, " *batch"],
+    L_r_n: Float[ArrayLike, " *batch"] | None = None,
+    L_r_o: Float[ArrayLike, " *batch"] | None = None,
+    sin_beta_0: Float[ArrayLike, " *batch"] | None = None,
+    n_r_o: Complex[ArrayLike, " *batch"] | None = None,
+    n_r_n: Complex[ArrayLike, " *batch"] | None = None,
+    d_o: Float[ArrayLike, " *batch"] | None = None,
+    d_n: Float[ArrayLike, " *batch"] | None = None,
+) -> tuple[Complex[Array, " *batch"], Complex[Array, " *batch"]]:
+    r"""
     Compute the diffraction coefficients based on the Uniform Theory of Diffraction.
-
-    Warning:
-        This function is not yet implemented, as we are still thinking of the
-        best API for it. If you want to get involved in the implementation of UTD coefficients,
-        please reach out to us on GitHub!
 
     The implementation closely follows what is described
     in :cite:`utd-mcnamara{p. 268-273}`.
 
     Unlike :func:`fresnel_coefficients<differt.em.fresnel_coefficients>`, diffraction
-    coefficients depend on the radii of curvature of the incident wave.
+    coefficients depend on the radii of curvature of the incident wave and the wedge geometry.
 
     Args:
-        sin_beta_0: ...
-        sin_beta: ...
-        sin_phi: ...
-        rho_1_i: ...
-        rho_1_i: ...
-        rho_e_i: ...
+        wavenumber: The wavenumber :math:`k`.
+        n: The wedge parameter :math:`n` (exterior wedge angle is :math:`n \pi`).
+        phi_i: The incident angle :math:`\phi_i` (or :math:`\phi'`) in radians,
+            measured from the o-face.
+        phi_d: The diffracted angle :math:`\phi_d` (or :math:`\phi`) in radians,
+            measured from the o-face.
+        L_i: The distance parameter associated with the incident shadow boundary.
+        L_r_n: The distance parameter associated with the reflection shadow boundary
+            for the n-face. Defaults to ``L_i``.
+        L_r_o: The distance parameter associated with the reflection shadow boundary
+            for the o-face. Defaults to ``L_i``.
+        sin_beta_0: The sine of the angle of incidence on the edge, :math:`\sin \beta_0`.
+            Defaults to ``1.0`` (broadside incidence).
+        n_r_o: The relative refractive index of the o-face material.
+            If ``None``, the o-face is assumed to be a Perfect Electric Conductor (PEC).
+        n_r_n: The relative refractive index of the n-face material.
+            If ``None``, the n-face is assumed to be a Perfect Electric Conductor (PEC).
+        d_o: The thickness of the o-face material.
+
+            If ``None`` (default), or if (element-wise) negative -- the
+            same "no thickness specified" sentinel used elsewhere, e.g.
+            :func:`compute_received_fields<differt.em.compute_received_fields>`
+            -- the o-face is treated as an infinite half-space, i.e., using
+            :func:`reflection_coefficients<differt.em.reflection_coefficients>`.
+            Otherwise, the finite-thickness slab formula
+            (:func:`slab_coefficients<differt.em.slab_coefficients>`) is used,
+            matching Sionna RT's dielectric-wedge diffraction model. Unused
+            if ``n_r_o`` is ``None`` (PEC).
+        d_n: The thickness of the n-face material. See ``d_o``.
 
     Returns:
-        The soft and hard diffraction coefficients.
-
-    Raises:
-        NotImplementedError: The function is not yet implemented.
+        A tuple containing the soft and hard diffraction coefficients :math:`(D_s, D_h)`.
     """
-    raise NotImplementedError
+    k = jnp.maximum(jnp.asarray(wavenumber), 1e-12)
+    n_arr = jnp.asarray(n)
+    phi_i_arr = jnp.asarray(phi_i)
+    phi_d_arr = jnp.asarray(phi_d)
+    L_i_arr = jnp.maximum(jnp.asarray(L_i), 1e-12)
 
-    # Ensure input vectors are normalized
-    incident_ray = incident_ray / jnp.linalg.norm(incident_ray)  # ruff:ignore[undefined-name]
-    diffracted_ray = diffracted_ray / jnp.linalg.norm(diffracted_ray)  # ruff:ignore[undefined-name]
-    edge_vector = edge_vector / jnp.linalg.norm(edge_vector)  # ruff:ignore[undefined-name]
+    L_r_n_arr = L_i_arr if L_r_n is None else jnp.maximum(jnp.asarray(L_r_n), 1e-12)
+    L_r_o_arr = L_i_arr if L_r_o is None else jnp.maximum(jnp.asarray(L_r_o), 1e-12)
 
-    # Compute relevant angles
-    beta_0 = jnp.arccos(jnp.dot(incident_ray, edge_vector))
-    beta = jnp.arccos(jnp.dot(diffracted_ray, edge_vector))
-    phi = jnp.arccos(jnp.dot(-incident_ray, diffracted_ray))  # ruff:ignore[unused-variable]
+    if sin_beta_0 is None:
+        sin_beta_0_safe = jnp.ones_like(k)
+    else:
+        sin_beta_0_safe = jnp.maximum(jnp.asarray(sin_beta_0), 1e-12)
 
-    # Compute L parameters (distance parameters)
-    L = r * jnp.sin(beta) ** 2 / (r + r_prime)  # ruff:ignore[undefined-name, unused-variable]
-    L_prime = r_prime * jnp.sin(beta_0) ** 2 / (r + r_prime)  # ruff:ignore[undefined-name, unused-variable]
+    # Angle differences
+    phi_1 = phi_d_arr - phi_i_arr
+    phi_2 = phi_d_arr + phi_i_arr
 
-    phi_i = jnp.pi - (jnp.pi - jnp.arccos(dot(-s_t_i, t_o))) * _sign(dot(-s_t_i, n_o))  # ruff:ignore[undefined-name]
-    phi_d = jnp.pi - (jnp.pi - jnp.arccos(dot(+s_t_d, t_o))) * _sign(dot(+s_d_i, n_o))  # ruff:ignore[undefined-name]
+    # Compute the four terms using the NaN-safe helper. The first pair
+    # (governing the incident shadow boundary) enters with the opposite
+    # sign from the second pair (governing the reflection shadow
+    # boundaries) -- confirmed against Sionna RT's own implementation
+    # (`RadioMaterial._diffraction_matrix`, which computes
+    # `d12 = -(d1 + d2)` before combining with `d3`/`d4`). Without this
+    # sign, D_1+D_2's shadow-boundary jump has the wrong sign and the
+    # total (GO + diffracted) field is discontinuous across the ISB,
+    # instead of compensating the geometrical-optics field's own jump
+    # there.
+    D_1 = -_cot_times_F(phi_1, n_arr, k, L_i_arr, "+")
+    D_2 = -_cot_times_F(phi_1, n_arr, k, L_i_arr, "-")
+    D_3 = _cot_times_F(phi_2, n_arr, k, L_r_n_arr, "+")
+    D_4 = _cot_times_F(phi_2, n_arr, k, L_r_o_arr, "-")
 
-    # Compute the angle differences
-    phi_1 = phi_d - phi_i
-    phi_2 = phi_d + phi_i
-
-    # Compute the diffraction coefficients (without common mul. factor)
-    D_1 = _cot((jnp.pi + phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "+"))  # ruff:ignore[undefined-name]
-    D_2 = _cot((jnp.pi - phi_1) / (2 * n)) * F(k * L_i * _a(phi_1, "-"))  # ruff:ignore[undefined-name]
-    D_3 = _cot((jnp.pi + phi_2) / (2 * n)) * F(k * L_r_n * _a(phi_2, "+"))  # ruff:ignore[undefined-name]
-    D_4 = _cot((jnp.pi - phi_2) / (2 * n)) * F(k * L_r_o * _a(phi_2, "-"))  # ruff:ignore[undefined-name]
-
+    # Common multiplicative factor
     factor = -jnp.exp(-1j * jnp.pi / 4) / (
-        2 * n * jnp.sqrt(2 * jnp.pi * k) * sin_beta_0  # ruff:ignore[undefined-name]
+        2.0 * n_arr * jnp.sqrt(2.0 * jnp.pi * k) * sin_beta_0_safe
     )
 
-    # Apply the Keller cone condition
-    # D_s = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_s, 0)
-    # D_h = jnp.where(jnp.abs(jnp.sin(beta) - jnp.sin(beta_0)) < 1e-6, D_h, 0)
+    # Calculate reflection coefficients for o-face and n-face (Luebbers' model)
+    dtype = jnp.result_type(k)
+    complex_dtype = jnp.complex128 if dtype == jnp.float64 else jnp.complex64
 
-    # TODO: below are assuming perfectly conducting surfaces
+    wavelength = 2.0 * jnp.pi / k
 
-    D_12 = D_1 + D_2
-    D_34 = D_3 + D_4
+    if n_r_o is None:
+        r_s_o = jnp.full_like(k, -1.0, dtype=complex_dtype)
+        r_p_o = jnp.full_like(k, 1.0, dtype=complex_dtype)
+    else:
+        cos_theta_o = jnp.sin(phi_i_arr)
+        if d_o is None:
+            r_s_o, r_p_o = reflection_coefficients(n_r_o, cos_theta_o)
+        else:
+            # A (element-wise) negative 'd_o' is the "no thickness
+            # specified" sentinel, meaning an infinite half-space, exactly
+            # like '_get_reflection_coefficients' resolves it for plain
+            # REFLECTION; this must be a per-element (not Python-level)
+            # choice, since 'd_o' can mix materials with and without an
+            # explicit thickness across a batch.
+            d_o_arr = jnp.asarray(d_o)
+            r_s_inf_o, r_p_inf_o = reflection_coefficients(n_r_o, cos_theta_o)
+            (r_s_slab_o, r_p_slab_o), _ = slab_coefficients(
+                n_r_o, cos_theta_o, jnp.maximum(d_o_arr, 0.0), wavelength
+            )
+            use_slab_o = d_o_arr >= 0.0
+            r_s_o = jnp.where(use_slab_o, r_s_slab_o, r_s_inf_o)
+            r_p_o = jnp.where(use_slab_o, r_p_slab_o, r_p_inf_o)
 
-    D_s = (D_12 - D_34) * factor
-    D_h = (D_12 + D_34) * factor
+    if n_r_n is None:
+        r_s_n = jnp.full_like(k, -1.0, dtype=complex_dtype)
+        r_p_n = jnp.full_like(k, 1.0, dtype=complex_dtype)
+    else:
+        cos_theta_n = jnp.sin(n_arr * jnp.pi - phi_d_arr)
+        if d_n is None:
+            r_s_n, r_p_n = reflection_coefficients(n_r_n, cos_theta_n)
+        else:
+            # See the symmetric comment for 'd_o' above.
+            d_n_arr = jnp.asarray(d_n)
+            r_s_inf_n, r_p_inf_n = reflection_coefficients(n_r_n, cos_theta_n)
+            (r_s_slab_n, r_p_slab_n), _ = slab_coefficients(
+                n_r_n, cos_theta_n, jnp.maximum(d_n_arr, 0.0), wavelength
+            )
+            use_slab_n = d_n_arr >= 0.0
+            r_s_n = jnp.where(use_slab_n, r_s_slab_n, r_s_inf_n)
+            r_p_n = jnp.where(use_slab_n, r_p_slab_n, r_p_inf_n)
+
+    D_s = (D_1 + D_2 + r_s_n * D_3 + r_s_o * D_4) * factor
+    D_h = (D_1 + D_2 + r_p_n * D_3 + r_p_o * D_4) * factor
 
     return D_s, D_h
