@@ -562,7 +562,7 @@ class TestScene:
         sionna_folder: Path,
     ) -> None:
         file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-        scene = Scene.load_xml(file)
+        scene = Scene.load_xml(file, materials=MaterialsDict(materials))
 
         tx = jnp.array([[0.0, 0.0, 0.0]])
         rx = jnp.array([[1.0, 1.0, 1.0]])

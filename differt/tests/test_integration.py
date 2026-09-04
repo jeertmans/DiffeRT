@@ -8,6 +8,7 @@ import pytest
 from pytest_subtests import SubTests
 
 from differt.em import (
+    MaterialsDict,
     compute_received_fields,
     compute_received_power,
     materials,
@@ -124,7 +125,9 @@ def test_simple_street_canyon() -> None:
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -298,7 +301,9 @@ def test_received_power_matches_sionna() -> None:
     # Load simple street canyon scene
     file = sionna.rt.scene.simple_street_canyon
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()
 
     # Configure transmitter and receiver antenna array
     # We use isotropic pattern with vertical polarization (V)

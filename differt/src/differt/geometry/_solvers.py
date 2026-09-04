@@ -304,7 +304,7 @@ class AbstractPathTracer(AbstractPathSolver):
         order: int | Sequence[int] | slice,
         chunk_size: int,
         pad_chunks: bool = False,
-    ) -> SizedIterator[TracedPaths]: ...
+    ) -> SizedIterator[TracedPaths] | Iterator[TracedPaths]: ...
 
     def trace_paths(
         self,
@@ -312,7 +312,7 @@ class AbstractPathTracer(AbstractPathSolver):
         order: int | Sequence[int] | slice,
         chunk_size: int | None = None,
         pad_chunks: bool = False,
-    ) -> TracedPaths | SizedIterator[TracedPaths]:
+    ) -> TracedPaths | SizedIterator[TracedPaths] | Iterator[TracedPaths]:
         """
         Trace paths for the given scene and order(s).
 
@@ -337,7 +337,11 @@ class AbstractPathTracer(AbstractPathSolver):
                 pad the last chunk.
 
         Returns:
-            Traced paths, or a sized iterator thereof.
+            Traced paths, or a sized iterator thereof. If ``chunk_size`` is
+            set and :meth:`generate_path_candidates_chunks_iter` was
+            overridden to return a plain (unsized) iterator, a plain
+            iterator is returned instead of a
+            :class:`~differt.geometry.SizedIterator`.
 
         Raises:
             NotImplementedError: If ``order`` is a sequence of orders and
@@ -351,13 +355,16 @@ class AbstractPathTracer(AbstractPathSolver):
             chunks_iter = self.generate_path_candidates_chunks_iter(
                 scene, order, chunk_size=chunk_size, pad_chunks=pad_chunks
             )
-            return SizedIterator(
-                (
-                    self.trace_path_candidates(scene, cands, types)
-                    for cands, types in chunks_iter
-                ),
-                size=chunks_iter.__len__,
+            traced_chunks = (
+                self.trace_path_candidates(scene, cands, types)
+                for cands, types in chunks_iter
             )
+            if hasattr(chunks_iter, "__len__"):
+                return SizedIterator(traced_chunks, size=chunks_iter.__len__)
+            # Custom overrides of 'generate_path_candidates_chunks_iter' are
+            # allowed to return a plain (unsized) iterator, see its docstring;
+            # fall back to a plain iterator too, instead of faking a size.
+            return traced_chunks
         candidates, interactions = self.generate_path_candidates(scene, order)
         return self.trace_path_candidates(scene, candidates, interactions)
 

@@ -253,10 +253,10 @@ def _first_triangle_hit_by_ray_helper(
         output_dims=(flat_ray_origins.shape[0],),
         #  graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
-        mesh_points=vertices,
-        mesh_indices=triangles.ravel(),
-        ray_origins=flat_ray_origins,
-        ray_directions=flat_ray_directions,
+        vertices,
+        triangles.ravel(),
+        flat_ray_origins,
+        flat_ray_directions,
     )
     return out_faces, out_t
 

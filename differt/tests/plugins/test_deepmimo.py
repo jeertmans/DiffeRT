@@ -122,7 +122,9 @@ def test_match_sionna_on_simple_street_canyon(
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,

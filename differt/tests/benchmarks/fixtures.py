@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
+from differt.em import MaterialsDict, materials
 from differt.geometry import (
     Mesh,
     Scene,
@@ -44,7 +45,7 @@ def large_random_planar_mirrors_setup(key: PRNGKeyArray) -> PlanarMirrorsSetup:
 def bench_scene(request: pytest.FixtureRequest, sionna_folder: Path) -> Scene:
     if request.param == "small":
         file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-        scene = Scene.load_xml(file)
+        scene = Scene.load_xml(file, materials=MaterialsDict(materials))
         scene = eqx.tree_at(
             lambda s: s.transmitters, scene, jnp.array([-22.0, 0.0, 32.0])
         )

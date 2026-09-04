@@ -840,13 +840,15 @@ class Scene(eqx.Module):
             result = solver.trace_paths(self, order, chunk_size=chunk_size)
             if isinstance(result, TracedPaths):
                 return result.reshape(*tx_batch, *rx_batch, result.objects.shape[-2])
-            return SizedIterator(
-                (
-                    chunk.reshape(*tx_batch, *rx_batch, chunk.objects.shape[-2])
-                    for chunk in result
-                ),
-                size=result.__len__,
+            reshaped_chunks = (
+                chunk.reshape(*tx_batch, *rx_batch, chunk.objects.shape[-2])
+                for chunk in result
             )
+            if hasattr(result, "__len__"):
+                return SizedIterator(reshaped_chunks, size=result.__len__)
+            # 'result' may be a plain (unsized) iterator, see
+            # 'AbstractPathTracer.trace_paths'.
+            return reshaped_chunks
 
         # Note: 'order' is only used to generate path candidates, so it is not
         # required (and is actually unset, per the check above) when
