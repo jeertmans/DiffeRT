@@ -312,6 +312,7 @@ extend-ignore-names = ["T"]
   "too-many-positional-arguments",
   "relative-imports",
 ]
+"differt/src/differt/__init__.py" = ["non-empty-init-module"]
 "scripts/*" = ["implicit-namespace-package"]
 
 [tool.ruff.lint.pydocstyle]

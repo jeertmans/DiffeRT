@@ -248,7 +248,13 @@ class BackscatteringPattern(AbstractScatteringPattern):
 
 
 class Material(eqx.Module):
-    """A class representing a material and it electrical properties."""
+    """A class representing a material and its electrical properties.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Material``).
+    """
 
     name: str = eqx.field(static=True)
     """

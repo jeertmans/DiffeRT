@@ -260,10 +260,16 @@ class TracedFields(eqx.Module):
             A :class:`TracedFields` instance wrapping the computed fields, propagation
             delays, operating frequency, and validity mask.
         """
+        wavefront_radii = solver_kwargs.pop("wavefront_radii", None)
         solver_instance, frequency_arr = _resolve_solver_and_frequency(
             solver, frequency, solver_kwargs
         )
-        fields = solver_instance.compute_fields(paths, mesh, frequency_arr)
+        if wavefront_radii is not None and hasattr(solver_instance, "compute_fields"):
+            fields = solver_instance.compute_fields(
+                paths, mesh, frequency_arr, wavefront_radii=wavefront_radii
+            )
+        else:
+            fields = solver_instance.compute_fields(paths, mesh, frequency_arr)
         delay, fields = compute_cir(paths, fields)
 
         return cls(
