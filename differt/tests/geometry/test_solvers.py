@@ -4,8 +4,9 @@ import equinox as eqx
 import jax.numpy as jnp
 import pytest
 
+from differt.em import InteractionType
 from differt.geometry import Mesh, Scene
-from differt.geometry._solvers import (
+from differt.geometry.solvers import (
     ExhaustivePathTracer,
     SBRPathLauncher,
     SBRPathTracer,
@@ -116,8 +117,7 @@ def test_generate_path_candidates_for_orders_matches_manual_padding_and_concaten
         solver,
         canyon_scene,
         orders,
-        specular_reflection=True,
-        diffuse_scattering=False,
+        frozenset({InteractionType.REFLECTION}),
     )
 
     max_order = max(orders)
@@ -150,8 +150,7 @@ def test_generate_path_candidates_for_orders_empty_orders_raises(
             solver,
             canyon_scene,
             [],
-            specular_reflection=True,
-            diffuse_scattering=False,
+            frozenset({InteractionType.REFLECTION}),
         )
 
 

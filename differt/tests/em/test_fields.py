@@ -170,6 +170,19 @@ def test_traced_fields_from_paths_and_to_fields() -> None:
     chex.assert_trees_all_close(tf.delay, tf2.delay)
 
 
+def test_traced_fields_from_paths_with_wavefront_radii() -> None:
+    tx = [0.0, 0.0, 0.0]
+    rx = [10.0, 0.0, 0.0]
+    paths = _los_paths(tx, rx)
+    mesh = Mesh.empty()
+    frequency = 1.0e9
+
+    tf = TracedFields.from_paths(paths, mesh, frequency, wavefront_radii=(2.0, 5.0))
+    assert isinstance(tf, TracedFields)
+    chex.assert_trees_all_close(tf.delay[0], jnp.array(10.0 / c))
+    assert jnp.all(jnp.isfinite(tf.fields))
+
+
 def test_scene_trace_fields() -> None:
     tx = [0.0, 0.0, 0.0]
     rx = [10.0, 0.0, 0.0]

@@ -12,7 +12,7 @@ import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
-from differt.em import MaterialsDict, materials
+from differt.em import Diffraction, MaterialsDict, materials
 from differt.geometry import (
     AbstractPathLauncher,
     AbstractPathTracer,
@@ -944,10 +944,9 @@ class TestScene:
                 self,
                 scene: Any,
                 order: Any,
-                specular_reflection: Any = True,
-                diffuse_scattering: Any = False,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, order, specular_reflection, diffuse_scattering)
+                _ = (scene, order, allowed_interactions)
                 return jnp.zeros((4, 1), dtype=int), jnp.zeros((4, 1), dtype=int)
 
             def generate_path_candidates_chunks_iter(
@@ -970,9 +969,13 @@ class TestScene:
                 return gen()  # A plain generator has no '__len__'.
 
             def trace_path_candidates(
-                self, scene: Any, path_candidates: Any, interaction_types: Any
+                self,
+                scene: Any,
+                path_candidates: Any,
+                interaction_types: Any,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, interaction_types)
+                _ = (scene, interaction_types, allowed_interactions)
                 n = path_candidates.shape[0]
                 return TracedPaths(
                     vertices=jnp.empty((n, 3, 3)),
@@ -1010,16 +1013,19 @@ class TestScene:
                 self,
                 scene: Any,
                 order: Any,
-                specular_reflection: Any = True,
-                diffuse_scattering: Any = False,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, order, specular_reflection, diffuse_scattering)
+                _ = (scene, order, allowed_interactions)
                 return jnp.ones((5, 1), dtype=int), jnp.zeros((5, 1), dtype=int)
 
             def trace_path_candidates(
-                self, scene: Any, path_candidates: Any, interaction_types: Any
+                self,
+                scene: Any,
+                path_candidates: Any,
+                interaction_types: Any,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, path_candidates, interaction_types)
+                _ = (scene, path_candidates, interaction_types, allowed_interactions)
                 return TracedPaths(
                     vertices=jnp.empty((1, 3, 3)),
                     objects=jnp.empty((1, 3), dtype=int),
@@ -1084,6 +1090,24 @@ class TestScene:
                 simple_street_canyon_scene, order=[1, 2]
             )
 
+        with pytest.raises(NotImplementedError):
+            ExhaustivePathTracer().generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=[1, 2], chunk_size=10
+            )
+
+        # Test generate_path_candidates_chunks_iter with chunk_size
+        _ = list(
+            ExhaustivePathTracer().generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=10
+            )
+        )
+
+        _ = list(
+            HybridPathTracer(chunk_size=10).generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=10
+            )
+        )
+
         # Test generate_path_candidates_chunks_iter with chunk_size=None
         _ = list(
             ExhaustivePathTracer().generate_path_candidates_chunks_iter(
@@ -1096,6 +1120,14 @@ class TestScene:
                 simple_street_canyon_scene, order=1, chunk_size=None
             )
         )
+
+        # Test HybridPathTracer with diffraction
+        diff_candidates, diff_types = HybridPathTracer().generate_path_candidates(
+            simple_street_canyon_scene,
+            order=1,
+            allowed_interactions=frozenset({Diffraction}),
+        )
+        assert diff_candidates.shape == diff_types.shape
 
     @pytest.mark.require_no_typechecker
     def test_trace_paths_and_launch_paths_errors_and_warnings(
