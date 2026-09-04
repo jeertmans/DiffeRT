@@ -158,7 +158,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         self,
         paths: SionnaPaths,
     ) -> "DeepMIMO[Array]":
-        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # ruff:ignore[docstring-missing-returns, docstring-missing-exception]
+        """Utility function to sort the DeepMIMO based on :class:`sionna.rt.Paths`' vertices."""  # ruff: ignore[docstring-missing-returns, docstring-missing-exception]
         if _is_jax_dtype(self):
             vertices = jnp.moveaxis(paths.vertices.jax(), 0, -2)
             interactions = (
@@ -269,7 +269,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
             return jax.tree.map(sort_fn, self)
 
-        return self.jax()._sort(paths)  # ruff:ignore[private-member-access]
+        return self.jax()._sort(paths)  # ruff: ignore[private-member-access]
 
     def jax(self) -> "DeepMIMO[Array]":
         """
@@ -484,7 +484,7 @@ def export(
     if radio_materials is None:
         radio_materials = materials
 
-    if isinstance(polarization, tuple) and len(polarization) == 2:  # ruff:ignore[magic-value-comparison]
+    if isinstance(polarization, tuple) and len(polarization) == 2:  # ruff: ignore[magic-value-comparison]
         tx_polarization, rx_polarization = polarization
     else:
         tx_polarization = rx_polarization = polarization
@@ -525,7 +525,7 @@ def export(
 
     for paths in paths_iter:
         # Reshape any batch of tx and rx positions into the expected shape
-        paths = paths.reshape(num_tx, num_rx, -1)  # ruff:ignore[redefined-loop-name]
+        paths = paths.reshape(num_tx, num_rx, -1)  # ruff: ignore[redefined-loop-name]
 
         (
             objects_slice,

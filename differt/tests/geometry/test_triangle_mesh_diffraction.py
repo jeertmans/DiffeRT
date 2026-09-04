@@ -88,7 +88,7 @@ def test_assume_quads() -> None:
     mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=True)
 
     # The shared diagonal should be ignored because assume_quads=True.
-    adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
+    adj_t, _ = mesh._connectivity()  # ruff: ignore[private-member-access]
     assert jnp.all(adj_t == -1)
 
 

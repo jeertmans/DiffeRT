@@ -28,7 +28,7 @@ from sphinx.ext.intersphinx import missing_reference
 from differt import __version__
 
 project = "DiffeRT"
-copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff:ignore[builtin-variable-shadowing, call-date-today]
+copyright = f"2023-{date.today().year}, Jérome Eertmans"  # ruff: ignore[builtin-variable-shadowing, call-date-today]
 author = "Jérome Eertmans"
 version = __version__
 git_ref = os.environ.get("READTHEDOCS_GIT_COMMIT_HASH", "main")
@@ -269,7 +269,7 @@ def linkcode_resolve(domain: str, info: dict[str, str]) -> str | None:
     if info["module"].split(".", 1)[0] not in {"differt", "differt_core"}:
         return None
 
-    try:  # ruff:ignore[too-many-statements-in-try-clause]
+    try:  # ruff: ignore[too-many-statements-in-try-clause]
         mod = sys.modules.get(info["module"])
         obj = operator.attrgetter(info["fullname"])(mod)
         if isinstance(obj, property):
@@ -328,7 +328,7 @@ def fix_sionna_folder(_app: Sphinx, obj: Any, _bound_method: bool) -> None:
 
         for param_name, parameter in sig.parameters.items():
             if param_name == "folder":
-                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # ruff:ignore[redefined-loop-name]
+                parameter = parameter.replace(default="<path-to-differt>/scene/scenes")  # ruff: ignore[redefined-loop-name]
 
             parameters.append(parameter)
 
@@ -444,7 +444,7 @@ def _make_gh_role(
         url = url_template.format(
             base=_GITHUB_BASE_URL, repo=_REPO, path=path, fragment=fragment
         )
-        fragment_placeholder = "{fragment}"  # ruff:ignore[missing-f-string-syntax]
+        fragment_placeholder = "{fragment}"  # ruff: ignore[missing-f-string-syntax]
         if fragment and fragment_placeholder not in url_template:
             url = f"{url}#{fragment}"
         title = explicit_title or title_template.format(path=path, fragment=fragment)
@@ -466,9 +466,9 @@ def setup(app: Sphinx) -> None:
 
     jaxtyping.ArrayLike = ArrayLike  # type: ignore[ty:invalid-assignment]
 
-    from typing import TypeVar  # ruff:ignore[import-outside-top-level]
+    from typing import TypeVar  # ruff: ignore[import-outside-top-level]
 
-    from differt.geometry import (  # ruff:ignore[import-outside-top-level]
+    from differt.geometry import (  # ruff: ignore[import-outside-top-level]
         download_sionna_scenes,
     )
 
@@ -476,9 +476,9 @@ def setup(app: Sphinx) -> None:
         def __repr__(self) -> str:
             return "ArrayType"
 
-    import differt.plugins._deepmimo_types  # ruff:ignore[import-outside-top-level]
+    import differt.plugins._deepmimo_types  # ruff: ignore[import-outside-top-level]
 
-    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # ruff:ignore[private-member-access]
+    differt.plugins._deepmimo_types.ArrayType = TypeVar("ArrayType", bound=ArrayType)  # type: ignore[ty:invalid-assignment,ty:invalid-legacy-type-variable]  # ruff: ignore[private-member-access]
 
     download_sionna_scenes()  # Put this here so that download does not occur during notebooks execution
 

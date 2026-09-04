@@ -1,5 +1,5 @@
 # ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function, invalid-argument-name]
-# type: ignore  # ruff:ignore[blanket-type-ignore]
+# type: ignore  # ruff: ignore[blanket-type-ignore]
 from typing import Literal, overload
 
 import equinox as eqx

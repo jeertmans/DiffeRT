@@ -28,6 +28,11 @@ with one *slight* but **important** difference:
 
 - Added {func}`materials_from_scene<differt.em._material.materials_from_scene>`, which builds a {class}`MaterialsDict<differt.em._material.MaterialsDict>` from the ITU radio materials of a loaded Sionna-compatible XML scene, merging each material's per-shape overrides (currently, only `thickness`, read from a `<float name="thickness" value="..."/>` element) into the matching built-in ITU material. {meth}`Scene.load_xml<differt.geometry.Scene.load_xml>` now calls this automatically and exposes the result as the new {attr}`Scene.radio_materials<differt.geometry.Scene.radio_materials>` attribute, so a scene's radio materials no longer need to be built by hand (by <gh-user:jeertmans>, in <gh-pr:537>).
 
+(changelog-unreleased-chore)=
+### Chore
+
+- Removed the cache mechanism for {class}`warp.Mesh` objects, as it proved to offer little to no performance benefit, both on CPU and GPU platforms, at the cost of code complexity. Moreover, it seems impossible to define an efficient cache key that will work with the various JAX transforms. This change may incur some small performance regression, especially on the CPU, but those will hopefully be improved in the future once Warp properly supports automatic code vectorization and multithreading on the CPU (by <gh-user:jeertmans>, in <gh-pr:537>).
+
 (changelog-unreleased-fixed)=
 ### Fixed
 

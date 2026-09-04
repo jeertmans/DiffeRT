@@ -8,9 +8,7 @@ import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import pytest
-import warp as wp
 from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
@@ -31,8 +29,6 @@ from differt.geometry import (
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.geometry._mesh import _WARP_MESHES_CACHE
-from differt.geometry._scene import _compute_tx_mlm_func
 from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -1211,60 +1207,3 @@ class TestScene:
         pytest.importorskip(backend)
         scene = simple_street_canyon_scene
         _ = scene.plot(backend=backend)
-
-
-def test_compute_tx_mlm_func_populates_mesh_cache() -> None:
-    # '_compute_tx_mlm_func' is normally only invoked through 'wp.jax_callable',
-    # as an FFI callback dispatched by JAX/XLA on a thread that Python's
-    # coverage tracer never attaches to, so its (plain Python, non-kernel)
-    # mesh-caching logic is invisible to line coverage when exercised only
-    # through 'Scene.compute_tx_mlm'. Call it directly instead.
-    mesh_id = id(object())
-    assert mesh_id not in _WARP_MESHES_CACHE
-
-    points = np.array(
-        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32
-    )
-    indices = np.array([0, 1, 2], dtype=np.int32)
-    mesh_points = wp.array(points, dtype=wp.vec3)
-    mesh_indices = wp.array(indices, dtype=wp.int32)
-
-    ray_origins = wp.array(
-        np.array([[[0.0, 0.0, 1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
-    )
-    ray_directions = wp.array(
-        np.array([[[0.0, 0.0, -1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
-    )
-    output = wp.zeros((1, 2, 2), dtype=wp.uint32)
-
-    call_args = (
-        mesh_id,
-        mesh_points,
-        mesh_indices,
-        ray_origins,
-        ray_directions,
-        2,  # dim_x
-        2,  # dim_y
-        1,  # num_rays
-        1,  # max_order
-        0,  # min_order
-        False,  # assume_quads
-        0.0,  # receiver_height
-        -1.0,  # min_x
-        1.0,  # max_x
-        -1.0,  # min_y
-        1.0,  # max_y
-        output,
-    )
-
-    try:
-        # First call: cache miss, populates '_WARP_MESHES_CACHE'.
-        _compute_tx_mlm_func(*call_args)
-        assert mesh_id in _WARP_MESHES_CACHE
-
-        # Second call, same 'mesh_id': cache hit, reuses the cached mesh.
-        wp_mesh = _WARP_MESHES_CACHE[mesh_id]
-        _compute_tx_mlm_func(*call_args)
-        assert _WARP_MESHES_CACHE[mesh_id] is wp_mesh
-    finally:
-        _WARP_MESHES_CACHE.pop(mesh_id, None)

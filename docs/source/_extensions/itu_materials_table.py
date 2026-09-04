@@ -19,8 +19,8 @@ class ITUMaterialsTableDirective(SphinxDirective):
         Returns:
             The list of docutils nodes to insert in the document.
         """
-        from differt.em import materials  # ruff:ignore[import-outside-top-level]
-        from differt.em._material import (  # ruff:ignore[import-outside-top-level,import-private-name]
+        from differt.em import materials  # ruff: ignore[import-outside-top-level]
+        from differt.em._material import (  # ruff: ignore[import-outside-top-level,import-private-name]
             _ITU_MATERIALS_TABLE,
         )
 

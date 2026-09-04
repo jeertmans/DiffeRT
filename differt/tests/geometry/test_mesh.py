@@ -1804,7 +1804,7 @@ class TestMeshDiffraction:
         mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=True)
 
         # The shared diagonal should be ignored because assume_quads=True.
-        adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
+        adj_t, _ = mesh._connectivity()  # ruff: ignore[private-member-access]
         assert jnp.all(adj_t == -1)
 
     def test_non_manifold_edges(self) -> None:
@@ -1896,7 +1896,7 @@ class TestMeshDiffraction:
         mesh = Mesh.empty()
 
         # This will call _connectivity() with num_triangles == 0
-        adj_t, adj_e = mesh._connectivity()  # ruff:ignore[private-member-access]
+        adj_t, adj_e = mesh._connectivity()  # ruff: ignore[private-member-access]
         assert adj_t.shape == (0, 3)
         assert adj_e.shape == (0, 3)
 

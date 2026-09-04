@@ -18,7 +18,6 @@ from typing import (
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import warp as wp
 from jaxtyping import Array, ArrayLike, Float, Int
 from jaxtyping import UInt as Uint
@@ -41,6 +40,7 @@ from ._solvers import (
     _SBRPathTracerKwargs,
 )
 from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
+from ._warp_utils import _Batched, _warp_launch
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -60,8 +60,6 @@ else:
 if TYPE_CHECKING:
     from differt.em import AbstractFieldSolver, TracedFields
 
-
-from differt.geometry._warp_utils import _Batched, _get_warp_mesh, _warp_launch
 
 _C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
 _C_MAGIC_2 = wp.constant(wp.uint32(0x045D9F3B))
@@ -128,10 +126,10 @@ def _compute_tx_mlm_kernel(
             u = (wp.float32(receiver_height) - query_origin[2]) / current_direction[2]
 
             # Intersection point P
-            P = query_origin + current_direction * u  # ruff:ignore[non-lowercase-variable-in-function]
+            P = query_origin + current_direction * u  # ruff: ignore[non-lowercase-variable-in-function]
 
             # Check if intersection is valid and unobstructed
-            if u > wp.float32(0.0) and u < t_hit:  # ruff:ignore[collapsible-if]
+            if u > wp.float32(0.0) and u < t_hit:  # ruff: ignore[collapsible-if]
                 if t >= min_order and (
                     P[0] >= wp.float32(min_x)
                     and P[0] <= wp.float32(max_x)
@@ -157,7 +155,7 @@ def _compute_tx_mlm_kernel(
             face_index = res.face
 
             # Normal vector
-            normal = wp.mesh_eval_face_normal(mesh_id, face_index)
+            normal = res.normal
 
             # Reflected direction
             current_direction = (
@@ -177,7 +175,6 @@ def _compute_tx_mlm_kernel(
 
 @no_type_check
 def _compute_tx_mlm_func(
-    mesh_id: int,
     mesh_points: wp.array[wp.vec3],
     mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array(dtype=wp.vec3, ndim=2),
@@ -195,7 +192,7 @@ def _compute_tx_mlm_func(
     max_y: float,
     output: wp.array(dtype=wp.uint32, ndim=3),
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, mesh_points, mesh_indices)
+    wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
 
     output.zero_()
 
@@ -282,15 +279,13 @@ def _compute_tx_mlm(
 
     ray_origins, ray_directions = jax.vmap(gen_rays)(tx)
 
-    mesh_id = np.uint64(id(mesh))
     num_tx = ray_origins.shape[0]
 
     return wp.jax_callable(
         _compute_tx_mlm_func,
         output_dims=(num_tx, dim_x, dim_y),
-        graph_mode=wp.JaxCallableGraphMode.NONE,
+        # graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
-        mesh_id,
         points,
         indices.ravel(),
         ray_origins,
@@ -559,7 +554,7 @@ class Scene(eqx.Module):
         Returns:
             The corresponding scene containing only triangle meshes.
         """
-        from differt.em import (  # ruff:ignore[import-outside-top-level]
+        from differt.em import (  # ruff: ignore[import-outside-top-level]
             materials_from_scene,
         )
 
@@ -569,7 +564,7 @@ class Scene(eqx.Module):
         return cls.from_core(core_scene, radio_materials=radio_materials)
 
     @classmethod
-    def from_mitsuba(cls, mi_scene) -> Self:  # ruff:ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
+    def from_mitsuba(cls, mi_scene) -> Self:  # ruff: ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
         """
         Load a triangle scene from a Mitsuba scene object.
 

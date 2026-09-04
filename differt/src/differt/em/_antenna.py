@@ -113,7 +113,7 @@ class AbstractAntenna(BaseAntenna):
             Fields can be either real or complex-valued.
         """
 
-    def wavefront_radii(  # ruff:ignore[no-self-use]
+    def wavefront_radii(  # ruff: ignore[no-self-use]
         self,
         k_hat: Float[ArrayLike, "*#batch 3"],
     ) -> (
@@ -247,7 +247,7 @@ class AbstractAntenna(BaseAntenna):
         ds = du * dv
 
         # Power per unit solid angle
-        U = p / ds  # ruff:ignore[non-lowercase-variable-in-function]
+        U = p / ds  # ruff: ignore[non-lowercase-variable-in-function]
         p_tot = jnp.sum(p * jnp.sin(v)) / (4 * jnp.pi)
 
         return u, v, U / p_tot
@@ -538,9 +538,9 @@ class Dipole(AbstractAntenna):
 
         return u, v, 1.5 * jax.lax.integer_pow(sin_theta, 2)
 
-    def directive_gain(  # ruff:ignore[no-self-use]
+    def directive_gain(  # ruff: ignore[no-self-use]
         self,
-        num_points: int = int(1e2),  # ruff:ignore[unused-method-argument]
+        num_points: int = int(1e2),  # ruff: ignore[unused-method-argument]
     ) -> Float[Array, ""]:
         return jnp.array(1.5)
 
@@ -606,9 +606,9 @@ class AbstractFarFieldAntenna(AbstractAntenna):
     <differt.em.GeometricFieldSolver.spreading_factor>`.
     """
 
-    def wavefront_radii(  # ruff:ignore[no-self-use]
+    def wavefront_radii(  # ruff: ignore[no-self-use]
         self,
-        k_hat: Float[  # ruff:ignore[unused-method-argument]
+        k_hat: Float[  # ruff: ignore[unused-method-argument]
             ArrayLike, "*#batch 3"
         ],
     ) -> None:

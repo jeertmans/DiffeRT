@@ -133,9 +133,9 @@ class TestGeometricFieldSolver:
             def compute_fields(
                 self,
                 paths: TracedPaths,
-                mesh: Mesh,  # ruff:ignore[unused-method-argument]
-                frequency: Float[ArrayLike, "*#batch"],  # ruff:ignore[unused-method-argument]
-                **kwargs: Any,  # ruff:ignore[unused-method-argument]
+                mesh: Mesh,  # ruff: ignore[unused-method-argument]
+                frequency: Float[ArrayLike, "*#batch"],  # ruff: ignore[unused-method-argument]
+                **kwargs: Any,  # ruff: ignore[unused-method-argument]
             ) -> Complex[Array, "*batch"]:
                 return jnp.ones(paths.shape, dtype=complex)
 
@@ -265,8 +265,8 @@ class TestGeometricFieldSolver:
             def diffraction_matrix(
                 self,
                 paths: TracedPaths,
-                mesh: Mesh,  # ruff:ignore[unused-method-argument]
-                frequency: Float[ArrayLike, "*#batch"],  # ruff:ignore[unused-method-argument]
+                mesh: Mesh,  # ruff: ignore[unused-method-argument]
+                frequency: Float[ArrayLike, "*#batch"],  # ruff: ignore[unused-method-argument]
             ) -> Complex[Array, "*batch order 2 2"]:
                 shape = (*paths.interaction_types.shape, 2, 2)
                 return jnp.broadcast_to(jnp.eye(2, dtype=complex), shape)

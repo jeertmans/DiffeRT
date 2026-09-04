@@ -28,7 +28,7 @@ from ._utils import (
     ray_intersect_triangle,
     viewing_frustum,
 )
-from ._warp_utils import _Batched, _get_warp_mesh, _warp_launch
+from ._warp_utils import _Batched, _warp_launch
 
 if TYPE_CHECKING:
     from ._scene import Scene
@@ -391,7 +391,7 @@ class AbstractPathLauncher(AbstractPathSolver):
             A tuple of ray origins and ray directions.
         """
 
-    def bounce_rays(  # ruff:ignore[no-self-use]
+    def bounce_rays(  # ruff: ignore[no-self-use]
         self,
         scene: "Scene",
         ray_origins: Float[Array, "num_tx num_rays 3"],
@@ -434,7 +434,7 @@ class AbstractPathLauncher(AbstractPathSolver):
 
     def filter_rays(
         self,
-        scene: "Scene",  # ruff:ignore[unused-method-argument]
+        scene: "Scene",  # ruff: ignore[unused-method-argument]
         ray_origins: Float[Array, "num_tx num_rays 3"],
         ray_directions: Float[Array, "num_tx num_rays 3"],
         rx_vertices: Float[Array, "num_rx 3"],
@@ -1030,7 +1030,7 @@ def _generate_path_candidates_for_orders(
 
     candidates_and_types = [
         _pad_path_candidates(
-            *solver._generate_path_candidates_for_one_order(  # ruff:ignore[private-member-access]
+            *solver._generate_path_candidates_for_one_order(  # ruff: ignore[private-member-access]
                 scene, o, specular_reflection, diffuse_scattering
             ),
             max_order,
@@ -1122,8 +1122,8 @@ class ExhaustivePathTracer(AbstractPathTracer):
         self,
         scene: "Scene",
         order: int,
-        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+        specular_reflection: bool,  # ruff: ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff: ignore[unused-method-argument]
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
@@ -1359,8 +1359,8 @@ class HybridPathTracer(AbstractPathTracer):
         self,
         scene: "Scene",
         order: int,
-        specular_reflection: bool,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool,  # ruff:ignore[unused-method-argument]
+        specular_reflection: bool,  # ruff: ignore[unused-method-argument]
+        diffuse_scattering: bool,  # ruff: ignore[unused-method-argument]
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
@@ -1392,7 +1392,7 @@ class HybridPathTracer(AbstractPathTracer):
         order: int | Sequence[int] | slice,
         *args: Any,
         chunk_size: int | None = None,
-        pad_chunks: bool = False,  # ruff:ignore[unused-method-argument]
+        pad_chunks: bool = False,  # ruff: ignore[unused-method-argument]
         **kwargs: Any,
     ) -> SizedIterator[
         tuple[
@@ -1539,7 +1539,6 @@ used by :func:`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triang
 @wp.kernel
 def _sbr_trace_kernel(
     mesh_id: wp.uint64,
-    normals: wp.array(dtype=wp.vec3),
     ray_origins: wp.array(dtype=wp.vec3),
     ray_directions: wp.array(dtype=wp.vec3),
     max_order: int,
@@ -1577,30 +1576,27 @@ def _sbr_trace_kernel(
             output[row + i] = face
 
         origin = origin + direction * (res.t + epsilon)
-        normal = normals[face]
+        normal = res.normal
         direction = direction - 2.0 * wp.dot(direction, normal) * normal
 
 
 @no_type_check
 def _sbr_trace_func(
-    mesh_id: int,
-    points: wp.array[wp.vec3],
-    indices: wp.array[wp.int32],
-    normals: wp.array[wp.vec3],
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array[wp.vec3],
     ray_directions: wp.array[wp.vec3],
     max_order: int,
     assume_quads: wp.bool,
     output: wp.array[wp.int32],
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
     output.fill_(-1)
     _warp_launch(
         _sbr_trace_kernel,
         dim=ray_origins.shape[0],
         inputs=[
             wp_mesh.id,
-            normals,
             _Batched(ray_origins),
             _Batched(ray_directions),
             max_order,
@@ -1648,24 +1644,21 @@ def _sbr_trace(
     if mesh.mask is not None:
         triangles = jnp.where(mesh.mask[:, None], mesh.triangles, 0)
 
-    mesh_id = np.uint64(id(mesh))
     num_rays = flat_ray_origins.shape[0]
 
     (recorded,) = wp.jax_callable(
         _sbr_trace_func,
         output_dims=(num_rays * max_order,),
-        graph_mode=wp.JaxCallableGraphMode.NONE,
+        # graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
-        mesh_id,
         jax.lax.stop_gradient(mesh.vertices),
-        triangles.ravel(),
-        jax.lax.stop_gradient(mesh.normals),
+        jax.lax.stop_gradient(triangles.ravel()),
         jax.lax.stop_gradient(flat_ray_origins),
         jax.lax.stop_gradient(flat_ray_directions),
         max_order,
         mesh.assume_quads,
     )
-    return jax.lax.stop_gradient(recorded).reshape(num_rays, max_order)
+    return recorded.reshape(num_rays, max_order)
 
 
 class SBRPathTracer(HybridPathTracer):
@@ -1810,8 +1803,8 @@ class SBRPathTracer(HybridPathTracer):
         self,
         scene: "Scene",
         order: int | Sequence[int] | slice,
-        specular_reflection: bool = True,  # ruff:ignore[unused-method-argument]
-        diffuse_scattering: bool = False,  # ruff:ignore[unused-method-argument]
+        specular_reflection: bool = True,  # ruff: ignore[unused-method-argument]
+        diffuse_scattering: bool = False,  # ruff: ignore[unused-method-argument]
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],

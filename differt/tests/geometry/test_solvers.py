@@ -383,7 +383,7 @@ class TestSBRPathTracer:
         # placeholders only ever appear as a trailing suffix, matching
         # 'check_path_candidates'.
         solver = SBRPathTracer(num_rays=50_000)
-        trajectories = solver._launch_and_record(canyon_scene, 5)  # ruff:ignore[private-member-access]
+        trajectories = solver._launch_and_record(canyon_scene, 5)  # ruff: ignore[private-member-access]
         is_placeholder = trajectories == -1
         assert not jnp.any(is_placeholder[:, :-1] & ~is_placeholder[:, 1:])
 
@@ -620,7 +620,7 @@ class TestSBRPathTracer:
         orders = [1, 2]
         max_order = max(orders)
 
-        trajectories = solver._launch_and_record(  # ruff:ignore[private-member-access]
+        trajectories = solver._launch_and_record(  # ruff: ignore[private-member-access]
             canyon_scene, max_order
         )
         expected_by_order = {}

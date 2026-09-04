@@ -987,7 +987,7 @@ def spherical_to_cartesian(
 
     xyz = jnp.stack((sp * ca, sp * sa, cp), axis=-1)
 
-    if rpa.shape[-1] == 3:  # ruff:ignore[magic-value-comparison]
+    if rpa.shape[-1] == 3:  # ruff: ignore[magic-value-comparison]
         xyz *= rpa[..., 0, None]
 
     return xyz
@@ -1028,7 +1028,7 @@ class SizedIterator(Iterator[_T], Sized):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # ruff:ignore[builtin-argument-shadowing]
+    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # ruff: ignore[builtin-argument-shadowing]
         self._iter = iter
         self._size = size
 
@@ -1189,7 +1189,7 @@ def check_path_candidates(
         Traceback (most recent call last):
         ...
         equinox.EquinoxRuntimeError: Invalid path candidates: placeholder value '-1' cannot be immediately followed by a non-placeholder value; placeholders must only appear as a trailing suffix.
-    """  # ruff:ignore[docstring-extraneous-exception]
+    """  # ruff: ignore[docstring-extraneous-exception]
     path_candidates = jnp.asarray(path_candidates)
     is_placeholder = path_candidates == -1
     invalid = is_placeholder[..., :-1] & ~is_placeholder[..., 1:]

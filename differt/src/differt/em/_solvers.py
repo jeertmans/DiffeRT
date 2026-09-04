@@ -54,7 +54,7 @@ def _wavefront_radii(
     if tx_wavefront_radii is None:
         return None
     if isinstance(tx_wavefront_radii, tuple):
-        if len(tx_wavefront_radii) == 4:  # ruff:ignore[magic-value-comparison]
+        if len(tx_wavefront_radii) == 4:  # ruff: ignore[magic-value-comparison]
             rho_s, _s_hat, rho_p, _p_hat = tx_wavefront_radii
         else:
             rho_s, rho_p = tx_wavefront_radii
@@ -321,7 +321,7 @@ def _wedge_static_geometry(
         ``arange(num_triangles)[:, None]`` broadcast against the local-edge
         axis).
     """
-    adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
+    adj_t, _ = mesh._connectivity()  # ruff: ignore[private-member-access]
     num_triangles = mesh.num_triangles
     primn = jnp.where(adj_t == -1, jnp.arange(num_triangles)[:, None], adj_t)
     prim0 = jnp.broadcast_to(jnp.arange(num_triangles)[:, None], primn.shape)
@@ -802,9 +802,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
             # well-known plane-wave-incidence formula (the radii-based
             # formula below is not simply evaluated at 'rho_i -> inf', which
             # would be a 0/0 (NaN) division).
-            L_planar = s_out * sin_beta_0**2  # ruff:ignore[non-lowercase-variable-in-function]
-            L_other = safe_divide(s_prime * s_out, s_prime + s_out) * sin_beta_0**2  # ruff:ignore[non-lowercase-variable-in-function]
-            L = jnp.where(is_first_bounce, L_planar, L_other)  # ruff:ignore[non-lowercase-variable-in-function]
+            L_planar = s_out * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
+            L_other = safe_divide(s_prime * s_out, s_prime + s_out) * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
+            L = jnp.where(is_first_bounce, L_planar, L_other)  # ruff: ignore[non-lowercase-variable-in-function]
         else:
             rho_s, rho_p = radii
             # This method runs on every bounce (its result is discarded
@@ -824,7 +824,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
             )
             rho_i = s_prime + jnp.where(is_first_bounce, rho_s[..., None], 0.0)
 
-            L = (  # ruff:ignore[non-lowercase-variable-in-function]
+            L = (  # ruff: ignore[non-lowercase-variable-in-function]
                 safe_divide(rho_i * s_out, rho_i + s_out) * sin_beta_0**2
             )
 
@@ -842,7 +842,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
         d_n = jnp.take(thickness, matn_idx, axis=0)
 
         wavenumber = jnp.broadcast_to(2.0 * jnp.pi * frequency / c, wedge_n.shape)
-        D_s, D_h = diffraction_coefficients(  # ruff:ignore[non-lowercase-variable-in-function]
+        D_s, D_h = diffraction_coefficients(  # ruff: ignore[non-lowercase-variable-in-function]
             wavenumber,
             wedge_n,
             phi_prime,
