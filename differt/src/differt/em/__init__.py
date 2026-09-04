@@ -33,7 +33,6 @@ __all__ = (
     "fspl",
     "length_to_delay",
     "materials",
-    "materials_from_scene",
     "mu_0",
     "path_delay",
     "poynting_vector",
@@ -81,7 +80,6 @@ from ._material import (
     Material,
     MaterialsDict,
     materials,
-    materials_from_scene,
 )
 from ._pipeline import (
     compute_cir,

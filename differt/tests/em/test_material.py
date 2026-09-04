@@ -8,7 +8,8 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import PRNGKeyArray
 
-from differt.em import Material, MaterialsDict, materials, materials_from_scene
+from differt.em import Material, MaterialsDict, materials
+from differt.em._material import _populate_materials
 from differt.geometry import Scene
 from differt_core.geometry import SionnaScene
 
@@ -370,8 +371,7 @@ class TestMaterialsDict:
 
     def test_hash(self) -> None:
         # 'MaterialsDict' must be hashable so it can be used as (static)
-        # 'GeometricFieldSolver.radio_materials'/'Scene.radio_materials'
-        # inside JIT-compiled code.
+        # 'GeometricFieldSolver.radio_materials' inside JIT-compiled code.
         d1 = MaterialsDict(materials)
         d2 = MaterialsDict(materials)
         assert d1 is not d2
@@ -405,7 +405,7 @@ def _shape(shape_id: str, material_id: str) -> str:
     """
 
 
-class TestMaterialsFromScene:
+class TestPopulateMaterials:
     def test_uniform_materials_share_generic_name(self, tmp_path: Path) -> None:
         bsdfs = """
         <bsdf type="itu-radio-material" id="window">
@@ -416,9 +416,10 @@ class TestMaterialsFromScene:
         scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
         sionna_scene = SionnaScene.load_xml(scene_file)
 
-        radio_materials = materials_from_scene(sionna_scene.materials.values())
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
 
-        assert set(radio_materials) == {"itu_glass"}
+        assert "itu_glass" in radio_materials
         assert radio_materials["itu_glass"].thickness == pytest.approx(0.01)
         assert radio_materials["itu_glass"].name == "Glass"
 
@@ -437,9 +438,10 @@ class TestMaterialsFromScene:
         scene_file = _write_scene(tmp_path, bsdfs, shapes)
         sionna_scene = SionnaScene.load_xml(scene_file)
 
-        radio_materials = materials_from_scene(sionna_scene.materials.values())
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
 
-        assert set(radio_materials) == {"window1", "window2"}
+        assert {"window1", "window2"} <= set(radio_materials)
         assert radio_materials["window1"].thickness == pytest.approx(0.01)
         assert radio_materials["window2"].thickness == pytest.approx(0.05)
 
@@ -452,11 +454,13 @@ class TestMaterialsFromScene:
         scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "paint"))
         sionna_scene = SionnaScene.load_xml(scene_file)
 
-        radio_materials = materials_from_scene(sionna_scene.materials.values())
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        before = dict(radio_materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
 
-        assert radio_materials == {}
+        assert dict(radio_materials) == before
 
-    def test_scene_load_xml_populates_radio_materials(self, tmp_path: Path) -> None:
+    def test_conflicting_thickness_raises(self, tmp_path: Path) -> None:
         bsdfs = """
         <bsdf type="itu-radio-material" id="window">
             <string name="type" value="glass"/>
@@ -464,11 +468,52 @@ class TestMaterialsFromScene:
         </bsdf>
         """
         scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
-        scene = Scene.load_xml(scene_file)
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.05"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        with pytest.raises(ValueError, match="already present"):
+            _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+    def test_scene_load_xml_populates_materials(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        scene = Scene.load_xml(scene_file, materials=radio_materials)
 
         assert scene.mesh.material_names == ("itu_glass",)
-        assert scene.radio_materials is not None
-        assert scene.radio_materials["itu_glass"].thickness == pytest.approx(0.01)
+        assert radio_materials["itu_glass"].thickness == pytest.approx(0.01)
 
-        # 'radio_materials' must not break JIT-compiled 'Scene' methods.
+        # Populating 'materials' must not break JIT-compiled 'Scene' methods.
         _ = scene.scale(2.0)
+
+    def test_scene_load_xml_defaults_to_global_materials(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        original_glass = materials["Glass"]
+        try:
+            _ = Scene.load_xml(scene_file)
+
+            assert materials["itu_glass"].thickness == pytest.approx(0.01)
+        finally:
+            materials["Glass"] = original_glass

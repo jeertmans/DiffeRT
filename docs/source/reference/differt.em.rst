@@ -111,7 +111,6 @@ and a mapping containing some common materials (e.g., ITU-R materials).
    Material
    MaterialsDict
    materials
-   materials_from_scene
    AbstractScatteringPattern
    LambertianPattern
    DirectivePattern

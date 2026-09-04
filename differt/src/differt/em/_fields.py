@@ -259,17 +259,10 @@ class TracedFields(eqx.Module):
         Returns:
             A :class:`TracedFields` instance wrapping the computed fields, propagation
             delays, operating frequency, and validity mask.
-
-        Raises:
-            ValueError: If an unknown solver name is passed, if ``solver_kwargs``
-                are supplied alongside a solver instance, or if ``frequency``
-                is omitted and cannot be inferred from the transmitter antenna.
         """
-        solver_instance, frequency_arr, err = _resolve_solver_and_frequency(
+        solver_instance, frequency_arr = _resolve_solver_and_frequency(
             solver, frequency, solver_kwargs
         )
-        if err is not None:
-            raise ValueError(err)
         fields = solver_instance.compute_fields(paths, mesh, frequency_arr)
         delay, fields = compute_cir(paths, fields)
 

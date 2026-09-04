@@ -2,7 +2,7 @@ import dataclasses
 import math
 import typing
 import warnings
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, MutableMapping, Sequence
 from os import PathLike
 from typing import (
     TYPE_CHECKING,
@@ -58,7 +58,7 @@ else:
     SionnaScene = Any
 
 if TYPE_CHECKING:
-    from differt.em import AbstractFieldSolver, TracedFields
+    from differt.em import AbstractFieldSolver, Material, TracedFields
 
 
 _C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
@@ -311,7 +311,7 @@ def _resolve_solver(
     solver: _SolverT | str,
     solver_kwargs: dict[str, Any],
     choices: Mapping[str, type[_SolverT]],
-) -> tuple[_SolverT | None, str | None]:
+) -> _SolverT:
     """
     Resolve a string solver shortcut to an instance, or validate a provided instance.
 
@@ -324,18 +324,22 @@ def _resolve_solver(
         choices: A mapping from string shortcut to the solver class it instantiates.
 
     Returns:
-        A ``(solver, error)`` tuple, where ``error`` is an error message (and
-        ``solver`` is :data:`None`) if resolution failed, instead of raising
-        directly.
+        The resolved solver instance.
+
+    Raises:
+        ValueError: If ``solver`` is an unknown string shortcut, or if
+            ``solver_kwargs`` is used together with a solver instance.
     """
     if isinstance(solver, str):
         cls = choices.get(solver)
         if cls is None:
-            return None, f"Unknown solver: {solver}"
-        return cls(**solver_kwargs), None
+            msg = f"Unknown solver: {solver}"
+            raise ValueError(msg)
+        return cls(**solver_kwargs)
     if solver_kwargs:
-        return None, "solver_kwargs cannot be used when a solver instance is provided."
-    return solver, None
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver
 
 
 class Scene(eqx.Module):
@@ -351,12 +355,6 @@ class Scene(eqx.Module):
     """The array of receiver vertices."""
     mesh: Mesh = eqx.field(default_factory=Mesh.empty)
     """The triangle mesh."""
-    radio_materials: Mapping[str, Any] | None = eqx.field(default=None, static=True)
-    """A mapping from material name (matching :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>`)
-    to a :class:`Material<differt.em._material.Material>` instance, as populated by :meth:`load_xml`.
-
-    :data:`None` unless this scene was loaded with :meth:`load_xml`.
-    """
 
     @property
     def num_transmitters(self) -> int:
@@ -517,51 +515,60 @@ class Scene(eqx.Module):
         )
 
     @classmethod
-    def from_core(
-        cls,
-        core_scene: differt_core.geometry.Scene,
-        *,
-        radio_materials: Mapping[str, Any] | None = None,
-    ) -> Self:
+    def from_core(cls, core_scene: differt_core.geometry.Scene) -> Self:
         """
         Return a triangle scene from a scene created by the :mod:`differt_core` module.
 
         Args:
             core_scene: The scene from the core module.
-            radio_materials: See :attr:`radio_materials`.
 
         Returns:
             The corresponding scene.
         """
-        return cls(
-            mesh=Mesh.from_core(core_scene.mesh),
-            radio_materials=radio_materials,
-        )
+        return cls(mesh=Mesh.from_core(core_scene.mesh))
 
     @classmethod
-    def load_xml(cls, file: str | PathLike[str]) -> Self:
+    def load_xml(
+        cls,
+        file: str | PathLike[str],
+        *,
+        materials: MutableMapping[str, "Material"] | None = None,
+    ) -> Self:
         """
         Load a triangle scene from a XML file.
 
         This method uses
         :meth:`SionnaScene.load_xml<differt_core.geometry.SionnaScene.load_xml>`
-        internally, and populates :attr:`radio_materials` from the file's
-        ITU radio materials (see :func:`materials_from_scene<differt.em._material.materials_from_scene>`).
+        internally, and populates ``materials`` with the file's ITU radio material
+        overrides (e.g., a per-shape ``thickness``), so that
+        :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>` can be used
+        to look up each shape's :class:`Material<differt.em._material.Material>`
+        directly from ``materials``.
 
         Args:
             file: The path to the XML file.
+            materials: The mapping to populate with the scene's radio materials.
+
+                Defaults to the global :data:`materials<differt.em.materials>` mapping,
+                which is modified in place.
 
         Returns:
             The corresponding scene containing only triangle meshes.
         """
         from differt.em import (  # ruff: ignore[import-outside-top-level]
-            materials_from_scene,
+            materials as _default_materials,
         )
+        from differt.em._material import (  # ruff: ignore[import-outside-top-level]
+            _populate_materials,
+        )
+
+        if materials is None:
+            materials = _default_materials
 
         core_scene = differt_core.geometry.Scene.load_xml(file)
         sionna_scene = differt_core.geometry.SionnaScene.load_xml(file)
-        radio_materials = materials_from_scene(sionna_scene.materials.values())
-        return cls.from_core(core_scene, radio_materials=radio_materials)
+        _populate_materials(sionna_scene.materials.values(), materials)
+        return cls.from_core(core_scene)
 
     @classmethod
     def from_mitsuba(cls, mi_scene) -> Self:  # ruff: ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
@@ -805,7 +812,7 @@ class Scene(eqx.Module):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
             raise ValueError(msg)
 
-        solver, err = _resolve_solver(
+        solver = _resolve_solver(
             solver,
             solver_kwargs,
             {
@@ -814,8 +821,6 @@ class Scene(eqx.Module):
                 "sbr": SBRPathTracer,
             },
         )
-        if err is not None:
-            raise ValueError(err)
 
         if (
             isinstance(solver, HybridPathTracer)
@@ -979,9 +984,7 @@ class Scene(eqx.Module):
             msg = "Argument 'order' is required."
             raise ValueError(msg)
 
-        solver, err = _resolve_solver(solver, solver_kwargs, {"sbr": SBRPathLauncher})
-        if err is not None:
-            raise ValueError(err)
+        solver = _resolve_solver(solver, solver_kwargs, {"sbr": SBRPathLauncher})
 
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]

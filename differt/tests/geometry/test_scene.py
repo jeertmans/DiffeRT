@@ -12,6 +12,7 @@ import pytest
 from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
+from differt.em import MaterialsDict, materials
 from differt.geometry import (
     AbstractPathLauncher,
     AbstractPathTracer,
@@ -42,7 +43,11 @@ class TestScene:
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
 
                 for f in [file, str(file)]:
-                    scene = Scene.load_xml(f)
+                    # Each scene gets its own materials mapping: these are
+                    # unrelated real-world scenes, so their overrides for a
+                    # same-named base material (e.g., 'itu_metal') may
+                    # legitimately disagree.
+                    scene = Scene.load_xml(f, materials=MaterialsDict(materials))
                     sionna_scene = SionnaScene.load_xml(f)
 
                     assert scene.mesh.object_bounds is not None
