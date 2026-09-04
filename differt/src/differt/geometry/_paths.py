@@ -188,6 +188,11 @@ class TracedPaths(eqx.Module):
 
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import TracedPaths``).
     """
 
     vertices: Float[Array, "*batch path_length 3"]
@@ -623,6 +628,11 @@ class LaunchedPaths(eqx.Module):
 
     Holds information of lower-order paths too, and holds multi-order mask information.
     Not a subclass of TracedPaths.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import LaunchedPaths``).
     """
 
     vertices: Float[Array, "*batch path_length 3"]

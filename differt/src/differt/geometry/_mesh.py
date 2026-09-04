@@ -601,6 +601,11 @@ class Mesh(eqx.Module):
     """
     A simple geometry made of triangles.
 
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Mesh``).
+
     .. warning::
 
         The Warp-accelerated methods in this class (such as :meth:`ray_intersect_any_triangle`,
@@ -1239,6 +1244,67 @@ class Mesh(eqx.Module):
 
         _, _, params = self._diffraction_edges_info()
         return params
+
+    def _wedge_static_geometry(
+        self,
+    ) -> tuple[
+        Float[Array, "num_triangles 3 3"],
+        Float[Array, "num_triangles 3 3"],
+        Float[Array, "num_triangles 3 3"],
+        Int[Array, "num_triangles 3"],
+    ]:
+        r"""
+        Compute the path-independent (canonical) wedge geometry for every half-edge.
+
+        Every triangle edge (whether or not it is an actual diffraction edge)
+        is addressed as a ``(triangle, local_edge)`` half-edge pair, matching
+        Sionna RT's own wedge addressing
+        (``sionna.rt.utils.wedges.wedge_geometry``) and, unlike
+        :attr:`diffraction_edges` (which deduplicates edges via a
+        non-:func:`jax.jit`-compatible :func:`jax.numpy.unique`), stays
+        :func:`jax.jit`-compatible and never has a zero-sized axis.
+
+        Follows the same orientation convention as
+        ``wedge_geometry``: the face normals are oriented so that the
+        interior angle of the wedge is at most :math:`\pi`, and the edge
+        direction is oriented such that ``cross(n0, e_hat)`` points toward
+        the (arbitrarily labeled) 0-face. Half-edges that are not actual
+        diffraction edges (mesh boundary, or coplanar/inactive neighbors, see
+        :attr:`diffraction_edges_mask`) get an arbitrary, self-consistent
+        (but physically meaningless) placeholder geometry; callers are
+        expected to discard those entries.
+
+        Returns:
+            A tuple of ``(n0, nn, e_hat, primn)`` (``prim0`` is implicitly
+            ``arange(num_triangles)[:, None]`` broadcast against the
+            local-edge axis).
+        """
+        adj_t, _ = self._connectivity()
+        num_triangles = self.num_triangles
+        primn = jnp.where(adj_t == -1, jnp.arange(num_triangles)[:, None], adj_t)
+        prim0 = jnp.broadcast_to(jnp.arange(num_triangles)[:, None], primn.shape)
+
+        e0, e1 = self.triangle_edges[..., 0, :], self.triangle_edges[..., 1, :]
+
+        normals = self.normals
+        n0_raw = jnp.take(normals, prim0, axis=0)
+        nn_raw = jnp.take(normals, primn, axis=0)
+
+        triangle_vertices = self.triangle_vertices
+        f0 = jnp.mean(jnp.take(triangle_vertices, prim0, axis=0), axis=-2)
+        fn = jnp.mean(jnp.take(triangle_vertices, primn, axis=0), axis=-2)
+
+        flip_n0 = jnp.sum(n0_raw * (fn - e0), axis=-1) > 0.0
+        n0 = jnp.where(flip_n0[..., None], -n0_raw, n0_raw)
+        flip_nn = jnp.sum(nn_raw * (f0 - e0), axis=-1) > 0.0
+        nn = jnp.where(flip_nn[..., None], -nn_raw, nn_raw)
+
+        e_hat_raw, _ = normalize(e1 - e0)
+        t0 = jnp.cross(n0, e_hat_raw)
+        flip_e = jnp.sum(t0 * (f0 - e0), axis=-1) < 0.0
+        e_hat = jnp.where(flip_e[..., None], -e_hat_raw, e_hat_raw)
+
+        return n0, nn, e_hat, primn
 
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:

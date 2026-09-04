@@ -9,6 +9,7 @@ import jax.scipy.special as jsp
 from jaxtyping import Array, ArrayLike, Complex, Float
 
 from differt.em._fresnel import reflection_coefficients, slab_coefficients
+from differt.utils import safe_divide
 
 # TODO: use ArrayLike instead of Array as inputs
 
@@ -96,7 +97,7 @@ def L_i(
     Its general expression is given by :cite:`utd-mcnamara{eq. 6.25, p. 270}`:
 
     .. math::
-        L_i = \frac{(\rho_e^i + s)\rho_1^i\rho_2^i}{\rho_e^i(\rho_1^i + s)(\rho_2^i + s)}\sin^2\beta_0,
+        L_i = \frac{s^d(\rho_e^i + s^d)\rho_1^i\rho_2^i}{\rho_e^i(\rho_1^i + s^d)(\rho_2^i + s^d)}\sin^2\beta_0,
 
     where :math:`s^d` is the distance from the point of diffraction (:math:`Q_d`) to the observer
     point (:math:`P`),
@@ -156,10 +157,12 @@ def L_i(
         return (s_d * s_i) * sin_2_beta_0 / (s_d + s_i)
     if all_none:
         return s_d * sin_2_beta_0
-    return (
-        (s_d * (rho_e_i + s_d) * rho_1_i * rho_2_i)
-        / (rho_e_i * (rho_1_i + s_d) * (rho_2_i + s_d))
-    ) * sin_2_beta_0
+    c1 = safe_divide(1.0, rho_1_i)
+    c2 = safe_divide(1.0, rho_2_i)
+    ce = safe_divide(1.0, rho_e_i)
+    denom = (1.0 + s_d * c1) * (1.0 + s_d * c2)
+    num = s_d * (1.0 + s_d * ce)
+    return safe_divide(num, denom) * sin_2_beta_0
 
 
 @jax.jit

@@ -11,6 +11,7 @@ from differt.geometry._paths import TracedPaths
 from ._constants import c, z_0
 from ._material import Material
 from ._solvers import AbstractFieldSolver, GeometricFieldSolver
+from ._wavefront import WavefrontState
 
 
 class _GeometricFieldSolverKwargs(TypedDict, total=False):
@@ -20,8 +21,11 @@ class _GeometricFieldSolverKwargs(TypedDict, total=False):
     tx_wavefront_radii: (
         Float[ArrayLike, "*#batch"]
         | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | WavefrontState
         | None
     )
+    interaction_matrices: Mapping[Any, Any] | None
+    wavefront_radii: Any
 
 
 @overload
@@ -42,6 +46,7 @@ def compute_received_fields(
     frequency: Float[ArrayLike, "*#batch"] | None = None,
     *,
     solver: AbstractFieldSolver,
+    wavefront_radii: Any = None,
 ) -> Complex[Array, "*batch"]: ...
 
 
@@ -79,13 +84,19 @@ def compute_received_fields(
             it is instantiated from a string shortcut (see
             :class:`GeometricFieldSolver`'s attributes, e.g.,
             ``tx_polarization``, ``rx_polarization``, ``radio_materials``,
-            ``tx_wavefront_radii``). Not allowed when ``solver`` is already
-            a solver instance.
+            ``tx_wavefront_radii``, ``interaction_matrices``, or
+            per-call ``wavefront_radii``). Not allowed when ``solver`` is already
+            a solver instance, except for ``wavefront_radii``.
 
     Returns:
         The received complex fields of shape ``*batch``.
     """
+    wavefront_radii = solver_kwargs.pop("wavefront_radii", None)
     solver, frequency = _resolve_solver_and_frequency(solver, frequency, solver_kwargs)
+    if wavefront_radii is not None and hasattr(solver, "compute_fields"):
+        return solver.compute_fields(
+            paths, mesh, frequency, wavefront_radii=wavefront_radii
+        )
     return solver.compute_fields(paths, mesh, frequency)
 
 

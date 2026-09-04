@@ -21,16 +21,23 @@ def test_L_i(key: PRNGKeyArray) -> None:
     rho_e_i = jax.random.uniform(key_e_i, (100,), minval=10.0, maxval=100.0)
     s_i = jax.random.uniform(key_s_i, (100,), minval=10.0, maxval=100.0)
 
+    # McNamara et al. (1990), Chapter 6, Section 6.3, p. 270 (PDF p. 144):
+    # - Plane wave incidence: Eq. (6.27), L_i = s_d * sin^2(beta_0)
     got = L_i(s_d, sin_2_beta_0)
     expected = s_d * sin_2_beta_0
-
     chex.assert_trees_all_close(got, expected)
 
+    # Infinite radii also evaluate to the exact plane wave limit:
+    inf_arr = jnp.full_like(s_d, jnp.inf)
+    got_inf = L_i(s_d, sin_2_beta_0, rho_1_i=inf_arr, rho_2_i=inf_arr, rho_e_i=inf_arr)
+    chex.assert_trees_all_close(got_inf, expected)
+
+    # - Spherical wave incidence: Eq. (6.26), L_i = (s_d * s_i) / (s_d + s_i) * sin^2(beta_0)
     got = L_i(s_d, sin_2_beta_0, s_i=s_i)
-    expected = L_i(s_d, sin_2_beta_0, rho_1_i=s_i, rho_2_i=s_i, rho_e_i=s_i)
-
+    expected = (s_d * s_i) / (s_d + s_i) * sin_2_beta_0
     chex.assert_trees_all_close(got, expected)
 
+    # - General astigmatic wave: Eq. (6.25)
     got = L_i(s_d, sin_2_beta_0, rho_1_i=rho_1_i, rho_2_i=rho_2_i, rho_e_i=rho_e_i)
     expected = (
         s_d
@@ -40,7 +47,6 @@ def test_L_i(key: PRNGKeyArray) -> None:
         * sin_2_beta_0
         / (rho_e_i * (rho_1_i + s_d) * (rho_2_i + s_d))
     )
-
     chex.assert_trees_all_close(got, expected)
 
     with pytest.raises(

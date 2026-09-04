@@ -71,15 +71,6 @@ from ._solver_image_method import (
     image_of_vertex_with_respect_to_mirror,
     intersection_of_ray_with_plane,
 )
-from ._solvers import (
-    AbstractPathLauncher,
-    AbstractPathSolver,
-    AbstractPathTracer,
-    ExhaustivePathTracer,
-    HybridPathTracer,
-    SBRPathLauncher,
-    SBRPathTracer,
-)
 from ._utils import (
     SizedIterator,
     assemble_path,
@@ -104,4 +95,13 @@ from ._utils import (
     spherical_to_cartesian,
     triangles_visible_from_vertex,
     viewing_frustum,
+)
+from .solvers import (
+    AbstractPathLauncher,
+    AbstractPathSolver,
+    AbstractPathTracer,
+    ExhaustivePathTracer,
+    HybridPathTracer,
+    SBRPathLauncher,
+    SBRPathTracer,
 )

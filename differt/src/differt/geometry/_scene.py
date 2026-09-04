@@ -27,7 +27,9 @@ from differt.plotting import PlotOutput, draw_markers, reuse
 
 from ._mesh import Mesh
 from ._paths import LaunchedPaths, TracedPaths
-from ._solvers import (
+from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
+from ._warp_utils import _Batched, _warp_launch
+from .solvers import (
     AbstractPathLauncher,
     AbstractPathTracer,
     ExhaustivePathTracer,
@@ -39,8 +41,6 @@ from ._solvers import (
     _SBRPathLauncherKwargs,
     _SBRPathTracerKwargs,
 )
-from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
-from ._warp_utils import _Batched, _warp_launch
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -58,7 +58,7 @@ else:
     SionnaScene = Any
 
 if TYPE_CHECKING:
-    from differt.em import AbstractFieldSolver, Material, TracedFields
+    from differt.em import AbstractFieldSolver, InteractionType, Material, TracedFields
 
 
 _C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
@@ -343,7 +343,13 @@ def _resolve_solver(
 
 
 class Scene(eqx.Module):
-    """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
+    """A simple scene made of one or more triangle meshes, some transmitters and some receivers.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Scene``).
+    """
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
         default_factory=lambda: jnp.empty((0, 3)),
@@ -549,7 +555,7 @@ class Scene(eqx.Module):
             file: The path to the XML file.
             materials: The mapping to populate with the scene's radio materials.
 
-                Defaults to the global :data:`materials<differt.em.materials>` mapping,
+                Defaults to the global :data:`materials<differt.em._material.materials>` mapping,
                 which is modified in place.
 
         Returns:
@@ -698,6 +704,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["exhaustive"],
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_ExhaustivePathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -708,6 +715,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["hybrid"],
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_HybridPathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -718,6 +726,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["sbr"] = "sbr",
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_SBRPathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -728,6 +737,7 @@ class Scene(eqx.Module):
         *,
         solver: AbstractPathTracer,
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
     def trace_paths(
@@ -736,6 +746,7 @@ class Scene(eqx.Module):
         *,
         solver: AbstractPathTracer | Literal["exhaustive", "hybrid", "sbr"] = "sbr",
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Any,
     ) -> TracedPaths | SizedIterator[TracedPaths] | Iterator[TracedPaths]:
         """
@@ -795,7 +806,18 @@ class Scene(eqx.Module):
                 If :attr:`self.mesh.assume_quads<differt.geometry.Mesh.assume_quads>`
                 is :data:`True`, then path candidates are rounded down toward the nearest
                 even value. When provided, ``order`` is not needed (and, in
-                fact, must be left unset).
+                fact, must be left unset). Explicitly provided path candidates
+                are always interpreted as specular reflections;
+                ``allowed_interactions`` is ignored in this case.
+            allowed_interactions: The set of interaction types a bounce may
+                take, e.g., ``frozenset({SpecularReflection, Diffraction})``
+                (see :class:`InteractionType<differt.em.InteractionType>` and
+                its ergonomic aliases in :mod:`differt.em`). Defaults to
+                ``frozenset({InteractionType.REFLECTION})`` (today's
+                behavior) when :data:`None`. Only ``'exhaustive'`` and
+                ``'hybrid'`` currently support interactions other than
+                ``REFLECTION``/``SCATTERING``; ``'sbr'``'s ray-shooting
+                kernel only supports ``REFLECTION`` for now.
             **solver_kwargs: Parameters passed  to the solver configuration when it is
                 instantiated from a string shortcut. Any parameters that were also passed as
                 arguments to the function call will override the corresponding values
@@ -837,7 +859,12 @@ class Scene(eqx.Module):
         if path_candidates is None:
             order = cast("int | Sequence[int] | slice", order)
             chunk_size: int | None = getattr(solver, "chunk_size", None)
-            result = solver.trace_paths(self, order, chunk_size=chunk_size)
+            result = solver.trace_paths(
+                self,
+                order,
+                chunk_size=chunk_size,
+                allowed_interactions=allowed_interactions,
+            )
             if isinstance(result, TracedPaths):
                 return result.reshape(*tx_batch, *rx_batch, result.objects.shape[-2])
             reshaped_chunks = (
@@ -853,6 +880,14 @@ class Scene(eqx.Module):
         # Note: 'order' is only used to generate path candidates, so it is not
         # required (and is actually unset, per the check above) when
         # 'path_candidates' is explicitly provided.
+        if allowed_interactions is not None:
+            warnings.warn(
+                "Argument 'allowed_interactions' is ignored when 'path_candidates' "
+                "is provided: explicit path candidates are always interpreted as "
+                "specular reflections.",
+                UserWarning,
+                stacklevel=2,
+            )
         if getattr(solver, "chunk_size", None) is not None:
             warnings.warn(
                 "Argument 'chunk_size' is ignored when 'path_candidates' is provided.",

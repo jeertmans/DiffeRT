@@ -1028,7 +1028,11 @@ class SizedIterator(Iterator[_T], Sized):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # ruff: ignore[builtin-argument-shadowing]
+    def __init__(
+        self,
+        iter: Iterator[_T],  # ruff: ignore[builtin-argument-shadowing]
+        size: int | Callable[[], int] | None = None,
+    ) -> None:
         self._iter = iter
         self._size = size
 
@@ -1039,6 +1043,9 @@ class SizedIterator(Iterator[_T], Sized):
         return next(self._iter)
 
     def __len__(self) -> int:
+        if self._size is None:
+            msg = "This iterator has no fixed length."
+            raise TypeError(msg)
         if isinstance(self._size, int):
             return self._size
         return self._size()
