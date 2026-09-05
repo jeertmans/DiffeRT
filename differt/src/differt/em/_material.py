@@ -1,8 +1,9 @@
 # ruff:file-ignore[math-constant]
 
+import dataclasses
 import typing
 from abc import abstractmethod
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +11,9 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Float
+
+if TYPE_CHECKING:
+    import differt_core.geometry
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -244,7 +248,13 @@ class BackscatteringPattern(AbstractScatteringPattern):
 
 
 class Material(eqx.Module):
-    """A class representing a material and it electrical properties."""
+    """A class representing a material and its electrical properties.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Material``).
+    """
 
     name: str = eqx.field(static=True)
     """
@@ -501,6 +511,12 @@ class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
         super().__init__()
         self.update(other, **kwargs)
 
+    def __hash__(self) -> int:  # type: ignore[override]
+        # 'dict' is unhashable, but this mapping is used as (conceptually
+        # immutable) static data on 'GeometricFieldSolver.radio_materials',
+        # which must be hashable to be usable as a JIT static argument/aux-data.
+        return hash(tuple(sorted(self.items())))
+
     def _resolve(self, key: Any) -> Any:
         """Return the primary key that ``key`` (a name or alias) maps to, or ``key`` unchanged if unknown."""
         if not isinstance(key, str) or super().__contains__(key):
@@ -684,3 +700,88 @@ or by its Sionna-compatible alias (e.g., ``'itu_concrete'``).
 See :ref:`itu-materials-table` for a table of all available ITU radio materials, their aliases, and electrical properties."""
 
 del _materials
+
+
+def _populate_materials(
+    scene_materials: Iterable["differt_core.geometry.Material"],
+    materials: MutableMapping[str, Material],
+) -> None:
+    """
+    Populate ``materials`` in place with the per-shape radio material overrides of a loaded XML scene.
+
+    Used by :meth:`Scene.load_xml<differt.geometry.Scene.load_xml>` so that a scene's ITU
+    radio materials (currently, only ``thickness``, read from a
+    ``<float name="thickness" value="..."/>`` child element) are ready to use, without the
+    caller having to build a materials mapping by hand.
+
+    Each overridden material is looked up in ``materials`` by its generic,
+    ITU-type-derived name (e.g., ``'itu_glass'``) to find its base electrical properties,
+    then stored back keyed the same way -- *unless* another material of the same type in
+    ``scene_materials`` disagrees on the override (e.g., two ``type="glass"`` shapes with
+    different ``thickness`` values), in which case each is kept under its own, unique XML id
+    instead, so they remain distinguishable. This matches how
+    :meth:`Scene.load_xml<differt.geometry.Scene.load_xml>` keys
+    :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>`.
+
+    Args:
+        scene_materials: The materials of a loaded scene, e.g., the values of
+            ``differt_core.geometry.SionnaScene.load_xml(file).materials``.
+        materials: The mapping to populate, both as the source of each material's base
+            electrical properties (matched by :attr:`Material.name<differt.em._material.Material.name>`,
+            or one of its :attr:`Material.aliases<differt.em._material.Material.aliases>`) and as the
+            target it is updated in. A material whose name does not match any entry (e.g.,
+            a non-ITU, purely visual material) is skipped.
+
+    Raises:
+        ValueError: If a material is already present in ``materials`` with a different,
+            already-set ``thickness`` (e.g., from an earlier call with a conflicting scene).
+    """
+    scene_materials = list(scene_materials)
+
+    seen: dict[str, float | None] = {}
+    non_uniform_names: set[str] = set()
+    for mat in scene_materials:
+        if mat.name in seen:
+            if seen[mat.name] != mat.thickness:
+                non_uniform_names.add(mat.name)
+        else:
+            seen[mat.name] = mat.thickness
+
+    for mat in scene_materials:
+        if mat.thickness is None:
+            continue
+
+        base = materials.get(mat.name)
+        if base is None:
+            continue
+
+        is_non_uniform = mat.name in non_uniform_names
+        key = mat.id if is_non_uniform else mat.name
+        existing = materials.get(key)
+
+        if (
+            existing is not None
+            and existing.thickness is not None
+            and existing.thickness != mat.thickness
+        ):
+            msg = (
+                f"Material {key!r} is already present with a different 'thickness' "
+                f"({existing.thickness!r} != {mat.thickness!r})."
+            )
+            raise ValueError(msg)
+
+        value = existing if existing is not None else base
+        if is_non_uniform:
+            # A brand new key that does not match 'value.name' (nor any of its
+            # aliases) would otherwise be silently stored under 'value.name' by
+            # 'MaterialsDict.__setitem__', so the material must be renamed to
+            # its unique id to be kept distinguishable. 'name' is a static
+            # field, so it must be replaced via 'dataclasses.replace' rather
+            # than 'eqx.tree_at', which only rewrites pytree leaves.
+            value = dataclasses.replace(value, name=key)
+        materials[key] = eqx.tree_at(
+            lambda m: m.thickness,
+            value,
+            replace=mat.thickness,
+            is_leaf=lambda x: x is None,
+        )

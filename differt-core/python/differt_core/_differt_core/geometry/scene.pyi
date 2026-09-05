@@ -1,9 +1,9 @@
 from os import PathLike
 
-from differt_core.geometry import TriangleMesh
+from differt_core.geometry import Mesh
 
 class Scene:
-    mesh: list[TriangleMesh]
+    mesh: Mesh
 
     @classmethod
     def load_xml(cls, file: str | PathLike[str]) -> Scene: ...

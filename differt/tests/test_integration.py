@@ -8,6 +8,7 @@ import pytest
 from pytest_subtests import SubTests
 
 from differt.em import (
+    MaterialsDict,
     compute_received_fields,
     compute_received_power,
     materials,
@@ -124,7 +125,9 @@ def test_simple_street_canyon() -> None:
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -298,7 +301,9 @@ def test_received_power_matches_sionna() -> None:
     # Load simple street canyon scene
     file = sionna.rt.scene.simple_street_canyon
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()
 
     # Configure transmitter and receiver antenna array
     # We use isotropic pattern with vertical polarization (V)
@@ -332,9 +337,8 @@ def test_received_power_matches_sionna() -> None:
     max_depth = 2
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_depth)
-    a_real, a_imag = sionna_paths.a
-    a_sionna = a_real.numpy() + 1j * a_imag.numpy()
-    a_sionna = a_sionna[0, 0, 0, 0, :]
+    a_cir, _ = sionna_paths.cir(normalize_delays=False, out_type="numpy")
+    a_sionna = jnp.asarray(a_cir[0, 0, 0, 0, :, 0])
 
     # Calculate received power using Sionna (coherent and non-coherent)
     power_coherent_sionna = 10.0 * jnp.log10(jnp.abs(jnp.sum(a_sionna)) ** 2)
@@ -384,9 +388,9 @@ def test_received_power_matches_sionna() -> None:
         power_non_coherent_sionna,
         atol=1.0,
     )
-    # Coherent power matches within 4.0 dB (minor differences due to phase/reflections definition)
+    # Coherent power matches within 2.0 dB
     chex.assert_trees_all_close(
         power_coherent_differt,
         power_coherent_sionna,
-        atol=4.0,
+        atol=2.0,
     )

@@ -8,12 +8,11 @@ import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import pytest
-import warp as wp
 from jaxtyping import Array, Int, PRNGKeyArray
 from pytest_subtests import SubTests
 
+from differt.em import Diffraction, MaterialsDict, materials
 from differt.geometry import (
     AbstractPathLauncher,
     AbstractPathTracer,
@@ -31,18 +30,9 @@ from differt.geometry import (
     normalize,
     rotation_matrix_along_x_axis,
 )
-from differt.geometry._mesh import _WARP_MESHES_CACHE
-from differt.geometry._scene import _compute_tx_mlm_func
 from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
-
-
-def test_triangle_scene_deprecated() -> None:
-    from differt.geometry import TriangleScene  # ruff:ignore[import-outside-top-level]
-
-    with pytest.warns(DeprecationWarning, match="TriangleScene is deprecated"):
-        _ = TriangleScene(transmitters=jnp.zeros((1, 3)), receivers=jnp.zeros((1, 3)))
 
 
 class TestScene:
@@ -53,7 +43,11 @@ class TestScene:
                 file = get_sionna_scene(scene_name, folder=sionna_folder)
 
                 for f in [file, str(file)]:
-                    scene = Scene.load_xml(f)
+                    # Each scene gets its own materials mapping: these are
+                    # unrelated real-world scenes, so their overrides for a
+                    # same-named base material (e.g., 'itu_metal') may
+                    # legitimately disagree.
+                    scene = Scene.load_xml(f, materials=MaterialsDict(materials))
                     sionna_scene = SionnaScene.load_xml(f)
 
                     assert scene.mesh.object_bounds is not None
@@ -188,7 +182,7 @@ class TestScene:
         "method",
         ["exhaustive", "sbr", "hybrid"],
     )
-    def test_compute_paths_on_advanced_path_tracing_example(
+    def test_trace_paths_and_launch_paths_on_advanced_path_tracing_example(
         self,
         order: int,
         expected_path_vertices: Array,
@@ -303,7 +297,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_on_simple_street_canyon(
+    def test_trace_paths_on_simple_street_canyon(
         self,
         order: int,
         expected_path_vertices: Array,
@@ -347,7 +341,7 @@ class TestScene:
 
     @pytest.mark.parametrize("order", [0, 1, 2, 3])
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_path_candidates_matches_exhaustive(
+    def test_trace_paths_with_path_candidates_matches_exhaustive(
         self, order: int, assume_quads: bool, simple_street_canyon_scene: Scene
     ) -> None:
         scene = simple_street_canyon_scene.set_assume_quads(assume_quads)
@@ -377,7 +371,7 @@ class TestScene:
                 custom_message=f"Path candidate should be valid: {path_candidate}",
             )
 
-    def test_compute_paths_with_padded_path_candidates_and_assume_quads(
+    def test_trace_paths_with_padded_path_candidates_and_assume_quads(
         self, simple_street_canyon_scene: Scene
     ) -> None:
         # Regression test: user-supplied path candidates padded with '-1'
@@ -422,7 +416,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_smoothing(
+    def test_trace_paths_with_smoothing(
         self,
         order: int | None,
         solver: Literal["exhaustive", "hybrid"],
@@ -484,7 +478,7 @@ class TestScene:
         ],
     )
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_on_empty_scene(
+    def test_trace_paths_and_launch_paths_on_empty_scene(
         self,
         order: int | None,
         chunk_size: int | None,
@@ -535,7 +529,7 @@ class TestScene:
 
     @pytest.mark.parametrize(("m_tx", "n_tx"), [(5, None), (3, 4)])
     @pytest.mark.parametrize(("m_rx", "n_rx"), [(2, None), (1, 6)])
-    def test_compute_paths_on_grid(
+    def test_trace_paths_on_grid(
         self,
         m_tx: int,
         n_tx: int | None,
@@ -568,7 +562,7 @@ class TestScene:
         sionna_folder: Path,
     ) -> None:
         file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-        scene = Scene.load_xml(file)
+        scene = Scene.load_xml(file, materials=MaterialsDict(materials))
 
         tx = jnp.array([[0.0, 0.0, 0.0]])
         rx = jnp.array([[1.0, 1.0, 1.0]])
@@ -591,7 +585,7 @@ class TestScene:
             "hybrid",
         ],
     )
-    def test_compute_paths_with_mesh_mask_matches_sub_mesh_without_mask(
+    def test_trace_paths_and_launch_paths_with_mesh_mask_matches_sub_mesh_without_mask(
         self,
         order: int,
         method: Literal["exhaustive", "sbr", "hybrid"],
@@ -647,7 +641,7 @@ class TestScene:
         chex.assert_trees_all_equal(got, expected)
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_no_path_candidate(
+    def test_trace_paths_with_no_path_candidate(
         self,
         assume_quads: bool,
     ) -> None:
@@ -678,7 +672,7 @@ class TestScene:
         )
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_with_disconnect_inactive_triangles(
+    def test_trace_paths_with_disconnect_inactive_triangles(
         self,
         assume_quads: bool,
     ) -> None:
@@ -724,7 +718,7 @@ class TestScene:
         )
 
     @pytest.mark.parametrize("assume_quads", [False, True])
-    def test_compute_paths_hybrid_always_disconnects(
+    def test_trace_paths_hybrid_always_disconnects(
         self,
         assume_quads: bool,
     ) -> None:
@@ -950,10 +944,9 @@ class TestScene:
                 self,
                 scene: Any,
                 order: Any,
-                specular_reflection: Any = True,
-                diffuse_scattering: Any = False,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, order, specular_reflection, diffuse_scattering)
+                _ = (scene, order, allowed_interactions)
                 return jnp.zeros((4, 1), dtype=int), jnp.zeros((4, 1), dtype=int)
 
             def generate_path_candidates_chunks_iter(
@@ -976,9 +969,13 @@ class TestScene:
                 return gen()  # A plain generator has no '__len__'.
 
             def trace_path_candidates(
-                self, scene: Any, path_candidates: Any, interaction_types: Any
+                self,
+                scene: Any,
+                path_candidates: Any,
+                interaction_types: Any,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, interaction_types)
+                _ = (scene, interaction_types, allowed_interactions)
                 n = path_candidates.shape[0]
                 return TracedPaths(
                     vertices=jnp.empty((n, 3, 3)),
@@ -1006,13 +1003,6 @@ class TestScene:
                 order=1, frequency=1e9, chunk_size=10
             )
 
-    def test_compute_paths_deprecation_warning(
-        self, simple_street_canyon_scene: Scene
-    ) -> None:
-        scene = simple_street_canyon_scene
-        with pytest.warns(DeprecationWarning, match="compute_paths is deprecated"):
-            scene.compute_paths(order=1)
-
     def test_solvers_coverage(self, simple_street_canyon_scene: Scene) -> None:
 
         class DummyTracer(AbstractPathTracer):
@@ -1023,16 +1013,19 @@ class TestScene:
                 self,
                 scene: Any,
                 order: Any,
-                specular_reflection: Any = True,
-                diffuse_scattering: Any = False,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, order, specular_reflection, diffuse_scattering)
+                _ = (scene, order, allowed_interactions)
                 return jnp.ones((5, 1), dtype=int), jnp.zeros((5, 1), dtype=int)
 
             def trace_path_candidates(
-                self, scene: Any, path_candidates: Any, interaction_types: Any
+                self,
+                scene: Any,
+                path_candidates: Any,
+                interaction_types: Any,
+                allowed_interactions: Any = None,
             ) -> Any:
-                _ = (scene, path_candidates, interaction_types)
+                _ = (scene, path_candidates, interaction_types, allowed_interactions)
                 return TracedPaths(
                     vertices=jnp.empty((1, 3, 3)),
                     objects=jnp.empty((1, 3), dtype=int),
@@ -1097,6 +1090,24 @@ class TestScene:
                 simple_street_canyon_scene, order=[1, 2]
             )
 
+        with pytest.raises(NotImplementedError):
+            ExhaustivePathTracer().generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=[1, 2], chunk_size=10
+            )
+
+        # Test generate_path_candidates_chunks_iter with chunk_size
+        _ = list(
+            ExhaustivePathTracer().generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=10
+            )
+        )
+
+        _ = list(
+            HybridPathTracer(chunk_size=10).generate_path_candidates_chunks_iter(
+                simple_street_canyon_scene, order=1, chunk_size=10
+            )
+        )
+
         # Test generate_path_candidates_chunks_iter with chunk_size=None
         _ = list(
             ExhaustivePathTracer().generate_path_candidates_chunks_iter(
@@ -1110,38 +1121,13 @@ class TestScene:
             )
         )
 
-    def test_compute_paths_delegation_and_errors(
-        self, simple_street_canyon_scene: Scene
-    ) -> None:
-        scene = simple_street_canyon_scene
-
-        path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
-
-        with pytest.deprecated_call():
-            with pytest.raises(ValueError, match="order' is required"):
-                scene.compute_paths(  # type: ignore[ty:no-matching-overload]
-                    order=None,
-                    path_candidates=path_candidates,
-                    method="sbr",
-                )
-
-        with pytest.deprecated_call():
-            # 'order' is not required for 'hybrid' when 'path_candidates' is
-            # explicitly provided.
-            got_hybrid_from_candidates = scene.compute_paths(  # type: ignore[ty:no-matching-overload]
-                order=None,
-                path_candidates=path_candidates,
-                method="hybrid",
-            )
-            assert isinstance(got_hybrid_from_candidates, TracedPaths)
-
-        with pytest.deprecated_call():
-            got_sbr = scene.compute_paths(order=1, method="sbr", num_rays=500)
-            assert isinstance(got_sbr, LaunchedPaths)
-
-        with pytest.deprecated_call():
-            got_hybrid = scene.compute_paths(order=1, method="hybrid", num_rays=500)
-            assert isinstance(got_hybrid, TracedPaths)
+        # Test HybridPathTracer with diffraction
+        diff_candidates, diff_types = HybridPathTracer().generate_path_candidates(
+            simple_street_canyon_scene,
+            order=1,
+            allowed_interactions=frozenset({Diffraction}),
+        )
+        assert diff_candidates.shape == diff_types.shape
 
     @pytest.mark.require_no_typechecker
     def test_trace_paths_and_launch_paths_errors_and_warnings(
@@ -1188,13 +1174,6 @@ class TestScene:
         # launch_paths with order is None
         with pytest.raises(ValueError, match="order' is required"):
             scene.launch_paths(order=None)
-
-        # compute_paths deprecation and error handling
-        with (
-            pytest.warns(DeprecationWarning, match="compute_paths is deprecated"),
-            pytest.raises(ValueError, match="You must specify one of"),
-        ):
-            scene.compute_paths(order=None, path_candidates=None)
 
     @pytest.mark.parametrize("solver", ["exhaustive", "hybrid"])
     def test_trace_paths_multiple_orders(
@@ -1265,60 +1244,3 @@ class TestScene:
         pytest.importorskip(backend)
         scene = simple_street_canyon_scene
         _ = scene.plot(backend=backend)
-
-
-def test_compute_tx_mlm_func_populates_mesh_cache() -> None:
-    # '_compute_tx_mlm_func' is normally only invoked through 'wp.jax_callable',
-    # as an FFI callback dispatched by JAX/XLA on a thread that Python's
-    # coverage tracer never attaches to, so its (plain Python, non-kernel)
-    # mesh-caching logic is invisible to line coverage when exercised only
-    # through 'Scene.compute_tx_mlm'. Call it directly instead.
-    mesh_id = id(object())
-    assert mesh_id not in _WARP_MESHES_CACHE
-
-    points = np.array(
-        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32
-    )
-    indices = np.array([0, 1, 2], dtype=np.int32)
-    mesh_points = wp.array(points, dtype=wp.vec3)
-    mesh_indices = wp.array(indices, dtype=wp.int32)
-
-    ray_origins = wp.array(
-        np.array([[[0.0, 0.0, 1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
-    )
-    ray_directions = wp.array(
-        np.array([[[0.0, 0.0, -1.0]]], dtype=np.float32), dtype=wp.vec3, ndim=2
-    )
-    output = wp.zeros((1, 2, 2), dtype=wp.uint32)
-
-    call_args = (
-        mesh_id,
-        mesh_points,
-        mesh_indices,
-        ray_origins,
-        ray_directions,
-        2,  # dim_x
-        2,  # dim_y
-        1,  # num_rays
-        1,  # max_order
-        0,  # min_order
-        False,  # assume_quads
-        0.0,  # receiver_height
-        -1.0,  # min_x
-        1.0,  # max_x
-        -1.0,  # min_y
-        1.0,  # max_y
-        output,
-    )
-
-    try:
-        # First call: cache miss, populates '_WARP_MESHES_CACHE'.
-        _compute_tx_mlm_func(*call_args)
-        assert mesh_id in _WARP_MESHES_CACHE
-
-        # Second call, same 'mesh_id': cache hit, reuses the cached mesh.
-        wp_mesh = _WARP_MESHES_CACHE[mesh_id]
-        _compute_tx_mlm_func(*call_args)
-        assert _WARP_MESHES_CACHE[mesh_id] is wp_mesh
-    finally:
-        _WARP_MESHES_CACHE.pop(mesh_id, None)

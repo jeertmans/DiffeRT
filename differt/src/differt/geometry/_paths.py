@@ -1,5 +1,4 @@
 import typing
-import warnings
 from collections.abc import Callable, Iterator, Sequence
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, Literal, overload
@@ -79,12 +78,121 @@ def merge_cell_ids(
     ).reshape(batch)
 
 
+def _reshape_paths(
+    vertices: Float[Array, "*old_batch path_length 3"],
+    objects: Int[Array, "*old_batch path_length"],
+    mask: Shaped[Array, "..."],
+    interaction_types: Int[Array, "*old_batch path_length-2"],
+    batch: tuple[int, ...],
+) -> tuple[
+    Float[Array, "*batch path_length 3"],
+    Int[Array, "*batch path_length"],
+    Shaped[Array, "..."],
+    Int[Array, "*batch path_length-2"],
+]:
+    """Reshape the batch dimensions shared by :class:`TracedPaths` and :class:`LaunchedPaths`.
+
+    Args:
+        vertices: The path vertices.
+        objects: The path object indices.
+        mask: The mask array, i.e., :attr:`TracedPaths.mask` or
+            :attr:`LaunchedPaths.masks`. Only its leading (batch) dimensions
+            are reshaped; any trailing, non-batch dimension (e.g.,
+            :attr:`LaunchedPaths.masks`'s per-order axis) is preserved as-is.
+        interaction_types: The interaction types.
+        batch: New batch shape.
+
+    Returns:
+        The reshaped ``(vertices, objects, mask, interaction_types)``.
+    """
+    old_batch_ndim = vertices.ndim - 2
+    mask_trailing_shape = mask.shape[old_batch_ndim:]
+
+    path_length = objects.shape[-1]
+    vertices = vertices.reshape(*batch, path_length, 3)
+    resolved_batch = vertices.shape[:-2]
+    objects = objects.reshape(*resolved_batch, path_length)
+    mask = mask.reshape(*resolved_batch, *mask_trailing_shape)
+    interaction_types = interaction_types.reshape(*resolved_batch, path_length - 2)
+
+    return vertices, objects, mask, interaction_types
+
+
+def _resolve_squeeze_axis(
+    axis: int | Sequence[int] | None,
+    ndim: int,
+) -> tuple[int | tuple[int, ...] | None, str | None]:
+    """Validate and normalize a ``squeeze`` axis argument for paths' batch dimensions.
+
+    Shared by :meth:`TracedPaths.squeeze` and :meth:`LaunchedPaths.squeeze`.
+
+    Args:
+        axis: The requested axis (or axes) to squeeze.
+        ndim: The number of batch dimensions.
+
+    Returns:
+        An ``(axis, error)`` tuple, where ``error`` is an error message (and
+        ``axis`` is :data:`None`) if validation failed, instead of raising
+        directly.
+    """
+    if axis is not None and ndim == 0:
+        return None, "Cannot squeeze a 0-dimensional batch!"
+    if isinstance(axis, int):
+        axis = (axis,)
+    if isinstance(axis, Sequence):
+        axis = tuple(a + ndim if a < 0 else a for a in axis)
+
+        if any(ax >= ndim or ax < 0 for ax in axis):
+            return None, "One of the provided axes is out-of-bounds!"
+
+    return axis, None
+
+
+def _squeeze_paths(
+    vertices: Float[Array, "*old_batch path_length 3"],
+    objects: Int[Array, "*old_batch path_length"],
+    mask: Shaped[Array, "..."],
+    interaction_types: Int[Array, "*old_batch path_length-2"],
+    axis: int | tuple[int, ...] | None,
+) -> tuple[
+    Float[Array, "*batch path_length 3"],
+    Int[Array, "*batch path_length"],
+    Shaped[Array, "..."],
+    Int[Array, "*batch path_length-2"],
+]:
+    """Squeeze the batch dimensions shared by :class:`TracedPaths` and :class:`LaunchedPaths`.
+
+    Args:
+        vertices: The path vertices.
+        objects: The path object indices.
+        mask: The mask array, i.e., :attr:`TracedPaths.mask` or
+            :attr:`LaunchedPaths.masks`.
+        interaction_types: The interaction types.
+        axis: The (already validated, see :func:`_resolve_squeeze_axis`) axis
+            to squeeze.
+
+    Returns:
+        The squeezed ``(vertices, objects, mask, interaction_types)``.
+    """
+    return (
+        vertices.squeeze(axis),
+        objects.squeeze(axis),
+        mask.squeeze(axis),
+        interaction_types.squeeze(axis),
+    )
+
+
 class TracedPaths(eqx.Module):
     """
     A convenient wrapper class around path vertices and object indices.
 
     This class can hold arbitrary many paths, but they must share the same
     length, i.e., the same number of vertices per path.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import TracedPaths``).
     """
 
     vertices: Float[Array, "*batch path_length 3"]
@@ -135,12 +243,8 @@ class TracedPaths(eqx.Module):
         Returns:
             A new paths instance with specified batch dimensions.
         """
-        vertices = self.vertices.reshape(*batch, self.path_length, 3)
-        resolved_batch = vertices.shape[:-2]
-        objects = self.objects.reshape(*resolved_batch, self.path_length)
-        mask = self.mask.reshape(*resolved_batch)
-        interaction_types = self.interaction_types.reshape(
-            *resolved_batch, self.path_length - 2
+        vertices, objects, mask, interaction_types = _reshape_paths(
+            self.vertices, self.objects, self.mask, self.interaction_types, batch
         )
 
         return eqx.tree_at(
@@ -169,22 +273,13 @@ class TracedPaths(eqx.Module):
                 or if trying to squeeze a 0-dimensional batch.
         """
         ndim = self.vertices.ndim - 2
-        if axis is not None and ndim == 0:
-            msg = "Cannot squeeze a 0-dimensional batch!"
-            raise ValueError(msg)
-        if isinstance(axis, int):
-            axis = (axis,)
-        if isinstance(axis, Sequence):
-            axis = tuple(a + ndim if a < 0 else a for a in axis)
+        axis, err = _resolve_squeeze_axis(axis, ndim)
+        if err is not None:
+            raise ValueError(err)
 
-            if any(ax >= ndim or ax < 0 for ax in axis):
-                msg = "One of the provided axes is out-of-bounds!"
-                raise ValueError(msg)
-
-        mask = self.mask.squeeze(axis)
-        vertices = self.vertices.squeeze(axis)
-        objects = self.objects.squeeze(axis)
-        interaction_types = self.interaction_types.squeeze(axis)
+        vertices, objects, mask, interaction_types = _squeeze_paths(
+            self.vertices, self.objects, self.mask, self.interaction_types, axis
+        )
 
         return eqx.tree_at(
             lambda p: (
@@ -527,30 +622,17 @@ class TracedPaths(eqx.Module):
         return draw_paths(self.masked_vertices, **kwargs)
 
 
-# Deprecated alias
-class Paths(TracedPaths):
-    """
-    Deprecated alias for :class:`TracedPaths`.
-
-    .. deprecated:: 0.10
-        Use :class:`TracedPaths` instead.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "Paths is deprecated, use TracedPaths instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
 class LaunchedPaths(eqx.Module):
     """
     Paths method generated with ray launching methods.
 
     Holds information of lower-order paths too, and holds multi-order mask information.
     Not a subclass of TracedPaths.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import LaunchedPaths``).
     """
 
     vertices: Float[Array, "*batch path_length 3"]
@@ -642,12 +724,8 @@ class LaunchedPaths(eqx.Module):
         Returns:
             A new paths instance with specified batch dimensions.
         """
-        vertices = self.vertices.reshape(*batch, self.path_length, 3)
-        resolved_batch = vertices.shape[:-2]
-        objects = self.objects.reshape(*resolved_batch, self.path_length)
-        masks = self.masks.reshape(*resolved_batch, self.masks.shape[-1])
-        interaction_types = self.interaction_types.reshape(
-            *resolved_batch, self.path_length - 2
+        vertices, objects, masks, interaction_types = _reshape_paths(
+            self.vertices, self.objects, self.masks, self.interaction_types, batch
         )
 
         return eqx.tree_at(
@@ -676,22 +754,13 @@ class LaunchedPaths(eqx.Module):
                 or if trying to squeeze a 0-dimensional batch.
         """
         ndim = self.vertices.ndim - 2
-        if axis is not None and ndim == 0:
-            msg = "Cannot squeeze a 0-dimensional batch!"
-            raise ValueError(msg)
-        if isinstance(axis, int):
-            axis = (axis,)
-        if isinstance(axis, Sequence):
-            axis = tuple(a + ndim if a < 0 else a for a in axis)
+        axis, err = _resolve_squeeze_axis(axis, ndim)
+        if err is not None:
+            raise ValueError(err)
 
-            if any(ax >= ndim or ax < 0 for ax in axis):
-                msg = "One of the provided axes is out-of-bounds!"
-                raise ValueError(msg)
-
-        vertices = self.vertices.squeeze(axis)
-        objects = self.objects.squeeze(axis)
-        masks = self.masks.squeeze(axis)
-        interaction_types = self.interaction_types.squeeze(axis)
+        vertices, objects, masks, interaction_types = _squeeze_paths(
+            self.vertices, self.objects, self.masks, self.interaction_types, axis
+        )
 
         return eqx.tree_at(
             lambda p: (
@@ -747,21 +816,3 @@ class LaunchedPaths(eqx.Module):
                 self.get_paths(order).plot()
 
         return output
-
-
-# Deprecated alias
-class SBRPaths(LaunchedPaths):
-    """
-    Deprecated alias for :class:`LaunchedPaths`.
-
-    .. deprecated:: 0.10
-        Use :class:`LaunchedPaths` instead.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "SBRPaths is deprecated, use LaunchedPaths instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

@@ -211,7 +211,14 @@ impl Mesh {
                 other.set_face_material(None);
             },
             (None, Some(_)) => {
+                // 'self' has no material of its own yet: fill placeholder (-1)
+                // entries for its existing triangles (same as the 'None' arm
+                // of 'set_face_material'), then adopt 'other's material names
+                // outright, since 'self' had none. 'other's existing
+                // face-material indices already correctly reference the
+                // just-adopted names, so they need no remapping.
                 self.set_face_material(None);
+                self.material_names = std::mem::take(&mut other.material_names);
             },
             (Some(_), Some(_)) => {
                 // We need to possibly renumber material indices.

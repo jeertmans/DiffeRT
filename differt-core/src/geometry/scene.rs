@@ -1,9 +1,34 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 use super::sionna::SionnaScene;
 use crate::geometry::mesh::Mesh;
+
+/// Return the set of material names for which at least two materials
+/// (i.e., two distinct XML ids) share that name but disagree on
+/// `thickness`, meaning that name alone is not enough to tell them apart.
+fn non_uniform_material_names(sionna: &SionnaScene) -> HashSet<String> {
+    let mut seen: HashMap<&str, Option<f32>> = HashMap::new();
+    let mut non_uniform = HashSet::new();
+
+    for mat in sionna.materials.values() {
+        match seen.get(mat.name.as_str()) {
+            Some(thickness) if *thickness != mat.thickness => {
+                non_uniform.insert(mat.name.clone());
+            },
+            Some(_) => {},
+            None => {
+                seen.insert(&mat.name, mat.thickness);
+            },
+        }
+    }
+
+    non_uniform
+}
 
 /// A scene that contains one mesh, usually being the results of multiple call to :meth:`Mesh.append<differt_core.geometry.Mesh.append>`.
 ///
@@ -34,13 +59,15 @@ impl Scene {
 }
 impl Scene {
     fn load_xml(file: &Path) -> PyResult<Self> {
-        let sionna = SionnaScene::load_xml(&file)?;
+        let sionna = SionnaScene::load_xml(file)?;
 
         let folder = file.parent().ok_or_else(|| {
             PyValueError::new_err(format!(
                 "Could not determine parent folder of file: {file:#?}",
             ))
         })?;
+
+        let non_uniform_names = non_uniform_material_names(&sionna);
 
         let mut mesh = Mesh::default();
 
@@ -59,7 +86,20 @@ impl Scene {
 
             let color = material.map(|mat| mat.color);
 
-            let material_name = material.map(|mat| mat.name.clone());
+            // Materials whose name is shared by another, differently
+            // configured material (currently, only 'thickness' can differ)
+            // are kept under their unique XML id, so the two remain
+            // distinguishable; every other material still shares the
+            // generic, ITU-type-derived name, matching the previous
+            // behavior (and keeping it resolvable against the built-in ITU
+            // materials database, e.g. via `differt.em.materials_from_sionna`).
+            let material_name = material.map(|mat| {
+                if non_uniform_names.contains(&mat.name) {
+                    mat.id.clone()
+                } else {
+                    mat.name.clone()
+                }
+            });
 
             other_mesh.set_face_color(color.as_ref());
             other_mesh.set_face_material(material_name);

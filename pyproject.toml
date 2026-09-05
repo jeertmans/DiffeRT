@@ -144,6 +144,11 @@ search = "Unreleased"
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
+replace = "changelog-v{new_version}"
+search = "changelog-unreleased"
+
+[[tool.bumpversion.files]]
+filename = "CHANGELOG.md"
 replace = "v{current_version}...v{new_version}"
 search = "v{current_version}...HEAD"
 
@@ -159,10 +164,12 @@ search = '''
 filename = "CHANGELOG.md"
 replace = '''<!-- start changelog -->
 
+(changelog-unreleased)=
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_version}...HEAD)
 
+(changelog-v{new_version})=
 ## [{new_version}]'''
-search = '''## [v{new_version}]'''
+search = '''(changelog-v{new_version})='''
 
 [[tool.bumpversion.files]]
 filename = "README.md"
@@ -211,8 +218,6 @@ env = [
 ]
 filterwarnings = [
   "error",
-  'ignore:The differt.rt module is deprecated:DeprecationWarning',
-  'ignore:The differt.scene module is deprecated:DeprecationWarning',
   'ignore:datetime\.datetime\.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # Python 3.12
   '''ignore:Signature.*for <class 'numpy.longdouble'> does not match any known type:UserWarning''',
   'ignore:You are using an old version of Python:UserWarning',  # Warning for tarfile.TarFile.extractall
@@ -307,6 +312,7 @@ extend-ignore-names = ["T"]
   "too-many-positional-arguments",
   "relative-imports",
 ]
+"differt/src/differt/__init__.py" = ["non-empty-init-module"]
 "scripts/*" = ["implicit-namespace-package"]
 
 [tool.ruff.lint.pydocstyle]

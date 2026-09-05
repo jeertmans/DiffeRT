@@ -11,6 +11,7 @@ from differt.geometry._paths import TracedPaths
 from ._constants import c, z_0
 from ._material import Material
 from ._solvers import AbstractFieldSolver, GeometricFieldSolver
+from ._wavefront import WavefrontState
 
 
 class _GeometricFieldSolverKwargs(TypedDict, total=False):
@@ -20,8 +21,11 @@ class _GeometricFieldSolverKwargs(TypedDict, total=False):
     tx_wavefront_radii: (
         Float[ArrayLike, "*#batch"]
         | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | WavefrontState
         | None
     )
+    interaction_matrices: Mapping[Any, Any] | None
+    wavefront_radii: Any
 
 
 @overload
@@ -42,6 +46,7 @@ def compute_received_fields(
     frequency: Float[ArrayLike, "*#batch"] | None = None,
     *,
     solver: AbstractFieldSolver,
+    wavefront_radii: Any = None,
 ) -> Complex[Array, "*batch"]: ...
 
 
@@ -79,11 +84,35 @@ def compute_received_fields(
             it is instantiated from a string shortcut (see
             :class:`GeometricFieldSolver`'s attributes, e.g.,
             ``tx_polarization``, ``rx_polarization``, ``radio_materials``,
-            ``tx_wavefront_radii``). Not allowed when ``solver`` is already
-            a solver instance.
+            ``tx_wavefront_radii``, ``interaction_matrices``, or
+            per-call ``wavefront_radii``). Not allowed when ``solver`` is already
+            a solver instance, except for ``wavefront_radii``.
 
     Returns:
         The received complex fields of shape ``*batch``.
+    """
+    wavefront_radii = solver_kwargs.pop("wavefront_radii", None)
+    solver, frequency = _resolve_solver_and_frequency(solver, frequency, solver_kwargs)
+    if wavefront_radii is not None and hasattr(solver, "compute_fields"):
+        return solver.compute_fields(
+            paths, mesh, frequency, wavefront_radii=wavefront_radii
+        )
+    return solver.compute_fields(paths, mesh, frequency)
+
+
+def _resolve_solver_and_frequency(
+    solver: AbstractFieldSolver | Literal["geometric"],
+    frequency: Float[ArrayLike, "*#batch"] | None,
+    solver_kwargs: dict[str, Any],
+) -> tuple[AbstractFieldSolver, Float[Array, "*#batch"]]:
+    """
+    Resolve a solver shortcut and operating frequency.
+
+    Shared by :func:`compute_received_fields` and
+    :meth:`TracedFields.from_paths<differt.em.TracedFields.from_paths>`.
+
+    Returns:
+        The resolved ``(solver, frequency)``.
 
     Raises:
         ValueError: If ``solver`` is an unknown string shortcut, if
@@ -111,7 +140,7 @@ def compute_received_fields(
             )
             raise ValueError(msg)
 
-    return solver.compute_fields(paths, mesh, frequency)
+    return solver, jnp.asarray(frequency)
 
 
 @jax.jit(static_argnames=("coherent", "axis"))
@@ -166,6 +195,31 @@ def compute_cir(
     return delay, fields
 
 
+def _resolve_geometric_solver(
+    solver: GeometricFieldSolver | None,
+    solver_kwargs: dict[str, Any],
+) -> GeometricFieldSolver:
+    """
+    Resolve a ``GeometricFieldSolver`` instance (or None).
+
+    Shared by :func:`transition_matrix`, :func:`reflection_matrix`,
+    :func:`diffraction_matrix`, :func:`scattering_matrix`,
+    :func:`transmission_matrix`, and :func:`ris_matrix`.
+
+    Returns:
+        The resolved solver.
+
+    Raises:
+        ValueError: If ``solver_kwargs`` is used together with a solver instance.
+    """
+    if solver is None:
+        return GeometricFieldSolver(**solver_kwargs)
+    if solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver
+
+
 def transition_matrix(
     paths: TracedPaths,
     mesh: Mesh,
@@ -188,19 +242,9 @@ def transition_matrix(
 
     Returns:
         One 2x2 transition matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.transition_matrices(paths, mesh, frequency)
-
-
-transition_matrices = transition_matrix
 
 
 def reflection_matrix(
@@ -223,15 +267,8 @@ def reflection_matrix(
 
     Returns:
         One 2x2 reflection matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.reflection_matrix(paths, mesh, frequency)
 
 
@@ -255,15 +292,8 @@ def diffraction_matrix(
 
     Returns:
         One 2x2 diffraction matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.diffraction_matrix(paths, mesh, frequency)
 
 
@@ -287,15 +317,8 @@ def scattering_matrix(
 
     Returns:
         One 2x2 diffuse scattering matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.scattering_matrix(paths, mesh, frequency)
 
 
@@ -319,15 +342,8 @@ def transmission_matrix(
 
     Returns:
         One 2x2 transmission matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.transmission_matrix(paths, mesh, frequency)
 
 
@@ -351,13 +367,6 @@ def ris_matrix(
 
     Returns:
         One 2x2 RIS matrix per bounce.
-
-    Raises:
-        ValueError: If ``solver_kwargs`` is used together with a solver instance.
     """
-    if solver is None:
-        solver = GeometricFieldSolver(**solver_kwargs)
-    elif solver_kwargs:
-        msg = "solver_kwargs cannot be used when a solver instance is provided."
-        raise ValueError(msg)
+    solver = _resolve_geometric_solver(solver, solver_kwargs)
     return solver.ris_matrix(paths, mesh, frequency)

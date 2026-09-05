@@ -1,6 +1,7 @@
 """Electromagnetic (EM) fields utilities."""
 
 __all__ = (
+    "RIS",
     "AbstractAntenna",
     "AbstractFarFieldAntenna",
     "AbstractFieldSolver",
@@ -8,6 +9,7 @@ __all__ = (
     "AbstractScatteringPattern",
     "BackscatteringPattern",
     "BaseAntenna",
+    "Diffraction",
     "Dipole",
     "DirectivePattern",
     "F",
@@ -19,9 +21,14 @@ __all__ = (
     "LambertianPattern",
     "Material",
     "MaterialsDict",
+    "PathWavefront",
+    "Scattering",
     "ShortDipole",
     "ShortDipolePattern",
+    "SpecularReflection",
     "TracedFields",
+    "Transmission",
+    "WavefrontState",
     "c",
     "compute_cir",
     "compute_received_fields",
@@ -36,6 +43,7 @@ __all__ = (
     "mu_0",
     "path_delay",
     "poynting_vector",
+    "propagate_wavefront",
     "reflection_coefficients",
     "reflection_matrix",
     "refraction_coefficients",
@@ -45,7 +53,6 @@ __all__ = (
     "slab_coefficients",
     "sp_directions",
     "sp_rotation_matrix",
-    "transition_matrices",
     "transition_matrix",
     "transmission_matrix",
     "z_0",
@@ -72,7 +79,14 @@ from ._fresnel import (
     refractive_index,
     slab_coefficients,
 )
-from ._interaction_type import InteractionType
+from ._interaction_type import (
+    RIS,
+    Diffraction,
+    InteractionType,
+    Scattering,
+    SpecularReflection,
+    Transmission,
+)
 from ._material import (
     AbstractScatteringPattern,
     BackscatteringPattern,
@@ -90,7 +104,6 @@ from ._pipeline import (
     reflection_matrix,
     ris_matrix,
     scattering_matrix,
-    transition_matrices,
     transition_matrix,
     transmission_matrix,
 )
@@ -103,3 +116,4 @@ from ._utils import (
     sp_directions,
     sp_rotation_matrix,
 )
+from ._wavefront import PathWavefront, WavefrontState, propagate_wavefront

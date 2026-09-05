@@ -13,8 +13,6 @@ from jaxtyping import PRNGKeyArray
 from differt.geometry import Mesh, Scene, path_length
 from differt.geometry._paths import (
     LaunchedPaths,
-    Paths,
-    SBRPaths,
     TracedPaths,
     merge_cell_ids,
 )
@@ -33,66 +31,6 @@ def test_merge_cell_ids() -> None:
     got = merge_cell_ids(cell_a_ids, cell_b_ids)
 
     chex.assert_trees_all_equal(got, expected)
-
-
-def test_aliases() -> None:
-    assert issubclass(Paths, TracedPaths)
-    assert issubclass(SBRPaths, LaunchedPaths)
-
-    with pytest.deprecated_call():
-        _ = Paths(
-            jnp.empty((1, 2, 3)),
-            jnp.empty((1, 2), dtype=int),
-            jnp.empty(1, dtype=bool),
-            jnp.empty((1, 0), dtype=jnp.int32),
-        )
-
-    with pytest.deprecated_call():
-        _ = SBRPaths(
-            jnp.empty((1, 2, 3)),
-            jnp.empty((1, 2), dtype=int),
-            masks=jnp.empty((1, 1), dtype=bool),
-            interaction_types=jnp.empty((1, 0), dtype=jnp.int32),
-        )
-
-    def test_get_paths() -> None:
-        paths = LaunchedPaths(
-            vertices=jnp.empty((1, 4, 3)),
-            objects=jnp.empty((1, 4), dtype=int),
-            masks=jnp.empty((1, 3), dtype=bool),
-            interaction_types=jnp.empty((1, 2), dtype=jnp.int32),
-        )
-
-        got = paths.get_paths(1)
-        assert isinstance(got, TracedPaths)
-
-        with pytest.raises(ValueError, match="strictly between 0 and 2"):
-            paths.get_paths(3)
-        with pytest.raises(ValueError, match="strictly between 0 and 2"):
-            paths.get_paths(-1)
-
-    def test_squeeze() -> None:
-        paths = LaunchedPaths(
-            vertices=jnp.empty((1, 3, 3)),
-            objects=jnp.empty((1, 3), dtype=int),
-            masks=jnp.empty((1, 2), dtype=bool),
-            interaction_types=jnp.empty((1, 1), dtype=jnp.int32),
-        )
-
-        squeezed = paths.squeeze(0)
-        assert squeezed.shape == ()
-
-        with pytest.raises(ValueError, match="out-of-bounds"):
-            paths.squeeze(1)
-
-        paths_0d = LaunchedPaths(
-            vertices=jnp.empty((3, 3)),
-            objects=jnp.empty((3,), dtype=int),
-            masks=jnp.empty((2,), dtype=bool),
-            interaction_types=jnp.empty((1,), dtype=jnp.int32),
-        )
-        with pytest.raises(ValueError, match="Cannot squeeze a 0-dimensional batch!"):
-            paths_0d.squeeze()
 
 
 def random_paths(

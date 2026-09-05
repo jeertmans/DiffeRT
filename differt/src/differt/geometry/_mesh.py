@@ -2,7 +2,6 @@ import typing
 import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import replace
-from functools import partial
 from os import PathLike
 from typing import (
     TYPE_CHECKING,
@@ -20,7 +19,6 @@ from typing import (
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import warp as wp
 from jaxtyping import Array, ArrayLike, Bool, Float, Int, PRNGKeyArray
 
@@ -36,8 +34,6 @@ from ._utils import (
 )
 from ._warp_utils import (
     _Batched,
-    _clear_warp_mesh_cache,
-    _get_warp_mesh,
     _Offset,
     _warp_launch,
 )
@@ -46,11 +42,6 @@ if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
-
-
-# TODO: still allow setting log level and initialization from environ variable?
-wp.config.log_level = wp.LOG_ERROR
-wp.init()
 
 
 class _AtIndexingKwargs(TypedDict):
@@ -157,15 +148,14 @@ def _ray_intersect_any_triangle_kernel(
 
 @no_type_check
 def _ray_intersect_any_triangle_anyhit_func(
-    mesh_id: int,
-    points: wp.array[wp.vec3],
-    indices: wp.array[wp.int32],
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array[wp.vec3],
     ray_directions: wp.array[wp.vec3],
     max_t: wp.array[wp.float32],
     output: wp.array[wp.bool],
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
     _warp_launch(
         _ray_intersect_any_triangle_kernel,
         dim=ray_origins.shape[0],
@@ -200,15 +190,14 @@ def _first_triangle_hit_by_ray_kernel(
 
 @no_type_check
 def _first_triangle_hit_by_ray_func(
-    mesh_id: int,
-    points: wp.array[wp.vec3],
-    indices: wp.array[wp.int32],
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array[wp.vec3],
     ray_directions: wp.array[wp.vec3],
     output_face: wp.array[wp.int32],
     output_dist: wp.array[wp.float32],
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
     epsilon = 1e-5
     _warp_launch(
         _first_triangle_hit_by_ray_kernel,
@@ -251,9 +240,8 @@ def _differentiable_distance(
     return jnp.where(is_hit, t, jnp.inf)
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(0,))
+@jax.custom_vjp
 def _first_triangle_hit_by_ray_helper(
-    mesh_id: np.uint64,
     vertices: Float[Array, "num_vertices 3"],
     triangles: Int[Array, "num_triangles 3"],
     flat_ray_origins: Float[Array, "num_rays 3"],
@@ -265,7 +253,6 @@ def _first_triangle_hit_by_ray_helper(
         output_dims=(flat_ray_origins.shape[0],),
         graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
-        mesh_id,
         vertices,
         triangles.ravel(),
         flat_ray_origins,
@@ -275,7 +262,6 @@ def _first_triangle_hit_by_ray_helper(
 
 
 def _first_triangle_hit_by_ray_helper_fwd(
-    mesh_id: np.uint64,
     vertices: Float[Array, "num_vertices 3"],
     triangles: Int[Array, "num_triangles 3"],
     flat_ray_origins: Float[Array, "num_rays 3"],
@@ -291,7 +277,7 @@ def _first_triangle_hit_by_ray_helper_fwd(
     ],
 ]:
     out_faces, out_t = _first_triangle_hit_by_ray_helper(
-        mesh_id, vertices, triangles, flat_ray_origins, flat_ray_directions
+        vertices, triangles, flat_ray_origins, flat_ray_directions
     )
     return (out_faces, out_t), (
         vertices,
@@ -303,7 +289,6 @@ def _first_triangle_hit_by_ray_helper_fwd(
 
 
 def _first_triangle_hit_by_ray_helper_bwd(
-    _mesh_id: np.uint64,
     res: tuple[
         Float[Array, "num_vertices 3"],
         Int[Array, "num_triangles 3"],
@@ -370,16 +355,15 @@ def _triangles_visible_from_vertex_kernel(
 
 @no_type_check
 def _triangles_visible_from_vertex_func(
-    mesh_id: int,
-    points: wp.array[wp.vec3],
-    indices: wp.array[wp.int32],
+    mesh_points: wp.array[wp.vec3],
+    mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array[wp.vec3],
     ray_directions: wp.array[wp.vec3],
     num_rays: int,
     num_triangles: int,
     output_visible: wp.array[wp.bool],
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, points, indices)
+    wp_mesh = wp.Mesh(mesh_points, mesh_indices)
 
     epsilon = 1e-5
     output_visible.zero_()
@@ -617,6 +601,11 @@ class Mesh(eqx.Module):
     """
     A simple geometry made of triangles.
 
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Mesh``).
+
     .. warning::
 
         The Warp-accelerated methods in this class (such as :meth:`ray_intersect_any_triangle`,
@@ -691,16 +680,13 @@ class Mesh(eqx.Module):
         that form the quad are active.
     """
 
-    def __check_init__(self) -> None:  # ruff:ignore[bad-dunder-method-name]
+    def __check_init__(self) -> None:  # ruff: ignore[bad-dunder-method-name]
         if self.assume_quads and (self.triangles.shape[0] % 2) != 0:
             msg = "You cannot set 'assume_quads' to 'True' if the number of triangles is not even!"
             raise ValueError(msg)
         if len(set(self.material_names)) != len(self.material_names):
             msg = f"Material names must be unique, got {self.material_names!r}."
             raise ValueError(msg)
-
-    def __del__(self) -> None:
-        _clear_warp_mesh_cache(id(self))
 
     def __getitem__(self, key: slice | Int[ArrayLike, " n"]) -> Self:
         """Return a new instance of this mesh, taking only specific triangles.
@@ -1259,6 +1245,67 @@ class Mesh(eqx.Module):
         _, _, params = self._diffraction_edges_info()
         return params
 
+    def _wedge_static_geometry(
+        self,
+    ) -> tuple[
+        Float[Array, "num_triangles 3 3"],
+        Float[Array, "num_triangles 3 3"],
+        Float[Array, "num_triangles 3 3"],
+        Int[Array, "num_triangles 3"],
+    ]:
+        r"""
+        Compute the path-independent (canonical) wedge geometry for every half-edge.
+
+        Every triangle edge (whether or not it is an actual diffraction edge)
+        is addressed as a ``(triangle, local_edge)`` half-edge pair, matching
+        Sionna RT's own wedge addressing
+        (``sionna.rt.utils.wedges.wedge_geometry``) and, unlike
+        :attr:`diffraction_edges` (which deduplicates edges via a
+        non-:func:`jax.jit`-compatible :func:`jax.numpy.unique`), stays
+        :func:`jax.jit`-compatible and never has a zero-sized axis.
+
+        Follows the same orientation convention as
+        ``wedge_geometry``: the face normals are oriented so that the
+        interior angle of the wedge is at most :math:`\pi`, and the edge
+        direction is oriented such that ``cross(n0, e_hat)`` points toward
+        the (arbitrarily labeled) 0-face. Half-edges that are not actual
+        diffraction edges (mesh boundary, or coplanar/inactive neighbors, see
+        :attr:`diffraction_edges_mask`) get an arbitrary, self-consistent
+        (but physically meaningless) placeholder geometry; callers are
+        expected to discard those entries.
+
+        Returns:
+            A tuple of ``(n0, nn, e_hat, primn)`` (``prim0`` is implicitly
+            ``arange(num_triangles)[:, None]`` broadcast against the
+            local-edge axis).
+        """
+        adj_t, _ = self._connectivity()
+        num_triangles = self.num_triangles
+        primn = jnp.where(adj_t == -1, jnp.arange(num_triangles)[:, None], adj_t)
+        prim0 = jnp.broadcast_to(jnp.arange(num_triangles)[:, None], primn.shape)
+
+        e0, e1 = self.triangle_edges[..., 0, :], self.triangle_edges[..., 1, :]
+
+        normals = self.normals
+        n0_raw = jnp.take(normals, prim0, axis=0)
+        nn_raw = jnp.take(normals, primn, axis=0)
+
+        triangle_vertices = self.triangle_vertices
+        f0 = jnp.mean(jnp.take(triangle_vertices, prim0, axis=0), axis=-2)
+        fn = jnp.mean(jnp.take(triangle_vertices, primn, axis=0), axis=-2)
+
+        flip_n0 = jnp.sum(n0_raw * (fn - e0), axis=-1) > 0.0
+        n0 = jnp.where(flip_n0[..., None], -n0_raw, n0_raw)
+        flip_nn = jnp.sum(nn_raw * (f0 - e0), axis=-1) > 0.0
+        nn = jnp.where(flip_nn[..., None], -nn_raw, nn_raw)
+
+        e_hat_raw, _ = normalize(e1 - e0)
+        t0 = jnp.cross(n0, e_hat_raw)
+        flip_e = jnp.sum(t0 * (f0 - e0), axis=-1) < 0.0
+        e_hat = jnp.where(flip_e[..., None], -e_hat_raw, e_hat_raw)
+
+        return n0, nn, e_hat, primn
+
     @property
     def bounding_box(self) -> Float[Array, "2 3"]:
         """
@@ -1286,7 +1333,7 @@ class Mesh(eqx.Module):
         def at(self) -> _MeshVerticesUpdateHelper[Self]: ...
 
     @property
-    def at(self):  # ruff:ignore[missing-return-type-private-function]
+    def at(self):  # ruff: ignore[missing-return-type-private-function]
         """
         Helper property for updating or indexing a subset of triangle vertices.
 
@@ -3081,22 +3128,19 @@ class Mesh(eqx.Module):
         if self.mask is not None:
             triangles = jnp.where(self.mask[:, None], self.triangles, 0)
 
-        mesh_id = np.uint64(id(self))
-
         output = wp.jax_callable(
             _ray_intersect_any_triangle_anyhit_func,
             output_dims=(flat_ray_origins.shape[0],),
             graph_mode=wp.JaxCallableGraphMode.NONE,
         )(
-            mesh_id,
             jax.lax.stop_gradient(self.vertices),
-            triangles.ravel(),
+            jax.lax.stop_gradient(triangles.ravel()),
             jax.lax.stop_gradient(flat_ray_origins),
             jax.lax.stop_gradient(flat_ray_directions),
             jax.lax.stop_gradient(flat_max_t),
         )[0]
         batch = ray_origins.shape[:-1]
-        return jax.lax.stop_gradient(output.reshape(batch))
+        return output.reshape(batch)
 
     @eqx.filter_jit
     def first_triangle_hit_by_ray(
@@ -3149,10 +3193,7 @@ class Mesh(eqx.Module):
         if self.mask is not None:
             triangles = jnp.where(self.mask[:, None], self.triangles, 0)
 
-        mesh_id = np.uint64(id(self))
-
         out_faces, out_t = _first_triangle_hit_by_ray_helper(
-            mesh_id,
             self.vertices,
             triangles,
             flat_ray_origins,
@@ -3162,7 +3203,7 @@ class Mesh(eqx.Module):
         batch = ray_origins.shape[:-1]
 
         return (
-            jax.lax.stop_gradient(out_faces.reshape(batch)),
+            out_faces.reshape(batch),
             out_t.reshape(batch),
         )
 
@@ -3238,17 +3279,13 @@ class Mesh(eqx.Module):
         triangles = self.triangles
         if self.mask is not None:
             triangles = jnp.where(self.mask[:, None], self.triangles, 0)
-
-        mesh_id = np.uint64(id(self))
-
         out_visible = wp.jax_callable(
             _triangles_visible_from_vertex_func,
             output_dims=(total_batches * num_triangles,),
             graph_mode=wp.JaxCallableGraphMode.NONE,
         )(
-            mesh_id,
             jax.lax.stop_gradient(self.vertices),
-            triangles.ravel(),
+            jax.lax.stop_gradient(triangles.ravel()),
             jax.lax.stop_gradient(flat_ray_origins),
             jax.lax.stop_gradient(flat_ray_directions),
             num_rays,
@@ -3256,22 +3293,4 @@ class Mesh(eqx.Module):
         )[0].reshape((total_batches, num_triangles))
 
         batch_shape = vertex.shape[:-1]
-        return jax.lax.stop_gradient(out_visible.reshape(*batch_shape, num_triangles))
-
-
-# Deprecated alias
-class TriangleMesh(Mesh):
-    """
-    Deprecated alias for :class:`Mesh`.
-
-    .. deprecated:: 0.10
-        Use :class:`Mesh` instead.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "TriangleMesh is deprecated, use Mesh instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
+        return out_visible.reshape(*batch_shape, num_triangles)

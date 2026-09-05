@@ -306,7 +306,7 @@ def fspl(
     d: Float[ArrayLike, " *#batch"],
     f: Float[ArrayLike, " *#batch"],
     *,
-    dB: bool = False,  # ruff:ignore[invalid-argument-name]
+    dB: bool = False,  # ruff: ignore[invalid-argument-name]
 ) -> Float[Array, " *batch"]:
     """
     Compute the free-space path loss (FSPL), optionally in dB.
@@ -325,3 +325,34 @@ def fspl(
         return 20 * jnp.log10(d) + 20 * jnp.log10(f) - 147.55221677811662
 
     return jax.lax.integer_pow(4 * jnp.pi * d * f / c, 2)
+
+
+@jax.jit
+def _spherical_basis(
+    k: Float[Array, "*batch 3"],
+) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+    """
+    Compute theta_hat and phi_hat unit vectors for a propagation direction k.
+
+    Args:
+        k: The propagation direction vector, shape ``(*batch, 3)``.
+
+    Returns:
+        A tuple of ``(theta_hat, phi_hat)`` spherical basis unit vectors.
+    """
+    x = k[..., 0]
+    y = k[..., 1]
+    z = jnp.clip(k[..., 2], -1.0, 1.0)
+    theta = jnp.arccos(z)
+    phi = jnp.arctan2(y, x)
+
+    sin_theta = jnp.sin(theta)
+    cos_theta = jnp.cos(theta)
+    sin_phi = jnp.sin(phi)
+    cos_phi = jnp.cos(phi)
+
+    theta_hat = jnp.stack(
+        [cos_theta * cos_phi, cos_theta * sin_phi, -sin_theta], axis=-1
+    )
+    phi_hat = jnp.stack([-sin_phi, cos_phi, jnp.zeros_like(phi)], axis=-1)
+    return theta_hat, phi_hat

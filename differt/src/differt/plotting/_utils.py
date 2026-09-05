@@ -29,10 +29,8 @@ if TYPE_CHECKING:
     from vispy.scene.widgets.viewbox import ViewBox
 
     T = TypeVar("T", Canvas, MplFigure, Figure)
-    PlotOutput = Canvas | MplFigure | Figure
 else:
     T = TypeVar("T")
-    PlotOutput = Any
 
 BackendName = Literal["vispy", "matplotlib", "plotly"]
 P = ParamSpec("P")
@@ -404,10 +402,10 @@ def dispatch(fun: Callable[P, T]) -> _Dispatcher[P, T]:
         # TODO: fixme when https://github.com/astral-sh/ty/issues/2507 is closed
         @no_type_check
         def _wrapper_(impl: Callable[P, T]) -> Callable[P, T]:
-            """Actually register the backend implementation."""  # ruff:ignore[docstring-missing-returns]
+            """Actually register the backend implementation."""  # ruff: ignore[docstring-missing-returns]
 
             @wraps(impl)
-            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # ruff:ignore[dunder-function-name]
+            def __wrapper__(*args: P.args, **kwargs: P.kwargs) -> T:  # ruff: ignore[dunder-function-name]
                 try:
                     return impl(*args, **kwargs)
                 except ImportError as e:
@@ -468,10 +466,10 @@ def view_from_canvas(canvas: Canvas) -> ViewBox:
     Returns:
         The view on which contents are displayed.
     """
-    from vispy.scene.cameras.turntable import (  # ruff:ignore[import-outside-top-level]
+    from vispy.scene.cameras.turntable import (  # ruff: ignore[import-outside-top-level]
         TurntableCamera,
     )
-    from vispy.scene.widgets.viewbox import (  # ruff:ignore[import-outside-top-level]
+    from vispy.scene.widgets.viewbox import (  # ruff: ignore[import-outside-top-level]
         ViewBox,
     )
 
@@ -524,7 +522,7 @@ def process_vispy_kwargs(
     Returns:
         The canvas and view used to display contents.
     """
-    from vispy import scene  # ruff:ignore[import-outside-top-level]
+    from vispy import scene  # ruff: ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
@@ -572,8 +570,8 @@ def process_matplotlib_kwargs(
     Returns:
         The figure and axes used to display contents.
     """
-    import matplotlib.pyplot as plt  # ruff:ignore[import-outside-top-level]
-    from mpl_toolkits.mplot3d import Axes3D  # ruff:ignore[import-outside-top-level]
+    import matplotlib.pyplot as plt  # ruff: ignore[import-outside-top-level]
+    from mpl_toolkits.mplot3d import Axes3D  # ruff: ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)
@@ -621,7 +619,7 @@ def process_plotly_kwargs(
     Returns:
         The figure used to display contents.
     """
-    import plotly.graph_objects as go  # ruff:ignore[import-outside-top-level]
+    import plotly.graph_objects as go  # ruff: ignore[import-outside-top-level]
 
     for key, value in config.defaults.kwargs.items():
         kwargs.setdefault(key, value)

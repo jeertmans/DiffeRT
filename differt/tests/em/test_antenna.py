@@ -50,7 +50,7 @@ class _IsotropicAntenna(AbstractAntenna):
     def fields(
         self,
         r: Float[ArrayLike, "*#batch 3"],
-        t: Float[ArrayLike, "*#batch"]  # ruff:ignore[unused-method-argument]
+        t: Float[ArrayLike, "*#batch"]  # ruff: ignore[unused-method-argument]
         | None = None,
     ) -> tuple[Inexact[Array, "*batch 3"], Inexact[Array, "*batch 3"]]:
         r = jnp.asarray(r)

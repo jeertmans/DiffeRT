@@ -2,12 +2,13 @@ import dataclasses
 import math
 import typing
 import warnings
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, MutableMapping, Sequence
 from os import PathLike
 from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
+    TypeVar,
     Unpack,
     cast,
     no_type_check,
@@ -17,7 +18,6 @@ from typing import (
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import warp as wp
 from jaxtyping import Array, ArrayLike, Float, Int
 from jaxtyping import UInt as Uint
@@ -27,7 +27,9 @@ from differt.plotting import PlotOutput, draw_markers, reuse
 
 from ._mesh import Mesh
 from ._paths import LaunchedPaths, TracedPaths
-from ._solvers import (
+from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
+from ._warp_utils import _Batched, _warp_launch
+from .solvers import (
     AbstractPathLauncher,
     AbstractPathTracer,
     ExhaustivePathTracer,
@@ -39,7 +41,6 @@ from ._solvers import (
     _SBRPathLauncherKwargs,
     _SBRPathTracerKwargs,
 )
-from ._utils import SizedIterator, fibonacci_lattice, viewing_frustum
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
@@ -57,10 +58,8 @@ else:
     SionnaScene = Any
 
 if TYPE_CHECKING:
-    from differt.em import AbstractFieldSolver, TracedFields
+    from differt.em import AbstractFieldSolver, InteractionType, Material, TracedFields
 
-
-from differt.geometry._warp_utils import _Batched, _get_warp_mesh, _warp_launch
 
 _C_MAGIC_1 = wp.constant(wp.uint32(0x9E3779B9))
 _C_MAGIC_2 = wp.constant(wp.uint32(0x045D9F3B))
@@ -127,10 +126,10 @@ def _compute_tx_mlm_kernel(
             u = (wp.float32(receiver_height) - query_origin[2]) / current_direction[2]
 
             # Intersection point P
-            P = query_origin + current_direction * u  # ruff:ignore[non-lowercase-variable-in-function]
+            P = query_origin + current_direction * u  # ruff: ignore[non-lowercase-variable-in-function]
 
             # Check if intersection is valid and unobstructed
-            if u > wp.float32(0.0) and u < t_hit:  # ruff:ignore[collapsible-if]
+            if u > wp.float32(0.0) and u < t_hit:  # ruff: ignore[collapsible-if]
                 if t >= min_order and (
                     P[0] >= wp.float32(min_x)
                     and P[0] <= wp.float32(max_x)
@@ -156,7 +155,7 @@ def _compute_tx_mlm_kernel(
             face_index = res.face
 
             # Normal vector
-            normal = wp.mesh_eval_face_normal(mesh_id, face_index)
+            normal = res.normal
 
             # Reflected direction
             current_direction = (
@@ -176,7 +175,6 @@ def _compute_tx_mlm_kernel(
 
 @no_type_check
 def _compute_tx_mlm_func(
-    mesh_id: int,
     mesh_points: wp.array[wp.vec3],
     mesh_indices: wp.array[wp.int32],
     ray_origins: wp.array(dtype=wp.vec3, ndim=2),
@@ -194,7 +192,7 @@ def _compute_tx_mlm_func(
     max_y: float,
     output: wp.array(dtype=wp.uint32, ndim=3),
 ) -> None:
-    wp_mesh = _get_warp_mesh(mesh_id, mesh_points, mesh_indices)
+    wp_mesh = wp.Mesh(points=mesh_points, indices=mesh_indices)
 
     output.zero_()
 
@@ -281,7 +279,6 @@ def _compute_tx_mlm(
 
     ray_origins, ray_directions = jax.vmap(gen_rays)(tx)
 
-    mesh_id = np.uint64(id(mesh))
     num_tx = ray_origins.shape[0]
 
     return wp.jax_callable(
@@ -289,7 +286,6 @@ def _compute_tx_mlm(
         output_dims=(num_tx, dim_x, dim_y),
         graph_mode=wp.JaxCallableGraphMode.NONE,
     )(
-        mesh_id,
         points,
         indices.ravel(),
         ray_origins,
@@ -308,8 +304,52 @@ def _compute_tx_mlm(
     )[0]
 
 
+_SolverT = TypeVar("_SolverT", bound=AbstractPathLauncher | AbstractPathTracer)
+
+
+def _resolve_solver(
+    solver: _SolverT | str,
+    solver_kwargs: dict[str, Any],
+    choices: Mapping[str, type[_SolverT]],
+) -> _SolverT:
+    """
+    Resolve a string solver shortcut to an instance, or validate a provided instance.
+
+    Shared by :meth:`Scene.trace_paths` and :meth:`Scene.launch_paths`.
+
+    Args:
+        solver: The solver instance, or a string shortcut naming one of ``choices``.
+        solver_kwargs: Keyword arguments used to instantiate the solver when
+            ``solver`` is a string shortcut.
+        choices: A mapping from string shortcut to the solver class it instantiates.
+
+    Returns:
+        The resolved solver instance.
+
+    Raises:
+        ValueError: If ``solver`` is an unknown string shortcut, or if
+            ``solver_kwargs`` is used together with a solver instance.
+    """
+    if isinstance(solver, str):
+        cls = choices.get(solver)
+        if cls is None:
+            msg = f"Unknown solver: {solver}"
+            raise ValueError(msg)
+        return cls(**solver_kwargs)
+    if solver_kwargs:
+        msg = "solver_kwargs cannot be used when a solver instance is provided."
+        raise ValueError(msg)
+    return solver
+
+
 class Scene(eqx.Module):
-    """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
+    """A simple scene made of one or more triangle meshes, some transmitters and some receivers.
+
+    .. note::
+
+        This class is also re-exported directly from the top-level :mod:`differt` package
+        (e.g., ``from differt import Scene``).
+    """
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
         default_factory=lambda: jnp.empty((0, 3)),
@@ -491,30 +531,53 @@ class Scene(eqx.Module):
         Returns:
             The corresponding scene.
         """
-        return cls(
-            mesh=Mesh.from_core(core_scene.mesh),
-        )
+        return cls(mesh=Mesh.from_core(core_scene.mesh))
 
     @classmethod
-    def load_xml(cls, file: str | PathLike[str]) -> Self:
+    def load_xml(
+        cls,
+        file: str | PathLike[str],
+        *,
+        materials: MutableMapping[str, "Material"] | None = None,
+    ) -> Self:
         """
         Load a triangle scene from a XML file.
 
         This method uses
         :meth:`SionnaScene.load_xml<differt_core.geometry.SionnaScene.load_xml>`
-        internally.
+        internally, and populates ``materials`` with the file's ITU radio material
+        overrides (e.g., a per-shape ``thickness``), so that
+        :attr:`Mesh.material_names<differt.geometry.Mesh.material_names>` can be used
+        to look up each shape's :class:`Material<differt.em._material.Material>`
+        directly from ``materials``.
 
         Args:
             file: The path to the XML file.
+            materials: The mapping to populate with the scene's radio materials.
+
+                Defaults to the global :data:`materials<differt.em._material.materials>` mapping,
+                which is modified in place.
 
         Returns:
             The corresponding scene containing only triangle meshes.
         """
+        from differt.em import (  # ruff: ignore[import-outside-top-level]
+            materials as _default_materials,
+        )
+        from differt.em._material import (  # ruff: ignore[import-outside-top-level]
+            _populate_materials,
+        )
+
+        if materials is None:
+            materials = _default_materials
+
         core_scene = differt_core.geometry.Scene.load_xml(file)
+        sionna_scene = differt_core.geometry.SionnaScene.load_xml(file)
+        _populate_materials(sionna_scene.materials.values(), materials)
         return cls.from_core(core_scene)
 
     @classmethod
-    def from_mitsuba(cls, mi_scene) -> Self:  # ruff:ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
+    def from_mitsuba(cls, mi_scene) -> Self:  # ruff: ignore[missing-type-function-argument]  # for some reason, mi.Scene cannot be imported, but only supports delayed annotations, which is not compatible with jaxtyping
         """
         Load a triangle scene from a Mitsuba scene object.
 
@@ -641,6 +704,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["exhaustive"],
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_ExhaustivePathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -651,6 +715,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["hybrid"],
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_HybridPathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -661,6 +726,7 @@ class Scene(eqx.Module):
         *,
         solver: Literal["sbr"] = "sbr",
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Unpack[_SBRPathTracerKwargs],
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
@@ -671,6 +737,7 @@ class Scene(eqx.Module):
         *,
         solver: AbstractPathTracer,
         path_candidates: None = ...,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
     ) -> TracedPaths | Iterator[TracedPaths]: ...
 
     def trace_paths(
@@ -679,6 +746,7 @@ class Scene(eqx.Module):
         *,
         solver: AbstractPathTracer | Literal["exhaustive", "hybrid", "sbr"] = "sbr",
         path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
         **solver_kwargs: Any,
     ) -> TracedPaths | SizedIterator[TracedPaths] | Iterator[TracedPaths]:
         """
@@ -738,7 +806,18 @@ class Scene(eqx.Module):
                 If :attr:`self.mesh.assume_quads<differt.geometry.Mesh.assume_quads>`
                 is :data:`True`, then path candidates are rounded down toward the nearest
                 even value. When provided, ``order`` is not needed (and, in
-                fact, must be left unset).
+                fact, must be left unset). Explicitly provided path candidates
+                are always interpreted as specular reflections;
+                ``allowed_interactions`` is ignored in this case.
+            allowed_interactions: The set of interaction types a bounce may
+                take, e.g., ``frozenset({SpecularReflection, Diffraction})``
+                (see :class:`InteractionType<differt.em.InteractionType>` and
+                its ergonomic aliases in :mod:`differt.em`). Defaults to
+                ``frozenset({InteractionType.REFLECTION})`` (today's
+                behavior) when :data:`None`. Only ``'exhaustive'`` and
+                ``'hybrid'`` currently support interactions other than
+                ``REFLECTION``/``SCATTERING``; ``'sbr'``'s ray-shooting
+                kernel only supports ``REFLECTION`` for now.
             **solver_kwargs: Parameters passed  to the solver configuration when it is
                 instantiated from a string shortcut. Any parameters that were also passed as
                 arguments to the function call will override the corresponding values
@@ -755,19 +834,15 @@ class Scene(eqx.Module):
             msg = "You must specify one of 'order' or `path_candidates`, not both."
             raise ValueError(msg)
 
-        if isinstance(solver, str):
-            if solver == "exhaustive":
-                solver = ExhaustivePathTracer(**solver_kwargs)
-            elif solver == "hybrid":
-                solver = HybridPathTracer(**solver_kwargs)
-            elif solver == "sbr":
-                solver = SBRPathTracer(**solver_kwargs)
-            else:
-                msg = f"Unknown solver: {solver}"
-                raise ValueError(msg)
-        elif solver_kwargs:
-            msg = "solver_kwargs cannot be used when a solver instance is provided."
-            raise ValueError(msg)
+        solver = _resolve_solver(
+            solver,
+            solver_kwargs,
+            {
+                "exhaustive": ExhaustivePathTracer,
+                "hybrid": HybridPathTracer,
+                "sbr": SBRPathTracer,
+            },
+        )
 
         if (
             isinstance(solver, HybridPathTracer)
@@ -784,20 +859,35 @@ class Scene(eqx.Module):
         if path_candidates is None:
             order = cast("int | Sequence[int] | slice", order)
             chunk_size: int | None = getattr(solver, "chunk_size", None)
-            result = solver.trace_paths(self, order, chunk_size=chunk_size)
+            result = solver.trace_paths(
+                self,
+                order,
+                chunk_size=chunk_size,
+                allowed_interactions=allowed_interactions,
+            )
             if isinstance(result, TracedPaths):
                 return result.reshape(*tx_batch, *rx_batch, result.objects.shape[-2])
-            return SizedIterator(
-                (
-                    chunk.reshape(*tx_batch, *rx_batch, chunk.objects.shape[-2])
-                    for chunk in result
-                ),
-                size=result.__len__,
+            reshaped_chunks = (
+                chunk.reshape(*tx_batch, *rx_batch, chunk.objects.shape[-2])
+                for chunk in result
             )
+            if hasattr(result, "__len__"):
+                return SizedIterator(reshaped_chunks, size=result.__len__)
+            # 'result' may be a plain (unsized) iterator, see
+            # 'AbstractPathTracer.trace_paths'.
+            return reshaped_chunks
 
         # Note: 'order' is only used to generate path candidates, so it is not
         # required (and is actually unset, per the check above) when
         # 'path_candidates' is explicitly provided.
+        if allowed_interactions is not None:
+            warnings.warn(
+                "Argument 'allowed_interactions' is ignored when 'path_candidates' "
+                "is provided: explicit path candidates are always interpreted as "
+                "specular reflections.",
+                UserWarning,
+                stacklevel=2,
+            )
         if getattr(solver, "chunk_size", None) is not None:
             warnings.warn(
                 "Argument 'chunk_size' is ignored when 'path_candidates' is provided.",
@@ -931,15 +1021,7 @@ class Scene(eqx.Module):
             msg = "Argument 'order' is required."
             raise ValueError(msg)
 
-        if isinstance(solver, str):
-            if solver == "sbr":
-                solver = SBRPathLauncher(**solver_kwargs)
-            else:
-                msg = f"Unknown solver: {solver}"
-                raise ValueError(msg)
-        elif solver_kwargs:
-            msg = "solver_kwargs cannot be used when a solver instance is provided."
-            raise ValueError(msg)
+        solver = _resolve_solver(solver, solver_kwargs, {"sbr": SBRPathLauncher})
 
         tx_batch = self.transmitters.shape[:-1]
         rx_batch = self.receivers.shape[:-1]
@@ -948,419 +1030,6 @@ class Scene(eqx.Module):
             self,
             order=order,
         ).reshape(*tx_batch, *rx_batch, -1)
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = ...,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: None = ...,
-        num_rays: int = ...,
-        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = ...,
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: Float[ArrayLike, ""] | None = ...,
-        min_len: Float[ArrayLike, ""] | None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: Float[ArrayLike, ""] | None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = ...,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: None = None,
-        num_rays: int = ...,
-        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = ...,
-        epsilon: Float[ArrayLike, " "] | None = ...,
-        hit_tol: Float[ArrayLike, " "] | None = ...,
-        min_len: Float[ArrayLike, " "] | None = ...,
-        max_dist: Float[ArrayLike, " "] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, " "] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int,
-        *,
-        method: Literal["hybrid"],
-        chunk_size: None = ...,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: Float[ArrayLike, ""] | None = ...,
-        min_len: Float[ArrayLike, ""] | None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: Float[ArrayLike, ""] | None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int,
-        *,
-        method: Literal["hybrid"],
-        chunk_size: None = None,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, " "] | None = ...,
-        hit_tol: Float[ArrayLike, " "] | None = ...,
-        min_len: Float[ArrayLike, " "] | None = ...,
-        max_dist: Float[ArrayLike, " "] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, " "] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = None,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: Float[ArrayLike, ""] | None = ...,
-        min_len: Float[ArrayLike, ""] | None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: Float[ArrayLike, ""] | None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> SizedIterator[TracedPaths]: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = ...,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, " "] | None = ...,
-        hit_tol: Float[ArrayLike, " "] | None = ...,
-        min_len: Float[ArrayLike, " "] | None = ...,
-        max_dist: Float[ArrayLike, " "] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, " "] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> SizedIterator[TracedPaths]: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int,
-        *,
-        method: Literal["hybrid"],
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: Float[ArrayLike, ""] | None = ...,
-        min_len: Float[ArrayLike, ""] | None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: Float[ArrayLike, ""] | None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> Iterator[TracedPaths]: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int,
-        *,
-        method: Literal["hybrid"],
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, " "] | None = ...,
-        hit_tol: Float[ArrayLike, " "] | None = ...,
-        min_len: Float[ArrayLike, " "] | None = ...,
-        max_dist: Float[ArrayLike, " "] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, " "] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> Iterator[TracedPaths]: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = ...,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: Int[ArrayLike, "num_path_candidates order"],
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: Float[ArrayLike, ""] | None = ...,
-        min_len: Float[ArrayLike, ""] | None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: Float[ArrayLike, ""] | None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int | None = ...,
-        *,
-        method: Literal["exhaustive"] = ...,
-        chunk_size: int,
-        num_rays: int = ...,
-        path_candidates: Int[ArrayLike, "num_path_candidates order"],
-        epsilon: Float[ArrayLike, " "] | None = ...,
-        hit_tol: Float[ArrayLike, " "] | None = ...,
-        min_len: Float[ArrayLike, " "] | None = ...,
-        max_dist: Float[ArrayLike, " "] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, " "] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> TracedPaths: ...
-
-    @overload
-    def compute_paths(
-        self,
-        order: int,
-        *,
-        method: Literal["sbr"],
-        chunk_size: None = None,
-        num_rays: int = ...,
-        path_candidates: None = ...,
-        epsilon: Float[ArrayLike, ""] | None = ...,
-        hit_tol: None = ...,
-        min_len: None = ...,
-        max_dist: Float[ArrayLike, ""] = ...,
-        smoothing_factor: None = ...,
-        confidence_threshold: Float[ArrayLike, ""] = ...,
-        batch_size: int | None = ...,
-        disconnect_inactive_triangles: bool = ...,
-    ) -> LaunchedPaths: ...
-
-    def compute_paths(
-        self,
-        order: int | None = None,
-        *,
-        method: Literal["exhaustive", "sbr", "hybrid"] = "exhaustive",
-        chunk_size: int | None = None,
-        num_rays: int = int(1e6),
-        path_candidates: Int[ArrayLike, "num_path_candidates order"] | None = None,
-        epsilon: Float[ArrayLike, ""] | None = None,
-        hit_tol: Float[ArrayLike, ""] | None = None,
-        min_len: Float[ArrayLike, ""] | None = None,
-        max_dist: Float[ArrayLike, ""] = 1e-3,
-        smoothing_factor: Float[ArrayLike, ""] | None = None,
-        confidence_threshold: Float[ArrayLike, ""] = 0.5,
-        batch_size: int | None = 512,
-        disconnect_inactive_triangles: bool = False,
-    ) -> (
-        TracedPaths | SizedIterator[TracedPaths] | Iterator[TracedPaths] | LaunchedPaths
-    ):
-        """
-        Compute paths between all pairs of transmitters and receivers in the scene, that undergo a fixed number of interaction with objects.
-
-        .. deprecated:: 0.10
-            Use :meth:`trace_paths` or :meth:`launch_paths` instead.
-
-        .. warning::
-
-            This method is Warp-accelerated (via :class:`Mesh<differt.geometry.Mesh>`) and only supports CPU and CUDA-enabled GPU platforms.
-            It does not support TPUs or other non-CUDA GPUs.
-
-        Note:
-            Currently, only :abbr:`LOS (line of sight)` and fixed ``order`` reflection paths are computed,
-            using the :func:`image_method<differt.geometry.image_method>`. More types of interactions
-            and path tracing methods will be added in the future, so stay tuned!
-
-        Args:
-            order: The number of interaction, i.e., the number of bounces.
-
-                This or ``path_candidates`` must be specified.
-            method: The method used to generate path candidates and trace paths.
-
-                See :ref:`advanced_path_tracing` for a detailed tutorial.
-
-                * If ``'exhaustive'``, all possible paths are generated, performing
-                  an exhaustive search. This is the slowest method, but it is also
-                  the most accurate.
-                * If ``'sbr'``, a fixed number of rays are launched from each transmitter
-                  and are allowed to perform a fixed number of bounces. Only rays paths
-                  passing in the vicinity of a receiver are considered valid, see
-                  ``max_dist`` parameter. This is the fastest method, but may miss
-                  some valid paths if the number of rays is too low.
-
-                  .. important::
-
-                    This method is currently unstable and not yet optimized, and
-                    it is likely to changed in future releases. Use with caution.
-                * If ``'hybrid'``, a hybrid method is used, which estimates the objects
-                  visible from all transmitters, to reduce the number of path candidates,
-                  by launching a fixed number of rays, and then performs an exhaustive
-                  search on those path candidates. This is a faster alternative to
-                  ``'exhaustive'``, but still grows exponentially with the number of
-                  bounces or the size of the scene. In the future, we plan on allowing
-                  the user to explicitly pass visibility matrices to further reduce the
-                  number of path candidates.
-
-                  .. warning::
-                    This method is best used for a single transmitter and a single receiver,
-                    as the estimated visibility is merged across all transmitters and receivers,
-                    respectively.
-
-            chunk_size: If specified, it will iterate through chunks of path
-                candidates, and yield the result as an iterator over paths chunks.
-
-                Unused if ``path_candidates`` is provided or if ``method == 'sbr'``.
-            num_rays: The number of rays launched with ``method == 'sbr'`` or
-                ``method == 'hybrid'``.
-
-                Unused if ``method == 'exhaustive'``.
-            path_candidates: An optional array of path candidates, see :ref:`path_candidates`.
-
-                This is helpful to only generate paths on a subset of the scene. E.g., this
-                is used in :ref:`sampling-paths` to test a specific set of path candidates
-                generated from a Machine Learning model.
-
-                If :attr:`self.mesh.assume_quads<differt.geometry.Mesh.assume_quads>`
-                is :data:`True`, then path candidates are
-                rounded down toward the nearest even value (but object indices still refer
-                to triangle indices, not quadrilateral indices).
-
-                **Not compatible with** ``method == 'sbr'`` and ``method == 'hybrid'``.
-            epsilon: Tolerance for checking ray / objects intersection, see
-                :func:`ray_intersect_triangle<differt.geometry.ray_intersect_triangle>`.
-            hit_tol: Tolerance for checking blockage (i.e., obstruction), see
-                :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`.
-
-                Unused if ``method == 'sbr'``.
-            min_len: Minimal (squared [#f1]_) length that each path segment must have for a path to be valid.
-
-                If not specified, the default is ten times the epsilon value
-                of the currently used floating point dtype.
-
-                Unused if ``method == 'sbr'``.
-
-            max_dist: Maximal (squared [#f1]_) distance between a receiver and a ray for the receiver
-                to be considered in the vicinity of the ray path.
-
-                Unused if ``method == 'exhaustive'`` or if ``method == 'hybrid'``.
-            smoothing_factor: If set, intermediate hard conditions are replaced with smoothed ones,
-                as described in :cite:`fully-eucap2024`, and this argument parameters the slope
-                of the smoothing function. The, valid paths are lazily identified using
-                ``confidence > confidence_threshold`` where ``confidence`` is a real value
-                between 0 and 1 that indicates the confidence that a path is valid.
-
-                For more details, refer to :ref:`smoothing`.
-
-                .. warning::
-
-                  Currently, only the ``'exhaustive'`` method is supported.
-            confidence_threshold: A threshold value for deciding which paths are valid.
-            batch_size: If specified, the number of triangles or rays to process in one batch
-                when checking for intersections.
-
-                If :data:`None`, everything is processed in one batch, which can lead to
-                memory issues on large scenes.
-
-                See :func:`ray_intersect_any_triangle<differt.geometry.ray_intersect_any_triangle>`,
-                :func:`triangles_visible_from_vertex<differt.geometry.triangles_visible_from_vertex>`,
-                and :func:`first_triangle_hit_by_ray<differt.geometry.first_triangle_hit_by_ray>`
-                for more details.
-            disconnect_inactive_triangles: If :data:`True`, inactive triangles (where
-                the mesh mask is :data:`False`) are disconnected from the graph before
-                generating path candidates. This can significantly reduce computational
-                time for scenes with many inactive triangles, but the path candidates
-                array size will vary based on the mask, which can trigger recompilations
-                in JIT-compiled code.
-
-                For the ``'hybrid'`` method, inactive triangles are always disconnected
-                regardless of this parameter value, as the method already depends on
-                the mask.
-
-
-        Returns:
-            The paths, as class wrapping path vertices, object indices, and a masked
-            identify valid paths.
-
-            The returned paths have the following batch dimensions:
-
-            * ``[*transmitters_batch *receivers_batch num_path_candidates]``,
-            * ``[*transmitters_batch *receivers_batch chunk_size]``,
-            * or ``[*transmitters_batch *receivers_batch num_rays]``,
-
-            depending on the method used.
-
-        Raises:
-            ValueError: If neither ``order`` nor ``path_candidates`` has been provided,
-                or if both have been provided simultaneously.
-
-                If ``method == 'sbr'`` or ``method == 'hybrid'``, and ``order`` is not provided.
-
-        .. [#f1] Passing the squared length/distance is useful to avoid computing square root values, which is expensive.
-        """
-        warnings.warn(
-            "compute_paths is deprecated. Use trace_paths() or launch_paths() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if method == "sbr":
-            if order is None:
-                msg = "Argument 'order' is required."
-                raise ValueError(msg)
-            solver = SBRPathLauncher(
-                num_rays=num_rays,
-                max_dist=max_dist,
-            )
-            return self.launch_paths(order=order, solver=solver)
-        if method == "hybrid":
-            solver = HybridPathTracer(
-                num_rays=num_rays,
-                epsilon=epsilon,
-                hit_tol=hit_tol,
-                min_len=min_len,
-                smoothing_factor=smoothing_factor,
-                confidence_threshold=confidence_threshold,
-                batch_size=batch_size,
-                chunk_size=chunk_size,
-            )
-            return self.trace_paths(  # type: ignore[ty:no-matching-overload]
-                order=order, solver=solver, path_candidates=path_candidates
-            )
-        # exhaustive
-        solver = ExhaustivePathTracer(
-            epsilon=epsilon,
-            hit_tol=hit_tol,
-            min_len=min_len,
-            smoothing_factor=smoothing_factor,
-            confidence_threshold=confidence_threshold,
-            batch_size=batch_size,
-            disconnect_inactive_triangles=disconnect_inactive_triangles,
-            chunk_size=chunk_size,
-        )
-        return self.trace_paths(  # type: ignore[ty:no-matching-overload]
-            order=order, solver=solver, path_candidates=path_candidates
-        )
 
     def compute_tx_mlm(
         self,
@@ -1522,21 +1191,3 @@ class Scene(eqx.Module):
             self.mesh.plot(**mesh_kwargs)
 
         return result
-
-
-# Deprecated alias
-class TriangleScene(Scene):
-    """
-    Deprecated alias for :class:`Scene`.
-
-    .. deprecated:: 0.10
-        Use :class:`Scene` instead.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
-            "TriangleScene is deprecated, use Scene instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

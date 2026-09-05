@@ -157,13 +157,3 @@ Utilities to check that ray paths are physically valid.
    ray_intersect_any_triangle
    ray_intersect_triangle
    triangles_visible_from_vertex
-
-.. rubric:: Deprecated classes
-
-.. autosummary::
-   :toctree: _autosummary
-
-   Paths
-   SBRPaths
-   TriangleMesh
-   TriangleScene

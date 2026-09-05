@@ -10,7 +10,11 @@ import jaxtyping
 import pytest
 from jaxtyping import Array, Float, PRNGKeyArray
 
-from differt import rt
+from differt.geometry import (
+    first_triangle_hit_by_ray,
+    ray_intersect_any_triangle,
+    triangles_visible_from_vertex,
+)
 from differt.geometry._mesh import (
     Mesh,
     triangle_contains_vertex_assuming_inside_same_plane,
@@ -98,15 +102,6 @@ def test_triangle_contains_vertex_assuming_inside_same_planes() -> None:
         vertices,
     )
     chex.assert_trees_all_equal(got, expected)
-
-
-def test_triangle_mesh_deprecated() -> None:
-    from differt.geometry import TriangleMesh  # ruff:ignore[import-outside-top-level]
-
-    with pytest.warns(DeprecationWarning, match="TriangleMesh is deprecated"):
-        _ = TriangleMesh(
-            vertices=jnp.zeros((3, 3)), triangles=jnp.zeros((1, 3), dtype=int)
-        )
 
 
 class TestMesh:
@@ -1809,7 +1804,7 @@ class TestMeshDiffraction:
         mesh = Mesh(vertices=vertices, triangles=triangles, assume_quads=True)
 
         # The shared diagonal should be ignored because assume_quads=True.
-        adj_t, _ = mesh._connectivity()  # ruff:ignore[private-member-access]
+        adj_t, _ = mesh._connectivity()  # ruff: ignore[private-member-access]
         assert jnp.all(adj_t == -1)
 
     def test_non_manifold_edges(self) -> None:
@@ -1901,7 +1896,7 @@ class TestMeshDiffraction:
         mesh = Mesh.empty()
 
         # This will call _connectivity() with num_triangles == 0
-        adj_t, adj_e = mesh._connectivity()  # ruff:ignore[private-member-access]
+        adj_t, adj_e = mesh._connectivity()  # ruff: ignore[private-member-access]
         assert adj_t.shape == (0, 3)
         assert adj_e.shape == (0, 3)
 
@@ -1971,7 +1966,7 @@ class TestMeshDiffraction:
             key_directions, (10, 3), minval=-1.0, maxval=1.0
         )
 
-        expected = rt.ray_intersect_any_triangle(
+        expected = ray_intersect_any_triangle(
             ray_origins,
             ray_directions,
             mesh.triangle_vertices,
@@ -1995,7 +1990,7 @@ class TestMeshDiffraction:
             key_directions, (10, 3), minval=-1.0, maxval=1.0
         )
 
-        expected_idx, expected_t = rt.first_triangle_hit_by_ray(
+        expected_idx, expected_t = first_triangle_hit_by_ray(
             ray_origins_rand,
             ray_directions_rand,
             mesh.triangle_vertices,
@@ -2024,7 +2019,7 @@ class TestMeshDiffraction:
             vertices: Float[Array, "num_vertices 3"],
         ) -> Float[Array, " num_rays"]:
             triangle_vertices = jnp.take(vertices, mesh.triangles, axis=0)
-            _, t = rt.first_triangle_hit_by_ray(
+            _, t = first_triangle_hit_by_ray(
                 origins,
                 directions,
                 triangle_vertices,
@@ -2059,7 +2054,7 @@ class TestMeshDiffraction:
         key_origins, _ = jax.random.split(key)
         ray_origins = jax.random.uniform(key_origins, (10, 3), minval=-5.0, maxval=5.0)
 
-        expected = rt.triangles_visible_from_vertex(
+        expected = triangles_visible_from_vertex(
             ray_origins,
             mesh.triangle_vertices,
             num_rays=100,
