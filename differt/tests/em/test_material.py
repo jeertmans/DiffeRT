@@ -1,4 +1,4 @@
-# ruff:file-ignore[math-constant]
+# ruff: file-ignore[math-constant]
 from pathlib import Path
 from typing import Any, ClassVar
 

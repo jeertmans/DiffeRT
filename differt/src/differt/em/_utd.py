@@ -1,4 +1,4 @@
-# ruff:file-ignore[invalid-function-name, non-lowercase-variable-in-function, invalid-argument-name]
+# ruff: file-ignore[invalid-function-name, non-lowercase-variable-in-function, invalid-argument-name]
 # type: ignore  # ruff: ignore[blanket-type-ignore]
 from typing import Literal, overload
 

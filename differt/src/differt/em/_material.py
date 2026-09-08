@@ -1,4 +1,4 @@
-# ruff:file-ignore[math-constant]
+# ruff: file-ignore[math-constant]
 
 import dataclasses
 import typing

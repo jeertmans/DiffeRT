@@ -1,4 +1,4 @@
-# ruff:file-ignore[undocumented-public-module, undocumented-public-function, docstring-missing-returns, implicit-namespace-package]
+# ruff: file-ignore[undocumented-public-module, undocumented-public-function, docstring-missing-returns, implicit-namespace-package]
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:

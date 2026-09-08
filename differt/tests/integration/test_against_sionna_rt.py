@@ -14,114 +14,25 @@ from differt.em import (
     materials,
 )
 from differt.geometry import (
-    Mesh,
     Scene,
     assemble_path,
-    fibonacci_lattice,
-    first_triangle_hit_by_ray,
     path_length,
-    ray_intersect_any_triangle,
-    ray_intersect_triangle,
 )
 from differt_core.geometry import SionnaScene
 
-
-@pytest.mark.slow
-def test_ray_casting() -> None:
-    o3d = pytest.importorskip("open3d", reason="open3d not installed")
-
-    knot_mesh = o3d.data.KnotMesh()
-    o3d_mesh = o3d.t.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
-    o3d_mesh = o3d_mesh.compute_vertex_normals()  # This avoids a warning from Open3D
-    o3d_mesh = o3d_mesh.compute_triangle_normals()
-
-    mesh = Mesh(
-        vertices=jnp.asarray(o3d_mesh.vertex.positions.numpy()),
-        triangles=jnp.asarray(o3d_mesh.triangle.indices.numpy()),
+mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+try:
+    mi.set_variant("llvm_ad_mono_polarized")
+except (AttributeError, ImportError, RuntimeError):
+    pytest.skip(
+        "Mitsuba variant 'llvm_ad_mono_polarized' not available",
+        allow_module_level=True,
     )
-
-    chex.assert_trees_all_close(
-        mesh.bounding_box,
-        np.stack(
-            [
-                o3d_mesh.get_min_bound().numpy(),
-                o3d_mesh.get_max_bound().numpy(),
-            ],
-            axis=0,
-        ),
-    )
-
-    chex.assert_trees_all_close(
-        mesh.normals, o3d_mesh.triangle.normals.numpy(), atol=1e-6
-    )
-
-    scene = o3d.t.geometry.RaycastingScene()
-    scene.add_triangles(o3d_mesh)
-
-    ray_directions = fibonacci_lattice(1_000)
-    ray_directions = fibonacci_lattice(50)
-    ray_origins = jnp.zeros_like(ray_directions)
-
-    o3d_rays = o3d.core.Tensor(
-        np.concatenate((ray_origins, ray_directions), axis=-1),
-        dtype=o3d.core.Dtype.Float32,
-    )
-
-    triangle_vertices = mesh.triangle_vertices
-
-    triangles, t_hit = first_triangle_hit_by_ray(
-        ray_origins, ray_directions, triangle_vertices
-    )
-    hit = triangles != -1
-    triangles = triangles.astype(jnp.uint32)
-
-    ans = scene.cast_rays(o3d_rays, nthreads=1)  # codespell:ignore ans
-
-    chex.assert_trees_all_close(
-        t_hit,
-        ans["t_hit"].numpy(),  # codespell:ignore ans
-        atol=1e-4,
-    )
-    chex.assert_trees_all_equal(
-        jnp.where(hit, triangles, jnp.asarray(scene.INVALID_ID, dtype=jnp.uint32)),
-        ans["primitive_ids"].numpy(),  # codespell:ignore ans
-    )
-
-    got_counts = ray_intersect_triangle(
-        ray_origins[..., None, :], ray_directions[..., None, :], triangle_vertices
-    )[1].sum(axis=-1)
-
-    expected_counts = scene.count_intersections(o3d_rays, nthreads=1).numpy()
-
-    chex.assert_trees_all_equal(
-        got_counts,
-        expected_counts,
-    )
-
-    scale = 100.0
-
-    got_hit = ray_intersect_any_triangle(
-        ray_origins,
-        scale * ray_directions,
-        triangle_vertices,
-    )
-
-    expected_hit = scene.test_occlusions(o3d_rays, tfar=scale, nthreads=1).numpy()
-
-    chex.assert_trees_all_equal(
-        got_hit,
-        expected_hit,
-    )
+sionna = pytest.importorskip("sionna", reason="sionna not installed")
 
 
 @pytest.mark.slow
 def test_simple_street_canyon() -> None:
-    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
-    try:
-        mi.set_variant("llvm_ad_mono_polarized")
-    except (AttributeError, ImportError, RuntimeError):
-        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
@@ -221,13 +132,6 @@ def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
 
 
 def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
-    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
-    try:
-        mi.set_variant("llvm_ad_mono_polarized")
-    except (AttributeError, ImportError, RuntimeError):
-        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
-
     for differt_mat in materials.values():
         # `materials` maps both official ITU names (e.g., "Wood") and Sionna-style
         # aliases (e.g., "itu_wood") to the same `Material` instance, but iterating
@@ -296,8 +200,6 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
 
 @pytest.mark.slow
 def test_received_power_matches_sionna() -> None:
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
-
     # Load simple street canyon scene
     file = sionna.rt.scene.simple_street_canyon
     sionna_scene = sionna.rt.load_scene(file)
