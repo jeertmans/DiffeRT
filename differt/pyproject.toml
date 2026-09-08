@@ -18,7 +18,7 @@ dependencies = [
   "differt-core==0.11.0",
   "equinox>=0.13.7",
   "filelock>=3.15.4",
-  "fpt-jax==0.1.0",
+  "fpt-jax>=0.1.0",  # TODO: replace with pinned version once fpt-jax is released on PyPI
   "jax>=0.8.1",
   "jaxtyping>=0.3.11",
   "numpy>=1.26.1",

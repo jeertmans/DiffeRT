@@ -46,6 +46,42 @@ def test_fermat_path_on_linear_objects(
     chex.assert_trees_all_close(got, expected, atol=1e-5)
 
 
+def test_fermat_path_on_linear_objects_with_interaction_types(
+    key: PRNGKeyArray,
+) -> None:
+    from_vertex = jnp.array([-2.0, 0.0, 0.0])
+    to_vertex = jnp.array([0.0, 0.0, 0.0])
+    edge_origin = jnp.array([-1.0, -0.5, 0.5])
+    edge_vectors = jnp.array([
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ])
+    mirror_origin = jnp.array(
+        [1.0, 0.0, 0.0],
+    )
+    mirror_vectors = jnp.array([
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ])
+    object_vectors = jnp.stack((edge_vectors, mirror_vectors), axis=0)
+    object_origins = jnp.stack((edge_origin, mirror_origin), axis=0)
+    object_origins += (jax.random.uniform(key, shape=(2, 1)) * object_vectors).sum(
+        axis=-2
+    )
+    interaction_types = jnp.array([1, 0], dtype=jnp.int32)
+    got = fermat_path_on_linear_objects(
+        from_vertex,
+        to_vertex,
+        object_origins,
+        object_vectors,
+        interaction_types=interaction_types,
+        steps=5,
+        use_image_method=True,
+    )
+    expected = jnp.array([[-1.0, 0.0, 0.5], [1.0, 0.0, 0.5 / 3]])
+    chex.assert_trees_all_close(got, expected, atol=1e-5)
+
+
 def test_fermat_path_on_linear_objects_no_objects() -> None:
     from_vertex = jnp.zeros((3,))
     to_vertex = jnp.zeros((5, 1, 3))

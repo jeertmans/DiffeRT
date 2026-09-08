@@ -18,6 +18,7 @@ from differt.geometry._utils import (
     SizedIterator,
     assemble_path,
     check_path_candidates,
+    normalize,
     ray_intersect_any_triangle,
     ray_intersect_triangle,
 )
@@ -724,8 +725,7 @@ def _trace_path_candidates(
     # [num_path_candidates order] - bounces whose validity checks are
     # edge- rather than triangle-based (DIFFRACTION), and bounces that do
     # not bend the ray at all (TRANSMISSION); both are all-'False' in the
-    # default (reflection/scattering-only) case, in which case every check
-    # below reduces exactly to today's behavior.
+    # default (reflection/scattering-only) case.
     is_diffraction = active & (interaction_types_norm == InteractionType.DIFFRACTION)
     is_transmission = active & (interaction_types_norm == InteractionType.TRANSMISSION)
 
@@ -931,10 +931,7 @@ def _trace_path_candidates(
         # solve does not care (a line's affine span is sign-independent),
         # but this segment-membership check needs a direction consistently
         # oriented from 'edge_0' to 'edge_1'.
-        edge_len = jnp.linalg.norm(edge_vector, axis=-1)
-        edge_dir = edge_vector / jnp.where(
-            edge_len[..., None] > 0, edge_len[..., None], 1.0
-        )
+        edge_dir, edge_len = normalize(edge_vector)
 
         # [num_tx_vertices num_rx_vertices num_path_candidates order]
         bounce_vertices = full_paths[..., 1:-1, :]

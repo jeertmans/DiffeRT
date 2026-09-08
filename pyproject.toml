@@ -329,6 +329,7 @@ required-version = ">=0.5.26"  # See: https://github.com/astral-sh/uv/pull/11075
 
 [tool.uv.sources]
 differt = {workspace = true}
+fpt-jax = {git = "https://github.com/jeertmans/fpt-jax", branch = "perf-im"}
 sionna-rt = {git = "https://github.com/NVlabs/sionna-rt", rev = "aeb346fe9ed1da24ff088a7acaa02252e45779eb"}  # This commit contains two patches: (1) fixed diffraction matrix and (2) newer ITU materials
 
 [tool.uv.workspace]

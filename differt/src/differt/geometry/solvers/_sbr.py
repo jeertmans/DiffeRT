@@ -322,6 +322,7 @@ class SBRPathTracer(HybridPathTracer):
     def _deduplicate_candidates(
         self,
         candidates: Int[Array, "num_rays_total order"],
+        interaction_types: Int[Array, "num_rays_total order"] | None = None,
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
@@ -334,44 +335,38 @@ class SBRPathTracer(HybridPathTracer):
         Args:
             candidates: The (possibly duplicated, unbounded) discovered
                 trajectories, see :meth:`_launch_and_record`.
+            interaction_types: The interaction types for each candidate.
+                If :data:`None`, defaults to reflection (``0``) for active
+                interactions and ``-1`` for padding.
 
         Returns:
             The deduplicated, bounded path candidates and interaction types.
         """
-        path_candidates = jnp.unique(candidates, axis=0).astype(int)
+        if interaction_types is None:
+            interaction_types = jnp.where(candidates >= 0, 0, -1).astype(jnp.int32)
+
+        if candidates.shape[-1] == 0:
+            return jnp.zeros((1, 0), dtype=int), jnp.zeros((1, 0), dtype=jnp.int32)
+
+        pairs = jnp.stack((candidates, interaction_types), axis=-1)
+        unique_pairs = jnp.unique(pairs, axis=0)
+        path_candidates = unique_pairs[..., 0].astype(int)
+        path_interaction_types = unique_pairs[..., 1].astype(jnp.int32)
+
         if path_candidates.shape[0] > self.max_num_candidates:
             path_candidates = path_candidates[: self.max_num_candidates]
+            path_interaction_types = path_interaction_types[: self.max_num_candidates]
 
-        # Default: all specular reflections (value 0);
-        # -1 marks inactive/padded interactions (e.g., lower-order candidates
-        # padded with placeholders up to max_order).
-        interaction_types = jnp.where(path_candidates >= 0, 0, -1).astype(jnp.int32)
+        return path_candidates, path_interaction_types
 
-        return path_candidates, interaction_types
-
-    def generate_path_candidates(
+    def _generate_reflection_candidates(
         self,
         scene: "Scene",
         order: int | Sequence[int] | slice,
-        allowed_interactions: "frozenset[InteractionType] | None" = None,
     ) -> tuple[
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
-        from differt.em import InteractionType  # ruff: ignore[import-outside-top-level]
-
-        if allowed_interactions is None:
-            allowed_interactions = frozenset({InteractionType.REFLECTION})
-        if not allowed_interactions <= {InteractionType.REFLECTION}:
-            msg = (
-                f"{type(self).__name__} only supports 'REFLECTION' for "
-                "'allowed_interactions': its ray-shooting Warp kernel does not "
-                "(yet) continue through diffraction edges or transmissive "
-                "faces. Use 'ExhaustivePathTracer' or 'HybridPathTracer' for "
-                "non-reflection interactions."
-            )
-            raise NotImplementedError(msg)
-
         single_order = isinstance(order, int)
         order = _normalize_order(order)
 
@@ -398,7 +393,7 @@ class SBRPathTracer(HybridPathTracer):
         max_order = order_list[-1]
 
         if max_order == 0:  # 'order_list' can only be '[0]' in this case.
-            return self.generate_path_candidates(scene, 0)
+            return self._generate_reflection_candidates(scene, 0)
 
         # A single ray population is shared across all requested orders,
         # launched once, up to 'max_order' bounces. For each requested order,
@@ -422,6 +417,43 @@ class SBRPathTracer(HybridPathTracer):
 
         combined = jnp.concatenate(all_candidates, axis=0)
         return self._deduplicate_candidates(combined)
+
+    def generate_path_candidates(
+        self,
+        scene: "Scene",
+        order: int | Sequence[int] | slice,
+        allowed_interactions: "frozenset[InteractionType] | None" = None,
+    ) -> tuple[
+        Int[Array, "num_candidates order"],
+        Int[Array, "num_candidates order"],
+    ]:
+        from differt.em import InteractionType  # ruff: ignore[import-outside-top-level]
+
+        if allowed_interactions is None:
+            allowed_interactions = frozenset({InteractionType.REFLECTION})
+
+        if allowed_interactions <= {InteractionType.REFLECTION}:
+            return self._generate_reflection_candidates(scene, order)
+
+        if InteractionType.REFLECTION not in allowed_interactions:
+            return super().generate_path_candidates(scene, order, allowed_interactions)
+
+        refl_cands, refl_types = self._generate_reflection_candidates(scene, order)
+
+        hybrid_cands, hybrid_types = super().generate_path_candidates(
+            scene, order, allowed_interactions
+        )
+        has_non_refl = jnp.any(
+            (hybrid_types != InteractionType.REFLECTION)
+            & (hybrid_types != InteractionType.NONE),
+            axis=-1,
+        )
+        hybrid_cands = hybrid_cands[has_non_refl]
+        hybrid_types = hybrid_types[has_non_refl]
+
+        combined_cands = jnp.concatenate((refl_cands, hybrid_cands), axis=0)
+        combined_types = jnp.concatenate((refl_types, hybrid_types), axis=0)
+        return self._deduplicate_candidates(combined_cands, combined_types)
 
     def generate_path_candidates_chunks_iter(
         self,
@@ -482,3 +514,4 @@ class _SBRPathTracerKwargs(TypedDict, total=False):
     batch_size: int | None
     chunk_size: int | None
     max_num_candidates: int
+    max_diffractions: int | None

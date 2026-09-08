@@ -238,6 +238,7 @@ def solve_mixed_interaction_paths(
         perm = _bending_first_permutation(is_bending)
         object_origin = jnp.take_along_axis(object_origin, perm[..., None], axis=-2)
         is_bending_for_solve = jnp.take_along_axis(is_bending, perm, axis=-1)
+        is_diffraction_for_solve = jnp.take_along_axis(is_diffraction, perm, axis=-1)
         if use_fermat:
             object_vectors = jnp.take_along_axis(
                 object_vectors, perm[..., None, None], axis=-3
@@ -246,6 +247,7 @@ def solve_mixed_interaction_paths(
             object_normal = jnp.take_along_axis(object_normal, perm[..., None], axis=-2)
     else:
         is_bending_for_solve = is_bending
+        is_diffraction_for_solve = is_diffraction
 
     # Collapse non-bending slots (TRANSMISSION and placeholders, now a
     # trailing suffix after reordering) to the receiver plane, exactly as
@@ -263,12 +265,23 @@ def solve_mixed_interaction_paths(
             object_vectors[None, ...],
             jnp.zeros_like(object_vectors)[None, ...],
         )
+        fpt_interaction_types = (
+            fermat_kwargs.get("interaction_types", None) if fermat_kwargs else None
+        )
+        if fpt_interaction_types is None:
+            fpt_interaction_types = jnp.where(is_diffraction_for_solve, 1, 0)
+        fermat_call_kwargs = {
+            "interaction_types": fpt_interaction_types,
+            "use_image_method": True,
+        }
+        if fermat_kwargs:
+            fermat_call_kwargs.update(fermat_kwargs)
         solved = fermat_path_on_linear_objects(
             tx_vertices[:, None, None, :],
             rx_vertices[None, :, None, :],
             object_origin_for_solve,
             object_vectors_for_solve,
-            **(fermat_kwargs or {}),
+            **fermat_call_kwargs,
         )
     else:
         object_normal_for_solve = jnp.where(

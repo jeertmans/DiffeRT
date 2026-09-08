@@ -3,7 +3,7 @@ from typing import Any, no_type_check
 import equinox as eqx
 import fpt_jax
 import jax.numpy as jnp
-from jaxtyping import Array, ArrayLike, Float
+from jaxtyping import Array, ArrayLike, Float, Int
 
 from ._utils import orthogonal_basis
 
@@ -15,11 +15,13 @@ def fermat_path_on_linear_objects(
     object_origins: Float[ArrayLike, "*#batch num_objects 3"],
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
     *,
-    steps: int = 10,
+    interaction_types: Int[ArrayLike, "*#batch num_objects"] | None = None,
+    steps: int = 5,
     unroll: int | bool = 1,
     linesearch_steps: int = 1,
     unroll_linesearch: int | bool = 1,
     implicit_diff: bool = True,
+    use_image_method: bool = True,
 ) -> Float[Array, "*batch num_objects 3"]:
     """
     Return the ray path between a pair of vertices, that reflects or diffracts on a given list of objects in between.
@@ -57,6 +59,9 @@ def fermat_path_on_linear_objects(
             the receiver position.
         object_origins: Object origins, used as the initial guess of the minimization procedure.
         object_vectors: Base vector(s) describing each object.
+        interaction_types: An optional array of interaction types for each object
+            (``0`` for reflection, ``1`` for diffraction, ``2`` for transmission),
+            forwarded to `fpt_jax.trace_rays`.
         steps: The number of optimization steps to perform.
         unroll: Whether to unroll the optimization loop. Can be a boolean or an integer
             specifying the number of iterations to unroll, see :func:`jax.lax.scan`.
@@ -66,6 +71,9 @@ def fermat_path_on_linear_objects(
         implicit_diff: Whether to use implicit differentiation for computing the gradient.
             See :cite:`fpt-eucap2026` and its
             `GitHub page <https://github.com/jeertmans/fpt-jax/tree/v0.1.0>`_ for more details.
+        use_image_method: Whether to inline the image method inside the Fermat solver
+            to directly solve planar specular reflections and reduce the number of
+            unknowns to edge diffraction points.
 
     Returns:
         Intermediate ray path vertices obtained using Fermat's principle.
@@ -168,6 +176,9 @@ def fermat_path_on_linear_objects(
             return jnp.empty((*batch, 0, 3), dtype=dtype)
         return jnp.broadcast_to(object_origins, (*batch, num_objects, 3)).astype(dtype)
 
+    if interaction_types is not None:
+        interaction_types = jnp.asarray(interaction_types)
+
     # Needed until https://github.com/jax-ml/jax/issues/34697 is resolved
     @no_type_check
     def _call_fpt_jax() -> Array:
@@ -176,11 +187,13 @@ def fermat_path_on_linear_objects(
             to_vertex,
             object_origins,
             object_vectors,
+            interaction_types=interaction_types,
             num_iters=steps,
             unroll=unroll,
             num_iters_linesearch=linesearch_steps,
             unroll_linesearch=unroll_linesearch,
             implicit_diff=implicit_diff,
+            use_image_method=use_image_method,
         )
 
     return _call_fpt_jax()

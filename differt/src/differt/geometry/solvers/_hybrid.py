@@ -62,6 +62,12 @@ class HybridPathTracer(AbstractPathTracer):
     """Intersection check batch size."""
     chunk_size: int | None = None
     """If specified, iterates through chunks of path candidates, yielding an iterator over path chunks."""
+    max_diffractions: int | None = None
+    """The maximum number of diffraction interactions allowed in a path candidate.
+
+    If specified, candidates with more than this number of diffraction
+    interactions are filtered out.
+    """
 
     def generate_path_candidates(
         self,
@@ -132,6 +138,11 @@ class HybridPathTracer(AbstractPathTracer):
             quad_visible_from_tx = triangles_visible_from_tx
             quad_visible_from_rx = triangles_visible_from_rx
 
+        surface_indices = sites.primitive // 2 if mesh.assume_quads else sites.primitive
+        safe_surface_indices = jnp.where(is_diffraction, 0, surface_indices)
+        surface_visible_from_tx = quad_visible_from_tx[safe_surface_indices]
+        surface_visible_from_rx = quad_visible_from_rx[safe_surface_indices]
+
         if InteractionType.DIFFRACTION in allowed_interactions:
             _, _, _, primn = mesh._wedge_static_geometry()  # ruff: ignore[private-member-access]
             primn = primn.ravel()
@@ -142,20 +153,20 @@ class HybridPathTracer(AbstractPathTracer):
             edge_visible_from_rx = (
                 triangles_visible_from_rx[prim0] | triangles_visible_from_rx[primn]
             )
-            safe_primitive = jnp.where(is_diffraction, sites.primitive, 0)
+            safe_edge_indices = jnp.where(is_diffraction, sites.primitive, 0)
             visible_from_tx = jnp.where(
                 is_diffraction,
-                edge_visible_from_tx[safe_primitive],
-                quad_visible_from_tx[jnp.where(is_diffraction, 0, sites.primitive)],
+                edge_visible_from_tx[safe_edge_indices],
+                surface_visible_from_tx,
             )
             visible_from_rx = jnp.where(
                 is_diffraction,
-                edge_visible_from_rx[safe_primitive],
-                quad_visible_from_rx[jnp.where(is_diffraction, 0, sites.primitive)],
+                edge_visible_from_rx[safe_edge_indices],
+                surface_visible_from_rx,
             )
         else:
-            visible_from_tx = quad_visible_from_tx
-            visible_from_rx = quad_visible_from_rx
+            visible_from_tx = surface_visible_from_tx
+            visible_from_rx = surface_visible_from_rx
 
         graph = DiGraph.from_complete_graph(graph)
         from_, to = graph.insert_from_and_to_nodes(
@@ -190,6 +201,8 @@ class HybridPathTracer(AbstractPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
+        from differt.em import InteractionType  # ruff: ignore[import-outside-top-level]
+
         graph, from_, to, sites = self._build_visibility_graph(
             scene, allowed_interactions
         )
@@ -207,6 +220,17 @@ class HybridPathTracer(AbstractPathTracer):
         path_candidates = sites.primitive[site_candidates]
         interaction_types = sites.kind[site_candidates]
 
+        if (
+            self.max_diffractions is not None
+            and InteractionType.DIFFRACTION in allowed_interactions
+        ):
+            num_diffractions = jnp.sum(
+                interaction_types == InteractionType.DIFFRACTION, axis=-1
+            )
+            valid = num_diffractions <= self.max_diffractions
+            path_candidates = path_candidates[valid]
+            interaction_types = interaction_types[valid]
+
         return path_candidates, interaction_types
 
     def generate_path_candidates_chunks_iter(
@@ -216,7 +240,7 @@ class HybridPathTracer(AbstractPathTracer):
         allowed_interactions: "frozenset[InteractionType] | None" = None,
         *args: Any,
         chunk_size: int | None = None,
-        pad_chunks: bool = False,  # ruff: ignore[unused-method-argument]
+        pad_chunks: bool = False,
         **kwargs: Any,
     ) -> (
         SizedIterator[
@@ -284,9 +308,27 @@ class HybridPathTracer(AbstractPathTracer):
             ]
         ]:
             for chunk_arr in site_candidates_iter:
-                site_candidates_chunk = jnp.asarray(chunk_arr, dtype=int)
-                candidates_chunk = sites.primitive[site_candidates_chunk]
-                interaction_types_chunk = sites.kind[site_candidates_chunk]
+                if pad_chunks and len(chunk_arr) < effective_chunk_size:
+                    pad_width = ((0, effective_chunk_size - len(chunk_arr)), (0, 0))
+                    padded_chunk = np.pad(
+                        chunk_arr, pad_width, mode="constant", constant_values=-1
+                    )
+                else:
+                    padded_chunk = chunk_arr
+
+                site_candidates_chunk = jnp.asarray(padded_chunk, dtype=int)
+                chunk_active = site_candidates_chunk >= 0
+                safe_site_candidates_chunk = jnp.where(
+                    chunk_active, site_candidates_chunk, 0
+                )
+                candidates_chunk = jnp.where(
+                    chunk_active, sites.primitive[safe_site_candidates_chunk], -1
+                )
+                interaction_types_chunk = jnp.where(
+                    chunk_active,
+                    sites.kind[safe_site_candidates_chunk],
+                    InteractionType.NONE,
+                )
                 yield candidates_chunk, interaction_types_chunk
 
         if hasattr(site_candidates_iter, "__len__"):
@@ -338,3 +380,4 @@ class _HybridPathTracerKwargs(TypedDict, total=False):
     confidence_threshold: Float[ArrayLike, ""]
     batch_size: int | None
     chunk_size: int | None
+    max_diffractions: int | None

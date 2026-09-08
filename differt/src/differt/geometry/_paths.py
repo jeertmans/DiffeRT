@@ -608,17 +608,148 @@ class TracedPaths(eqx.Module):
             **solver_kwargs,
         )
 
-    def plot(self, **kwargs: Any) -> PlotOutput:
+    def split_by_order(
+        self,
+        by_interaction_type: bool = True,
+        *,
+        masked: bool = False,
+    ) -> list["TracedPaths"]:
+        """
+        Split this :class:`TracedPaths` instance into separate instances by order.
+
+        If this instance holds paths of various interaction orders (e.g.,
+        generated via a sequence of orders such as ``order=range(3)``), this
+        method partitions the valid paths into separate :class:`TracedPaths`
+        instances for each distinct interaction order.
+
+        Args:
+            by_interaction_type: Whether to further split paths of the same
+                order that have different interaction types (e.g., separating
+                1st-order reflection from 1st-order diffraction). Defaults to
+                :data:`True`.
+            masked: Whether to call :meth:`masked` on each resulting
+                instance, keeping only the valid paths and flattening batch
+                dimensions. Defaults to :data:`False`.
+
+        Returns:
+            A list of :class:`TracedPaths` instances, each containing paths of
+            a single interaction order (and interaction signature, if
+            ``by_interaction_type`` is :data:`True`).
+        """
+        valid = (
+            self.mask
+            if self.mask.dtype == jnp.bool_
+            else self.mask >= self.confidence_threshold
+        )
+        if (
+            not bool(jnp.any(valid))
+            or self.order == 0
+            or self.interaction_types.shape[-1] == 0
+        ):
+            return [self.masked()] if masked else [self]
+
+        path_orders = (self.interaction_types >= 0).sum(axis=-1)
+        flat_valid = valid.reshape(-1)
+        flat_orders = path_orders.reshape(-1)
+        flat_itypes = self.interaction_types.reshape(
+            -1, self.interaction_types.shape[-1]
+        )
+
+        valid_indices = jnp.nonzero(flat_valid)[0]
+
+        if by_interaction_type:
+            signatures: list[tuple[int, tuple[int, ...]]] = []
+            for idx in valid_indices:
+                idx_int = int(idx)
+                o = int(flat_orders[idx_int])
+                sig = tuple(int(x) for x in flat_itypes[idx_int, :o])
+                signatures.append((o, sig))
+            unique_sigs = sorted(set(signatures))
+            if len(unique_sigs) <= 1 and (
+                len(unique_sigs) == 0 or unique_sigs[0][0] == self.order
+            ):
+                return [self]
+
+            result: list[TracedPaths] = []
+            for o, sig in unique_sigs:
+                sig_arr = jnp.array(sig, dtype=self.interaction_types.dtype)
+                if o == 0:
+                    match = valid & (path_orders == 0)
+                else:
+                    match = (
+                        valid
+                        & (path_orders == o)
+                        & jnp.all(self.interaction_types[..., :o] == sig_arr, axis=-1)
+                    )
+                v = jnp.concatenate(
+                    (self.vertices[..., : o + 1, :], self.vertices[..., -1:, :]),
+                    axis=-2,
+                )
+                obj = jnp.concatenate(
+                    (self.objects[..., : o + 1], self.objects[..., -1:]), axis=-1
+                )
+                it = self.interaction_types[..., :o]
+                result.append(
+                    TracedPaths(
+                        vertices=v,
+                        objects=obj,
+                        mask=match,
+                        confidence_threshold=self.confidence_threshold,
+                        interaction_types=it,
+                    )
+                )
+            return [p.masked() for p in result] if masked else result
+
+        unique_orders = sorted({int(flat_orders[int(i)]) for i in valid_indices})
+        if len(unique_orders) <= 1 and (
+            len(unique_orders) == 0 or unique_orders[0] == self.order
+        ):
+            return [self.masked()] if masked else [self]
+
+        result_orders: list[TracedPaths] = []
+        for o in unique_orders:
+            match = valid & (path_orders == o)
+            v = jnp.concatenate(
+                (self.vertices[..., : o + 1, :], self.vertices[..., -1:, :]),
+                axis=-2,
+            )
+            obj = jnp.concatenate(
+                (self.objects[..., : o + 1], self.objects[..., -1:]), axis=-1
+            )
+            it = self.interaction_types[..., :o]
+            result_orders.append(
+                TracedPaths(
+                    vertices=v,
+                    objects=obj,
+                    mask=match,
+                    confidence_threshold=self.confidence_threshold,
+                    interaction_types=it,
+                )
+            )
+        return [p.masked() for p in result_orders] if masked else result_orders
+
+    def plot(self, *, by_order: bool = True, **kwargs: Any) -> PlotOutput:
         """
         Plot the (masked) paths on a 3D scene.
 
         Args:
+            by_order: Whether to split multi-order paths into separate traces,
+                coloring each interaction order and type differently.
+                Defaults to :data:`True`.
             kwargs: Keyword arguments passed to
                 :func:`draw_paths<differt.plotting.draw_paths>`.
 
         Returns:
             The resulting plot output.
         """
+        if by_order:
+            sub_paths = self.split_by_order()
+            if len(sub_paths) > 1:
+                with reuse(**kwargs) as fig:
+                    for p in sub_paths:
+                        p.plot(by_order=False, **kwargs)
+                return fig
+
         return draw_paths(self.masked_vertices, **kwargs)
 
 

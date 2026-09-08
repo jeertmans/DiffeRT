@@ -157,13 +157,13 @@ def test_trace_fields_diffraction_then_transmission_via_scene(
     assert jnp.all(jnp.isfinite(fields.fields[valid]))
 
 
-def test_sbr_rejects_non_reflection_interactions(wedge_scene: Scene) -> None:
-    with pytest.raises(NotImplementedError, match="only supports 'REFLECTION'"):
-        wedge_scene.trace_paths(
-            order=1,
-            solver=SBRPathTracer(),
-            allowed_interactions=frozenset({InteractionType.DIFFRACTION}),
-        )
+def test_sbr_supports_diffraction_interactions(wedge_scene: Scene) -> None:
+    paths = wedge_scene.trace_paths(
+        order=1,
+        solver=SBRPathTracer(),
+        allowed_interactions=frozenset({InteractionType.DIFFRACTION}),
+    )
+    assert paths.mask.any()
 
 
 def test_scene_trace_paths_default_is_still_reflection_only(

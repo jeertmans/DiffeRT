@@ -54,6 +54,12 @@ class ExhaustivePathTracer(AbstractPathTracer):
     """Whether to filter out inactive triangles first."""
     chunk_size: int | None = None
     """If specified, iterates through chunks of path candidates, yielding an iterator over path chunks."""
+    max_diffractions: int | None = None
+    """The maximum number of diffraction interactions allowed in a path candidate.
+
+    If specified, candidates with more than this number of diffraction
+    interactions are filtered out.
+    """
 
     def generate_path_candidates(
         self,
@@ -134,6 +140,8 @@ class ExhaustivePathTracer(AbstractPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
+        from differt.em import InteractionType  # ruff: ignore[import-outside-top-level]
+
         graph, from_, to, sites = self._build_graph(scene, allowed_interactions)
 
         site_candidates = jnp.asarray(
@@ -148,6 +156,17 @@ class ExhaustivePathTracer(AbstractPathTracer):
 
         path_candidates = sites.primitive[site_candidates]
         interaction_types = sites.kind[site_candidates]
+
+        if (
+            self.max_diffractions is not None
+            and InteractionType.DIFFRACTION in allowed_interactions
+        ):
+            num_diffractions = jnp.sum(
+                interaction_types == InteractionType.DIFFRACTION, axis=-1
+            )
+            valid = num_diffractions <= self.max_diffractions
+            path_candidates = path_candidates[valid]
+            interaction_types = interaction_types[valid]
 
         return path_candidates, interaction_types
 
@@ -300,3 +319,4 @@ class _ExhaustivePathTracerKwargs(TypedDict, total=False):
     batch_size: int | None
     disconnect_inactive_triangles: bool
     chunk_size: int | None
+    max_diffractions: int | None

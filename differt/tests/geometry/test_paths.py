@@ -392,6 +392,49 @@ class TestTracedPaths:
 
         _ = paths.plot(backend=backend)
 
+    def test_split_by_order(self) -> None:
+        vertices = jnp.zeros((5, 4, 3))
+        objects = jnp.array([
+            [0, -1, -1, 0],
+            [0, 10, -1, 0],
+            [0, 20, -1, 0],
+            [0, 10, 20, 0],
+            [0, -1, -1, 0],
+        ])
+        mask = jnp.array([True, True, True, True, False])
+        interaction_types = jnp.array([
+            [-1, -1],
+            [0, -1],
+            [1, -1],
+            [0, 0],
+            [-1, -1],
+        ])
+        paths = TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=mask,
+            interaction_types=interaction_types,
+        )
+
+        sub_by_type = paths.split_by_order(by_interaction_type=True)
+        assert len(sub_by_type) == 4
+        assert [p.order for p in sub_by_type] == [0, 1, 1, 2]
+        assert [int(p.num_valid_paths) for p in sub_by_type] == [1, 1, 1, 1]
+
+        sub_by_order = paths.split_by_order(by_interaction_type=False)
+        assert len(sub_by_order) == 3
+        assert [p.order for p in sub_by_order] == [0, 1, 2]
+        assert [int(p.num_valid_paths) for p in sub_by_order] == [1, 2, 1]
+
+        masked_sub = paths.split_by_order(masked=True)
+        assert len(masked_sub) == 4
+        assert [p.vertices.shape for p in masked_sub] == [
+            (1, 2, 3),
+            (1, 3, 3),
+            (1, 3, 3),
+            (1, 4, 3),
+        ]
+
 
 class TestLaunchedPaths:
     def test_init(self, key: PRNGKeyArray) -> None:

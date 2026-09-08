@@ -8,6 +8,7 @@ import pytest
 from pytest_subtests import SubTests
 
 from differt.em import (
+    InteractionType,
     MaterialsDict,
     compute_received_fields,
     compute_received_power,
@@ -112,6 +113,161 @@ def test_simple_street_canyon() -> None:
             atol=1e-5,
             custom_message=f"Mismatch for paths {order = }, differt = {paths.masked_vertices!r}, sionna = {vertices!r}.",
         )
+
+
+@pytest.mark.slow
+def test_simple_street_canyon_pure_diffraction() -> None:
+    """Test order 1 diffraction paths against Sionna RT ground truth."""
+    file = sionna.rt.scene.simple_street_canyon
+
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = Scene.load_xml(file, materials=MaterialsDict(materials))
+
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+
+    tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
+    sionna_scene.add(tx)
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0], orientation=[0, 0, 0])
+    sionna_scene.add(rx)
+
+    differt_scene = eqx.tree_at(
+        lambda s: s.transmitters,
+        differt_scene,
+        replace=tx.position.jax().reshape(3),
+    )
+    differt_scene = eqx.tree_at(
+        lambda s: s.receivers,
+        differt_scene,
+        replace=rx.position.jax().reshape(3),
+    )
+
+    solver = sionna.rt.PathSolver()
+    s_paths = solver(
+        sionna_scene,
+        max_depth=1,
+        los=False,
+        specular_reflection=False,
+        refraction=False,
+        diffraction=True,
+        edge_diffraction=True,
+    )
+    s_verts = s_paths.vertices.jax()[0, 0, 0, :, :]
+
+    d_paths = differt_scene.trace_paths(
+        order=1,
+        allowed_interactions=frozenset({InteractionType.DIFFRACTION}),
+        solver="hybrid",
+    )
+    d_verts = d_paths.vertices[d_paths.mask, 1, :]
+    unique_d_verts = jnp.unique(jnp.round(d_verts, 3), axis=0)
+
+    # 10 rooftop/wall edges match Sionna
+    dist_matrix = jnp.linalg.norm(
+        s_verts[:, None, :] - unique_d_verts[None, :, :], axis=-1
+    )
+    min_dists = dist_matrix.min(axis=-1)
+    matching_rooftop = min_dists < 1e-2
+    assert int(matching_rooftop.sum()) == 10
+    chex.assert_trees_all_close(min_dists[matching_rooftop].max(), 0.0, atol=1e-3)
+
+
+@pytest.mark.slow
+def test_simple_street_canyon_mixed_diffraction_reflection() -> None:
+    """Test order 2 mixed diffraction-reflection paths against Sionna RT ground truth."""
+    file = sionna.rt.scene.simple_street_canyon
+
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = Scene.load_xml(file, materials=MaterialsDict(materials))
+
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+
+    tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
+    sionna_scene.add(tx)
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0], orientation=[0, 0, 0])
+    sionna_scene.add(rx)
+
+    differt_scene = eqx.tree_at(
+        lambda s: s.transmitters,
+        differt_scene,
+        replace=tx.position.jax().reshape(3),
+    )
+    differt_scene = eqx.tree_at(
+        lambda s: s.receivers,
+        differt_scene,
+        replace=rx.position.jax().reshape(3),
+    )
+
+    solver = sionna.rt.PathSolver()
+    s_paths = solver(
+        sionna_scene,
+        max_depth=2,
+        los=False,
+        specular_reflection=True,
+        refraction=False,
+        diffraction=True,
+        edge_diffraction=True,
+    )
+    inter = s_paths.interactions.jax()[:, 0, 0, :]
+    has_diff = (inter == 8).any(axis=0)
+    has_refl = (inter == 1).any(axis=0)
+    is_order2 = inter[1] > 0
+    mixed_order2 = has_diff & has_refl & is_order2
+
+    s_mixed_verts = jnp.moveaxis(
+        s_paths.vertices.jax()[:2, 0, 0, mixed_order2, :], 0, 1
+    )
+
+    d_paths = differt_scene.trace_paths(
+        order=2,
+        allowed_interactions=frozenset({
+            InteractionType.REFLECTION,
+            InteractionType.DIFFRACTION,
+        }),
+        max_diffractions=1,
+        solver="hybrid",
+    )
+    d_itypes = d_paths.interaction_types[d_paths.mask]
+    d_has_diff = (d_itypes == InteractionType.DIFFRACTION).any(axis=-1)
+    d_has_refl = (d_itypes == InteractionType.REFLECTION).any(axis=-1)
+    d_mixed_verts = d_paths.vertices[d_paths.mask][d_has_diff & d_has_refl, 1:-1, :]
+
+    path_diffs = jnp.linalg.norm(
+        s_mixed_verts[:, None, :, :] - d_mixed_verts[None, :, :, :], axis=-1
+    ).max(axis=-1)
+    min_path_dists = path_diffs.min(axis=-1)
+    matching = min_path_dists < 0.05
+    assert int(matching.sum()) == len(s_mixed_verts) == 23
+    chex.assert_trees_all_close(min_path_dists.max(), 0.0, atol=2e-3)
 
 
 def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
