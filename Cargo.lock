@@ -262,6 +262,7 @@ dependencies = [
  "quick-xml",
  "rstest",
  "serde",
+ "tempfile",
  "testing_logger",
 ]
 

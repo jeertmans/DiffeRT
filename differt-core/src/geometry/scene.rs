@@ -127,35 +127,16 @@ pub(crate) fn scene(m: Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::fs;
 
     use indexmap::IndexMap;
     use pyo3::Python;
-
-    use crate::geometry::sionna::Material;
+    use tempfile::tempdir;
 
     use super::*;
+    use crate::geometry::sionna::Material;
 
     const TRIANGLE_OBJ: &str = "v 0.0 0.0 0.0\nv 1.0 0.0 0.0\nv 0.0 1.0 0.0\nf 1 2 3\n";
-
-    /// Create a unique, empty temporary directory to host the files of a
-    /// single test (so concurrently-running tests never clash).
-    fn unique_tmp_dir(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system time should be after the epoch")
-            .as_nanos();
-        let mut dir = std::env::temp_dir();
-        dir.push(format!(
-            "differt-core-scene-test-{name}-{}-{nanos}",
-            std::process::id()
-        ));
-        fs::create_dir_all(&dir).expect("failed to create temporary directory");
-        dir
-    }
 
     fn shape_xml(id: &str) -> String {
         format!(
@@ -225,9 +206,9 @@ mod tests {
 
     #[test]
     fn load_xml_keeps_ids_distinguishable_when_material_names_collide() {
-        let dir = unique_tmp_dir("collide");
+        let dir = tempdir().expect("failed to create temporary directory");
 
-        fs::write(dir.join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
+        fs::write(dir.path().join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
 
         let xml = format!(
             r#"<scene version="2.1.0">
@@ -245,7 +226,7 @@ mod tests {
             shape_xml("window2"),
         );
 
-        let scene_file = dir.join("scene.xml");
+        let scene_file = dir.path().join("scene.xml");
         fs::write(&scene_file, xml).expect("failed to write scene file");
 
         let material_names: Vec<String> = Python::with_gil(|py| {
@@ -262,8 +243,6 @@ mod tests {
                 .expect("`material_names` should be extractable as Vec<String>")
         });
 
-        fs::remove_dir_all(&dir).ok();
-
         // Since the two "glass" materials disagree on thickness, they must
         // remain distinguishable under their own XML ids, rather than both
         // collapsing to the generic "itu_glass" name (which would make them
@@ -276,9 +255,9 @@ mod tests {
 
     #[test]
     fn load_xml_keeps_generic_name_when_no_collision() {
-        let dir = unique_tmp_dir("no-collide");
+        let dir = tempdir().expect("failed to create temporary directory");
 
-        fs::write(dir.join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
+        fs::write(dir.path().join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
 
         let xml = format!(
             r#"<scene version="2.1.0">
@@ -295,7 +274,7 @@ mod tests {
             shape_xml("wall"),
         );
 
-        let scene_file = dir.join("scene.xml");
+        let scene_file = dir.path().join("scene.xml");
         fs::write(&scene_file, xml).expect("failed to write scene file");
 
         let material_names: Vec<String> = Python::with_gil(|py| {
@@ -312,8 +291,6 @@ mod tests {
                 .expect("`material_names` should be extractable as Vec<String>")
         });
 
-        fs::remove_dir_all(&dir).ok();
-
         // Neither material name collides with another, so both keep their
         // generic, ITU-type-derived name (resolvable against the built-in
         // ITU materials database), rather than being keyed by XML id.
@@ -325,9 +302,9 @@ mod tests {
 
     #[test]
     fn load_xml_keeps_generic_name_for_thickness_less_material_despite_collision() {
-        let dir = unique_tmp_dir("thickness-less-collide");
+        let dir = tempdir().expect("failed to create temporary directory");
 
-        fs::write(dir.join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
+        fs::write(dir.path().join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
 
         let xml = format!(
             r#"<scene version="2.1.0">
@@ -349,7 +326,7 @@ mod tests {
             shape_xml("window3"),
         );
 
-        let scene_file = dir.join("scene.xml");
+        let scene_file = dir.path().join("scene.xml");
         fs::write(&scene_file, xml).expect("failed to write scene file");
 
         let material_names: Vec<String> = Python::with_gil(|py| {
@@ -365,8 +342,6 @@ mod tests {
                 .extract()
                 .expect("`material_names` should be extractable as Vec<String>")
         });
-
-        fs::remove_dir_all(&dir).ok();
 
         // 'window1'/'window2' disagree on thickness and are kept
         // distinguishable under their own ids, but 'window3' has no
