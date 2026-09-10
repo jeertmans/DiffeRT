@@ -6,6 +6,7 @@ from differt.em import InteractionType
 from differt.geometry._mesh import Mesh
 from differt.geometry._paths import TracedPaths
 from differt.geometry.solvers._base import _trace_path_candidates
+from differt.geometry.solvers._dispatch import solve_mixed_interaction_paths
 
 
 @pytest.fixture
@@ -93,6 +94,102 @@ def test_pure_diffraction_lands_on_edge(wedge_mesh: Mesh) -> None:
     )
     # Within the finite segment y in [0, 1].
     assert 0.0 <= diffraction_point[1] <= 1.0
+
+
+def test_missing_interaction_types_defaults_to_reflection(wedge_mesh: Mesh) -> None:
+    # The 'legacy' direct-call convention: omitting 'interaction_types'
+    # (passing 'None') must behave exactly as if every active bounce were
+    # explicitly typed as a 'REFLECTION'.
+    tx = jnp.array([[0.5, 0.3, 1.0]])
+    rx = jnp.array([[0.5, 0.3, 1.0]])
+
+    traced_implicit = _trace_path_candidates(
+        wedge_mesh,
+        tx,
+        rx,
+        jnp.array([[0]]),
+        None,
+        epsilon=None,
+        hit_tol=None,
+        min_len=None,
+        smoothing_factor=None,
+        confidence_threshold=0.5,
+        batch_size=512,
+        use_fermat=False,
+        needs_splice=False,
+    )
+    traced_explicit = _trace(
+        wedge_mesh,
+        tx,
+        rx,
+        jnp.array([[0]]),
+        jnp.array([[InteractionType.REFLECTION]]),
+        use_fermat=False,
+        needs_splice=False,
+    )
+
+    chex.assert_trees_all_equal(traced_implicit.mask, traced_explicit.mask)
+    chex.assert_trees_all_close(traced_implicit.vertices, traced_explicit.vertices)
+
+
+def test_diffraction_with_smoothing_and_fermat(wedge_mesh: Mesh) -> None:
+    # Soft (smoothed) edge-segment-membership check, combined with the
+    # Fermat solver (used as soon as a DIFFRACTION bounce is present).
+    tx = jnp.array([[0.5, 0.5, 1.0]])
+    rx = jnp.array([[2.0, 0.5, -0.5]])
+
+    traced = _trace_path_candidates(
+        wedge_mesh,
+        tx,
+        rx,
+        jnp.array([[2]]),
+        jnp.array([[InteractionType.DIFFRACTION]]),
+        epsilon=None,
+        hit_tol=None,
+        min_len=None,
+        smoothing_factor=1e2,
+        confidence_threshold=0.5,
+        batch_size=512,
+        use_fermat=True,
+        needs_splice=False,
+    )
+
+    # Soft mask, close to (but not necessarily exactly) 1 for a path that
+    # lands well within the finite edge segment.
+    assert 0.0 < traced.mask.item() <= 1.0
+
+
+def test_solve_mixed_interaction_paths_extra_fermat_kwargs(wedge_mesh: Mesh) -> None:
+    # 'fermat_kwargs' (only used when 'use_fermat=True') is forwarded to,
+    # and overrides the auto-derived keyword arguments passed to,
+    # 'fermat_path_on_linear_objects'.
+    tx = jnp.array([[0.5, 0.5, 1.0]])
+    rx = jnp.array([[2.0, 0.5, -0.5]])
+
+    default_paths = solve_mixed_interaction_paths(
+        wedge_mesh,
+        tx,
+        rx,
+        jnp.array([[2]]),
+        jnp.array([[InteractionType.DIFFRACTION]]),
+        use_fermat=True,
+        needs_splice=False,
+    )
+    custom_paths = solve_mixed_interaction_paths(
+        wedge_mesh,
+        tx,
+        rx,
+        jnp.array([[2]]),
+        jnp.array([[InteractionType.DIFFRACTION]]),
+        use_fermat=True,
+        needs_splice=False,
+        fermat_kwargs={"steps": 0},
+    )
+
+    assert default_paths.shape == custom_paths.shape == (1, 1, 1, 3, 3)
+    # Zero solver steps leaves the initial (unconverged) guess untouched,
+    # unlike the default step count.
+    assert not jnp.allclose(default_paths, custom_paths)
 
 
 def test_diffraction_beyond_edge_segment_is_invalid(wedge_mesh: Mesh) -> None:

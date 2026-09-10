@@ -1175,6 +1175,32 @@ class TestScene:
         with pytest.raises(ValueError, match="order' is required"):
             scene.launch_paths(order=None)
 
+    def test_resolve_solver_unknown_string_raises(self) -> None:
+        # '_resolve_solver' takes a plain 'str' (unlike the 'Literal'-typed
+        # 'solver' argument of 'trace_paths'/'launch_paths'), so it can be
+        # called directly with an arbitrary string without a typechecker
+        # rejecting the call first.
+        from differt.geometry._scene import _resolve_solver
+
+        with pytest.raises(ValueError, match="Unknown solver"):
+            _resolve_solver(
+                "invalid",
+                {},
+                {"exhaustive": ExhaustivePathTracer, "hybrid": HybridPathTracer},
+            )
+
+    def test_trace_paths_path_candidates_and_allowed_interactions_warns(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
+        with pytest.warns(
+            UserWarning, match="'allowed_interactions' is ignored"
+        ):
+            simple_street_canyon_scene.trace_paths(
+                path_candidates=path_candidates,
+                allowed_interactions=frozenset({Diffraction}),
+            )
+
     @pytest.mark.parametrize("solver", ["exhaustive", "hybrid"])
     def test_trace_paths_multiple_orders(
         self,

@@ -460,6 +460,24 @@ class TestPopulateMaterials:
 
         assert dict(radio_materials) == before
 
+    def test_unknown_material_name_is_skipped(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        # An empty 'materials' mapping has no base entry for 'itu_glass', so
+        # the (thickness-carrying) material is skipped entirely.
+        radio_materials: MaterialsDict = MaterialsDict()
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        assert "itu_glass" not in radio_materials
+        assert len(radio_materials) == 0
+
     def test_conflicting_thickness_raises(self, tmp_path: Path) -> None:
         bsdfs = """
         <bsdf type="itu-radio-material" id="window">

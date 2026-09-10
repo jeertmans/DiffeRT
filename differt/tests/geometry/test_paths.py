@@ -435,6 +435,38 @@ class TestTracedPaths:
             (1, 4, 3),
         ]
 
+    def test_split_by_order_trivial_single_group(self) -> None:
+        # Every valid path already shares the same order (and, for
+        # 'by_interaction_type=True', the same interaction-type signature),
+        # matching 'self.order': both variants return '[self]' (or
+        # '[self.masked()]') directly, without actually splitting anything.
+        vertices = jnp.zeros((3, 3, 3))
+        objects = jnp.array([
+            [0, 10, 0],
+            [0, 10, 0],
+            [0, -1, 0],
+        ])
+        mask = jnp.array([True, True, False])
+        interaction_types = jnp.array([[0], [0], [-1]])
+        paths = TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=mask,
+            interaction_types=interaction_types,
+        )
+
+        sub_by_type = paths.split_by_order(by_interaction_type=True)
+        assert len(sub_by_type) == 1
+        assert sub_by_type[0] is paths
+
+        sub_by_order = paths.split_by_order(by_interaction_type=False)
+        assert len(sub_by_order) == 1
+        assert sub_by_order[0] is paths
+
+        masked_sub = paths.split_by_order(by_interaction_type=False, masked=True)
+        assert len(masked_sub) == 1
+        chex.assert_trees_all_equal(masked_sub[0].vertices, paths.masked().vertices)
+
 
 class TestLaunchedPaths:
     def test_init(self, key: PRNGKeyArray) -> None:

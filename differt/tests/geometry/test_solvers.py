@@ -454,6 +454,40 @@ class TestSBRPathTracer:
         with pytest.raises(ValueError, match="must have a defined 'stop'"):
             solver.generate_path_candidates(canyon_scene, slice(0, None))
 
+    def test_generate_path_candidates_empty_order_sequence_raises(
+        self, canyon_scene: Scene
+    ) -> None:
+        solver = SBRPathTracer()
+        with pytest.raises(ValueError, match="at least one order"):
+            solver.generate_path_candidates(canyon_scene, order=[])
+
+    def test_generate_path_candidates_order_sequence_only_zero(
+        self, canyon_scene: Scene
+    ) -> None:
+        # A sequence containing only order '0' takes the same trivial
+        # (empty-candidate) shortcut as passing the bare int '0'.
+        solver = SBRPathTracer()
+        candidates, interaction_types = solver.generate_path_candidates(
+            canyon_scene, order=[0]
+        )
+        assert candidates.shape == (1, 0)
+        assert interaction_types.shape == (1, 0)
+
+    def test_deduplicate_candidates_zero_order(self) -> None:
+        solver = SBRPathTracer()
+        candidates, interaction_types = solver._deduplicate_candidates(  # ruff: ignore[private-member-access]
+            jnp.zeros((5, 0), dtype=int)
+        )
+        assert candidates.shape == (1, 0)
+        assert interaction_types.shape == (1, 0)
+
+    def test_deduplicate_candidates_truncates_to_max_num_candidates(self) -> None:
+        solver = SBRPathTracer(max_num_candidates=2)
+        candidates = jnp.array([[0], [1], [2], [3]])
+        deduped, deduped_types = solver._deduplicate_candidates(candidates)  # ruff: ignore[private-member-access]
+        assert deduped.shape == (2, 1)
+        assert deduped_types.shape == (2, 1)
+
     def test_multiple_orders_chunks_iter_still_unsupported(
         self, canyon_scene: Scene
     ) -> None:
