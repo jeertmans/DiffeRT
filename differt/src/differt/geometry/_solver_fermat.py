@@ -16,7 +16,7 @@ def fermat_path_on_linear_objects(
     object_vectors: Float[ArrayLike, "*#batch num_objects num_dims 3"],
     *,
     interaction_types: Int[ArrayLike, "*#batch num_objects"] | None = None,
-    steps: int | None = 15,
+    steps: int | None = None,
     max_steps: int | None = None,
     rtol: float | None = None,
     atol: float | None = None,
@@ -186,6 +186,14 @@ def fermat_path_on_linear_objects(
             ...     fig.update_layout(scene_aspectmode="data")
             >>> fig  # doctest: +SKIP
     """
+    if steps is None and max_steps is None:
+        # Only fall back to the fixed-step default when the caller has not
+        # opted into the adaptive ('max_steps') mode: otherwise, 'steps'
+        # would stay at a non-None default forever, and 'steps'/'max_steps'
+        # being 'Mutually exclusive' (see above) would make passing
+        # 'max_steps' alone always fail.
+        steps = 15
+
     from_vertex = jnp.asarray(from_vertex)
     to_vertex = jnp.asarray(to_vertex)
     object_origins = jnp.asarray(object_origins)

@@ -380,6 +380,21 @@ class TestMaterialsDict:
         d3 = MaterialsDict({k: v for k, v in materials.items() if k != "Concrete"})
         assert hash(d1) != hash(d3)
 
+    def test_hash_raises_clear_error_with_array_valued_field(self) -> None:
+        # A 'jax.Array'-valued field makes the containing 'Material' (and
+        # thus the whole 'MaterialsDict') unhashable; this must surface as
+        # a clear, actionable error rather than a bare 'TypeError' from deep
+        # inside 'hash()'.
+        d = MaterialsDict({
+            "Custom": Material(
+                name="Custom",
+                properties=_dummy_properties,
+                scattering_coefficient=jnp.asarray(0.5),
+            )
+        })
+        with pytest.raises(TypeError, match="must be hashable"):
+            hash(d)
+
 
 _TRIANGLE_OBJ = """\
 v 0.0 0.0 0.0
@@ -519,6 +534,41 @@ class TestPopulateMaterials:
 
         # Populating 'materials' must not break JIT-compiled 'Scene' methods.
         _ = scene.scale(2.0)
+
+    def test_scene_load_xml_thickness_less_material_keeps_generic_name(
+        self, tmp_path: Path
+    ) -> None:
+        # 'window1'/'window2' disagree on thickness (kept distinguishable
+        # under their own id), but 'window3' has no 'thickness' override of
+        # its own: every id appearing in 'scene.mesh.material_names' must
+        # have a matching entry in 'radio_materials', so 'window3' must keep
+        # the shared generic name rather than being keyed by an id that
+        # '_populate_materials' would never populate (it skips thickness-less
+        # materials entirely).
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window1">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        <bsdf type="itu-radio-material" id="window2">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.05"/>
+        </bsdf>
+        <bsdf type="itu-radio-material" id="window3">
+            <string name="type" value="glass"/>
+        </bsdf>
+        """
+        shapes = (
+            _shape("shape-0", "window1")
+            + _shape("shape-1", "window2")
+            + _shape("shape-2", "window3")
+        )
+        scene_file = _write_scene(tmp_path, bsdfs, shapes)
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        scene = Scene.load_xml(scene_file, materials=radio_materials)
+
+        assert scene.mesh.material_names == ("window1", "window2", "itu_glass")
+        assert all(name in radio_materials for name in scene.mesh.material_names)
 
     def test_scene_load_xml_defaults_to_global_materials(self, tmp_path: Path) -> None:
         bsdfs = """

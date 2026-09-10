@@ -30,6 +30,7 @@ from differt.geometry import (
     normalize,
     rotation_matrix_along_x_axis,
 )
+from differt.geometry._scene import _resolve_solver
 from differt_core.geometry import SionnaScene
 
 from ..plotting.params import matplotlib, plotly, vispy
@@ -1180,8 +1181,6 @@ class TestScene:
         # 'solver' argument of 'trace_paths'/'launch_paths'), so it can be
         # called directly with an arbitrary string without a typechecker
         # rejecting the call first.
-        from differt.geometry._scene import _resolve_solver
-
         with pytest.raises(ValueError, match="Unknown solver"):
             _resolve_solver(
                 "invalid",
@@ -1193,9 +1192,7 @@ class TestScene:
         self, simple_street_canyon_scene: Scene
     ) -> None:
         path_candidates = jnp.zeros((1, 1), dtype=jnp.int32)
-        with pytest.warns(
-            UserWarning, match="'allowed_interactions' is ignored"
-        ):
+        with pytest.warns(UserWarning, match="'allowed_interactions' is ignored"):
             simple_street_canyon_scene.trace_paths(
                 path_candidates=path_candidates,
                 allowed_interactions=frozenset({Diffraction}),
