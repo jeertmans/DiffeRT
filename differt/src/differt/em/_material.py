@@ -511,21 +511,6 @@ class MaterialsDict(dict[str, Material]):  # ruff: ignore[subclass-builtin]
         super().__init__()
         self.update(other, **kwargs)
 
-    def __hash__(self) -> int:  # type: ignore[override]
-        # 'dict' is unhashable, but this mapping is used as (conceptually
-        # immutable) static data on 'GeometricFieldSolver.radio_materials',
-        # which must be hashable to be usable as a JIT static argument/aux-data.
-        try:
-            return hash(tuple(sorted(self.items())))
-        except TypeError as e:
-            msg = (
-                "Every 'Material' in a 'MaterialsDict' must be hashable, e.g., "
-                "'thickness'/'scattering_coefficient'/'xpd_coefficient' must be "
-                "plain Python (or NumPy) scalars rather than 'jax.Array's, since "
-                "'MaterialsDict' is used as a JIT static argument."
-            )
-            raise TypeError(msg) from e
-
     def _resolve(self, key: Any) -> Any:
         """Return the primary key that ``key`` (a name or alias) maps to, or ``key`` unchanged if unknown."""
         if not isinstance(key, str) or super().__contains__(key):

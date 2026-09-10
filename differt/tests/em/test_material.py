@@ -369,30 +369,14 @@ class TestMaterialsDict:
         d = MaterialsDict([mat])
         assert repr(d) == "{'Test': " + repr(mat) + "}"
 
-    def test_hash(self) -> None:
-        # 'MaterialsDict' must be hashable so it can be used as (static)
-        # 'GeometricFieldSolver.radio_materials' inside JIT-compiled code.
-        d1 = MaterialsDict(materials)
-        d2 = MaterialsDict(materials)
-        assert d1 is not d2
-        assert hash(d1) == hash(d2)
-
-        d3 = MaterialsDict({k: v for k, v in materials.items() if k != "Concrete"})
-        assert hash(d1) != hash(d3)
-
-    def test_hash_raises_clear_error_with_array_valued_field(self) -> None:
-        # A 'jax.Array'-valued field makes the containing 'Material' (and
-        # thus the whole 'MaterialsDict') unhashable; this must surface as
-        # a clear, actionable error rather than a bare 'TypeError' from deep
-        # inside 'hash()'.
-        d = MaterialsDict({
-            "Custom": Material(
-                name="Custom",
-                properties=_dummy_properties,
-                scattering_coefficient=jnp.asarray(0.5),
-            )
-        })
-        with pytest.raises(TypeError, match="must be hashable"):
+    def test_not_hashable(self) -> None:
+        # 'MaterialsDict' is a plain (mutable) mapping, never used as a JIT
+        # static argument: 'GeometricFieldSolver' methods extract concrete
+        # per-material property arrays from it eagerly, before entering any
+        # jitted computation, so it need not (and, as a 'dict' subclass,
+        # does not) support hashing.
+        d = MaterialsDict(materials)
+        with pytest.raises(TypeError, match="unhashable"):
             hash(d)
 
 

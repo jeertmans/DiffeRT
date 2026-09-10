@@ -269,6 +269,373 @@ def _surface_interaction_geometry(
     )
 
 
+# The '*_matrix_core' functions below are the pure-array, JIT-compiled
+# counterparts of 'GeometricFieldSolver.reflection_matrix'/'diffraction_matrix'/
+# 'scattering_matrix'/'transmission_matrix': each corresponding method only
+# ever calls its 'radio_materials'-touching helper(s) (above) eagerly, to
+# extract concrete per-bounce property arrays, then delegates the actual
+# (materials-independent) physics to one of these. This keeps 'radio_materials'
+# (a plain, mutable 'Mapping', not a JAX pytree) from ever needing to cross a
+# JIT boundary -- unlike the surrounding paths/mesh/frequency (and the
+# already-extracted arrays), which are ordinary, safely-jittable pytrees.
+
+
+@eqx.filter_jit
+def _reflection_matrix_core(
+    k: Float[Array, "*batch num_segments 3"],
+    k_in: Float[Array, "*batch order 3"],
+    obj_normals: Float[Array, "*batch order 3"],
+    n_r_val: Complex[Array, "*batch order"],
+    thickness_val: Float[Array, "*batch order"],
+    cos_theta_i: Float[Array, "*batch order"],
+    wavelength: Float[Array, "*#batch"],
+    s_val: Float[Array, "*batch order"],
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Pure-array core of :meth:`GeometricFieldSolver.reflection_matrix`.
+
+    Returns:
+        One transition matrix per bounce.
+    """
+    k_out = k[..., 1:, :]
+
+    (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, obj_normals)
+
+    r_s, r_p = _get_reflection_coefficients(
+        n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
+    )
+
+    # If the material also has a nonzero 'scattering_coefficient' (S),
+    # a fraction S^2 of the reflected power is diverted to diffuse
+    # scattering (see 'scattering_matrix'); reduce the specular
+    # amplitude accordingly to conserve energy between the two.
+    specular_factor = jnp.sqrt(1.0 - s_val**2)
+    r_s, r_p = r_s * specular_factor, r_p * specular_factor
+
+    theta_hat, phi_hat = _spherical_basis(k)
+    theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
+    theta_out, phi_out = theta_hat[..., 1:, :], phi_hat[..., 1:, :]
+
+    in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
+    out_rot = sp_rotation_matrix(e_r_s, e_r_p, theta_out, phi_out)
+
+    zero = jnp.zeros_like(r_s)
+    d_j = jnp.stack(
+        [jnp.stack([r_s, zero], axis=-1), jnp.stack([zero, r_p], axis=-1)],
+        axis=-2,
+    )
+
+    return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
+
+
+@eqx.filter_jit
+def _scattering_matrix_core(
+    paths: TracedPaths,
+    k: Float[Array, "*batch num_segments 3"],
+    k_in: Float[Array, "*batch order 3"],
+    k_out: Float[Array, "*batch order 3"],
+    obj_normals: Float[Array, "*batch order 3"],
+    n_r_val: Complex[Array, "*batch order"],
+    thickness_val: Float[Array, "*batch order"],
+    cos_theta_i: Float[Array, "*batch order"],
+    wavelength: Float[Array, "*#batch"],
+    s_val: Float[Array, "*batch order"],
+    xpd_val: Float[Array, "*batch order"],
+    f_s: Float[Array, "*batch order"],
+    triangle_vertices: Float[Array, "*batch order 3 3"],
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Pure-array core of :meth:`GeometricFieldSolver.scattering_matrix`.
+
+    Returns:
+        One transition matrix per bounce.
+    """
+    r_s, r_p = _get_reflection_coefficients(
+        n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
+    )
+    gamma_s, gamma_p = jnp.abs(r_s), jnp.abs(r_p)
+
+    edge_1 = triangle_vertices[..., 1, :] - triangle_vertices[..., 0, :]
+    edge_2 = triangle_vertices[..., 2, :] - triangle_vertices[..., 0, :]
+    triangle_area = 0.5 * jnp.linalg.norm(jnp.cross(edge_1, edge_2), axis=-1)
+
+    path_segments = jnp.diff(paths.vertices, axis=-2)
+    _, s = normalize(path_segments, keepdims=True)
+    s_out = s[..., 1:, 0]
+
+    solid_angle = safe_divide(triangle_area, s_out**2)
+    amplitude = s_val * jnp.sqrt(f_s * solid_angle)
+    a_s, a_p = amplitude * gamma_s, amplitude * gamma_p
+
+    (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, obj_normals)
+
+    theta_hat, phi_hat = _spherical_basis(k)
+    theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
+    theta_out, phi_out = theta_hat[..., 1:, :], phi_hat[..., 1:, :]
+
+    in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
+    out_rot = sp_rotation_matrix(e_r_s, e_r_p, theta_out, phi_out)
+
+    # Real-valued (no phase shift beyond the overall path phase), but
+    # cast to complex for dtype-consistency with the other interaction
+    # types' matrices, which 'transition_matrices' combines via
+    # 'jnp.where'.
+    dtype = jnp.result_type(paths.vertices)
+    cdtype = jnp.complex128 if dtype == jnp.float64 else jnp.complex64
+    zero = jnp.zeros_like(a_s, dtype=cdtype)
+    a_s, a_p = a_s.astype(cdtype), a_p.astype(cdtype)
+    d_j = jnp.stack(
+        [jnp.stack([a_s, zero], axis=-1), jnp.stack([zero, a_p], axis=-1)],
+        axis=-2,
+    )
+
+    theta_x = jnp.arcsin(jnp.sqrt(xpd_val))
+    cos_x, sin_x = jnp.cos(theta_x), jnp.sin(theta_x)
+    j_xpd = jnp.stack(
+        [jnp.stack([cos_x, -sin_x], axis=-1), jnp.stack([sin_x, cos_x], axis=-1)],
+        axis=-2,
+    ).astype(cdtype)
+
+    return jnp.matmul(out_rot, jnp.matmul(j_xpd, jnp.matmul(d_j, in_rot)))
+
+
+@eqx.filter_jit
+def _transmission_matrix_core(
+    paths: TracedPaths,
+    k: Float[Array, "*batch num_segments 3"],
+    k_in: Float[Array, "*batch order 3"],
+    obj_normals: Float[Array, "*batch order 3"],
+    n_r_val: Complex[Array, "*batch order"],
+    thickness_val: Float[Array, "*batch order"],
+    cos_theta_i: Float[Array, "*batch order"],
+    wavelength: Float[Array, "*#batch"],
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Pure-array core of :meth:`GeometricFieldSolver.transmission_matrix`.
+
+    Returns:
+        One transition matrix per bounce.
+    """
+    # This method may run on bounces that are not actually a
+    # TRANSMISSION interaction (its result is discarded later, based on
+    # 'interaction_types'); only complain about a missing thickness for
+    # bounces that are actually used as a transmission.
+    is_transmission = paths.interaction_types == InteractionType.TRANSMISSION
+    thickness_val = eqx.error_if(
+        thickness_val,
+        jnp.any((thickness_val < 0.0) & is_transmission),
+        "Materials used in a TRANSMISSION interaction must have a finite "
+        "'thickness' set (e.g., Material(..., thickness=0.1)); materials "
+        "default to an infinite half-space (thickness=None), which is "
+        "meaningless for transmission.",
+    )
+    thickness_val = jnp.maximum(thickness_val, 0.0)
+
+    # Transmission does not bend the ray: the "outgoing" direction is the
+    # incident one, so the local s/p basis is the same on both sides.
+    (e_i_s, e_i_p), _ = sp_directions(k_in, k_in, obj_normals)
+
+    _, (t_s, t_p) = slab_coefficients(
+        n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
+    )
+
+    theta_hat, phi_hat = _spherical_basis(k)
+    theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
+
+    in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
+    out_rot = sp_rotation_matrix(e_i_s, e_i_p, theta_in, phi_in)
+
+    zero = jnp.zeros_like(t_s)
+    d_j = jnp.stack(
+        [jnp.stack([t_s, zero], axis=-1), jnp.stack([zero, t_p], axis=-1)],
+        axis=-2,
+    )
+
+    return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
+
+
+@eqx.filter_jit
+def _diffraction_matrix_core(
+    paths: TracedPaths,
+    mesh: Mesh,
+    frequency: Float[Array, "*#batch"],
+    n_complex: Complex[Array, "*#freq_batch num_materials"],
+    thickness: Float[Array, " num_materials"],
+    resolved_tx_wf: Float[ArrayLike, "*#batch"]
+    | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+    | tuple[
+        Float[ArrayLike, "*#batch"],
+        Float[ArrayLike, "*#batch 3"],
+        Float[ArrayLike, "*#batch"],
+        Float[ArrayLike, "*#batch 3"],
+    ]
+    | WavefrontState
+    | None,
+) -> Complex[Array, "*batch order 2 2"]:
+    """
+    Pure-array core of :meth:`GeometricFieldSolver.diffraction_matrix`.
+
+    Returns:
+        One transition matrix per bounce.
+    """
+    n0_he, nn_he, e_hat_he, primn_he = mesh._wedge_static_geometry()  # ruff: ignore[private-member-access]
+
+    # For a DIFFRACTION bounce, 'objects' holds a flat half-edge index
+    # '3 * triangle_index + local_edge_index' (0, 1, or 2), rather than
+    # a plain triangle index as for REFLECTION/TRANSMISSION.
+    half_edge_idx = paths.objects[..., 1:-1]
+    prim0_idx, local_edge_idx = (
+        half_edge_idx // 3,
+        half_edge_idx % 3,
+    )
+
+    n0 = n0_he[prim0_idx, local_edge_idx]
+    nn = nn_he[prim0_idx, local_edge_idx]
+    e_hat = e_hat_he[prim0_idx, local_edge_idx]
+    prim0 = prim0_idx
+    primn = primn_he[prim0_idx, local_edge_idx]
+    wedge_n = mesh.wedge_angles[prim0_idx, local_edge_idx]
+
+    path_segments = jnp.diff(paths.vertices, axis=-2)
+    k, s = normalize(path_segments, keepdims=True)
+    k_in = k[..., :-1, :]
+    k_out = k[..., 1:, :]
+    s_prime = s[..., :-1, 0]
+    s_out = s[..., 1:, 0]
+
+    # Sionna RT orients the 0-/n-face labeling per bounce, based on the
+    # incident ray's propagation direction, so that the 0-face is the
+    # one actually illuminated by the incident ray.
+    swap = jnp.sum(k_in * n0, axis=-1) > 0.0
+    n0, nn = jnp.where(swap[..., None], nn, n0), jnp.where(swap[..., None], n0, nn)
+    e_hat = jnp.where(swap[..., None], -e_hat, e_hat)
+    prim0, primn = jnp.where(swap, primn, prim0), jnp.where(swap, prim0, primn)
+
+    t0_hat, _ = normalize(jnp.cross(n0, e_hat))
+
+    # Non-diffracting (e.g., REFLECTION/TRANSMISSION) bounces still flow
+    # through this method (their result is discarded later, based on
+    # 'interaction_types'), but may hit degenerate geometry (e.g., a ray
+    # parallel to a placeholder edge); clip all inverse-trigonometric
+    # inputs to avoid ever producing a NaN, which would otherwise poison
+    # the 'jnp.where'-based combination in 'transition_matrices'.
+    ki_dot_e = jnp.sum(k_in * e_hat, axis=-1, keepdims=True)
+    ki_proj, _ = normalize(k_in - ki_dot_e * e_hat)
+    ko_dot_e = jnp.sum(k_out * e_hat, axis=-1, keepdims=True)
+    ko_proj, _ = normalize(k_out - ko_dot_e * e_hat)
+
+    phi_prime = jnp.pi - jnp.arccos(
+        jnp.clip(-jnp.sum(ki_proj * t0_hat, axis=-1), -1.0, 1.0)
+    )
+    phi_prime = phi_prime * -jnp.sign(-jnp.sum(ki_proj * n0, axis=-1))
+    phi_prime = phi_prime + jnp.pi
+
+    phi = jnp.pi - jnp.arccos(jnp.clip(jnp.sum(ko_proj * t0_hat, axis=-1), -1.0, 1.0))
+    phi = phi * -jnp.sign(jnp.sum(ko_proj * n0, axis=-1))
+    phi = phi + jnp.pi
+
+    cos_beta_0 = jnp.clip(jnp.abs(jnp.sum(k_in * e_hat, axis=-1)), 0.0, 1.0)
+    sin_beta_0 = jnp.sqrt(1.0 - cos_beta_0**2)
+
+    # The incident wavefront's radius of curvature at the diffraction
+    # point is 's_prime' away from an ideal point source at the
+    # transmitter; only add the resolved wavefront radius when this
+    # bounce is the *first* interaction (order index 0), since it is
+    # only there that 's_prime' is the distance from the transmitter
+    # itself.
+    radii = _wavefront_radii(resolved_tx_wf)
+    is_first_bounce = jnp.arange(s_prime.shape[-1]) == 0
+
+    if radii is None:
+        # A planar wavefront has no associated point-source distance to
+        # add; for a first-bounce diffraction, this is exactly the
+        # well-known plane-wave-incidence formula (the radii-based
+        # formula below is not simply evaluated at 'rho_i -> inf', which
+        # would be a 0/0 (NaN) division).
+        L_planar = s_out * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
+        L_other = safe_divide(s_prime * s_out, s_prime + s_out) * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
+        L = jnp.where(is_first_bounce, L_planar, L_other)  # ruff: ignore[non-lowercase-variable-in-function]
+    else:
+        rho_s, rho_p = radii
+        rho_i = s_prime + jnp.where(is_first_bounce, rho_s[..., None], 0.0)
+        L_spherical = (  # ruff: ignore[non-lowercase-variable-in-function]
+            safe_divide(rho_i * s_out, rho_i + s_out) * sin_beta_0**2
+        )
+
+        if isinstance(resolved_tx_wf, (int, float)):
+            L = L_spherical  # ruff: ignore[non-lowercase-variable-in-function]
+        else:
+            pw = propagate_wavefront(paths, mesh, resolved_tx_wf)
+            rho_1_i = pw.incident_radii[..., 0]
+            rho_2_i = pw.incident_radii[..., 1]
+            rho_e_i = pw.incident_radii[..., 2]
+
+            # Formulate L_astigmatic using curvatures kappa = 1/rho, matching
+            # McNamara et al. (1990), Eq. (6.25), p. 270 (PDF p. 144), while
+            # avoiding 0/0 and inf/inf divisions for planar or mixed wavefronts.
+            c1 = safe_divide(1.0, rho_1_i)
+            c2 = safe_divide(1.0, rho_2_i)
+            ce = safe_divide(1.0, rho_e_i)
+            denominator = (1.0 + s_out * c1) * (1.0 + s_out * c2)
+            numerator = s_out * (1.0 + s_out * ce)
+            L_astigmatic = (  # ruff: ignore[non-lowercase-variable-in-function]
+                safe_divide(numerator, denominator) * sin_beta_0**2
+            )
+
+            if isinstance(resolved_tx_wf, WavefrontState):
+                L = L_astigmatic  # ruff: ignore[non-lowercase-variable-in-function]
+            else:
+                is_astigmatic = jnp.any(rho_s != rho_p)
+                L = jnp.where(is_astigmatic, L_astigmatic, L_spherical)  # ruff: ignore[non-lowercase-variable-in-function]
+
+    mat0_idx = jnp.take(mesh.face_materials, prim0, axis=0)
+    matn_idx = jnp.take(mesh.face_materials, primn, axis=0)
+    n_r_o = _take_material_property(n_complex, mat0_idx)
+    n_r_n = _take_material_property(n_complex, matn_idx)
+    # A material with no explicit thickness uses the '-1' sentinel
+    # (meaning "infinite half-space", see '_material_arrays'); passed
+    # through as-is, 'diffraction_coefficients' resolves this sentinel
+    # per-element the same way '_get_reflection_coefficients' does for
+    # plain REFLECTION.
+    d_o = jnp.take(thickness, mat0_idx, axis=0)
+    d_n = jnp.take(thickness, matn_idx, axis=0)
+
+    wavenumber = jnp.broadcast_to(2.0 * jnp.pi * frequency / c, wedge_n.shape)
+    D_s, D_h = diffraction_coefficients(  # ruff: ignore[non-lowercase-variable-in-function]
+        wavenumber,
+        wedge_n,
+        phi_prime,
+        phi,
+        L,
+        sin_beta_0=sin_beta_0,
+        n_r_o=n_r_o,
+        n_r_n=n_r_n,
+        d_o=d_o,
+        d_n=d_n,
+    )
+
+    phi_hat_prime, _ = normalize(jnp.cross(k_in, e_hat))
+    tau_hat_prime, _ = normalize(jnp.cross(phi_hat_prime, k_in))
+    phi_hat_d, _ = normalize(jnp.cross(k_out, e_hat))
+    phi_hat_d = -phi_hat_d
+    tau_hat_d, _ = normalize(jnp.cross(phi_hat_d, k_out))
+
+    theta_hat, phi_hat_sph = _spherical_basis(k)
+    theta_in, phi_in = theta_hat[..., :-1, :], phi_hat_sph[..., :-1, :]
+    theta_out, phi_out = theta_hat[..., 1:, :], phi_hat_sph[..., 1:, :]
+
+    in_rot = sp_rotation_matrix(theta_in, phi_in, phi_hat_prime, tau_hat_prime)
+    out_rot = sp_rotation_matrix(phi_hat_d, tau_hat_d, theta_out, phi_out)
+
+    zero = jnp.zeros_like(D_s)
+    d_j = jnp.stack(
+        [jnp.stack([D_s, zero], axis=-1), jnp.stack([zero, D_h], axis=-1)],
+        axis=-2,
+    )
+
+    return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
+
+
 class AbstractFieldSolver(eqx.Module):
     """
     Abstract base class for all EM field solvers.
@@ -570,13 +937,6 @@ class GeometricFieldSolver(AbstractFieldSolver):
             _obj_indices,
             mat_indices,
         ) = _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
-        k_out = k[..., 1:, :]
-
-        (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, obj_normals)
-
-        r_s, r_p = _get_reflection_coefficients(
-            n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
-        )
 
         # If the material also has a nonzero 'scattering_coefficient' (S),
         # a fraction S^2 of the reflected power is diverted to diffuse
@@ -584,23 +944,10 @@ class GeometricFieldSolver(AbstractFieldSolver):
         # amplitude accordingly to conserve energy between the two.
         scattering_coefficient, _ = _scattering_properties(mesh, self._radio_materials)
         s_val = _take_material_property(scattering_coefficient, mat_indices)
-        specular_factor = jnp.sqrt(1.0 - s_val**2)
-        r_s, r_p = r_s * specular_factor, r_p * specular_factor
 
-        theta_hat, phi_hat = _spherical_basis(k)
-        theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
-        theta_out, phi_out = theta_hat[..., 1:, :], phi_hat[..., 1:, :]
-
-        in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
-        out_rot = sp_rotation_matrix(e_r_s, e_r_p, theta_out, phi_out)
-
-        zero = jnp.zeros_like(r_s)
-        d_j = jnp.stack(
-            [jnp.stack([r_s, zero], axis=-1), jnp.stack([zero, r_p], axis=-1)],
-            axis=-2,
+        return _reflection_matrix_core(
+            k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength, s_val
         )
-
-        return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
 
     def diffraction_matrix(
         self,
@@ -661,166 +1008,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
             raise ValueError(msg)
 
         frequency = jnp.asarray(frequency)
-        n0_he, nn_he, e_hat_he, primn_he = mesh._wedge_static_geometry()  # ruff: ignore[private-member-access]
-
-        # For a DIFFRACTION bounce, 'objects' holds a flat half-edge index
-        # '3 * triangle_index + local_edge_index' (0, 1, or 2), rather than
-        # a plain triangle index as for REFLECTION/TRANSMISSION.
-        half_edge_idx = paths.objects[..., 1:-1]
-        prim0_idx, local_edge_idx = (
-            half_edge_idx // 3,
-            half_edge_idx % 3,
-        )
-
-        n0 = n0_he[prim0_idx, local_edge_idx]
-        nn = nn_he[prim0_idx, local_edge_idx]
-        e_hat = e_hat_he[prim0_idx, local_edge_idx]
-        prim0 = prim0_idx
-        primn = primn_he[prim0_idx, local_edge_idx]
-        wedge_n = mesh.wedge_angles[prim0_idx, local_edge_idx]
-
-        path_segments = jnp.diff(paths.vertices, axis=-2)
-        k, s = normalize(path_segments, keepdims=True)
-        k_in = k[..., :-1, :]
-        k_out = k[..., 1:, :]
-        s_prime = s[..., :-1, 0]
-        s_out = s[..., 1:, 0]
-
-        # Sionna RT orients the 0-/n-face labeling per bounce, based on the
-        # incident ray's propagation direction, so that the 0-face is the
-        # one actually illuminated by the incident ray.
-        swap = jnp.sum(k_in * n0, axis=-1) > 0.0
-        n0, nn = jnp.where(swap[..., None], nn, n0), jnp.where(swap[..., None], n0, nn)
-        e_hat = jnp.where(swap[..., None], -e_hat, e_hat)
-        prim0, primn = jnp.where(swap, primn, prim0), jnp.where(swap, prim0, primn)
-
-        t0_hat, _ = normalize(jnp.cross(n0, e_hat))
-
-        # Non-diffracting (e.g., REFLECTION/TRANSMISSION) bounces still flow
-        # through this method (their result is discarded later, based on
-        # 'interaction_types'), but may hit degenerate geometry (e.g., a ray
-        # parallel to a placeholder edge); clip all inverse-trigonometric
-        # inputs to avoid ever producing a NaN, which would otherwise poison
-        # the 'jnp.where'-based combination in 'transition_matrices'.
-        ki_dot_e = jnp.sum(k_in * e_hat, axis=-1, keepdims=True)
-        ki_proj, _ = normalize(k_in - ki_dot_e * e_hat)
-        ko_dot_e = jnp.sum(k_out * e_hat, axis=-1, keepdims=True)
-        ko_proj, _ = normalize(k_out - ko_dot_e * e_hat)
-
-        phi_prime = jnp.pi - jnp.arccos(
-            jnp.clip(-jnp.sum(ki_proj * t0_hat, axis=-1), -1.0, 1.0)
-        )
-        phi_prime = phi_prime * -jnp.sign(-jnp.sum(ki_proj * n0, axis=-1))
-        phi_prime = phi_prime + jnp.pi
-
-        phi = jnp.pi - jnp.arccos(
-            jnp.clip(jnp.sum(ko_proj * t0_hat, axis=-1), -1.0, 1.0)
-        )
-        phi = phi * -jnp.sign(jnp.sum(ko_proj * n0, axis=-1))
-        phi = phi + jnp.pi
-
-        cos_beta_0 = jnp.clip(jnp.abs(jnp.sum(k_in * e_hat, axis=-1)), 0.0, 1.0)
-        sin_beta_0 = jnp.sqrt(1.0 - cos_beta_0**2)
-
-        # The incident wavefront's radius of curvature at the diffraction
-        # point is 's_prime' away from an ideal point source at the
-        # transmitter; only add the resolved wavefront radius when this
-        # bounce is the *first* interaction (order index 0), since it is
-        # only there that 's_prime' is the distance from the transmitter
-        # itself.
-        radii = _wavefront_radii(self._resolve_tx_wavefront_radii(paths))
-        is_first_bounce = jnp.arange(s_prime.shape[-1]) == 0
-
-        if radii is None:
-            # A planar wavefront has no associated point-source distance to
-            # add; for a first-bounce diffraction, this is exactly the
-            # well-known plane-wave-incidence formula (the radii-based
-            # formula below is not simply evaluated at 'rho_i -> inf', which
-            # would be a 0/0 (NaN) division).
-            L_planar = s_out * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
-            L_other = safe_divide(s_prime * s_out, s_prime + s_out) * sin_beta_0**2  # ruff: ignore[non-lowercase-variable-in-function]
-            L = jnp.where(is_first_bounce, L_planar, L_other)  # ruff: ignore[non-lowercase-variable-in-function]
-        else:
-            rho_s, rho_p = radii
-            rho_i = s_prime + jnp.where(is_first_bounce, rho_s[..., None], 0.0)
-            L_spherical = (  # ruff: ignore[non-lowercase-variable-in-function]
-                safe_divide(rho_i * s_out, rho_i + s_out) * sin_beta_0**2
-            )
-
-            resolved_tx_wf = self._resolve_tx_wavefront_radii(paths)
-            if isinstance(resolved_tx_wf, (int, float)):
-                L = L_spherical  # ruff: ignore[non-lowercase-variable-in-function]
-            else:
-                pw = propagate_wavefront(paths, mesh, resolved_tx_wf)
-                rho_1_i = pw.incident_radii[..., 0]
-                rho_2_i = pw.incident_radii[..., 1]
-                rho_e_i = pw.incident_radii[..., 2]
-
-                # Formulate L_astigmatic using curvatures kappa = 1/rho, matching
-                # McNamara et al. (1990), Eq. (6.25), p. 270 (PDF p. 144), while
-                # avoiding 0/0 and inf/inf divisions for planar or mixed wavefronts.
-                c1 = safe_divide(1.0, rho_1_i)
-                c2 = safe_divide(1.0, rho_2_i)
-                ce = safe_divide(1.0, rho_e_i)
-                denominator = (1.0 + s_out * c1) * (1.0 + s_out * c2)
-                numerator = s_out * (1.0 + s_out * ce)
-                L_astigmatic = (  # ruff: ignore[non-lowercase-variable-in-function]
-                    safe_divide(numerator, denominator) * sin_beta_0**2
-                )
-
-                if isinstance(resolved_tx_wf, WavefrontState):
-                    L = L_astigmatic  # ruff: ignore[non-lowercase-variable-in-function]
-                else:
-                    is_astigmatic = jnp.any(rho_s != rho_p)
-                    L = jnp.where(is_astigmatic, L_astigmatic, L_spherical)  # ruff: ignore[non-lowercase-variable-in-function]
-
         n_complex, thickness = _material_arrays(mesh, self._radio_materials, frequency)
-        mat0_idx = jnp.take(mesh.face_materials, prim0, axis=0)
-        matn_idx = jnp.take(mesh.face_materials, primn, axis=0)
-        n_r_o = _take_material_property(n_complex, mat0_idx)
-        n_r_n = _take_material_property(n_complex, matn_idx)
-        # A material with no explicit thickness uses the '-1' sentinel
-        # (meaning "infinite half-space", see '_material_arrays'); passed
-        # through as-is, 'diffraction_coefficients' resolves this sentinel
-        # per-element the same way '_get_reflection_coefficients' does for
-        # plain REFLECTION.
-        d_o = jnp.take(thickness, mat0_idx, axis=0)
-        d_n = jnp.take(thickness, matn_idx, axis=0)
+        resolved_tx_wf = self._resolve_tx_wavefront_radii(paths)
 
-        wavenumber = jnp.broadcast_to(2.0 * jnp.pi * frequency / c, wedge_n.shape)
-        D_s, D_h = diffraction_coefficients(  # ruff: ignore[non-lowercase-variable-in-function]
-            wavenumber,
-            wedge_n,
-            phi_prime,
-            phi,
-            L,
-            sin_beta_0=sin_beta_0,
-            n_r_o=n_r_o,
-            n_r_n=n_r_n,
-            d_o=d_o,
-            d_n=d_n,
+        return _diffraction_matrix_core(
+            paths, mesh, frequency, n_complex, thickness, resolved_tx_wf
         )
-
-        phi_hat_prime, _ = normalize(jnp.cross(k_in, e_hat))
-        tau_hat_prime, _ = normalize(jnp.cross(phi_hat_prime, k_in))
-        phi_hat_d, _ = normalize(jnp.cross(k_out, e_hat))
-        phi_hat_d = -phi_hat_d
-        tau_hat_d, _ = normalize(jnp.cross(phi_hat_d, k_out))
-
-        theta_hat, phi_hat_sph = _spherical_basis(k)
-        theta_in, phi_in = theta_hat[..., :-1, :], phi_hat_sph[..., :-1, :]
-        theta_out, phi_out = theta_hat[..., 1:, :], phi_hat_sph[..., 1:, :]
-
-        in_rot = sp_rotation_matrix(theta_in, phi_in, phi_hat_prime, tau_hat_prime)
-        out_rot = sp_rotation_matrix(phi_hat_d, tau_hat_d, theta_out, phi_out)
-
-        zero = jnp.zeros_like(D_s)
-        d_j = jnp.stack(
-            [jnp.stack([D_s, zero], axis=-1), jnp.stack([zero, D_h], axis=-1)],
-            axis=-2,
-        )
-
-        return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
 
     def scattering_matrix(
         self,
@@ -896,64 +1089,31 @@ class GeometricFieldSolver(AbstractFieldSolver):
         ) = _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
         k_out = k[..., 1:, :]
 
-        r_s, r_p = _get_reflection_coefficients(
-            n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
-        )
-        gamma_s, gamma_p = jnp.abs(r_s), jnp.abs(r_p)
-
         scattering_coefficient, xpd_coefficient = _scattering_properties(
             mesh, self._radio_materials
         )
         s_val = _take_material_property(scattering_coefficient, mat_indices)
         xpd_val = _take_material_property(xpd_coefficient, mat_indices)
-
-        triangle_vertices = jnp.take(mesh.triangle_vertices, obj_indices, axis=0)
-        edge_1 = triangle_vertices[..., 1, :] - triangle_vertices[..., 0, :]
-        edge_2 = triangle_vertices[..., 2, :] - triangle_vertices[..., 0, :]
-        triangle_area = 0.5 * jnp.linalg.norm(jnp.cross(edge_1, edge_2), axis=-1)
-
-        path_segments = jnp.diff(paths.vertices, axis=-2)
-        _, s = normalize(path_segments, keepdims=True)
-        s_out = s[..., 1:, 0]
-
         f_s = _scattering_pattern_values(
             mesh, self._radio_materials, k_in, k_out, obj_normals, mat_indices
         )
+        triangle_vertices = jnp.take(mesh.triangle_vertices, obj_indices, axis=0)
 
-        solid_angle = safe_divide(triangle_area, s_out**2)
-        amplitude = s_val * jnp.sqrt(f_s * solid_angle)
-        a_s, a_p = amplitude * gamma_s, amplitude * gamma_p
-
-        (e_i_s, e_i_p), (e_r_s, e_r_p) = sp_directions(k_in, k_out, obj_normals)
-
-        theta_hat, phi_hat = _spherical_basis(k)
-        theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
-        theta_out, phi_out = theta_hat[..., 1:, :], phi_hat[..., 1:, :]
-
-        in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
-        out_rot = sp_rotation_matrix(e_r_s, e_r_p, theta_out, phi_out)
-
-        # Real-valued (no phase shift beyond the overall path phase), but
-        # cast to complex for dtype-consistency with the other interaction
-        # types' matrices, which 'transition_matrices' combines via
-        # 'jnp.where'.
-        dtype = jnp.result_type(paths.vertices)
-        cdtype = jnp.complex128 if dtype == jnp.float64 else jnp.complex64
-        zero = jnp.zeros_like(a_s, dtype=cdtype)
-        a_s, a_p = a_s.astype(cdtype), a_p.astype(cdtype)
-        d_j = jnp.stack(
-            [jnp.stack([a_s, zero], axis=-1), jnp.stack([zero, a_p], axis=-1)],
-            axis=-2,
+        return _scattering_matrix_core(
+            paths,
+            k,
+            k_in,
+            k_out,
+            obj_normals,
+            n_r_val,
+            thickness_val,
+            cos_theta_i,
+            wavelength,
+            s_val,
+            xpd_val,
+            f_s,
+            triangle_vertices,
         )
-
-        theta_x = jnp.arcsin(jnp.sqrt(xpd_val))
-        cos_x, sin_x = jnp.cos(theta_x), jnp.sin(theta_x)
-        j_xpd = jnp.stack(
-            [jnp.stack([cos_x, -sin_x], axis=-1), jnp.stack([sin_x, cos_x], axis=-1)],
-            axis=-2,
-        ).astype(cdtype)
-
-        return jnp.matmul(out_rot, jnp.matmul(j_xpd, jnp.matmul(d_j, in_rot)))
 
     def transmission_matrix(
         self,
@@ -995,42 +1155,9 @@ class GeometricFieldSolver(AbstractFieldSolver):
             _surface_interaction_geometry(paths, mesh, frequency, self._radio_materials)
         )
 
-        # This method may run on bounces that are not actually a
-        # TRANSMISSION interaction (its result is discarded later, based on
-        # 'interaction_types'); only complain about a missing thickness for
-        # bounces that are actually used as a transmission.
-        is_transmission = paths.interaction_types == InteractionType.TRANSMISSION
-        thickness_val = eqx.error_if(
-            thickness_val,
-            jnp.any((thickness_val < 0.0) & is_transmission),
-            "Materials used in a TRANSMISSION interaction must have a finite "
-            "'thickness' set (e.g., Material(..., thickness=0.1)); materials "
-            "default to an infinite half-space (thickness=None), which is "
-            "meaningless for transmission.",
+        return _transmission_matrix_core(
+            paths, k, k_in, obj_normals, n_r_val, thickness_val, cos_theta_i, wavelength
         )
-        thickness_val = jnp.maximum(thickness_val, 0.0)
-
-        # Transmission does not bend the ray: the "outgoing" direction is the
-        # incident one, so the local s/p basis is the same on both sides.
-        (e_i_s, e_i_p), _ = sp_directions(k_in, k_in, obj_normals)
-
-        _, (t_s, t_p) = slab_coefficients(
-            n_r_val, cos_theta_i, thickness_val, wavelength[..., None]
-        )
-
-        theta_hat, phi_hat = _spherical_basis(k)
-        theta_in, phi_in = theta_hat[..., :-1, :], phi_hat[..., :-1, :]
-
-        in_rot = sp_rotation_matrix(theta_in, phi_in, e_i_s, e_i_p)
-        out_rot = sp_rotation_matrix(e_i_s, e_i_p, theta_in, phi_in)
-
-        zero = jnp.zeros_like(t_s)
-        d_j = jnp.stack(
-            [jnp.stack([t_s, zero], axis=-1), jnp.stack([zero, t_p], axis=-1)],
-            axis=-2,
-        )
-
-        return jnp.matmul(out_rot, jnp.matmul(d_j, in_rot))
 
     def ris_matrix(
         self,
