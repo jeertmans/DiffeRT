@@ -116,3 +116,202 @@ pub(crate) fn scene(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Scene>()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use indexmap::IndexMap;
+    use pyo3::Python;
+
+    use crate::geometry::sionna::Material;
+
+    use super::*;
+
+    const TRIANGLE_OBJ: &str = "v 0.0 0.0 0.0\nv 1.0 0.0 0.0\nv 0.0 1.0 0.0\nf 1 2 3\n";
+
+    /// Create a unique, empty temporary directory to host the files of a
+    /// single test (so concurrently-running tests never clash).
+    fn unique_tmp_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after the epoch")
+            .as_nanos();
+        let mut dir = std::env::temp_dir();
+        dir.push(format!(
+            "differt-core-scene-test-{name}-{}-{nanos}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).expect("failed to create temporary directory");
+        dir
+    }
+
+    fn shape_xml(id: &str) -> String {
+        format!(
+            r#"
+            <shape type="obj" id="shape-{id}">
+                <string name="filename" value="mesh.obj"/>
+                <ref id="{id}"/>
+            </shape>
+            "#
+        )
+    }
+
+    #[test]
+    fn non_uniform_material_names_flags_same_name_different_thickness() {
+        let mut materials = IndexMap::new();
+        materials.insert(
+            "window1".to_string(),
+            Material {
+                name: "itu_glass".to_string(),
+                id: "window1".to_string(),
+                color: [0.168, 0.139, 0.509],
+                thickness: Some(0.01),
+            },
+        );
+        materials.insert(
+            "window2".to_string(),
+            Material {
+                name: "itu_glass".to_string(),
+                id: "window2".to_string(),
+                color: [0.168, 0.139, 0.509],
+                thickness: Some(0.05),
+            },
+        );
+        materials.insert(
+            "wall".to_string(),
+            Material {
+                name: "itu_concrete".to_string(),
+                id: "wall".to_string(),
+                color: [0.539, 0.539, 0.539],
+                thickness: None,
+            },
+        );
+        materials.insert(
+            "wall2".to_string(),
+            Material {
+                name: "itu_concrete".to_string(),
+                id: "wall2".to_string(),
+                color: [0.539, 0.539, 0.539],
+                thickness: None,
+            },
+        );
+
+        let sionna = SionnaScene {
+            materials,
+            shapes: IndexMap::new(),
+        };
+
+        let non_uniform = non_uniform_material_names(&sionna);
+
+        // Both "itu_glass" materials share a name but disagree on
+        // thickness, so the name alone cannot distinguish them.
+        assert!(non_uniform.contains("itu_glass"));
+        // Both "itu_concrete" materials agree (neither has a thickness
+        // override), so their shared name remains sufficient.
+        assert!(!non_uniform.contains("itu_concrete"));
+    }
+
+    #[test]
+    fn load_xml_keeps_ids_distinguishable_when_material_names_collide() {
+        let dir = unique_tmp_dir("collide");
+
+        fs::write(dir.join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
+
+        let xml = format!(
+            r#"<scene version="2.1.0">
+                <bsdf type="itu-radio-material" id="window1">
+                    <string name="type" value="glass"/>
+                    <float name="thickness" value="0.01"/>
+                </bsdf>
+                <bsdf type="itu-radio-material" id="window2">
+                    <string name="type" value="glass"/>
+                    <float name="thickness" value="0.05"/>
+                </bsdf>
+                {}{}
+            </scene>"#,
+            shape_xml("window1"),
+            shape_xml("window2"),
+        );
+
+        let scene_file = dir.join("scene.xml");
+        fs::write(&scene_file, xml).expect("failed to write scene file");
+
+        let material_names: Vec<String> = Python::with_gil(|py| {
+            let scene = Scene::load_xml(&scene_file).expect("scene should load");
+            let py_scene =
+                Bound::new(py, scene).expect("failed to wrap the scene in a Python object");
+            let py_mesh = py_scene
+                .getattr("mesh")
+                .expect("scene should have a `mesh` attribute");
+            py_mesh
+                .getattr("material_names")
+                .expect("mesh should have a `material_names` attribute")
+                .extract()
+                .expect("`material_names` should be extractable as Vec<String>")
+        });
+
+        fs::remove_dir_all(&dir).ok();
+
+        // Since the two "glass" materials disagree on thickness, they must
+        // remain distinguishable under their own XML ids, rather than both
+        // collapsing to the generic "itu_glass" name (which would make them
+        // indistinguishable from one another).
+        assert_eq!(
+            material_names,
+            vec!["window1".to_string(), "window2".to_string()]
+        );
+    }
+
+    #[test]
+    fn load_xml_keeps_generic_name_when_no_collision() {
+        let dir = unique_tmp_dir("no-collide");
+
+        fs::write(dir.join("mesh.obj"), TRIANGLE_OBJ).expect("failed to write obj file");
+
+        let xml = format!(
+            r#"<scene version="2.1.0">
+                <bsdf type="itu-radio-material" id="window">
+                    <string name="type" value="glass"/>
+                    <float name="thickness" value="0.01"/>
+                </bsdf>
+                <bsdf type="itu-radio-material" id="wall">
+                    <string name="type" value="concrete"/>
+                </bsdf>
+                {}{}
+            </scene>"#,
+            shape_xml("window"),
+            shape_xml("wall"),
+        );
+
+        let scene_file = dir.join("scene.xml");
+        fs::write(&scene_file, xml).expect("failed to write scene file");
+
+        let material_names: Vec<String> = Python::with_gil(|py| {
+            let scene = Scene::load_xml(&scene_file).expect("scene should load");
+            let py_scene =
+                Bound::new(py, scene).expect("failed to wrap the scene in a Python object");
+            let py_mesh = py_scene
+                .getattr("mesh")
+                .expect("scene should have a `mesh` attribute");
+            py_mesh
+                .getattr("material_names")
+                .expect("mesh should have a `material_names` attribute")
+                .extract()
+                .expect("`material_names` should be extractable as Vec<String>")
+        });
+
+        fs::remove_dir_all(&dir).ok();
+
+        // Neither material name collides with another, so both keep their
+        // generic, ITU-type-derived name (resolvable against the built-in
+        // ITU materials database), rather than being keyed by XML id.
+        assert_eq!(
+            material_names,
+            vec!["itu_glass".to_string(), "itu_concrete".to_string()]
+        );
+    }
+}

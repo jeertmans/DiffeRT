@@ -795,6 +795,28 @@ mod tests {
     }
 
     #[test]
+    fn deserializes_itu_material_with_duplicate_thickness_errors() {
+        // Now that `thickness` is actually deserialized from `<float>`
+        // elements (instead of being `#[serde(skip)]`ped), a second
+        // `<float name="thickness">` element is recognized as a duplicate
+        // of the same field and must be rejected.
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="window">
+                <string name="type" value="glass"/>
+                <float name="thickness" value="0.01"/>
+                <float name="thickness" value="0.02"/>
+            </bsdf>
+        "#;
+
+        let result: Result<Material, _> = quick_xml::de::from_str(xml);
+
+        assert!(
+            result.is_err(),
+            "duplicate <float> (thickness) elements should be rejected, got {result:?}"
+        );
+    }
+
+    #[test]
     fn deserializes_material_without_mat_prefix() {
         let xml = r#"
             <bsdf type="diffuse" id="simple_name"/>
