@@ -269,7 +269,11 @@ def solve_mixed_interaction_paths(
             fermat_kwargs.get("interaction_types", None) if fermat_kwargs else None
         )
         if fpt_interaction_types is None:
-            fpt_interaction_types = jnp.where(is_diffraction_for_solve, 1, 0)
+            fpt_interaction_types = jnp.where(
+                is_diffraction_for_solve,
+                InteractionType.DIFFRACTION,
+                InteractionType.REFLECTION,
+            )
         fermat_call_kwargs = {
             "interaction_types": fpt_interaction_types,
             "use_image_method": True,
