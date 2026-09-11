@@ -450,8 +450,7 @@ class SBRPathTracer(HybridPathTracer):
         """Override to combine ray-shot reflection candidates with graph-based non-reflection ones.
 
         When ``allowed_interactions`` only contains ``REFLECTION``, candidates
-        come solely from :meth:`_generate_reflection_candidates` (ray
-        shooting). When ``REFLECTION`` is excluded entirely, this falls back
+        come solely from ray shooting. When ``REFLECTION`` is excluded entirely, this falls back
         to :class:`HybridPathTracer`'s graph-based generation. Otherwise, the
         ray-shot reflection-only candidates are combined with
         :class:`HybridPathTracer`'s candidates restricted to those containing
