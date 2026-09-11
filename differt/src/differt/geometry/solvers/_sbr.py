@@ -1,12 +1,12 @@
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypedDict, no_type_check
-
-__all__ = [
+__all__ = (
     "SBRPathLauncher",
     "SBRPathTracer",
     "_SBRPathLauncherKwargs",
     "_SBRPathTracerKwargs",
-]
+)
+
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, TypedDict, no_type_check
 
 import jax
 import jax.numpy as jnp

@@ -26,7 +26,7 @@ def _bending_first_permutation(
     ``False``) entries, also in their original relative order. This turns an
     arbitrary interleaving of bending (reflection/scattering/diffraction) and
     non-bending (transmission, padding) bounces into a layout where the
-    non-bending bounces form a trailing suffix, exactly like today's
+    non-bending bounces form a trailing suffix, exactly like the
     trailing ``-1`` placeholder convention -- so the very same
     receiver-collapse trick used for padding can be reused for them.
 
@@ -251,7 +251,7 @@ def solve_mixed_interaction_paths(
 
     # Collapse non-bending slots (TRANSMISSION and placeholders, now a
     # trailing suffix after reordering) to the receiver plane, exactly as
-    # done for trailing '-1' placeholders today: both the image (forward
+    # done for trailing '-1' placeholders: both the image (forward
     # pass) and the intersection point (backward pass) of the recursion
     # then collapse to the receiver itself.
     object_origin_for_solve = jnp.where(

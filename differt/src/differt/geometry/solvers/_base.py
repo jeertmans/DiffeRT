@@ -137,8 +137,8 @@ class AbstractPathTracer(AbstractPathSolver):
                 combine.
             allowed_interactions: The set of interaction types a bounce may
                 take. Defaults to
-                ``frozenset({InteractionType.REFLECTION})`` (today's
-                behavior) when :data:`None`. :class:`SBRPathTracer` only
+                ``frozenset({InteractionType.REFLECTION})``
+                when :data:`None`. :class:`SBRPathTracer` only
                 supports ``REFLECTION`` for now (its ray-shooting kernel
                 does not (yet) continue through diffraction edges or
                 transmissive faces).

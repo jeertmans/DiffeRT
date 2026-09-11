@@ -23,22 +23,16 @@ class WavefrontState(eqx.Module):
     r"""
     Represents the wavefront curvature state along a ray.
 
-    .. note::
-
-        This class is also re-exported directly from the top-level :mod:`differt` package
-        (e.g., ``from differt import WavefrontState``).
-
     The wavefront geometry is described in the plane transverse to the propagation
     direction :math:`\hat{k}` by two principal radii of curvature
     :math:`(\rho_1, \rho_2)` and their corresponding orthogonal unit vectors
     :math:`(\hat{u}_1, \hat{u}_2)`.
 
     Attributes:
-        radii: The principal radii of curvature, shape ``(*batch, 2)``.
-        axes: The orthogonal unit vectors defining the principal planes,
-            shape ``(*batch, 2, 3)``.
+        radii: The principal radii of curvature.
+        axes: The orthogonal unit vectors defining the principal planes.
         is_planar: Boolean flags indicating whether each principal curvature
-            is zero (infinite radius / plane wave), shape ``(*batch, 2)``.
+            is zero (infinite radius / plane wave).
     """
 
     radii: Float[Array, "*batch 2"]
@@ -251,11 +245,9 @@ class PathWavefront(eqx.Module):
     Attributes:
         state: The final wavefront state at the receiver.
         incident_radii: The incident radii ``(rho_1_i, rho_2_i, rho_e_i)``
-            at each interaction bounce, shape ``(*batch, order, 3)``.
-        spreading_factor: The accumulated field amplitude spreading factor along each path,
-            shape ``(*batch,)``.
-        segment_radii: The principal radii at the start of each path segment,
-            shape ``(*batch, num_segments, 2)``.
+            at each interaction bounce.
+        spreading_factor: The accumulated field amplitude spreading factor along each path.
+        segment_radii: The principal radii at the start of each path segment.
     """
 
     state: WavefrontState
@@ -272,11 +264,6 @@ def propagate_wavefront(
 ) -> PathWavefront:
     r"""
     Propagate the wavefront curvature state along the given traced paths.
-
-    .. note::
-
-        This function is also re-exported directly from the top-level :mod:`differt` package
-        (e.g., ``from differt import propagate_wavefront``).
 
     Performs a scan along each path's segments and interaction bounces, transporting
     principal radii and axes through free space, reflections, transmissions, and

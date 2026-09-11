@@ -3,13 +3,7 @@ from enum import IntEnum, unique
 
 @unique
 class InteractionType(IntEnum):
-    """Enumeration of interaction types.
-
-    .. note::
-
-        This enum is also re-exported directly from the top-level :mod:`differt` package
-        (e.g., ``from differt import InteractionType``).
-    """
+    """Enumeration of interaction types."""
 
     NONE = -1
     """No interaction (placeholder)."""
@@ -26,32 +20,12 @@ class InteractionType(IntEnum):
 
 
 SpecularReflection = InteractionType.REFLECTION
-"""Ergonomic alias for :attr:`InteractionType.REFLECTION`.
-
-Also re-exported directly from the top-level :mod:`differt` package
-(e.g., ``from differt import SpecularReflection``).
-"""
+"""Alias for :attr:`InteractionType.REFLECTION`."""
 Diffraction = InteractionType.DIFFRACTION
-"""Ergonomic alias for :attr:`InteractionType.DIFFRACTION`.
-
-Also re-exported directly from the top-level :mod:`differt` package
-(e.g., ``from differt import Diffraction``).
-"""
+"""Alias for :attr:`InteractionType.DIFFRACTION`."""
 Scattering = InteractionType.SCATTERING
-"""Ergonomic alias for :attr:`InteractionType.SCATTERING`.
-
-Also re-exported directly from the top-level :mod:`differt` package
-(e.g., ``from differt import Scattering``).
-"""
+"""Alias for :attr:`InteractionType.SCATTERING`."""
 Transmission = InteractionType.TRANSMISSION
-"""Ergonomic alias for :attr:`InteractionType.TRANSMISSION`.
-
-Also re-exported directly from the top-level :mod:`differt` package
-(e.g., ``from differt import Transmission``).
-"""
+"""Alias for :attr:`InteractionType.TRANSMISSION`."""
 RIS = InteractionType.RIS
-"""Ergonomic alias for :attr:`InteractionType.RIS`.
-
-Also re-exported directly from the top-level :mod:`differt` package
-(e.g., ``from differt import RIS``).
-"""
+"""Alias for :attr:`InteractionType.RIS`."""

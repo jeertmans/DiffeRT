@@ -4,6 +4,24 @@ This subpackage is an internal implementation detail: import from
 :mod:`differt.geometry` instead.
 """
 
+__all__ = (
+    "AbstractPathLauncher",
+    "AbstractPathSolver",
+    "AbstractPathTracer",
+    "ExhaustivePathTracer",
+    "HybridPathTracer",
+    "SBRPathLauncher",
+    "SBRPathTracer",
+    "_ExhaustivePathTracerKwargs",
+    "_HybridPathTracerKwargs",
+    "_SBRPathLauncherKwargs",
+    "_SBRPathTracerKwargs",
+    "_generate_path_candidates_for_orders",
+    "_normalize_order",
+    "_pad_path_candidates",
+    "_trace_path_candidates",
+)
+
 from ._base import (
     AbstractPathLauncher,
     AbstractPathSolver,
@@ -21,21 +39,3 @@ from ._sbr import (
     _SBRPathLauncherKwargs,
     _SBRPathTracerKwargs,
 )
-
-__all__ = [
-    "AbstractPathLauncher",
-    "AbstractPathSolver",
-    "AbstractPathTracer",
-    "ExhaustivePathTracer",
-    "HybridPathTracer",
-    "SBRPathLauncher",
-    "SBRPathTracer",
-    "_ExhaustivePathTracerKwargs",
-    "_HybridPathTracerKwargs",
-    "_SBRPathLauncherKwargs",
-    "_SBRPathTracerKwargs",
-    "_generate_path_candidates_for_orders",
-    "_normalize_order",
-    "_pad_path_candidates",
-    "_trace_path_candidates",
-]

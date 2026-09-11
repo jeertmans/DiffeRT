@@ -1,5 +1,23 @@
 """Differentiable Ray Tracing Toolbox for Radio Propagation."""
 
+__all__ = (
+    "RIS",
+    "Diffraction",
+    "InteractionType",
+    "LaunchedPaths",
+    "Material",
+    "Mesh",
+    "Scattering",
+    "Scene",
+    "SpecularReflection",
+    "TracedPaths",
+    "Transmission",
+    "WavefrontState",
+    "__version__",
+    "__version_info__",
+    "propagate_wavefront",
+)
+
 import importlib
 from typing import TYPE_CHECKING
 
@@ -18,24 +36,6 @@ if TYPE_CHECKING:
         propagate_wavefront,
     )
     from .geometry import LaunchedPaths, Mesh, Scene, TracedPaths
-
-__all__ = (
-    "RIS",
-    "Diffraction",
-    "InteractionType",
-    "LaunchedPaths",
-    "Material",
-    "Mesh",
-    "Scattering",
-    "Scene",
-    "SpecularReflection",
-    "TracedPaths",
-    "Transmission",
-    "WavefrontState",
-    "__version__",
-    "__version_info__",
-    "propagate_wavefront",
-)
 
 # Lazily re-export the most commonly used names from 'differt.geometry' and
 # 'differt.em' at the top level (PEP 562), so 'import differt' stays cheap:

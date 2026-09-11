@@ -1,7 +1,7 @@
+__all__ = ("ExhaustivePathTracer", "_ExhaustivePathTracerKwargs")
+
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
-
-__all__ = ["ExhaustivePathTracer", "_ExhaustivePathTracerKwargs"]
 
 import equinox as eqx
 import jax.numpy as jnp

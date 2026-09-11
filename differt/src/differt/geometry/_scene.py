@@ -343,13 +343,7 @@ def _resolve_solver(
 
 
 class Scene(eqx.Module):
-    """A simple scene made of one or more triangle meshes, some transmitters and some receivers.
-
-    .. note::
-
-        This class is also re-exported directly from the top-level :mod:`differt` package
-        (e.g., ``from differt import Scene``).
-    """
+    """A simple scene made of one or more triangle meshes, some transmitters and some receivers."""
 
     transmitters: Float[Array, "*transmitters_batch 3"] = eqx.field(
         default_factory=lambda: jnp.empty((0, 3)),
@@ -813,8 +807,8 @@ class Scene(eqx.Module):
                 take, e.g., ``frozenset({SpecularReflection, Diffraction})``
                 (see :class:`InteractionType<differt.em.InteractionType>` and
                 its ergonomic aliases in :mod:`differt.em`). Defaults to
-                ``frozenset({InteractionType.REFLECTION})`` (today's
-                behavior) when :data:`None`. Only ``'exhaustive'`` and
+                ``frozenset({InteractionType.REFLECTION})``
+                when :data:`None`. Only ``'exhaustive'`` and
                 ``'hybrid'`` currently support interactions other than
                 ``REFLECTION``/``SCATTERING``; ``'sbr'``'s ray-shooting
                 kernel only supports ``REFLECTION`` for now.

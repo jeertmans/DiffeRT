@@ -335,7 +335,7 @@ def _spherical_basis(
     Compute theta_hat and phi_hat unit vectors for a propagation direction k.
 
     Args:
-        k: The propagation direction vector, shape ``(*batch, 3)``.
+        k: The propagation direction vector.
 
     Returns:
         A tuple of ``(theta_hat, phi_hat)`` spherical basis unit vectors.

@@ -89,7 +89,7 @@ def compute_received_fields(
             a solver instance, except for ``wavefront_radii``.
 
     Returns:
-        The received complex fields of shape ``*batch``.
+        The received complex fields.
     """
     wavefront_radii = solver_kwargs.pop("wavefront_radii", None)
     solver, frequency = _resolve_solver_and_frequency(solver, frequency, solver_kwargs)
@@ -200,7 +200,7 @@ def _resolve_geometric_solver(
     solver_kwargs: dict[str, Any],
 ) -> GeometricFieldSolver:
     """
-    Resolve a ``GeometricFieldSolver`` instance (or None).
+    Resolve a ``GeometricFieldSolver`` instance.
 
     Shared by :func:`transition_matrix`, :func:`reflection_matrix`,
     :func:`diffraction_matrix`, :func:`scattering_matrix`,

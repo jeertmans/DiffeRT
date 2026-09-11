@@ -601,11 +601,6 @@ class Mesh(eqx.Module):
     """
     A simple geometry made of triangles.
 
-    .. note::
-
-        This class is also re-exported directly from the top-level :mod:`differt` package
-        (e.g., ``from differt import Mesh``).
-
     .. warning::
 
         The Warp-accelerated methods in this class (such as :meth:`ray_intersect_any_triangle`,

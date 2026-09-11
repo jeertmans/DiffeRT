@@ -1,7 +1,7 @@
+__all__ = ("HybridPathTracer", "_HybridPathTracerKwargs")
+
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
-
-__all__ = ["HybridPathTracer", "_HybridPathTracerKwargs"]
 
 import equinox as eqx
 import jax.numpy as jnp

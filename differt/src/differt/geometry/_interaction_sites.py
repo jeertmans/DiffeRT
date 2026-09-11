@@ -23,8 +23,7 @@ class InteractionSites(eqx.Module):
 
     Every entry maps a single integer "site" index (as enumerated by
     :class:`~differt_core.geometry.CompleteGraph`/:class:`~differt_core.geometry.DiGraph`,
-    exactly as :attr:`Mesh.num_primitives<differt.geometry.Mesh.num_primitives>`
-    triangle indices are today) to an
+    exactly as :attr:`Mesh.num_primitives<differt.geometry.Mesh.num_primitives>` to an
     :class:`InteractionType<differt.em.InteractionType>` and the primitive it
     refers to: a (quad-aware) triangle index for
     :attr:`REFLECTION<differt.em.InteractionType.REFLECTION>`,
@@ -127,7 +126,7 @@ def interaction_sites_valid_mask(
 
     ``REFLECTION``, ``SCATTERING``, and ``TRANSMISSION`` sites are always
     valid (any masking by :attr:`Mesh.mask<differt.geometry.Mesh.mask>` is
-    applied later, exactly as for today's reflection-only candidates).
+    applied later, exactly as for reflection-only candidates).
     ``DIFFRACTION`` sites are valid only where
     :attr:`Mesh.diffraction_edges_mask<differt.geometry.Mesh.diffraction_edges_mask>`
     is set, i.e., where the half-edge is an actual (non-boundary,

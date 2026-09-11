@@ -503,7 +503,7 @@ def _diffraction_matrix_core(
     s_prime = s[..., :-1, 0]
     s_out = s[..., 1:, 0]
 
-    # Sionna RT orients the 0-/n-face labeling per bounce, based on the
+    # Orient the 0-/n-face labeling per bounce, based on the
     # incident ray's propagation direction, so that the 0-face is the
     # one actually illuminated by the incident ray.
     swap = jnp.sum(k_in * n0, axis=-1) > 0.0
@@ -1272,7 +1272,7 @@ class GeometricFieldSolver(AbstractFieldSolver):
                 from ``self``.
 
         Returns:
-            The received complex fields of shape ``*batch``.
+            The received complex fields.
         """
         tx_polarization = self.tx_polarization
         rx_polarization = self.rx_polarization
