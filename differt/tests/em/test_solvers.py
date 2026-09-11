@@ -2,6 +2,7 @@ from typing import Any, cast
 
 import chex
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import pytest
 from jaxtyping import Array, ArrayLike, Complex, Float
@@ -18,6 +19,7 @@ from differt.em import (
     InteractionType,
     LambertianPattern,
     Material,
+    WavefrontState,
     compute_received_fields,
     compute_received_power,
     fspl,
@@ -133,9 +135,9 @@ class TestGeometricFieldSolver:
             def compute_fields(
                 self,
                 paths: TracedPaths,
-                mesh: Mesh,  # ruff:ignore[unused-method-argument]
-                frequency: Float[ArrayLike, "*#batch"],  # ruff:ignore[unused-method-argument]
-                **kwargs: Any,  # ruff:ignore[unused-method-argument]
+                mesh: Mesh,  # ruff: ignore[unused-method-argument]
+                frequency: Float[ArrayLike, "*#batch"],  # ruff: ignore[unused-method-argument]
+                **kwargs: Any,  # ruff: ignore[unused-method-argument]
             ) -> Complex[Array, "*batch"]:
                 return jnp.ones(paths.shape, dtype=complex)
 
@@ -265,8 +267,8 @@ class TestGeometricFieldSolver:
             def diffraction_matrix(
                 self,
                 paths: TracedPaths,
-                mesh: Mesh,  # ruff:ignore[unused-method-argument]
-                frequency: Float[ArrayLike, "*#batch"],  # ruff:ignore[unused-method-argument]
+                mesh: Mesh,  # ruff: ignore[unused-method-argument]
+                frequency: Float[ArrayLike, "*#batch"],  # ruff: ignore[unused-method-argument]
             ) -> Complex[Array, "*batch order 2 2"]:
                 shape = (*paths.interaction_types.shape, 2, 2)
                 return jnp.broadcast_to(jnp.eye(2, dtype=complex), shape)
@@ -287,6 +289,65 @@ class TestGeometricFieldSolver:
         # Should not raise, unlike the default solver.
         fields = compute_received_fields(paths, mesh, 1e9, solver=solver)
         assert jnp.all(jnp.isfinite(fields))
+
+    def test_pluggable_interaction_matrices(self) -> None:
+        def my_ris_matrix(
+            paths: TracedPaths,
+            _mesh: Mesh,
+            _frequency: Float[ArrayLike, "*#batch"],
+        ) -> Complex[Array, "*batch order 2 2"]:
+            shape = (*paths.interaction_types.shape, 2, 2)
+            return jnp.broadcast_to(jnp.eye(2, dtype=complex) * 0.5, shape)
+
+        solver = GeometricFieldSolver(
+            interaction_matrices={InteractionType.RIS: my_ris_matrix}
+        )
+        paths = _single_bounce_paths(
+            [0.0, 0.0, 1.0],
+            [5.0, 0.0, 0.0],
+            [10.0, 0.0, 1.0],
+            InteractionType.RIS,
+        )
+        mesh = _ground_plane_mesh("Metal")
+        got = compute_received_fields(paths, mesh, 1e9, solver=solver)
+        assert jnp.all(jnp.isfinite(got))
+        assert jnp.all(jnp.abs(got) > 0.0)
+
+    def test_compute_fields_with_explicit_wavefront_radii(self) -> None:
+        paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+        mesh = Mesh.empty()
+        solver = GeometricFieldSolver(tx_wavefront_radii=0.0)
+
+        got_custom = compute_received_fields(
+            paths, mesh, 1e9, solver=solver, wavefront_radii=5.0
+        )
+        expected = compute_received_fields(paths, mesh, 1e9, tx_wavefront_radii=5.0)
+        chex.assert_trees_all_close(got_custom, expected)
+
+    def test_compute_fields_with_wavefront_state_jit(self) -> None:
+        paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+        mesh = Mesh.empty()
+        solver = GeometricFieldSolver()
+
+        k_hat = jnp.array([1.0, 0.0, 0.0])
+        state_planar = WavefrontState.from_tx(k_hat, tx_wavefront=None)
+        state_spherical = WavefrontState.from_tx(k_hat, tx_wavefront=5.0)
+
+        @jax.jit
+        def run(wf: WavefrontState) -> Complex[Array, "*batch"]:
+            return solver.compute_fields(paths, mesh, 1e9, wavefront_radii=wf)
+
+        got_planar = run(state_planar)
+        expected_planar = compute_received_fields(
+            paths, mesh, 1e9, tx_wavefront_radii=None
+        )
+        chex.assert_trees_all_close(got_planar, expected_planar)
+
+        got_spherical = run(state_spherical)
+        expected_spherical = compute_received_fields(
+            paths, mesh, 1e9, tx_wavefront_radii=5.0
+        )
+        chex.assert_trees_all_close(got_spherical, expected_spherical, rtol=1e-4)
 
     def test_reflection_matrix_requires_face_materials(self) -> None:
         paths = _single_bounce_paths(
@@ -469,11 +530,9 @@ class TestNonPlanarWavefront:
             jnp.abs(got), jnp.abs(isotropic) * expected_ratio, rtol=1e-5
         )
 
-    def test_astigmatic_with_diffraction_raises(self) -> None:
-        # Genuinely astigmatic sources (rho_s != rho_p) are not supported
-        # together with a DIFFRACTION interaction, since that would
-        # require tracking the wavefront's principal-axis orientation
-        # along the path, not just its two radii.
+    def test_astigmatic_with_diffraction_computes_fields(self) -> None:
+        # Genuinely astigmatic sources (rho_s != rho_p) are supported
+        # together with a DIFFRACTION interaction via wavefront curvature transport.
         vertices = jnp.array([
             [0.0, -30.0, -15.0],
             [0.0, -30.0, 15.0],
@@ -498,8 +557,53 @@ class TestNonPlanarWavefront:
             interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
         )
 
-        with pytest.raises(Exception, match="astigmatic"):
-            compute_received_fields(paths, wedge, 3.5e9, tx_wavefront_radii=(3.0, 8.0))
+        got = compute_received_fields(
+            paths, wedge, 3.5e9, tx_wavefront_radii=(3.0, 8.0)
+        )
+        assert jnp.all(jnp.isfinite(got))
+        assert jnp.all(jnp.abs(got) > 0.0)
+
+    def test_diffraction_with_wavefront_state_instance(self) -> None:
+        vertices = jnp.array([
+            [0.0, -30.0, -15.0],
+            [0.0, -30.0, 15.0],
+            [0.0, 0.0, 15.0],
+            [0.0, 0.0, -15.0],
+            [30.0, 0.0, 15.0],
+            [30.0, 0.0, -15.0],
+        ])
+        triangles = jnp.array([[0, 1, 2], [0, 2, 3], [3, 2, 4], [3, 4, 5]])
+        wedge = Mesh(
+            vertices=vertices,
+            triangles=triangles,
+            face_materials=jnp.array([0, 0, 0, 0]),
+            material_names=("Concrete",),
+        )
+        paths = TracedPaths(
+            vertices=jnp.array([
+                [[-10.0, -5.0, 0.0], [0.0, 0.0, 0.0], [5.0, 10.0, 0.0]]
+            ]),
+            objects=jnp.array([[-1, 5, -1]]),
+            mask=jnp.array([True]),
+            interaction_types=jnp.array([[InteractionType.DIFFRACTION]]),
+        )
+        k_in = paths.vertices[..., 1, :] - paths.vertices[..., 0, :]
+        k_in = k_in / jnp.linalg.norm(k_in, axis=-1, keepdims=True)
+        wf_state = WavefrontState.from_tx(k_in[0], tx_wavefront=(3.0, 8.0))
+        solver = GeometricFieldSolver(tx_wavefront_radii=wf_state)
+        d_mat = solver.diffraction_matrix(paths, wedge, 3.5e9)
+        assert jnp.all(jnp.isfinite(d_mat))
+
+    def test_spreading_factor_wavefront_state_without_mesh(self) -> None:
+        paths = _los_paths([0.0, 0.0, 0.0], [10.0, 0.0, 0.0])
+        wf_state = WavefrontState.from_tx(
+            jnp.array([1.0, 0.0, 0.0]), tx_wavefront=(2.0, 5.0)
+        )
+        solver = GeometricFieldSolver()
+        got = solver.spreading_factor(paths, mesh=None, wavefront_radii=wf_state)
+        s_tot = 10.0
+        expected = 1.0 / jnp.sqrt((s_tot + 2.0) * (s_tot + 5.0))
+        chex.assert_trees_all_close(got[0], expected)
 
     def test_planar_go_path_has_no_spreading(self) -> None:
         # A plane wave does not spread at all: the spreading factor must

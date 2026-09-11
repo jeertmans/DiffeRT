@@ -4,9 +4,11 @@ import equinox as eqx
 import jax.numpy as jnp
 import pytest
 
+from differt.em import InteractionType, Scattering, SpecularReflection
 from differt.geometry import Mesh, Scene
-from differt.geometry._solvers import (
+from differt.geometry.solvers import (
     ExhaustivePathTracer,
+    HybridPathTracer,
     SBRPathLauncher,
     SBRPathTracer,
     _generate_path_candidates_for_orders,
@@ -116,8 +118,7 @@ def test_generate_path_candidates_for_orders_matches_manual_padding_and_concaten
         solver,
         canyon_scene,
         orders,
-        specular_reflection=True,
-        diffuse_scattering=False,
+        frozenset({InteractionType.REFLECTION}),
     )
 
     max_order = max(orders)
@@ -150,8 +151,7 @@ def test_generate_path_candidates_for_orders_empty_orders_raises(
             solver,
             canyon_scene,
             [],
-            specular_reflection=True,
-            diffuse_scattering=False,
+            frozenset({InteractionType.REFLECTION}),
         )
 
 
@@ -348,6 +348,16 @@ class TestExhaustivePathTracer:
         assert bool(traced.mask.reshape(-1)[0])  # LOS: unaffected by the mask.
         assert not bool(traced.mask.reshape(-1)[1])  # Masked-out interaction.
 
+    def test_max_diffractions(self, simple_street_canyon_scene: Scene) -> None:
+        tracer = ExhaustivePathTracer(max_diffractions=1)
+        allowed = frozenset({InteractionType.REFLECTION, InteractionType.DIFFRACTION})
+        _, itypes = tracer.generate_path_candidates(
+            simple_street_canyon_scene, order=2, allowed_interactions=allowed
+        )
+        diff_count = (itypes == InteractionType.DIFFRACTION).sum(axis=-1)
+        assert jnp.all(diff_count <= 1)
+        assert jnp.any(diff_count == 1)
+
 
 class TestSBRPathTracer:
     def test_order_zero(self, canyon_scene: Scene) -> None:
@@ -383,7 +393,7 @@ class TestSBRPathTracer:
         # placeholders only ever appear as a trailing suffix, matching
         # 'check_path_candidates'.
         solver = SBRPathTracer(num_rays=50_000)
-        trajectories = solver._launch_and_record(canyon_scene, 5)  # ruff:ignore[private-member-access]
+        trajectories = solver._launch_and_record(canyon_scene, 5)  # ruff: ignore[private-member-access]
         is_placeholder = trajectories == -1
         assert not jnp.any(is_placeholder[:, :-1] & ~is_placeholder[:, 1:])
 
@@ -443,6 +453,40 @@ class TestSBRPathTracer:
         solver = SBRPathTracer()
         with pytest.raises(ValueError, match="must have a defined 'stop'"):
             solver.generate_path_candidates(canyon_scene, slice(0, None))
+
+    def test_generate_path_candidates_empty_order_sequence_raises(
+        self, canyon_scene: Scene
+    ) -> None:
+        solver = SBRPathTracer()
+        with pytest.raises(ValueError, match="at least one order"):
+            solver.generate_path_candidates(canyon_scene, order=[])
+
+    def test_generate_path_candidates_order_sequence_only_zero(
+        self, canyon_scene: Scene
+    ) -> None:
+        # A sequence containing only order '0' takes the same trivial
+        # (empty-candidate) shortcut as passing the bare int '0'.
+        solver = SBRPathTracer()
+        candidates, interaction_types = solver.generate_path_candidates(
+            canyon_scene, order=[0]
+        )
+        assert candidates.shape == (1, 0)
+        assert interaction_types.shape == (1, 0)
+
+    def test_deduplicate_candidates_zero_order(self) -> None:
+        solver = SBRPathTracer()
+        candidates, interaction_types = solver._deduplicate_candidates(  # ruff: ignore[private-member-access]
+            jnp.zeros((5, 0), dtype=int)
+        )
+        assert candidates.shape == (1, 0)
+        assert interaction_types.shape == (1, 0)
+
+    def test_deduplicate_candidates_truncates_to_max_num_candidates(self) -> None:
+        solver = SBRPathTracer(max_num_candidates=2)
+        candidates = jnp.array([[0], [1], [2], [3]])
+        deduped, deduped_types = solver._deduplicate_candidates(candidates)  # ruff: ignore[private-member-access]
+        assert deduped.shape == (2, 1)
+        assert deduped_types.shape == (2, 1)
 
     def test_multiple_orders_chunks_iter_still_unsupported(
         self, canyon_scene: Scene
@@ -620,7 +664,7 @@ class TestSBRPathTracer:
         orders = [1, 2]
         max_order = max(orders)
 
-        trajectories = solver._launch_and_record(  # ruff:ignore[private-member-access]
+        trajectories = solver._launch_and_record(  # ruff: ignore[private-member-access]
             canyon_scene, max_order
         )
         expected_by_order = {}
@@ -649,3 +693,74 @@ class TestSBRPathTracer:
         expected = ExhaustivePathTracer().trace_paths(canyon_scene, order=[0, 1, 2])
 
         assert int(traced.mask.sum()) == int(expected.mask.sum())
+
+    def test_allowed_interactions_diffraction(
+        self, simple_street_canyon_scene: Scene
+    ) -> None:
+        solver = SBRPathTracer(num_rays=10_000, max_diffractions=1)
+        allowed = frozenset({InteractionType.REFLECTION, InteractionType.DIFFRACTION})
+        candidates, interaction_types = solver.generate_path_candidates(
+            simple_street_canyon_scene, order=range(3), allowed_interactions=allowed
+        )
+        assert candidates.ndim == 2
+        has_diff = jnp.any(interaction_types == InteractionType.DIFFRACTION, axis=-1)
+        has_refl = jnp.any(interaction_types == InteractionType.REFLECTION, axis=-1)
+        assert jnp.any(has_diff)
+        assert jnp.any(has_refl)
+
+
+class TestHybridPathTracer:
+    def test_generate_path_candidates_assume_quads_and_multiple_interactions(
+        self,
+    ) -> None:
+        v = []
+        t = []
+        for i in range(4):
+            base = 4 * i
+            v.extend([[i, 0, 0], [i + 1, 0, 0], [i + 1, 1, 0], [i, 1, 0]])
+            t.extend([[base, base + 1, base + 2], [base, base + 2, base + 3]])
+        mesh = Mesh(
+            vertices=jnp.array(v, float),
+            triangles=jnp.array(t, int),
+            assume_quads=True,
+        )
+        scene = Scene(
+            mesh=mesh,
+            transmitters=jnp.array([[0.5, -2.0, 0.5]]),
+            receivers=jnp.array([[3.5, -2.0, 0.5]]),
+        )
+        tracer = HybridPathTracer(num_rays=2000)
+        allowed = frozenset({SpecularReflection, Scattering})
+        candidates, kinds = tracer.generate_path_candidates(
+            scene, order=1, allowed_interactions=allowed
+        )
+
+        assert candidates.shape == (8, 1)
+        assert set(kinds.flatten().tolist()) == {
+            int(SpecularReflection),
+            int(Scattering),
+        }
+
+    def test_generate_path_candidates_chunks_iter_with_padding(
+        self, canyon_scene: Scene
+    ) -> None:
+        tracer = HybridPathTracer(num_rays=1000, chunk_size=3)
+        chunks = list(
+            tracer.generate_path_candidates_chunks_iter(
+                canyon_scene, order=1, pad_chunks=True
+            )
+        )
+        assert len(chunks) > 0
+        for cand_chunk, type_chunk in chunks:
+            assert cand_chunk.shape[0] == 3
+            assert type_chunk.shape[0] == 3
+
+    def test_max_diffractions(self, simple_street_canyon_scene: Scene) -> None:
+        tracer = HybridPathTracer(num_rays=1000, max_diffractions=1)
+        allowed = frozenset({InteractionType.REFLECTION, InteractionType.DIFFRACTION})
+        _, itypes = tracer.generate_path_candidates(
+            simple_street_canyon_scene, order=2, allowed_interactions=allowed
+        )
+        diff_count = (itypes == InteractionType.DIFFRACTION).sum(axis=-1)
+        assert jnp.all(diff_count <= 1)
+        assert jnp.any(diff_count == 1)

@@ -13,6 +13,7 @@ from jaxtyping import Array, ArrayLike, DTypeLike, Float, PRNGKeyArray
 
 from differt.geometry import Mesh, Scene
 from differt.geometry._utils import (
+    SizedIterator,
     assemble_path,
     cartesian_to_spherical,
     check_path_candidates,
@@ -1009,3 +1010,23 @@ def test_first_triangle_hit_by_ray(
     # TODO: fixme, we need to fix the index if two or more triangles are hit at the same t
     # chex.assert_trees_all_equal(got_indices, expected_indices)
     chex.assert_trees_all_close(got_t, expected_t, rtol=1e-5)
+
+
+def test_sized_iterator() -> None:
+    items = [1, 2, 3]
+
+    # Explicit integer size
+    it1 = SizedIterator(iter(items), size=3)
+    assert len(it1) == 3
+    assert list(it1) == items
+
+    # Callable size
+    it2 = SizedIterator(iter(items), size=items.__len__)
+    assert len(it2) == 3
+    assert list(it2) == items
+
+    # Unsized (size=None)
+    it3 = SizedIterator(iter(items), size=None)
+    with pytest.raises(TypeError, match=r"This iterator has no fixed length\."):
+        len(it3)
+    assert list(it3) == items

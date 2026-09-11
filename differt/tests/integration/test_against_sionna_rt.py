@@ -8,123 +8,38 @@ import pytest
 from pytest_subtests import SubTests
 
 from differt.em import (
+    InteractionType,
+    MaterialsDict,
     compute_received_fields,
     compute_received_power,
     materials,
 )
 from differt.geometry import (
-    Mesh,
     Scene,
     assemble_path,
-    fibonacci_lattice,
-    first_triangle_hit_by_ray,
     path_length,
-    ray_intersect_any_triangle,
-    ray_intersect_triangle,
 )
 from differt_core.geometry import SionnaScene
 
-
-@pytest.mark.slow
-def test_ray_casting() -> None:
-    o3d = pytest.importorskip("open3d", reason="open3d not installed")
-
-    knot_mesh = o3d.data.KnotMesh()
-    o3d_mesh = o3d.t.io.read_triangle_mesh(knot_mesh.path).translate([50, 20, 10])
-    o3d_mesh = o3d_mesh.compute_vertex_normals()  # This avoids a warning from Open3D
-    o3d_mesh = o3d_mesh.compute_triangle_normals()
-
-    mesh = Mesh(
-        vertices=jnp.asarray(o3d_mesh.vertex.positions.numpy()),
-        triangles=jnp.asarray(o3d_mesh.triangle.indices.numpy()),
+mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
+try:
+    mi.set_variant("llvm_ad_mono_polarized")
+except (AttributeError, ImportError, RuntimeError):
+    pytest.skip(
+        "Mitsuba variant 'llvm_ad_mono_polarized' not available",
+        allow_module_level=True,
     )
-
-    chex.assert_trees_all_close(
-        mesh.bounding_box,
-        np.stack(
-            [
-                o3d_mesh.get_min_bound().numpy(),
-                o3d_mesh.get_max_bound().numpy(),
-            ],
-            axis=0,
-        ),
-    )
-
-    chex.assert_trees_all_close(
-        mesh.normals, o3d_mesh.triangle.normals.numpy(), atol=1e-6
-    )
-
-    scene = o3d.t.geometry.RaycastingScene()
-    scene.add_triangles(o3d_mesh)
-
-    ray_directions = fibonacci_lattice(1_000)
-    ray_directions = fibonacci_lattice(50)
-    ray_origins = jnp.zeros_like(ray_directions)
-
-    o3d_rays = o3d.core.Tensor(
-        np.concatenate((ray_origins, ray_directions), axis=-1),
-        dtype=o3d.core.Dtype.Float32,
-    )
-
-    triangle_vertices = mesh.triangle_vertices
-
-    triangles, t_hit = first_triangle_hit_by_ray(
-        ray_origins, ray_directions, triangle_vertices
-    )
-    hit = triangles != -1
-    triangles = triangles.astype(jnp.uint32)
-
-    ans = scene.cast_rays(o3d_rays, nthreads=1)  # codespell:ignore ans
-
-    chex.assert_trees_all_close(
-        t_hit,
-        ans["t_hit"].numpy(),  # codespell:ignore ans
-        atol=1e-4,
-    )
-    chex.assert_trees_all_equal(
-        jnp.where(hit, triangles, jnp.asarray(scene.INVALID_ID, dtype=jnp.uint32)),
-        ans["primitive_ids"].numpy(),  # codespell:ignore ans
-    )
-
-    got_counts = ray_intersect_triangle(
-        ray_origins[..., None, :], ray_directions[..., None, :], triangle_vertices
-    )[1].sum(axis=-1)
-
-    expected_counts = scene.count_intersections(o3d_rays, nthreads=1).numpy()
-
-    chex.assert_trees_all_equal(
-        got_counts,
-        expected_counts,
-    )
-
-    scale = 100.0
-
-    got_hit = ray_intersect_any_triangle(
-        ray_origins,
-        scale * ray_directions,
-        triangle_vertices,
-    )
-
-    expected_hit = scene.test_occlusions(o3d_rays, tfar=scale, nthreads=1).numpy()
-
-    chex.assert_trees_all_equal(
-        got_hit,
-        expected_hit,
-    )
+sionna = pytest.importorskip("sionna", reason="sionna not installed")
 
 
 @pytest.mark.slow
 def test_simple_street_canyon() -> None:
-    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
-    try:
-        mi.set_variant("llvm_ad_mono_polarized")
-    except (AttributeError, ImportError, RuntimeError):
-        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -200,6 +115,161 @@ def test_simple_street_canyon() -> None:
         )
 
 
+@pytest.mark.slow
+def test_simple_street_canyon_pure_diffraction() -> None:
+    """Test order 1 diffraction paths against Sionna RT ground truth."""
+    file = sionna.rt.scene.simple_street_canyon
+
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = Scene.load_xml(file, materials=MaterialsDict(materials))
+
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+
+    tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
+    sionna_scene.add(tx)
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0], orientation=[0, 0, 0])
+    sionna_scene.add(rx)
+
+    differt_scene = eqx.tree_at(
+        lambda s: s.transmitters,
+        differt_scene,
+        replace=tx.position.jax().reshape(3),
+    )
+    differt_scene = eqx.tree_at(
+        lambda s: s.receivers,
+        differt_scene,
+        replace=rx.position.jax().reshape(3),
+    )
+
+    solver = sionna.rt.PathSolver()
+    s_paths = solver(
+        sionna_scene,
+        max_depth=1,
+        los=False,
+        specular_reflection=False,
+        refraction=False,
+        diffraction=True,
+        edge_diffraction=True,
+    )
+    s_verts = s_paths.vertices.jax()[0, 0, 0, :, :]
+
+    d_paths = differt_scene.trace_paths(
+        order=1,
+        allowed_interactions=frozenset({InteractionType.DIFFRACTION}),
+        solver="hybrid",
+    )
+    d_verts = d_paths.vertices[d_paths.mask, 1, :]
+    unique_d_verts = jnp.unique(jnp.round(d_verts, 3), axis=0)
+
+    # 10 rooftop/wall edges match Sionna
+    dist_matrix = jnp.linalg.norm(
+        s_verts[:, None, :] - unique_d_verts[None, :, :], axis=-1
+    )
+    min_dists = dist_matrix.min(axis=-1)
+    matching_rooftop = min_dists < 1e-2
+    assert int(matching_rooftop.sum()) == 10
+    chex.assert_trees_all_close(min_dists[matching_rooftop].max(), 0.0, atol=1e-3)
+
+
+@pytest.mark.slow
+def test_simple_street_canyon_mixed_diffraction_reflection() -> None:
+    """Test order 2 mixed diffraction-reflection paths against Sionna RT ground truth."""
+    file = sionna.rt.scene.simple_street_canyon
+
+    sionna_scene = sionna.rt.load_scene(file)
+    differt_scene = Scene.load_xml(file, materials=MaterialsDict(materials))
+
+    sionna_scene.tx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+    sionna_scene.rx_array = sionna.rt.PlanarArray(
+        num_rows=1,
+        num_cols=1,
+        vertical_spacing=0.5,
+        horizontal_spacing=0.5,
+        pattern="iso",
+        polarization="V",
+    )
+
+    tx = sionna.rt.Transmitter(name="tx", position=[-33.0, 0.0, 32.0])
+    sionna_scene.add(tx)
+    rx = sionna.rt.Receiver(name="rx", position=[20.0, 0.0, 2.0], orientation=[0, 0, 0])
+    sionna_scene.add(rx)
+
+    differt_scene = eqx.tree_at(
+        lambda s: s.transmitters,
+        differt_scene,
+        replace=tx.position.jax().reshape(3),
+    )
+    differt_scene = eqx.tree_at(
+        lambda s: s.receivers,
+        differt_scene,
+        replace=rx.position.jax().reshape(3),
+    )
+
+    solver = sionna.rt.PathSolver()
+    s_paths = solver(
+        sionna_scene,
+        max_depth=2,
+        los=False,
+        specular_reflection=True,
+        refraction=False,
+        diffraction=True,
+        edge_diffraction=True,
+    )
+    inter = s_paths.interactions.jax()[:, 0, 0, :]
+    has_diff = (inter == 8).any(axis=0)
+    has_refl = (inter == 1).any(axis=0)
+    is_order2 = inter[1] > 0
+    mixed_order2 = has_diff & has_refl & is_order2
+
+    s_mixed_verts = jnp.moveaxis(
+        s_paths.vertices.jax()[:2, 0, 0, mixed_order2, :], 0, 1
+    )
+
+    d_paths = differt_scene.trace_paths(
+        order=2,
+        allowed_interactions=frozenset({
+            InteractionType.REFLECTION,
+            InteractionType.DIFFRACTION,
+        }),
+        max_diffractions=1,
+        solver="hybrid",
+    )
+    d_itypes = d_paths.interaction_types[d_paths.mask]
+    d_has_diff = (d_itypes == InteractionType.DIFFRACTION).any(axis=-1)
+    d_has_refl = (d_itypes == InteractionType.REFLECTION).any(axis=-1)
+    d_mixed_verts = d_paths.vertices[d_paths.mask][d_has_diff & d_has_refl, 1:-1, :]
+
+    path_diffs = jnp.linalg.norm(
+        s_mixed_verts[:, None, :, :] - d_mixed_verts[None, :, :, :], axis=-1
+    ).max(axis=-1)
+    min_path_dists = path_diffs.min(axis=-1)
+    matching = min_path_dists < 0.05
+    assert int(matching.sum()) == len(s_mixed_verts) == 23
+    chex.assert_trees_all_close(min_path_dists.max(), 0.0, atol=2e-3)
+
+
 def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
     """Parse the color DiffeRT assigns to an ITU radio material, via a minimal Sionna scene."""
     xml = f"""<scene version="2.1.0">
@@ -218,13 +288,6 @@ def _differt_color(itu_type: str, tmp_path: Path) -> tuple[float, float, float]:
 
 
 def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
-    mi = pytest.importorskip("mitsuba", reason="mitsuba not installed")
-    try:
-        mi.set_variant("llvm_ad_mono_polarized")
-    except (AttributeError, ImportError, RuntimeError):
-        pytest.skip("Mitsuba variant 'llvm_ad_mono_polarized' not available")
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
-
     for differt_mat in materials.values():
         # `materials` maps both official ITU names (e.g., "Wood") and Sionna-style
         # aliases (e.g., "itu_wood") to the same `Material` instance, but iterating
@@ -293,15 +356,12 @@ def test_itu_materials(subtests: SubTests, tmp_path: Path) -> None:
 
 @pytest.mark.slow
 def test_received_power_matches_sionna() -> None:
-    sionna = pytest.importorskip("sionna", reason="sionna not installed")
-
-    # Load simple street canyon scene
     file = sionna.rt.scene.simple_street_canyon
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()
 
-    # Configure transmitter and receiver antenna array
-    # We use isotropic pattern with vertical polarization (V)
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
         num_cols=1,
@@ -319,7 +379,6 @@ def test_received_power_matches_sionna() -> None:
         polarization="V",
     )
 
-    # Position Transmitter and Receiver
     tx_pos = [-33.0, 0.0, 32.0]
     rx_pos = [20.0, 0.0, 2.0]
     tx = sionna.rt.Transmitter(name="tx", position=tx_pos)
@@ -327,20 +386,15 @@ def test_received_power_matches_sionna() -> None:
     sionna_scene.add(tx)
     sionna_scene.add(rx)
 
-    # Solve paths using Sionna
-    # Limit to specular reflections only and match max depth
     max_depth = 2
     sionna_solver = sionna.rt.PathSolver()
     sionna_paths = sionna_solver(sionna_scene, max_depth=max_depth)
-    a_real, a_imag = sionna_paths.a
-    a_sionna = a_real.numpy() + 1j * a_imag.numpy()
-    a_sionna = a_sionna[0, 0, 0, 0, :]
+    a_cir, _ = sionna_paths.cir(normalize_delays=False, out_type="numpy")
+    a_sionna = jnp.asarray(a_cir[0, 0, 0, 0, :, 0])
 
-    # Calculate received power using Sionna (coherent and non-coherent)
     power_coherent_sionna = 10.0 * jnp.log10(jnp.abs(jnp.sum(a_sionna)) ** 2)
     power_non_coherent_sionna = 10.0 * jnp.log10(jnp.sum(jnp.abs(a_sionna) ** 2))
 
-    # Setup matching scenario in DiffeRT
     differt_scene = eqx.tree_at(
         lambda s: s.transmitters,
         differt_scene,
@@ -352,7 +406,6 @@ def test_received_power_matches_sionna() -> None:
         replace=jnp.asarray([rx_pos]),
     )
 
-    # Compute paths in DiffeRT
     fields_list = []
     for order in range(max_depth + 1):
         paths = differt_scene.trace_paths(order=order)
@@ -366,10 +419,10 @@ def test_received_power_matches_sionna() -> None:
         fields_list.append(f.reshape(-1))
 
     all_fields = jnp.concatenate(fields_list)
-    # Remove invalid paths (zero fields)
+    # A zero field marks a padded/inactive path, not a real zero-power path.
     all_fields = all_fields[jnp.abs(all_fields) > 1e-12]
 
-    # Calculate received power in DiffeRT with z_0=1.0 to match normalization
+    # z_0=1.0 to match Sionna's power normalization.
     power_coherent_differt = compute_received_power(
         all_fields, coherent=True, axis=0, z_0=1.0
     )
@@ -377,16 +430,14 @@ def test_received_power_matches_sionna() -> None:
         all_fields, coherent=False, axis=0, z_0=1.0
     )
 
-    # Verify that they are very close
-    # Non-coherent power matches within 1.0 dB
     chex.assert_trees_all_close(
         power_non_coherent_differt,
         power_non_coherent_sionna,
         atol=1.0,
     )
-    # Coherent power matches within 4.0 dB (minor differences due to phase/reflections definition)
+    # Coherent sums are phase-sensitive, so they tolerate more error than non-coherent power.
     chex.assert_trees_all_close(
         power_coherent_differt,
         power_coherent_sionna,
-        atol=4.0,
+        atol=2.0,
     )

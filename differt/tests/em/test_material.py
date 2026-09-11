@@ -1,4 +1,5 @@
-# ruff:file-ignore[math-constant]
+# ruff: file-ignore[math-constant]
+from pathlib import Path
 from typing import Any, ClassVar
 
 import chex
@@ -8,6 +9,9 @@ import pytest
 from jaxtyping import PRNGKeyArray
 
 from differt.em import Material, MaterialsDict, materials
+from differt.em._material import _populate_materials
+from differt.geometry import Scene
+from differt_core.geometry import SionnaScene
 
 
 class TestITU:
@@ -364,3 +368,204 @@ class TestMaterialsDict:
         )
         d = MaterialsDict([mat])
         assert repr(d) == "{'Test': " + repr(mat) + "}"
+
+    def test_not_hashable(self) -> None:
+        # 'MaterialsDict' is a plain (mutable) mapping, never used as a JIT
+        # static argument: 'GeometricFieldSolver' methods extract concrete
+        # per-material property arrays from it eagerly, before entering any
+        # jitted computation, so it need not (and, as a 'dict' subclass,
+        # does not) support hashing.
+        d = MaterialsDict(materials)
+        with pytest.raises(TypeError, match="unhashable"):
+            hash(d)
+
+
+_TRIANGLE_OBJ = """\
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 0.0 1.0 0.0
+f 1 2 3
+"""
+
+
+def _write_scene(tmp_path: Path, bsdfs: str, shapes: str) -> Path:
+    (tmp_path / "mesh.obj").write_text(_TRIANGLE_OBJ)
+    scene_file = tmp_path / "scene.xml"
+    scene_file.write_text(f"<scene version='2.1.0'>{bsdfs}{shapes}</scene>")
+    return scene_file
+
+
+def _shape(shape_id: str, material_id: str) -> str:
+    return f"""
+    <shape type="obj" id="{shape_id}">
+        <string name="filename" value="mesh.obj"/>
+        <ref id="{material_id}"/>
+    </shape>
+    """
+
+
+class TestPopulateMaterials:
+    def test_uniform_materials_share_generic_name(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        assert "itu_glass" in radio_materials
+        assert radio_materials["itu_glass"].thickness == pytest.approx(0.01)
+        assert radio_materials["itu_glass"].name == "Glass"
+
+    def test_non_uniform_materials_keyed_by_id(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window1">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        <bsdf type="itu-radio-material" id="window2">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.05"/>
+        </bsdf>
+        """
+        shapes = _shape("shape-0", "window1") + _shape("shape-1", "window2")
+        scene_file = _write_scene(tmp_path, bsdfs, shapes)
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        assert {"window1", "window2"} <= set(radio_materials)
+        assert radio_materials["window1"].thickness == pytest.approx(0.01)
+        assert radio_materials["window2"].thickness == pytest.approx(0.05)
+
+    def test_non_itu_materials_are_skipped(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="diffuse" id="paint">
+            <rgb name="rgb" value="0.5 0.5 0.5"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "paint"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        before = dict(radio_materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        assert dict(radio_materials) == before
+
+    def test_unknown_material_name_is_skipped(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        # An empty 'materials' mapping has no base entry for 'itu_glass', so
+        # the (thickness-carrying) material is skipped entirely.
+        radio_materials: MaterialsDict = MaterialsDict()
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        assert "itu_glass" not in radio_materials
+        assert len(radio_materials) == 0
+
+    def test_conflicting_thickness_raises(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.05"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        sionna_scene = SionnaScene.load_xml(scene_file)
+
+        with pytest.raises(ValueError, match="already present"):
+            _populate_materials(sionna_scene.materials.values(), radio_materials)
+
+    def test_scene_load_xml_populates_materials(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        scene = Scene.load_xml(scene_file, materials=radio_materials)
+
+        assert scene.mesh.material_names == ("itu_glass",)
+        assert radio_materials["itu_glass"].thickness == pytest.approx(0.01)
+
+        # Populating 'materials' must not break JIT-compiled 'Scene' methods.
+        _ = scene.scale(2.0)
+
+    def test_scene_load_xml_thickness_less_material_keeps_generic_name(
+        self, tmp_path: Path
+    ) -> None:
+        # 'window1'/'window2' disagree on thickness (kept distinguishable
+        # under their own id), but 'window3' has no 'thickness' override of
+        # its own: every id appearing in 'scene.mesh.material_names' must
+        # have a matching entry in 'radio_materials', so 'window3' must keep
+        # the shared generic name rather than being keyed by an id that
+        # '_populate_materials' would never populate (it skips thickness-less
+        # materials entirely).
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window1">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        <bsdf type="itu-radio-material" id="window2">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.05"/>
+        </bsdf>
+        <bsdf type="itu-radio-material" id="window3">
+            <string name="type" value="glass"/>
+        </bsdf>
+        """
+        shapes = (
+            _shape("shape-0", "window1")
+            + _shape("shape-1", "window2")
+            + _shape("shape-2", "window3")
+        )
+        scene_file = _write_scene(tmp_path, bsdfs, shapes)
+        radio_materials: MaterialsDict = MaterialsDict(materials)
+        scene = Scene.load_xml(scene_file, materials=radio_materials)
+
+        assert scene.mesh.material_names == ("window1", "window2", "itu_glass")
+        assert all(name in radio_materials for name in scene.mesh.material_names)
+
+    def test_scene_load_xml_defaults_to_global_materials(self, tmp_path: Path) -> None:
+        bsdfs = """
+        <bsdf type="itu-radio-material" id="window">
+            <string name="type" value="glass"/>
+            <float name="thickness" value="0.01"/>
+        </bsdf>
+        """
+        scene_file = _write_scene(tmp_path, bsdfs, _shape("shape-0", "window"))
+        original_glass = materials["Glass"]
+        try:
+            _ = Scene.load_xml(scene_file)
+
+            assert materials["itu_glass"].thickness == pytest.approx(0.01)
+        finally:
+            materials["Glass"] = original_glass

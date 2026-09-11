@@ -4,7 +4,22 @@ import jax.numpy as jnp
 import pytest
 from jaxtyping import DTypeLike
 
-from differt.em._interaction_type import InteractionType
+from differt.em._interaction_type import (
+    RIS,
+    Diffraction,
+    InteractionType,
+    Scattering,
+    SpecularReflection,
+    Transmission,
+)
+
+
+def test_aliases_match_enum_members() -> None:
+    assert SpecularReflection is InteractionType.REFLECTION
+    assert Diffraction is InteractionType.DIFFRACTION
+    assert Scattering is InteractionType.SCATTERING
+    assert Transmission is InteractionType.TRANSMISSION
+    assert RIS is InteractionType.RIS
 
 
 class TestInteractionType:

@@ -15,7 +15,6 @@ from differt.em import (
     reflection_matrix,
     ris_matrix,
     scattering_matrix,
-    transition_matrices,
     transition_matrix,
     transmission_matrix,
 )
@@ -245,6 +244,29 @@ def test_matrix_functions_solver_kwargs_with_instance_raises(fn, match) -> None:
 
 
 @pytest.mark.parametrize(
+    "fn",
+    [
+        transition_matrix,
+        reflection_matrix,
+        diffraction_matrix,
+        scattering_matrix,
+        transmission_matrix,
+    ],
+)
+def test_matrix_functions_accept_solver_instance_without_kwargs(fn) -> None:  # noqa: ANN001
+    # An explicit solver instance, with no extra 'solver_kwargs', is returned
+    # as-is (no new 'GeometricFieldSolver' is instantiated).
+    paths = _single_bounce_paths(InteractionType.REFLECTION)
+    mesh = _ground_plane_mesh()
+    solver = GeometricFieldSolver(tx_polarization="H")
+
+    got = fn(paths, mesh, 1e9, solver=solver)
+    expected = fn(paths, mesh, 1e9, solver=None, tx_polarization="H")
+
+    chex.assert_trees_all_close(got, expected)
+
+
+@pytest.mark.parametrize(
     ("fn", "method_name"),
     [
         (transition_matrix, "transition_matrices"),
@@ -282,7 +304,3 @@ def test_ris_matrix_default_solver_raises_not_implemented() -> None:
 
     with pytest.raises(NotImplementedError, match="not implemented"):
         ris_matrix(paths, mesh, 1e9)
-
-
-def test_transition_matrices_is_transition_matrix_alias() -> None:
-    assert transition_matrices is transition_matrix

@@ -9,7 +9,6 @@
    :toctree: _autosummary
 
    Mesh
-   TriangleMesh
 
 .. rubric:: Scene
 
@@ -17,7 +16,6 @@
    :toctree: _autosummary
 
    Scene
-   TriangleScene
 
 .. rubric:: Sionna compatibility layer
 

@@ -26,7 +26,7 @@ class TestDiGraph:
             TypeError,
             match="takes 0 positional arguments but 1 was given",
         ):
-            _ = graph.insert_from_and_to_nodes(True)  # ruff:ignore[boolean-positional-value-in-call]
+            _ = graph.insert_from_and_to_nodes(True)  # ruff: ignore[boolean-positional-value-in-call]
 
     @pytest.mark.parametrize("fast_mode", [True, False])
     def test_disconnect_nodes(self, fast_mode: bool) -> None:
@@ -153,7 +153,7 @@ class TestDiGraph:
             TypeError,
             match="takes 3 positional arguments but 4 were given",
         ):
-            _ = graph.all_paths(0, 1, 0, True)  # ruff:ignore[boolean-positional-value-in-call]
+            _ = graph.all_paths(0, 1, 0, True)  # ruff: ignore[boolean-positional-value-in-call]
 
     @pytest.mark.parametrize(
         ("num_nodes", "depth"),

@@ -8,55 +8,9 @@ from typing import Any, no_type_check
 
 import warp as wp
 
-# NOTE: Cache meshes to avoid re-creating them over and over.
-# A problem with the current implementation is that @eqx.filter_jit
-# creates a new Mesh instance every time the function is recompiled,
-# which creates cache misses. We could create a 'permanent' id for each mesh,
-# e.g., when instantiating the Mesh instance and passing it around,
-# only updating it when it changes. However, this also means that we must keep
-# track of all Mesh instances that point to the same id.
-_WARP_MESHES_CACHE: dict[
-    tuple[int, int, int, int, int],
-    wp.Mesh,
-] = {}
-
-
-@no_type_check
-def _clear_warp_mesh_cache(mesh_id: int | None = None) -> None:
-    """Clear cached Warp meshes for ``mesh_id`` (or all if ``None``)."""
-    if mesh_id is None:
-        _WARP_MESHES_CACHE.clear()
-    else:
-        mesh_id_int = int(mesh_id)
-        keys_to_delete = [k for k in _WARP_MESHES_CACHE if k[0] == mesh_id_int]
-        for k in keys_to_delete:
-            _WARP_MESHES_CACHE.pop(k, None)
-
-
-@no_type_check
-def _get_warp_mesh(
-    mesh_id: int,
-    points: wp.array[wp.vec3],
-    indices: wp.array[wp.int32],
-) -> wp.Mesh:
-    """Return the cached Warp mesh for ``mesh_id``, building (and caching) it if absent.
-
-    Args:
-        mesh_id: The unique id of the (JAX-side) mesh, e.g., ``id(mesh)``.
-        points: The mesh vertices.
-        indices: The (flattened) mesh triangle indices.
-
-    Returns:
-        The corresponding, cached Warp mesh.
-    """
-    key = (int(mesh_id), points.ptr, indices.ptr, points.size, indices.size)
-    if (wp_mesh := _WARP_MESHES_CACHE.get(key)) is None:
-        # Clone points/indices: JAX may later free or reuse this memory,
-        # which would otherwise cause segfaults once the mesh is reused.
-        wp_mesh = wp.Mesh(points=wp.clone(points), indices=wp.clone(indices))
-        _WARP_MESHES_CACHE[key] = wp_mesh
-    return wp_mesh
-
+# TODO: still allow setting log level and initialization from environ variable?
+wp.config.log_level = wp.LOG_ERROR
+wp.init()
 
 # NOTE: 'wp.launch' on a "cpu" device runs single-threaded: a single call
 # only ever uses one CPU core, see https://github.com/NVIDIA/warp/issues/224.
@@ -102,7 +56,7 @@ class _Batched:
     dimensionality.
     """
 
-    array: Any
+    array: wp.array
     row_size: int = 1
     axis: int = 0
 

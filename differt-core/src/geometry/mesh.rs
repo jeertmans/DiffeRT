@@ -211,7 +211,14 @@ impl Mesh {
                 other.set_face_material(None);
             },
             (None, Some(_)) => {
+                // 'self' has no material of its own yet: fill placeholder (-1)
+                // entries for its existing triangles (same as the 'None' arm
+                // of 'set_face_material'), then adopt 'other's material names
+                // outright, since 'self' had none. 'other's existing
+                // face-material indices already correctly reference the
+                // just-adopted names, so they need no remapping.
                 self.set_face_material(None);
+                self.material_names = std::mem::take(&mut other.material_names);
             },
             (Some(_), Some(_)) => {
                 // We need to possibly renumber material indices.
@@ -522,4 +529,50 @@ impl From<RawObj> for Mesh {
 pub(crate) fn mesh(m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Mesh>()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_backfills_placeholder_materials_and_adopts_other_material_names() {
+        // 'self' has no material info at all yet (no `set_face_material`
+        // call was ever made on it), while 'other' already has its single
+        // triangle assigned to material "foo".
+        let mut self_mesh = Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            triangles: vec![[0, 1, 2]],
+            ..Default::default()
+        };
+        assert!(self_mesh.face_materials.is_none());
+        assert!(self_mesh.material_names.is_empty());
+
+        let mut other_mesh = Mesh {
+            vertices: vec![[0.0, 0.0, 1.0], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0]],
+            triangles: vec![[0, 1, 2]],
+            ..Default::default()
+        };
+        other_mesh.set_face_material(Some("foo".to_string()));
+
+        let other_material_names = other_mesh.material_names.clone();
+        assert_eq!(other_material_names, vec!["foo".to_string()]);
+
+        self_mesh.append(&mut other_mesh);
+
+        // 'self' adopted 'other's material names outright (moved via
+        // `std::mem::take`), since it previously had none of its own.
+        assert_eq!(self_mesh.material_names, other_material_names);
+        // 'other's material names were moved out, leaving it empty.
+        assert!(other_mesh.material_names.is_empty());
+
+        // 'self' now has face materials for both its own triangle
+        // (backfilled with the -1 placeholder) and 'other's triangle
+        // (unchanged, index 0, i.e., "foo").
+        let face_materials = self_mesh
+            .face_materials
+            .expect("face materials should be set after append");
+        assert_eq!(face_materials, vec![-1, 0]);
+        assert_eq!(self_mesh.triangles.len(), 2);
+    }
 }

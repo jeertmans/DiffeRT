@@ -122,11 +122,18 @@ and a mapping containing some common materials (e.g., ITU-R materials).
 
 Types of interaction (reflection, diffraction, etc.) within a path
 are identified by different numbers, which are listed in an enum class.
+Each member also has an ergonomic alias, e.g., :data:`SpecularReflection`
+for :attr:`InteractionType.REFLECTION`.
 
 .. autosummary::
    :toctree: _autosummary
 
    InteractionType
+   SpecularReflection
+   Diffraction
+   Scattering
+   Transmission
+   RIS
 
 .. rubric:: Field solvers
 
@@ -160,6 +167,17 @@ is set to an :class:`AbstractAntenna` instance, whatever that antenna's own
    AbstractFieldSolver
    GeometricFieldSolver
 
+.. rubric:: Wavefront propagation
+
+Wavefront curvature tracking and transport for near-field EM propagation and astigmatic diffraction.
+
+.. autosummary::
+   :toctree: _autosummary
+
+   PathWavefront
+   WavefrontState
+   propagate_wavefront
+
 .. rubric:: Pipelines
 
 End-to-end pipelines and high-level wrappers to compute received fields, Channel Impulse Response (CIR), and received power.
@@ -175,7 +193,6 @@ End-to-end pipelines and high-level wrappers to compute received fields, Channel
    reflection_matrix
    ris_matrix
    scattering_matrix
-   transition_matrices
    transition_matrix
    transmission_matrix
 

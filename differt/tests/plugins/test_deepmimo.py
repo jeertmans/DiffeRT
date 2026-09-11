@@ -122,7 +122,9 @@ def test_match_sionna_on_simple_street_canyon(
     file = sionna.rt.scene.simple_street_canyon
 
     sionna_scene = sionna.rt.load_scene(file)
-    differt_scene = Scene.load_xml(file).set_assume_quads()  # Faster RT
+    differt_scene = Scene.load_xml(
+        file, materials=MaterialsDict(materials)
+    ).set_assume_quads()  # Faster RT
 
     sionna_scene.tx_array = sionna.rt.PlanarArray(
         num_rows=1,
@@ -192,7 +194,7 @@ def test_match_sionna_on_simple_street_canyon(
     assert isinstance(dm.power, np.ndarray)
 
     # Greedily sort the paths to match Sionna's order
-    dm = dm._sort(sionna_paths)  # ruff:ignore[private-member-access]
+    dm = dm._sort(sionna_paths)  # ruff: ignore[private-member-access]
     assert isinstance(dm.power, jax.Array)  # _sort returns JAX arrays
     assert dm.num_tx == sionna_paths.num_tx == 1
     assert dm.num_rx == sionna_paths.num_rx == 1

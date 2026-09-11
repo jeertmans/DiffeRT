@@ -4,6 +4,7 @@ import equinox as eqx
 import jax.numpy as jnp
 import pytest
 
+from differt.em import MaterialsDict, materials
 from differt.geometry._mesh import Mesh
 from differt.geometry._scene import Scene
 from differt.geometry._sionna import (
@@ -74,7 +75,7 @@ def advanced_path_tracing_example_scene(
 @pytest.fixture(scope="module")
 def simple_street_canyon_scene(sionna_folder: Path) -> Scene:
     file = get_sionna_scene("simple_street_canyon", folder=sionna_folder)
-    scene = Scene.load_xml(file)
+    scene = Scene.load_xml(file, materials=MaterialsDict(materials))
     scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-22.0, 0.0, 32.0]))
     return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+22.0, 0.0, 32.0]))
 
@@ -83,7 +84,7 @@ def simple_street_canyon_scene(sionna_folder: Path) -> Scene:
 def etoile_scene(sionna_folder: Path) -> Scene:
     """The 'etoile' scene from Sionna RT: a large (~13k triangles) scene used to test that candidate generation stays bounded/fast even on large scenes and at high orders."""
     file = get_sionna_scene("etoile", folder=sionna_folder)
-    scene = Scene.load_xml(file)
+    scene = Scene.load_xml(file, materials=MaterialsDict(materials))
     scene = eqx.tree_at(lambda s: s.transmitters, scene, jnp.array([-30.0, 40.0, 25.0]))
     return eqx.tree_at(lambda s: s.receivers, scene, jnp.array([+30.0, -40.0, 1.5]))
 

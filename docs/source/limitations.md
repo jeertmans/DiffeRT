@@ -20,7 +20,7 @@ The following methods are Warp-accelerated and **require either a CPU or an NVID
 * {meth}`Mesh.ray_intersect_any_triangle<differt.geometry.Mesh.ray_intersect_any_triangle>`
 * {meth}`Mesh.first_triangle_hit_by_ray<differt.geometry.Mesh.first_triangle_hit_by_ray>`
 * {meth}`Mesh.triangles_visible_from_vertex<differt.geometry.Mesh.triangles_visible_from_vertex>`
-* {meth}`Scene.compute_paths<differt.geometry.Scene.compute_paths>` (which internally utilizes the above methods unless smoothing is enabled)
+* {meth}`Scene.trace_paths<differt.geometry.Scene.trace_paths>` and {meth}`Scene.launch_paths<differt.geometry.Scene.launch_paths>` (which internally utilize the above methods unless smoothing is enabled)
 
 ### Alternatives
 

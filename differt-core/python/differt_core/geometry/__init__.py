@@ -12,8 +12,6 @@ __all__ = (
     "Scene",
     "Shape",
     "SionnaScene",
-    "TriangleMesh",
-    "TriangleScene",
 )
 
 from ._graph import (
@@ -24,6 +22,6 @@ from ._graph import (
     CompleteGraph,
     DiGraph,
 )
-from ._mesh import Mesh, TriangleMesh
-from ._scene import Scene, TriangleScene
+from ._mesh import Mesh
+from ._scene import Scene
 from ._sionna import Material, Shape, SionnaScene

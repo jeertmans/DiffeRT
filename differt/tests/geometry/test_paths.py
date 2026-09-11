@@ -13,8 +13,6 @@ from jaxtyping import PRNGKeyArray
 from differt.geometry import Mesh, Scene, path_length
 from differt.geometry._paths import (
     LaunchedPaths,
-    Paths,
-    SBRPaths,
     TracedPaths,
     merge_cell_ids,
 )
@@ -33,66 +31,6 @@ def test_merge_cell_ids() -> None:
     got = merge_cell_ids(cell_a_ids, cell_b_ids)
 
     chex.assert_trees_all_equal(got, expected)
-
-
-def test_aliases() -> None:
-    assert issubclass(Paths, TracedPaths)
-    assert issubclass(SBRPaths, LaunchedPaths)
-
-    with pytest.deprecated_call():
-        _ = Paths(
-            jnp.empty((1, 2, 3)),
-            jnp.empty((1, 2), dtype=int),
-            jnp.empty(1, dtype=bool),
-            jnp.empty((1, 0), dtype=jnp.int32),
-        )
-
-    with pytest.deprecated_call():
-        _ = SBRPaths(
-            jnp.empty((1, 2, 3)),
-            jnp.empty((1, 2), dtype=int),
-            masks=jnp.empty((1, 1), dtype=bool),
-            interaction_types=jnp.empty((1, 0), dtype=jnp.int32),
-        )
-
-    def test_get_paths() -> None:
-        paths = LaunchedPaths(
-            vertices=jnp.empty((1, 4, 3)),
-            objects=jnp.empty((1, 4), dtype=int),
-            masks=jnp.empty((1, 3), dtype=bool),
-            interaction_types=jnp.empty((1, 2), dtype=jnp.int32),
-        )
-
-        got = paths.get_paths(1)
-        assert isinstance(got, TracedPaths)
-
-        with pytest.raises(ValueError, match="strictly between 0 and 2"):
-            paths.get_paths(3)
-        with pytest.raises(ValueError, match="strictly between 0 and 2"):
-            paths.get_paths(-1)
-
-    def test_squeeze() -> None:
-        paths = LaunchedPaths(
-            vertices=jnp.empty((1, 3, 3)),
-            objects=jnp.empty((1, 3), dtype=int),
-            masks=jnp.empty((1, 2), dtype=bool),
-            interaction_types=jnp.empty((1, 1), dtype=jnp.int32),
-        )
-
-        squeezed = paths.squeeze(0)
-        assert squeezed.shape == ()
-
-        with pytest.raises(ValueError, match="out-of-bounds"):
-            paths.squeeze(1)
-
-        paths_0d = LaunchedPaths(
-            vertices=jnp.empty((3, 3)),
-            objects=jnp.empty((3,), dtype=int),
-            masks=jnp.empty((2,), dtype=bool),
-            interaction_types=jnp.empty((1,), dtype=jnp.int32),
-        )
-        with pytest.raises(ValueError, match="Cannot squeeze a 0-dimensional batch!"):
-            paths_0d.squeeze()
 
 
 def random_paths(
@@ -453,6 +391,81 @@ class TestTracedPaths:
         paths = random_paths(3, 4, 5, num_objects=30, with_mask=True, key=key)
 
         _ = paths.plot(backend=backend)
+
+    def test_split_by_order(self) -> None:
+        vertices = jnp.zeros((5, 4, 3))
+        objects = jnp.array([
+            [0, -1, -1, 0],
+            [0, 10, -1, 0],
+            [0, 20, -1, 0],
+            [0, 10, 20, 0],
+            [0, -1, -1, 0],
+        ])
+        mask = jnp.array([True, True, True, True, False])
+        interaction_types = jnp.array([
+            [-1, -1],
+            [0, -1],
+            [1, -1],
+            [0, 0],
+            [-1, -1],
+        ])
+        paths = TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=mask,
+            interaction_types=interaction_types,
+        )
+
+        sub_by_type = paths.split_by_order(by_interaction_type=True)
+        assert len(sub_by_type) == 4
+        assert [p.order for p in sub_by_type] == [0, 1, 1, 2]
+        assert [int(p.num_valid_paths) for p in sub_by_type] == [1, 1, 1, 1]
+
+        sub_by_order = paths.split_by_order(by_interaction_type=False)
+        assert len(sub_by_order) == 3
+        assert [p.order for p in sub_by_order] == [0, 1, 2]
+        assert [int(p.num_valid_paths) for p in sub_by_order] == [1, 2, 1]
+
+        masked_sub = paths.split_by_order(masked=True)
+        assert len(masked_sub) == 4
+        assert [p.vertices.shape for p in masked_sub] == [
+            (1, 2, 3),
+            (1, 3, 3),
+            (1, 3, 3),
+            (1, 4, 3),
+        ]
+
+    def test_split_by_order_trivial_single_group(self) -> None:
+        # Every valid path already shares the same order (and, for
+        # 'by_interaction_type=True', the same interaction-type signature),
+        # matching 'self.order': both variants return '[self]' (or
+        # '[self.masked()]') directly, without actually splitting anything.
+        vertices = jnp.zeros((3, 3, 3))
+        objects = jnp.array([
+            [0, 10, 0],
+            [0, 10, 0],
+            [0, -1, 0],
+        ])
+        mask = jnp.array([True, True, False])
+        interaction_types = jnp.array([[0], [0], [-1]])
+        paths = TracedPaths(
+            vertices=vertices,
+            objects=objects,
+            mask=mask,
+            interaction_types=interaction_types,
+        )
+
+        sub_by_type = paths.split_by_order(by_interaction_type=True)
+        assert len(sub_by_type) == 1
+        assert sub_by_type[0] is paths
+
+        sub_by_order = paths.split_by_order(by_interaction_type=False)
+        assert len(sub_by_order) == 1
+        assert sub_by_order[0] is paths
+
+        masked_sub = paths.split_by_order(by_interaction_type=False, masked=True)
+        assert len(masked_sub) == 1
+        chex.assert_trees_all_equal(masked_sub[0].vertices, paths.masked().vertices)
 
 
 class TestLaunchedPaths:

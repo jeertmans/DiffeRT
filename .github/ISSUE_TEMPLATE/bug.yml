@@ -140,9 +140,9 @@ body:
       Please copy and paste a minimal working example (MWE) of your Python code that can reproduce your bug.
       This will be automatically formatted into code, so no need for backticks.
     placeholder: |
-      from differt.geometry import TriangleScene
+      from differt.geometry import Scene
 
-      scene = TriangleScene(...)
+      scene = Scene(...)
 
     render: python
   validations:

@@ -3,38 +3,24 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 from jaxtyping import Array, ArrayLike, Bool, Complex, Float, Int, Num
 
 from differt.geometry._mesh import Mesh
 from differt.geometry._paths import TracedPaths
 
-from ._constants import c, z_0
-from ._solvers import AbstractFieldSolver, GeometricFieldSolver
+from ._constants import z_0
+from ._pipeline import (
+    _resolve_solver_and_frequency,
+    compute_cir,
+    compute_received_power,
+)
+from ._solvers import AbstractFieldSolver
 
 if TYPE_CHECKING or hasattr(typing, "GENERATING_DOCS"):
     from typing import Self
 else:
     Self = Any  # Because runtime type checking from 'beartype' will fail when combined with 'jaxtyping'
-
-
-@jax.jit(static_argnames=("coherent", "axis"))
-def _compute_power(
-    fields: Complex[Array, "*batch"],
-    z_0: Float[ArrayLike, ""] | float = z_0,
-    coherent: bool = True,
-    axis: int | None = None,
-) -> Float[Array, "..."]:
-    if axis is not None:
-        if coherent:
-            summed_fields = jnp.sum(fields, axis=axis)
-            power = jnp.abs(summed_fields) ** 2 / z_0
-        else:
-            power = jnp.sum(jnp.abs(fields) ** 2 / z_0, axis=axis)
-    else:
-        power = jnp.abs(fields) ** 2 / z_0
-    return 10.0 * jnp.log10(power)
 
 
 class TracedFields(eqx.Module):
@@ -206,7 +192,9 @@ class TracedFields(eqx.Module):
         Returns:
             The received power in dBW.
         """
-        return _compute_power(self.fields, z_0=z_0, coherent=coherent, axis=axis)
+        return compute_received_power(
+            self.fields, z_0=z_0, coherent=coherent, axis=axis
+        )
 
     def cir(self) -> tuple[Float[Array, "*batch"], Complex[Array, "*batch"]]:
         """
@@ -271,44 +259,18 @@ class TracedFields(eqx.Module):
         Returns:
             A :class:`TracedFields` instance wrapping the computed fields, propagation
             delays, operating frequency, and validity mask.
-
-        Raises:
-            ValueError: If an unknown solver name is passed, if ``solver_kwargs``
-                are supplied alongside a solver instance, or if ``frequency``
-                is omitted and cannot be inferred from the transmitter antenna.
         """
-        if isinstance(solver, str):
-            if solver == "geometric":
-                solver_instance: AbstractFieldSolver = GeometricFieldSolver(
-                    **solver_kwargs
-                )
-            else:
-                msg = f"Unknown solver: {solver}"
-                raise ValueError(msg)
-        elif solver_kwargs:
-            msg = "solver_kwargs cannot be used when a solver instance is provided."
-            raise ValueError(msg)
+        wavefront_radii = solver_kwargs.pop("wavefront_radii", None)
+        solver_instance, frequency_arr = _resolve_solver_and_frequency(
+            solver, frequency, solver_kwargs
+        )
+        if wavefront_radii is not None and hasattr(solver_instance, "compute_fields"):
+            fields = solver_instance.compute_fields(
+                paths, mesh, frequency_arr, wavefront_radii=wavefront_radii
+            )
         else:
-            solver_instance = solver
-
-        if frequency is None:
-            tx_polarization = getattr(solver_instance, "tx_polarization", None)
-            frequency_val = getattr(tx_polarization, "frequency", None)
-            if frequency_val is None:
-                msg = (
-                    "'frequency' must be provided explicitly, unless "
-                    "'tx_polarization' is an 'AbstractAntenna' instance."
-                )
-                raise ValueError(msg)
-        else:
-            frequency_val = frequency
-
-        frequency_arr = jnp.asarray(frequency_val)
-        fields = solver_instance.compute_fields(paths, mesh, frequency_arr)
-
-        path_segments = jnp.diff(paths.vertices, axis=-2)
-        lengths = jnp.linalg.norm(path_segments, axis=-1).sum(axis=-1)
-        delay = lengths / c
+            fields = solver_instance.compute_fields(paths, mesh, frequency_arr)
+        delay, fields = compute_cir(paths, fields)
 
         return cls(
             fields=fields,

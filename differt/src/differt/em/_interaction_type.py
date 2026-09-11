@@ -17,3 +17,15 @@ class InteractionType(IntEnum):
     """Transmission through a surface."""
     RIS = 4
     """Interaction with a Reconfigurable Intelligent Surface (RIS)."""
+
+
+SpecularReflection = InteractionType.REFLECTION
+"""Alias for :attr:`InteractionType.REFLECTION`."""
+Diffraction = InteractionType.DIFFRACTION
+"""Alias for :attr:`InteractionType.DIFFRACTION`."""
+Scattering = InteractionType.SCATTERING
+"""Alias for :attr:`InteractionType.SCATTERING`."""
+Transmission = InteractionType.TRANSMISSION
+"""Alias for :attr:`InteractionType.TRANSMISSION`."""
+RIS = InteractionType.RIS
+"""Alias for :attr:`InteractionType.RIS`."""

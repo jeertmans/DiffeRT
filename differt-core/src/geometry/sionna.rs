@@ -194,7 +194,7 @@ impl<'de> Deserialize<'de> for Material {
                 id: String,
                 #[serde(rename = "string")]
                 r#type: Type,
-                #[serde(skip)]
+                #[serde(rename = "float", default)]
                 thickness: Option<Thickness>,
             }),
             ("diffuse"  => Diffuse {
@@ -763,9 +763,7 @@ mod tests {
     }
 
     #[test]
-    fn deserializes_itu_thickness_ignored() {
-        // Note: thickness elements in ITU materials are currently skipped
-        // in deserialization (marked with #[serde(skip)])
+    fn deserializes_itu_thickness() {
         let xml = r#"
             <bsdf type="itu-radio-material" id="window">
                 <string name="type" value="glass"/>
@@ -778,8 +776,44 @@ mod tests {
         assert_eq!(material.id, "window");
         assert_eq!(material.name, "itu_glass");
         assert_eq!(material.color, [0.168, 0.139, 0.509]);
-        // Thickness is currently not deserialized for ITU materials
+        assert_eq!(material.thickness, Some(0.01));
+    }
+
+    #[test]
+    fn deserializes_itu_material_without_thickness() {
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="marble">
+                <string name="type" value="marble"/>
+            </bsdf>
+        "#;
+
+        let material: Material = quick_xml::de::from_str(xml).expect("material should parse");
+
+        assert_eq!(material.id, "marble");
+        assert_eq!(material.name, "itu_marble");
         assert_eq!(material.thickness, None);
+    }
+
+    #[test]
+    fn deserializes_itu_material_with_duplicate_thickness_errors() {
+        // Now that `thickness` is actually deserialized from `<float>`
+        // elements (instead of being `#[serde(skip)]`ped), a second
+        // `<float name="thickness">` element is recognized as a duplicate
+        // of the same field and must be rejected.
+        let xml = r#"
+            <bsdf type="itu-radio-material" id="window">
+                <string name="type" value="glass"/>
+                <float name="thickness" value="0.01"/>
+                <float name="thickness" value="0.02"/>
+            </bsdf>
+        "#;
+
+        let result: Result<Material, _> = quick_xml::de::from_str(xml);
+
+        assert!(
+            result.is_err(),
+            "duplicate <float> (thickness) elements should be rejected, got {result:?}"
+        );
     }
 
     #[test]

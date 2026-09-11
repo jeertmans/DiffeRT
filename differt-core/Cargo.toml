@@ -19,6 +19,7 @@ serde = {version = "1.0", features = ["derive"]}
 criterion = "0.5.1"
 pyo3 = {version = "0.25", features = ["auto-initialize"]}
 rstest = "0.18.2"
+tempfile = "3.20"
 testing_logger = "0.1.1"
 
 [features]

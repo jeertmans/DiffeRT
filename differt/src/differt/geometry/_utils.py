@@ -987,7 +987,7 @@ def spherical_to_cartesian(
 
     xyz = jnp.stack((sp * ca, sp * sa, cp), axis=-1)
 
-    if rpa.shape[-1] == 3:  # ruff:ignore[magic-value-comparison]
+    if rpa.shape[-1] == 3:  # ruff: ignore[magic-value-comparison]
         xyz *= rpa[..., 0, None]
 
     return xyz
@@ -1015,7 +1015,7 @@ class SizedIterator(Iterator[_T], Sized):
     Examples:
         The following example shows how to create a sized iterator.
 
-        >>> from differt.rt import SizedIterator
+        >>> from differt.geometry import SizedIterator
         >>> l = [1, 2, 3, 4, 5]
         >>> it = SizedIterator(iter=iter(l), size=5)
         >>> len(it)
@@ -1028,7 +1028,11 @@ class SizedIterator(Iterator[_T], Sized):
 
     __slots__ = ("_iter", "_size")
 
-    def __init__(self, iter: Iterator[_T], size: int | Callable[[], int]) -> None:  # ruff:ignore[builtin-argument-shadowing]
+    def __init__(
+        self,
+        iter: Iterator[_T],  # ruff: ignore[builtin-argument-shadowing]
+        size: int | Callable[[], int] | None = None,
+    ) -> None:
         self._iter = iter
         self._size = size
 
@@ -1039,6 +1043,9 @@ class SizedIterator(Iterator[_T], Sized):
         return next(self._iter)
 
     def __len__(self) -> int:
+        if self._size is None:
+            msg = "This iterator has no fixed length."
+            raise TypeError(msg)
         if isinstance(self._size, int):
             return self._size
         return self._size()
@@ -1189,7 +1196,7 @@ def check_path_candidates(
         Traceback (most recent call last):
         ...
         equinox.EquinoxRuntimeError: Invalid path candidates: placeholder value '-1' cannot be immediately followed by a non-placeholder value; placeholders must only appear as a trailing suffix.
-    """  # ruff:ignore[docstring-extraneous-exception]
+    """  # ruff: ignore[docstring-extraneous-exception]
     path_candidates = jnp.asarray(path_candidates)
     is_placeholder = path_candidates == -1
     invalid = is_placeholder[..., :-1] & ~is_placeholder[..., 1:]
@@ -1273,16 +1280,14 @@ def ray_intersect_triangle(
         .. plotly::
 
             >>> import equinox as eqx
-            >>> from differt.geometry import fibonacci_lattice
-            >>> from differt.plotting import draw_rays
-            >>> from differt.rt import (
+            >>> from differt.geometry import (
+            ...     Scene,
+            ...     download_sionna_scenes,
+            ...     fibonacci_lattice,
+            ...     get_sionna_scene,
             ...     ray_intersect_triangle,
             ... )
-            >>> from differt.geometry import (
-            ...     get_sionna_scene,
-            ...     download_sionna_scenes,
-            ... )
-            >>> from differt.geometry import Scene
+            >>> from differt.plotting import draw_rays
             >>>
             >>> download_sionna_scenes()  # doctest: +SKIP
             >>> file = get_sionna_scene("simple_street_canyon")
@@ -1664,13 +1669,11 @@ def triangles_visible_from_vertex(
             :context: reset
 
             >>> import equinox as eqx
-            >>> from differt.rt import (
-            ...     triangles_visible_from_vertex,
-            ... )
             >>> from differt.geometry import (
             ...     Scene,
-            ...     get_sionna_scene,
             ...     download_sionna_scenes,
+            ...     get_sionna_scene,
+            ...     triangles_visible_from_vertex,
             ... )
             >>>
             >>> download_sionna_scenes()  # doctest: +SKIP

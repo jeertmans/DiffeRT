@@ -149,7 +149,7 @@ def test_first_triangle_hit_by_ray(
     benchmark(bench_fun)
 
 
-@pytest.mark.benchmark(group="compute_paths")
+@pytest.mark.benchmark(group="trace_paths")
 @pytest.mark.parametrize(
     "method",
     [
@@ -162,7 +162,7 @@ def test_first_triangle_hit_by_ray(
     "disconnect_inactive_triangles",
     [pytest.param(False, id="no_disconnect"), pytest.param(True, id="disconnect")],
 )
-def test_compute_paths(
+def test_trace_paths(
     method: Literal["exhaustive", "hybrid", "sbr"],
     disconnect_inactive_triangles: bool,
     bench_scene: Scene,
