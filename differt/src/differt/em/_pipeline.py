@@ -9,23 +9,26 @@ from differt.geometry._mesh import Mesh
 from differt.geometry._paths import TracedPaths
 
 from ._constants import c, z_0
+from ._interaction_type import InteractionType
 from ._material import Material
 from ._solvers import AbstractFieldSolver, GeometricFieldSolver
 from ._wavefront import WavefrontState
+
+_WavefrontRadii = (
+    Float[ArrayLike, "*#batch"]
+    | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+    | WavefrontState
+    | None
+)
 
 
 class _GeometricFieldSolverKwargs(TypedDict, total=False):
     tx_polarization: Any
     rx_polarization: Any
     radio_materials: Mapping[str, Material] | None
-    tx_wavefront_radii: (
-        Float[ArrayLike, "*#batch"]
-        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
-        | WavefrontState
-        | None
-    )
-    interaction_matrices: Mapping[Any, Any] | None
-    wavefront_radii: Any
+    tx_wavefront_radii: _WavefrontRadii
+    interaction_matrices: Mapping[InteractionType | int, Any] | None
+    wavefront_radii: _WavefrontRadii
 
 
 @overload
@@ -46,7 +49,7 @@ def compute_received_fields(
     frequency: Float[ArrayLike, "*#batch"] | None = None,
     *,
     solver: AbstractFieldSolver,
-    wavefront_radii: Any = None,
+    wavefront_radii: _WavefrontRadii = None,
 ) -> Complex[Array, "*batch"]: ...
 
 

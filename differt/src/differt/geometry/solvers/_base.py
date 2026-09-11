@@ -24,7 +24,7 @@ from differt.geometry._utils import (
 )
 from differt.utils import smoothing_function
 
-from ._dispatch import solve_mixed_interaction_paths
+from ._dispatch import _solve_mixed_interaction_paths
 
 if TYPE_CHECKING:
     from differt.em import InteractionType
@@ -138,10 +138,11 @@ class AbstractPathTracer(AbstractPathSolver):
             allowed_interactions: The set of interaction types a bounce may
                 take. Defaults to
                 ``frozenset({InteractionType.REFLECTION})``
-                when :data:`None`. :class:`SBRPathTracer` only
-                supports ``REFLECTION`` for now (its ray-shooting kernel
-                does not (yet) continue through diffraction edges or
-                transmissive faces).
+                when :data:`None`. :class:`SBRPathTracer`'s ray-shooting
+                kernel only discovers ``REFLECTION`` bounces; requesting
+                other interaction types falls back to (or, when mixed with
+                ``REFLECTION``, merges in) :class:`HybridPathTracer`'s
+                graph-based generation, see :class:`SBRPathTracer`.
 
         Returns:
             A 2-tuple of ``(path_candidates, interaction_types)``.
@@ -257,7 +258,7 @@ class AbstractPathTracer(AbstractPathSolver):
         """Fall back to a single, unchunked chunk when no ``chunk_size`` is set.
 
         Shared by :class:`ExhaustivePathTracer`, :class:`HybridPathTracer`, and
-        :class:`SBRPathTracer`'s ``generate_path_candidates_chunks_iter`` overrides:
+        :class:`SBRPathTracer`'s :meth:`generate_path_candidates_chunks_iter` overrides:
         each first resolves its own effective chunk size (e.g., ``chunk_size or
         self.chunk_size``) and calls this helper with that value, returning its
         result directly whenever it is not :data:`None`; otherwise, native
@@ -679,7 +680,7 @@ def _trace_path_candidates(
     ``interaction_types``'s actual values, they must be resolved outside of
     any traced computation, since they select which (mutually exclusive)
     geometric solver is used, see
-    :func:`~differt.geometry.solvers._dispatch.solve_mixed_interaction_paths`.
+    :func:`~differt.geometry.solvers._dispatch._solve_mixed_interaction_paths`.
     When both are :data:`False` (the default, reflection/scattering-only
     case), this reduces exactly to the original single
     :func:`~differt.geometry.image_method` call.
@@ -787,8 +788,8 @@ def _trace_path_candidates(
         # scattering/diffraction bounces are solved jointly (they bend the
         # ray and are not independent of one another); transmission
         # bounces do not bend the ray, and are spliced in afterward. See
-        # 'solve_mixed_interaction_paths' for the full algorithm.
-        full_paths = solve_mixed_interaction_paths(
+        # '_solve_mixed_interaction_paths' for the full algorithm.
+        full_paths = _solve_mixed_interaction_paths(
             mesh,
             tx_vertices,
             rx_vertices,

@@ -86,7 +86,7 @@ def _surface_geometry(
     first, so this stays safe to call on slots that hold a half-edge index
     instead (DIFFRACTION), or a placeholder; callers are expected to
     discard those entries, exactly as
-    :func:`~differt.em.GeometricFieldSolver._surface_interaction_geometry`
+    :func:`~differt.em._solvers._surface_interaction_geometry`
     already does for the EM solver side.
 
     Returns:
@@ -157,7 +157,7 @@ def _bending_geometry_for_fermat(
     return object_origin, object_vectors
 
 
-def solve_mixed_interaction_paths(
+def _solve_mixed_interaction_paths(
     mesh: Mesh,
     tx_vertices: Float[Array, "num_tx_vertices 3"],
     rx_vertices: Float[Array, "num_rx_vertices 3"],

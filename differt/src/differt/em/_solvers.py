@@ -984,13 +984,13 @@ class GeometricFieldSolver(AbstractFieldSolver):
         :class:`AbstractAntenna<differt.em.AbstractAntenna>`) only affects a
         ``DIFFRACTION`` bounce that is the *first* interaction along a
         path; see the note in :class:`GeometricFieldSolver`. :data:`None`
-        (a planar wavefront, the :math:`\rho_0 \to \infty` limit) is
-        supported here (unlike an astigmatic ``(rho_s, rho_p)`` tuple,
-        which is not, and must not be used with a ``DIFFRACTION`` bounce
-        -- see :meth:`spreading_factor`), using the well-known
-        plane-wave-incidence distance parameter formula, rather than
-        evaluating the general one at :math:`\rho_0 \to \infty` (which
-        would give a 0/0 division).
+        (a planar wavefront, the :math:`\rho_0 \to \infty` limit) uses the
+        well-known plane-wave-incidence distance parameter formula, rather
+        than evaluating the general one at :math:`\rho_0 \to \infty` (which
+        would give a 0/0 division); an astigmatic ``(rho_s, rho_p)`` tuple
+        (or a :class:`~differt.em.WavefrontState`) is instead handled via
+        curvature transport through :func:`propagate_wavefront<differt.em.propagate_wavefront>`
+        -- see :meth:`spreading_factor`.
 
         Args:
             paths: The paths.
@@ -1250,7 +1250,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
         mesh: Mesh,
         frequency: Float[ArrayLike, "*#batch"],
         *,
-        wavefront_radii: Any = None,
+        wavefront_radii: (
+            Float[ArrayLike, "*#batch"]
+            | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+            | WavefrontState
+            | None
+        ) = None,
     ) -> Complex[Array, "*batch"]:
         """
         Compute the received complex fields for each path.
@@ -1408,7 +1413,12 @@ class GeometricFieldSolver(AbstractFieldSolver):
         paths: TracedPaths,
         mesh: Mesh | None = None,
         *,
-        wavefront_radii: Any = None,
+        wavefront_radii: (
+            Float[ArrayLike, "*#batch"]
+            | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+            | WavefrontState
+            | None
+        ) = None,
     ) -> Float[Array, "*batch"]:
         r"""
         Compute the wavefront spreading factor for each path.

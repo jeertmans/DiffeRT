@@ -1,11 +1,9 @@
 """Wavefront curvature state and transport for near-field EM propagation."""
 
-from typing import Any
-
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Bool, Float
+from jaxtyping import Array, ArrayLike, Bool, Float
 
 from differt.geometry._mesh import Mesh
 from differt.geometry._paths import TracedPaths
@@ -27,23 +25,26 @@ class WavefrontState(eqx.Module):
     direction :math:`\hat{k}` by two principal radii of curvature
     :math:`(\rho_1, \rho_2)` and their corresponding orthogonal unit vectors
     :math:`(\hat{u}_1, \hat{u}_2)`.
-
-    Attributes:
-        radii: The principal radii of curvature.
-        axes: The orthogonal unit vectors defining the principal planes.
-        is_planar: Boolean flags indicating whether each principal curvature
-            is zero (infinite radius / plane wave).
     """
 
     radii: Float[Array, "*batch 2"]
+    """The principal radii of curvature."""
     axes: Float[Array, "*batch 2 3"]
+    """The orthogonal unit vectors defining the principal planes."""
     is_planar: Bool[Array, "*batch 2"]
+    """Boolean flags indicating whether each principal curvature is zero (infinite radius / plane wave)."""
 
     @classmethod
     def from_tx(
         cls,
         k_hat: Float[Array, "*batch 3"],
-        tx_wavefront: Any = 0.0,
+        tx_wavefront: (
+            "Float[ArrayLike, '*#batch'] "
+            "| tuple[Float[ArrayLike, '*#batch'], Float[ArrayLike, '*#batch']] "
+            "| tuple[Float[ArrayLike, '*#batch'], Float[ArrayLike, '*#batch 3'], "
+            "Float[ArrayLike, '*#batch'], Float[ArrayLike, '*#batch 3']] "
+            "| WavefrontState | None"
+        ) = 0.0,
     ) -> "WavefrontState":
         r"""
         Create the initial wavefront state at the transmitter.
@@ -176,9 +177,9 @@ class WavefrontState(eqx.Module):
         r"""
         Diffract the wavefront at a straight wedge edge.
 
-        Following Kouyoumjian & Pathak (1974) and McNamara et al. (1990,
-        Chapter 6, pp. 264--273, Eq. 6.2--6.5, 6.34, 6.36), straight-edge
-        diffraction produces an astigmatic wavefront with one caustic along the edge
+        Following Kouyoumjian & Pathak (1974) and
+        :cite:`utd-mcnamara{Chapter 6, pp. 264-273, Eq. 6.2-6.5, 6.34, 6.36}`,
+        straight-edge diffraction produces an astigmatic wavefront with one caustic along the edge
         (:math:`\rho_1 = 0`) and second principal radius :math:`\rho_2 = \rho_e^i` equal
         to the incident wavefront's radius in the edge-fixed plane of incidence.
 
@@ -239,28 +240,34 @@ class WavefrontState(eqx.Module):
 
 
 class PathWavefront(eqx.Module):
-    r"""
-    Wavefront propagation history along traced paths.
-
-    Attributes:
-        state: The final wavefront state at the receiver.
-        incident_radii: The incident radii ``(rho_1_i, rho_2_i, rho_e_i)``
-            at each interaction bounce.
-        spreading_factor: The accumulated field amplitude spreading factor along each path.
-        segment_radii: The principal radii at the start of each path segment.
-    """
+    """Wavefront propagation history along traced paths."""
 
     state: WavefrontState
+    """The final wavefront state at the receiver."""
     incident_radii: Float[Array, "*batch order 3"]
+    """The incident radii ``(rho_1_i, rho_2_i, rho_e_i)`` at each interaction bounce."""
     spreading_factor: Float[Array, " *batch"]
+    """The accumulated field amplitude spreading factor along each path."""
     segment_radii: Float[Array, "*batch num_segments 2"]
+    """The principal radii at the start of each path segment."""
 
 
 @eqx.filter_jit
 def propagate_wavefront(
     paths: TracedPaths,
     mesh: Mesh,
-    tx_wavefront: Any = 0.0,
+    tx_wavefront: (
+        Float[ArrayLike, "*#batch"]
+        | tuple[Float[ArrayLike, "*#batch"], Float[ArrayLike, "*#batch"]]
+        | tuple[
+            Float[ArrayLike, "*#batch"],
+            Float[ArrayLike, "*#batch 3"],
+            Float[ArrayLike, "*#batch"],
+            Float[ArrayLike, "*#batch 3"],
+        ]
+        | WavefrontState
+        | None
+    ) = 0.0,
 ) -> PathWavefront:
     r"""
     Propagate the wavefront curvature state along the given traced paths.

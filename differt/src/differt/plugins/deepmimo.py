@@ -404,9 +404,11 @@ def _process_chunk(
     This is factored out of :func:`export` for readability. It is deliberately not
     JIT-compiled itself, since ``solver.radio_materials`` is a plain (unhashable)
     mapping and cannot be part of a JIT-traced pytree; the actual numeric work is
-    still performed by the already JIT-compiled
-    :func:`compute_received_fields<differt.em.compute_received_fields>` and
-    :func:`compute_cir<differt.em.compute_cir>`.
+    still performed by the already JIT-compiled core helpers that
+    :func:`compute_received_fields<differt.em.compute_received_fields>` reaches
+    through ``solver`` (e.g.,
+    :meth:`GeometricFieldSolver.reflection_matrix<differt.em.GeometricFieldSolver.reflection_matrix>`
+    and its siblings).
 
     Returns:
         A tuple containing, in order: the object indices, interaction types,

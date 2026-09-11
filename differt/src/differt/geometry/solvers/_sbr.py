@@ -241,6 +241,12 @@ class SBRPathTracer(HybridPathTracer):
     placeholders, and combined into a single array bounded by
     :attr:`max_num_candidates`.
 
+    Ray shooting only discovers ``REFLECTION`` bounces: when
+    ``allowed_interactions`` (see :meth:`generate_path_candidates`) also
+    requests other interaction types, those are instead obtained from
+    :class:`HybridPathTracer`'s graph-based generation and merged with the
+    ray-shot reflection-only candidates.
+
     .. important::
 
         Because candidates are discovered from a finite ray population, this
@@ -367,6 +373,20 @@ class SBRPathTracer(HybridPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
+        """Generate reflection-only path candidates by launching and deduplicating rays.
+
+        Args:
+            scene: The scene.
+            order: The path order, or a sequence of orders to combine, see
+                :meth:`generate_path_candidates`.
+
+        Returns:
+            The deduplicated, bounded reflection-only path candidates and
+            interaction types.
+
+        Raises:
+            ValueError: If ``order`` is an empty sequence.
+        """
         single_order = isinstance(order, int)
         order = _normalize_order(order)
 
@@ -427,6 +447,25 @@ class SBRPathTracer(HybridPathTracer):
         Int[Array, "num_candidates order"],
         Int[Array, "num_candidates order"],
     ]:
+        """Override to combine ray-shot reflection candidates with graph-based non-reflection ones.
+
+        When ``allowed_interactions`` only contains ``REFLECTION``, candidates
+        come solely from :meth:`_generate_reflection_candidates` (ray
+        shooting). When ``REFLECTION`` is excluded entirely, this falls back
+        to :class:`HybridPathTracer`'s graph-based generation. Otherwise, the
+        ray-shot reflection-only candidates are combined with
+        :class:`HybridPathTracer`'s candidates restricted to those containing
+        at least one non-reflection interaction, then deduplicated together.
+
+        Args:
+            scene: The scene.
+            order: The path order, or a sequence of orders to combine.
+            allowed_interactions: The set of interaction types a bounce may
+                take. Defaults to ``frozenset({InteractionType.REFLECTION})``.
+
+        Returns:
+            A 2-tuple of ``(path_candidates, interaction_types)``.
+        """
         from differt.em import InteractionType  # ruff: ignore[import-outside-top-level]
 
         if allowed_interactions is None:

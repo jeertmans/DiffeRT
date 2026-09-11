@@ -6,7 +6,7 @@ from differt.em import InteractionType
 from differt.geometry._mesh import Mesh
 from differt.geometry._paths import TracedPaths
 from differt.geometry.solvers._base import _trace_path_candidates
-from differt.geometry.solvers._dispatch import solve_mixed_interaction_paths
+from differt.geometry.solvers._dispatch import _solve_mixed_interaction_paths
 
 
 @pytest.fixture
@@ -166,7 +166,7 @@ def test_solve_mixed_interaction_paths_extra_fermat_kwargs(wedge_mesh: Mesh) -> 
     tx = jnp.array([[0.5, 0.5, 1.0]])
     rx = jnp.array([[2.0, 0.5, -0.5]])
 
-    default_paths = solve_mixed_interaction_paths(
+    default_paths = _solve_mixed_interaction_paths(
         wedge_mesh,
         tx,
         rx,
@@ -175,7 +175,7 @@ def test_solve_mixed_interaction_paths_extra_fermat_kwargs(wedge_mesh: Mesh) -> 
         use_fermat=True,
         needs_splice=False,
     )
-    custom_paths = solve_mixed_interaction_paths(
+    custom_paths = _solve_mixed_interaction_paths(
         wedge_mesh,
         tx,
         rx,
