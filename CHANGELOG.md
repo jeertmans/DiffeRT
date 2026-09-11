@@ -21,9 +21,13 @@ with one *slight* but **important** difference:
 <!-- start changelog -->
 
 (changelog-unreleased)=
-## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.11.0...HEAD)
+## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.12.0...HEAD)
 
-(changelog-unreleased-added)=
+(changelog-v0.12.0)=
+## [0.12.0]
+## [v0.12.0](https://github.com/jeertmans/DiffeRT/compare/v0.11.0...v0.12.0)
+
+(changelog-v0.12.0-added)=
 ### Added
 
 - Added a `materials` keyword-only argument to {meth}`Scene.load_xml<differt.geometry.Scene.load_xml>`, which is populated in place with the ITU radio materials of the loaded Sionna-compatible XML scene, merging each material's per-shape overrides (currently, only `thickness`, read from a `<float name="thickness" value="..."/>` element) into the matching built-in ITU material. It defaults to the global {data}`materials<differt.em._material.materials>` mapping, so a scene's radio materials no longer need to be built by hand (by <gh-user:jeertmans>, in <gh-pr:537>).
@@ -39,7 +43,7 @@ with one *slight* but **important** difference:
 - Added {meth}`TracedPaths.split_by_order<differt.geometry.TracedPaths.split_by_order>` to partition a multi-order {class}`TracedPaths<differt.geometry.TracedPaths>` instance into separate instances by interaction order and interaction signature, and updated {meth}`TracedPaths.plot<differt.geometry.TracedPaths.plot>` to automatically render distinct colors per interaction group by default (by <gh-user:jeertmans>, in <gh-pr:537>).
 
 
-(changelog-unreleased-chore)=
+(changelog-v0.12.0-chore)=
 ### Chore
 
 - Removed the cache mechanism for {class}`warp.Mesh` objects, as it proved to offer little to no performance benefit, both on CPU and GPU platforms, at the cost of code complexity. Moreover, it seems impossible to define an efficient cache key that will work with the various JAX transforms. This change may incur some small performance regression, especially on the CPU, but those will hopefully be improved in the future once Warp properly supports automatic code vectorization and multithreading on the CPU (by <gh-user:jeertmans>, in <gh-pr:537>).
@@ -47,7 +51,7 @@ with one *slight* but **important** difference:
 - Pinned `fpt-jax` to its official `0.2.0` PyPI release, removing the development-only Git dependency override used while `0.2.0` was unreleased (by <gh-user:jeertmans>, in <gh-pr:537>).
 - Continued migrating {func}`deepmimo.export<differt.plugins.deepmimo.export>` onto the shared {class}`GeometricFieldSolver<differt.em.GeometricFieldSolver>`/`compute_received_fields`/`compute_cir` pipeline, replacing its remaining hand-rolled spherical-basis/slab-reflection implementation; its public signature and output are unchanged (by <gh-user:jeertmans>, in <gh-pr:537>).
 
-(changelog-unreleased-fixed)=
+(changelog-v0.12.0-fixed)=
 ### Fixed
 
 - Fixed the `differt_core.geometry.Scene.mesh` type stub, which incorrectly declared `list[TriangleMesh]` instead of a single {class}`Mesh<differt_core.geometry.Mesh>` (by <gh-user:jeertmans>, in <gh-pr:537>).
@@ -59,7 +63,7 @@ with one *slight* but **important** difference:
 - Fixed `pad_chunks` being silently ignored on {class}`HybridPathTracer<differt.geometry.HybridPathTracer>` (and, by inheritance, {class}`SBRPathTracer<differt.geometry.SBRPathTracer>`) when chunking path candidates; it now actually zero-pads the last chunk up to `chunk_size`, matching {class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`'s existing behavior (by <gh-user:jeertmans>, in <gh-pr:537>).
 
 
-(changelog-unreleased-removed)=
+(changelog-v0.12.0-removed)=
 ### Removed
 
 - **Breaking change**: Removed the deprecated `differt.rt` and `differt.scene` modules, which had been kept since v0.10.0 as backwards-compatible re-exports of {mod}`differt.geometry`; import the corresponding names from {mod}`differt.geometry` directly instead (by <gh-user:jeertmans>, in <gh-pr:537>).
