@@ -70,7 +70,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-core-wheels-linux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -110,7 +110,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-core-wheels-musllinux-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -147,7 +147,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-core-wheels-windows-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -182,7 +182,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload wheels
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-core-wheels-macos-${{ matrix.platform.target }}
         path: differt-core/dist
@@ -202,7 +202,7 @@ jobs:
         working-directory: differt-core
 
     - name: Upload sdist
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-core-wheels-sdist
         path: differt-core/dist
@@ -256,13 +256,13 @@ jobs:
       run: uv build --package differt -o differt/dist
 
     - name: Upload sdist
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-wheels-sdist
         path: differt/dist/differt-*.tar.gz
 
     - name: Upload wheels any
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: differt-wheels-any
         path: differt/dist/differt-*.whl
