@@ -48,7 +48,7 @@ def safe_divide(
         The result of ``num / den``, except that division by zero returns 0.
 
     Examples:
-        The following examples shows how division by zero is handled.
+        The following example shows how division by zero is handled.
 
         >>> from differt.utils import safe_divide
         >>>
@@ -72,7 +72,7 @@ def smoothing_function(
     x: Float[ArrayLike, " *#batch"],
     /,
     smoothing_factor: Float[ArrayLike, " *#batch"] = 1.0,
-) -> Float[ArrayLike, " *batch"]:
+) -> Float[Array, " *batch"]:
     r"""
     Return a smoothed approximation of the Heaviside step function.
 

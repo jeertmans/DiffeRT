@@ -6,14 +6,15 @@ Hence, unless specified otherwise, the following conventions apply everywhere.
 
 ## XYZ coordinates
 
-Those coordinates are **absolute**, and are by default expressed in the three-dimensional right-handed XYZ space,
-where units are meters.
+Those coordinates are **absolute**, and are by default expressed in the
+three-dimensional right-handed XYZ space, where units are meters.
 
 Arrays expressing such coordinates are always of the type and shape
 {class}`Float[Array, "... 3"]<jaxtyping.Float>`.
 
 {numref}`fig:cartesian` shows how Cartesian coordinates are defined.
 
+<!-- rumdl-disable -->
 ```{figure} _static/cartesian.svg
 :width: 50%
 :align: center
@@ -22,20 +23,26 @@ Arrays expressing such coordinates are always of the type and shape
 
 By <a href="//commons.wikimedia.org/wiki/User:Jorge_Stolfi" title="User:Jorge Stolfi">Jorge Stolfi</a> - <span class="int-own-work" lang="en">Own work</span>, Public Domain, <a href="https://commons.wikimedia.org/w/index.php?curid=6692547">Link</a>.
 ```
+<!-- rumdl-enable -->
 
 (spherical-coordinates)=
 ## Spherical coordinates
 
-Those coordinates are **relative** to some origin, and are by default expressed in the three-dimensional {math}`r\theta\varphi` space,
-where units are meters for {math}`r`, and radians for {math}`\theta` and {math}`\varphi`. We follow the physical convention (see {numref}`fig:spherical`), where {math}`\theta` is referred to as the polar angle, and {math}`\varphi` as the azimuth angle.
+Those coordinates are **relative** to some origin, and are by default expressed
+in the three-dimensional {math}`r\theta\varphi` space, where units are meters
+for {math}`r`, and radians for {math}`\theta` and {math}`\varphi`. We follow the
+physical convention (see {numref}`fig:spherical`), where {math}`\theta` is
+referred to as the polar angle, and {math}`\varphi` as the azimuth angle.
 
 Arrays expressing such coordinates are **mainly** of the type and shape
-{class}`Float[Array, "... 3"]<jaxtyping.Float>`, but sometimes the radial component {math}`r` is omitted
-which means {class}`Float[Array, "... 2"]<jaxtyping.Float>` arrays can also be used in some places, usually
-as a means to indicate a radial component equal to 1.
+{class}`Float[Array, "... 3"]<jaxtyping.Float>`, but sometimes the radial
+component {math}`r` is omitted which means
+{class}`Float[Array, "... 2"]<jaxtyping.Float>` arrays can also be used in some
+places, usually as a means to indicate a radial component equal to 1.
 
 {numref}`fig:spherical` shows how spherical coordinates are defined.
 
+<!-- rumdl-disable -->
 ```{figure} _static/spherical.svg
 :width: 50%
 :align: center
@@ -44,14 +51,17 @@ as a means to indicate a radial component equal to 1.
 
 By <a href="//commons.wikimedia.org/w/index.php?title=User:Andeggs&amp;action=edit&amp;redlink=1" class="new" title="User:Andeggs (page does not exist)">Andeggs</a> - <span class="int-own-work" lang="en">Own work</span>, Public Domain, <a href="https://commons.wikimedia.org/w/index.php?curid=7478049">Link</a>.
 ```
+<!-- rumdl-enable -->
 
 ## Coordinate transformations
 
-Below are descriptions of how to transform from one coordinate system to another.
+Below are descriptions of how to transform from one coordinate system to
+another.
 
 ### Cartesian to spherical
 
-Spherical coordinates can be derived from Cartesian coordinates using the following relation:
+Spherical coordinates can be derived from Cartesian coordinates using the
+following relation:
 
 ```{math}
 \begin{bmatrix}r \\ \theta \\ \varphi \end{bmatrix} =
@@ -60,15 +70,18 @@ Spherical coordinates can be derived from Cartesian coordinates using the follow
 \end{bmatrix},\ \ \ 0 \le \theta \le \pi,\ \ \ -\pi < \varphi < \pi,
 ```
 
-and is implemented by {func}`cartesian_to_spherical<differt.geometry.cartesian_to_spherical>`.
+and is implemented by
+{func}`cartesian_to_spherical<differt.geometry.cartesian_to_spherical>`.
 
 ### Spherical to Cartesian
 
-Conversely, it is possible to derive Cartesian coordinates from spherical coordinates using:
+Conversely, it is possible to derive Cartesian coordinates from spherical
+coordinates using:
 
 ```{math}
 \begin{bmatrix} x \\ y \\ z \end{bmatrix} =
 \begin{bmatrix} r\sin\theta\cos\varphi \\ r\sin\theta\sin\varphi \\ r\cos\theta\end{bmatrix},
 ```
 
-and is implemented by {func}`spherical_to_cartesian<differt.geometry.spherical_to_cartesian>`.
+and is implemented by
+{func}`spherical_to_cartesian<differt.geometry.spherical_to_cartesian>`.

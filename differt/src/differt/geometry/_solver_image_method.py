@@ -410,7 +410,7 @@ def consecutive_vertices_are_on_same_side_of_mirror(
         mirror_normals: Mirror normals, where each normal has a unit
             length and is perpendicular to the corresponding mirror.
         smoothing_factor: If set, hard conditions are replaced with smoothed ones,
-            as described in :cite:`fully-eucap2024`, and this argument parameters the slope
+            as described in :cite:`fully-eucap2024`, and this argument parameterizes the slope
             of the smoothing function. The output value is now a real value
             between 0 (:data:`False`) and 1 (:data:`True`).
 

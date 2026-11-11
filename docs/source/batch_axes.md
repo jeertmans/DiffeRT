@@ -97,12 +97,10 @@ implement the batch axes.
 The biggest cost of using many batch dimensions is the additional
 memory footprint.
 
-E.g., in Ray Tracing applications, when dealing with large scenes
-(i.e., a large number of objects) or high-order paths,
-the size of some dimensions can rapidly become so large that they
-cannot fit in memory.
-This is also why we propose chunked iterators
-(e.g.,
+E.g., in Ray Tracing applications, when dealing with large scenes (i.e., a large
+number of objects) or high-order paths, the size of some dimensions can rapidly
+become so large that they cannot fit in memory. This is also why we propose
+chunked iterators (e.g.,
 {class}`AllPathsFromCompleteGraphChunksIter<differt_core.geometry.AllPathsFromCompleteGraphChunksIter>`)
 as an alternative.
 

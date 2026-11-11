@@ -70,7 +70,7 @@ class _GetIndexingKwargs(TypedDict):
 def triangle_contains_vertex_assuming_inside_same_plane(
     triangle_vertices: Float[ArrayLike, "*#batch 3 3"],
     vertex: Float[ArrayLike, "*#batch 3"],
-) -> Bool[Array, " *#batch"]:
+) -> Bool[Array, " *batch"]:
     """
     Return whether the triangle contains the corresponding vertex, assuming the vertex lies in the same plane as the triangle.
 
@@ -440,7 +440,7 @@ class _MeshVerticesUpdateRef(Generic[_T]):
 
     def get(
         self, **kwargs: Unpack[_GetIndexingKwargs]
-    ) -> Float[ArrayLike, "num_indexed_triangles 3"]:
+    ) -> Float[Array, "num_indexed_triangles 3"]:
         # get() is allowed to return duplicates, so we do not use _triangles_index()
         index = self.mesh.triangles.at[self.index, :].get(**kwargs).reshape(-1)
         return self.mesh.vertices.at[index, :].get(wrap_negative_indices=False)
@@ -635,7 +635,7 @@ class Mesh(eqx.Module):
     """The array of object indices.
 
     If the present mesh contains multiple objects, usually as a result of appending
-    multiple meshes together, this array contain start end end indices for each sub mesh.
+    multiple meshes together, this array contains start and end indices for each sub-mesh.
 
     .. important::
 
@@ -859,7 +859,11 @@ class Mesh(eqx.Module):
             msg = "Cannot access the number of active quadrilaterals if 'assume_quads' is set to 'False'."
             raise ValueError(msg)
 
-        return jnp.sum(self.mask[::2]) if self.mask is not None else self.num_quads
+        return (
+            jnp.sum(self.mask[::2] & self.mask[1::2])
+            if self.mask is not None
+            else self.num_quads
+        )
 
     @property
     def num_primitives(self) -> int:
@@ -891,7 +895,7 @@ class Mesh(eqx.Module):
 
     def set_assume_quads(self, flag: bool = True) -> Self:
         """
-        Return a new instance of this scene with :attr:`Mesh.assume_quads<differt.geometry.Mesh.assume_quads>` set to ``flag``.
+        Return a new instance of this mesh with :attr:`Mesh.assume_quads<differt.geometry.Mesh.assume_quads>` set to ``flag``.
 
         Unlike with using :func:`equinox.tree_at`, this function will also
         perform runtime checks.
@@ -1361,11 +1365,11 @@ class Mesh(eqx.Module):
         will not result in duplicate updates.
 
         Warning:
-            As duplicate vertices are ignored, the number of update vertices is not
+            As duplicate vertices are ignored, the number of updated vertices is not
             necessarily equal to the number of triangles selected times three. Moreover,
-            vertices are re-ordered when duplicates are removed. As a results, you should
+            vertices are re-ordered when duplicates are removed. As a result, you should
             not apply any update that depends on the order of or the number of updated
-            the vertices.
+            vertices.
 
         Examples:
             The following example shows how to translate the first two (triangle) faces.
@@ -1435,7 +1439,7 @@ class Mesh(eqx.Module):
             This method does not preserve the :attr:`object_bounds` attribute.
 
         Returns:
-            A new paths instance with flattened batch dimensions and only valid paths.
+            A new mesh instance keeping only active triangles.
         """
         if self.mask is None:
             return jax.tree.map(lambda m: m, self)
@@ -1587,10 +1591,10 @@ class Mesh(eqx.Module):
     @classmethod
     def empty(cls) -> Self:
         """
-        Create a empty mesh.
+        Create an empty mesh.
 
         Returns:
-            A new empty scene.
+            A new empty mesh.
         """
         return cls(
             vertices=jnp.empty((0, 3)),
@@ -1613,11 +1617,11 @@ class Mesh(eqx.Module):
             * The vertices are concatenated;
             * The triangles are concatenated, and the indices of the second mesh are updated;
             * The face colors are concatenated. If one mesh has colors while the other does not,
-              then mesh with no colors will have its face colors set to black (0, 0, 0);
+              then the mesh with no colors will have its face colors set to black (0, 0, 0);
             * The face materials are concatenated. If ``other`` has face materials not included
               in ``self``, then the face materials from ``other`` are renumbered.
-              If one mesh has colors while the other does not,
-              then mesh with no colors will have its face materials set to ``-1``;
+              If one mesh has materials while the other does not,
+              then the mesh with no materials will have its face materials set to ``-1``;
             * The material names are merged, keeping only unique names;
             * The object bounds are concatenated only if both meshes have them set,
               otherwise, the object bounds are set to :data:`None`;

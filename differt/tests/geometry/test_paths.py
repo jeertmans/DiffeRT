@@ -467,6 +467,12 @@ class TestTracedPaths:
         assert len(masked_sub) == 1
         chex.assert_trees_all_equal(masked_sub[0].vertices, paths.masked().vertices)
 
+        masked_sub_by_type = paths.split_by_order(by_interaction_type=True, masked=True)
+        assert len(masked_sub_by_type) == 1
+        chex.assert_trees_all_equal(
+            masked_sub_by_type[0].vertices, paths.masked().vertices
+        )
+
 
 class TestLaunchedPaths:
     def test_init(self, key: PRNGKeyArray) -> None:

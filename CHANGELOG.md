@@ -13,6 +13,7 @@ All notable changes to this project will be documented on this page.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
 with one *slight* but **important** difference:
+
 - before version `1.0.0`, an increment in the MINOR version number indicates possible breaking changes, and an increment in the PATCH version number indicates either a new feature or a bug fix (see the [v0.1.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/1));
 - after version `1.0.0`, this project follows standard semantic versioning (see the [v1.0.0 milestone](https://github.com/jeertmans/DiffeRT/milestone/2)).
 
@@ -23,9 +24,30 @@ with one *slight* but **important** difference:
 (changelog-unreleased)=
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v0.12.0...HEAD)
 
+(changelog-unreleased-changed)=
+### Changed
+
+- Updated `sionna-rt` to official `v2.2.0` release on PyPI, removing the development Git dependency override (by <gh-user:jeertmans>, in <gh-pr:564>).
+
+(changelog-unreleased-chore)=
+### Chore
+
+- Added Markdown & RestructuredText linters to pre-commit hooks (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Pinned `toml-sort==0.25.0` in pre-commit hooks to avoid formatting discrepancies across environments (by <gh-user:jeertmans>, in <gh-pr:564>).
+
+(changelog-unreleased-fixed)=
+### Fixed
+
+- Fixed {attr}`Mesh.num_active_quads<differt.geometry.Mesh.num_active_quads>` to check that both triangles comprising each quad are active, rather than checking only the first triangle (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Fixed {meth}`TracedPaths.split_by_order<differt.geometry.TracedPaths.split_by_order>` returning unmasked paths when `by_interaction_type=True` and `masked=True` were passed on paths with at most one unique interaction signature (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Fixed silent downcasting of `complex128` inputs to `complex64` in {func}`fresnel_coefficients<differt.em.fresnel_coefficients>` when calculating the transmitted wave angle (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Fixed inverted `@overload` return type annotations in {func}`ray_intersect_triangle<differt.geometry.ray_intersect_triangle>` for smoothed and unsmoothed variants (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Fixed multiple typos in the documentation (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Suppressed native `Warp CUDA error 100` stderr output in notebook execution outputs when no CUDA device is present (by <gh-user:jeertmans>, in <gh-pr:564>).
+- Fixed VisPy canvas widget displaying a blank/gray window in static Sphinx documentation by automatically rendering an offline snapshot into the HTML mime bundle (by <gh-user:jeertmans>, in <gh-pr:564>).
+
 (changelog-v0.12.0)=
-## [0.12.0]
-## [v0.12.0](https://github.com/jeertmans/DiffeRT/compare/v0.11.0...v0.12.0)
+## [0.12.0](https://github.com/jeertmans/DiffeRT/compare/v0.11.0...v0.12.0)
 
 (changelog-v0.12.0-added)=
 ### Added
@@ -41,7 +63,6 @@ with one *slight* but **important** difference:
 - Added `interaction_types` and `use_image_method` parameters to {func}`fermat_path_on_linear_objects<differt.geometry.fermat_path_on_linear_objects>`, forwarding interaction classifications to `fpt_jax.trace_rays` to inline the image method for planar specular reflections and accelerate Fermat edge-diffraction path solving. `interaction_types` now accepts {class}`InteractionType<differt.em.InteractionType>` members directly (raising via {func}`equinox.error_if` on unsupported ones) and is inferred automatically when left unset. Also added `max_steps`/`rtol`/`atol` to opt into `fpt_jax.trace_rays`'s adaptive while-loop solver, and raised the default `steps` from 10 to 15 for a safer millimeter-accuracy margin (by <gh-user:jeertmans>, in <gh-pr:537>).
 - Added integration tests ({file}`differt/tests/integration/test_against_sionna_rt.py`) validating pure diffraction and mixed reflection-diffraction paths against Sionna RT on `simple_street_canyon` (by <gh-user:jeertmans>, in <gh-pr:537>).
 - Added {meth}`TracedPaths.split_by_order<differt.geometry.TracedPaths.split_by_order>` to partition a multi-order {class}`TracedPaths<differt.geometry.TracedPaths>` instance into separate instances by interaction order and interaction signature, and updated {meth}`TracedPaths.plot<differt.geometry.TracedPaths.plot>` to automatically render distinct colors per interaction group by default (by <gh-user:jeertmans>, in <gh-pr:537>).
-
 
 (changelog-v0.12.0-chore)=
 ### Chore
@@ -61,7 +82,6 @@ with one *slight* but **important** difference:
 - Fixed the UTD distance parameter $L$ calculation in {meth}`GeometricFieldSolver.diffraction_matrix<differt.em.GeometricFieldSolver.diffraction_matrix>` and {func}`L_i<differt.em.L_i>`, which divided directly by the edge-fixed radius of curvature $\rho_e^i$ and could produce `NaN` (including under reverse-mode automatic differentiation) at that limit; both now go through a safe, curvature-reciprocal-based formulation adhering to McNamara et al. (1990) Chapter 6 (by <gh-user:jeertmans>, in <gh-pr:537>).
 - Fixed {class}`HybridPathTracer<differt.geometry.HybridPathTracer>` and {class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>` chunk candidate iterators crashing with ``ValueError: __len__() should return >= 0`` when the number of chunks is not known ahead of time, by returning an unsized iterator and allowing {class}`SizedIterator<differt.geometry.SizedIterator>` to represent iterators of unknown length without failing length hint checks (by <gh-user:jeertmans>, in <gh-pr:537>).
 - Fixed `pad_chunks` being silently ignored on {class}`HybridPathTracer<differt.geometry.HybridPathTracer>` (and, by inheritance, {class}`SBRPathTracer<differt.geometry.SBRPathTracer>`) when chunking path candidates; it now actually zero-pads the last chunk up to `chunk_size`, matching {class}`ExhaustivePathTracer<differt.geometry.ExhaustivePathTracer>`'s existing behavior (by <gh-user:jeertmans>, in <gh-pr:537>).
-
 
 (changelog-v0.12.0-removed)=
 ### Removed
@@ -241,7 +261,7 @@ with one *slight* but **important** difference:
 (changelog-v0.8.1-changed)=
 ### Changed
 
-- Added lighting by default when using Plotly for plotting meshes, see <gh-pr:412>  (by <gh-user:jeertmans>, in <gh-pr:432>).
+- Added lighting by default when using Plotly for plotting meshes, see <gh-pr:412> (by <gh-user:jeertmans>, in <gh-pr:432>).
 
 (changelog-v0.8.1-chore)=
 ### Chore
@@ -368,7 +388,7 @@ with one *slight* but **important** difference:
 
 - [Fixed the update of default values in context managers]{#fixed-update-defaults} to actually merge the new values with the existing ones, instead of replacing them, allowing for the nesting multiple context manager without any surprise (by <gh-user:jeertmans>, in <gh-pr:312>).
 - Fixed a typo in {func}`viewing_frustum<differt.geometry.viewing_frustum>` that led to incorrect behavior (by <gh-user:jeertmans>, in <gh-pr:322>).
-- Fixed a typo in {ref}`conventions` where the azimuth angle was incorrectly described to be in  {math}`[0^\circ, 360^\circ]` instead of {math}`[-180^\circ, 180^\circ]` (by <gh-user:jeertmans>, in <gh-pr:322>).
+- Fixed a typo in {ref}`conventions` where the azimuth angle was incorrectly described to be in {math}`[0^\circ, 360^\circ]` instead of {math}`[-180^\circ, 180^\circ]` (by <gh-user:jeertmans>, in <gh-pr:322>).
 
 (changelog-v0.6.0-perf)=
 ### Perf

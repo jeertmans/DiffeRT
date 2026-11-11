@@ -90,9 +90,9 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
 
     _: KW_ONLY
     power: Float[ArrayType, "num_tx num_rx num_paths"]
-    r"""Tap power. Received power in dBW for each path, assuming 0 dBW transmitted power. :math:`10\log10(|a|^2)`, where :math:`a` is the complex channel amplitude"""
+    r"""Tap power. Received power in dBW for each path, assuming 0 dBW transmitted power. :math:`10\log_{10}(|a|^2)`, where :math:`a` is the complex channel amplitude."""
     phase: Float[ArrayType, "num_tx num_rx num_paths"]
-    r"""Tap phase. Phase of received signal for each path in degrees. :math:`\angle a` (angle of :math:`a`), where :math:`a` is the complex channel amplitude"""
+    r"""Tap phase. Phase of received signal for each path in degrees. :math:`\angle a` (angle of :math:`a`), where :math:`a` is the complex channel amplitude."""
     delay: Float[ArrayType, "num_tx num_rx num_paths"]
     """Tap delay. Propagation delay for each path in seconds."""
     aoa_az: Float[ArrayType, "num_tx num_rx num_paths"]
@@ -276,7 +276,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         Return a new instance of this class with arrays converted to JAX arrays.
 
         Returns:
-            A new instance of this with JAX arrays.
+            A new instance of this class with JAX arrays.
         """
         return jax.tree.map(jnp.asarray, self)
 
@@ -285,7 +285,7 @@ class DeepMIMO(eqx.Module, Generic[ArrayType]):
         Return a new instance of this class with arrays converted to NumPy arrays.
 
         Returns:
-            A new instance of this with NumPy arrays.
+            A new instance of this class with NumPy arrays.
         """
         return jax.tree.map(np.asarray, self)
 
