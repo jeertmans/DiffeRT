@@ -186,11 +186,10 @@ def fresnel_coefficients(
     cos_theta_i_squared = jax.lax.integer_pow(cos_theta_i, 2)
     n_r_squared_cos_theta_i = n_r_squared * cos_theta_i
     dtype = jnp.result_type(n_r, cos_theta_i)
-    n_r_cos_theta_t = jnp.sqrt(
-        (n_r_squared + cos_theta_i_squared - 1).astype(
-            jnp.complex128 if dtype == jnp.float64 else jnp.complex64
-        )
+    c_dtype = (
+        jnp.complex128 if dtype in {jnp.float64, jnp.complex128} else jnp.complex64
     )
+    n_r_cos_theta_t = jnp.sqrt((n_r_squared + cos_theta_i_squared - 1).astype(c_dtype))
     two_cos_theta_i = 2 * cos_theta_i
 
     r_s = safe_divide(

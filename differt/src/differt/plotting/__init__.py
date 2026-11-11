@@ -4,7 +4,7 @@ Plotting utilities for DiffeRT objects.
 .. tip::
 
     Unlike in other modules, plotting utilities also work
-    with NumPy arrays (:class:`np.ndarray<numpy.ndarray>`)
+    with NumPy arrays (:class:`np.ndarray<numpy.ndarray>`).
 
 
 .. note::
@@ -36,7 +36,7 @@ can later add data.
 It is also possible to pass an existing view
 on which data will be plotted: ``draw_*(..., view=view)``.
 
-If the ``jupyter_rfb`` module is installed, VisPy's canvas integrate
+If the ``jupyter_rfb`` module is installed, VisPy's canvas integrates
 nicely within Jupyter notebooks.
 
 Matplotlib
@@ -63,7 +63,7 @@ on which data will be plotted: ``draw_*(..., ax=ax)``.
     it is your responsibility to ensure that it can plot 3D data
     when needed.
 
-By default, Matpotlib displays static images in Jupyter notebooks.
+By default, Matplotlib displays static images in Jupyter notebooks.
 To make them interactive, install ``ipympl`` and load the corresponding
 extension with ``%matplotlib widget``.
 

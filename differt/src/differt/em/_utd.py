@@ -106,7 +106,7 @@ def L_i(
     :math:`\rho_2^i` is the principal radius of curvature of the incident wavefront at :math:`Q_d`
     in the plane transverse to the plane of incidence,
     :math:`\rho_e^i` is radius of curvature of the incident wavefront in the edge-fixed
-    plane of incidence., and :math:`\beta_0` is the angle of diffraction.
+    plane of incidence, and :math:`\beta_0` is the angle of diffraction.
 
     By default, when :math:`\rho_1^i`, :math:`\rho_e^i`, and :math:`\rho_2^i` are not provided,
     a plane wave incidence is assumed and the expression simplifies to
@@ -116,7 +116,7 @@ def L_i(
         L_i = s^d\sin^2\beta_0.
 
     For spherical wavefront, you can pass :math:`s^i` (**s\_i**), the radius of curvature of
-    the spherical wavefront, where :math:`s^i = \rho_1^i = \rho_2^2 = \rho_e^i`,
+    the spherical wavefront, where :math:`s^i = \rho_1^i = \rho_2^i = \rho_e^i`,
     and the expression will be simplified to
     :cite:`utd-mcnamara{eq. 6.26, p. 270}`:
 
@@ -141,7 +141,7 @@ def L_i(
 
     Raises:
         ValueError: If 's_i' was provided along at least one of the other radius parameters,
-            or if one or the three 'rho' parameters was not provided.
+            or if one of the three 'rho' parameters was not provided.
     """
     radii = (rho_1_i, rho_2_i, rho_e_i)
     all_none = all(x is None for x in radii)
@@ -188,7 +188,7 @@ def F(z: Float[Array, " *batch"]) -> Complex[Array, " *batch"]:
     .. math::
         2j \sqrt{z} e^{j z} \Big(\sqrt{\frac{\pi}{2}}\frac{1 - j}{2} - C(\sqrt{z}) + j S(\sqrt{z})\Big).
 
-    With Fresnel integrals computed by :data:`jax.scipy.special.fresnel`.
+    With Fresnel integrals computed by :func:`jax.scipy.special.fresnel`.
 
     Args:
         z: Real point to evaluate.

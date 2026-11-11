@@ -2,11 +2,12 @@
 
 Thank you for your interest in this project!
 
-DiffeRT is mainly a one-person project, developed to support the author's research during his PhD.
-However, it is also open source so that *anyone* can use this tool for its own research.
+DiffeRT is mainly a one-person project, developed to support the author's
+research during his PhD. However, it is also open source so that *anyone* can
+use this tool for its own research.
 
-We hope that, by making this tool available to the public, other researchers will be
-able to benefit from it!
+We hope that, by making this tool available to the public, other researchers
+will be able to benefit from it!
 
 ## Reporting an issue
 
@@ -24,15 +25,16 @@ later submit a [pull request](#proposing-changes), then you need to
 Depending on what you aim to do, the following sections may help you.
 
 :::{attention}
-If you don't plan on changing the Rust code ({mod}`differt_core` package),
-we recommend that you check out the [building without Rust](./installation.md#building-without-rust) section.
+If you don't plan on changing the Rust code ({mod}`differt_core` package), we
+recommend that you check out the
+[building without Rust](./installation.md#building-without-rust) section.
 :::
 
 ### Updating the `differt-core` package
 
-While the {mod}`differt` package is updated automatically (because built in `-e` edit mode)
-whenever you update a Python file,
-this is not true for the {mod}`differt_core` package and its Rust files.
+While the {mod}`differt` package is updated automatically (because built in `-e`
+edit mode) whenever you update a Python file, this is not true for the
+{mod}`differt_core` package and its Rust files.
 
 If you make any change to the Rust code of the latter, you need to rebuild it
 so that changes are taken into account:
@@ -114,5 +116,6 @@ Many thanks to you!
 If you are not familiar with GitHub pull requests, please
 check out their
 [Hello World tutorial](https://docs.github.com/en/get-started/quickstart/hello-world)
-or [Fireship's 100 seconds introduction video](https://www.youtube.com/watch?v=8lGpZkjnkt4&ab_channel=Fireship).
+or
+[Fireship's 100 seconds introduction video](https://www.youtube.com/watch?v=8lGpZkjnkt4&ab_channel=Fireship).
 :::

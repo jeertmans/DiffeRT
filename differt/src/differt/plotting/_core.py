@@ -1102,8 +1102,8 @@ def draw_surface(
 
             In the Plotly backend, the default is to use the values in ``z``.
         kwargs: Keyword arguments passed to
-            :class:`Isocurve<vispy.scene.visuals.SurfacePlot>`,
-            :meth:`contour<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface>`,
+            :class:`SurfacePlot<vispy.scene.visuals.SurfacePlot>`,
+            :meth:`plot_surface<mpl_toolkits.mplot3d.axes3d.Axes3D.plot_surface>`,
             or :class:`Surface<plotly.graph_objects.Surface>`, depending on the
             backend.
 

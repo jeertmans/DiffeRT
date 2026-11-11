@@ -3,21 +3,21 @@ harness = false
 name = "bench_main"
 
 [dependencies]
-indexmap = {version = "2.5.0", features = ["serde"]}
+indexmap = { version = "2.5.0", features = ["serde"] }
 log = "0.4"
 nalgebra = "0.32.3"
-ndarray = {version = "0.16", features = ["rayon"]}
+ndarray = { version = "0.16", features = ["rayon"] }
 numpy = "0.25"
 obj-rs = "0.7.1"
 ply-rs = "0.1.3"
-pyo3 = {version = "0.25", features = ["abi3-py311", "indexmap", "generate-import-lib"]}
+pyo3 = { version = "0.25", features = ["abi3-py311", "indexmap", "generate-import-lib"] }
 pyo3-log = "0.12.4"
-quick-xml = {version = "0.37.2", features = ["serialize", "serde-types"]}
-serde = {version = "1.0", features = ["derive"]}
+quick-xml = { version = "0.37.2", features = ["serialize", "serde-types"] }
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.5.1"
-pyo3 = {version = "0.25", features = ["auto-initialize"]}
+pyo3 = { version = "0.25", features = ["auto-initialize"] }
 rstest = "0.18.2"
 tempfile = "3.20"
 testing_logger = "0.1.1"
@@ -32,7 +32,7 @@ doctest = false
 name = "differt_core"
 
 [lints.rust]
-unexpected_cfgs = {level = "warn", check-cfg = ['cfg(tarpaulin_include)']}
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
 
 [package]
 edition = "2021"

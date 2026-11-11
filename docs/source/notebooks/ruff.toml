@@ -5,4 +5,4 @@ line-length = 80
 extend-ignore = [
   "builtin-open",
 ]
-isort = {known-first-party = []}
+isort = { known-first-party = [] }

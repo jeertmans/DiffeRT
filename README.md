@@ -6,7 +6,8 @@
 
 # DiffeRT
 
-Differentiable Ray Tracing toolbox for Radio Propagation powered by the [JAX ecosystem](https://github.com/jax-ml/jax).
+Differentiable Ray Tracing toolbox for Radio Propagation powered by the
+[JAX ecosystem](https://github.com/jax-ml/jax).
 
 [![Latest Release][pypi-version-badge]][pypi-version-url]
 [![Python version][pypi-python-version-badge]][pypi-version-url]
@@ -19,10 +20,11 @@ Differentiable Ray Tracing toolbox for Radio Propagation powered by the [JAX eco
 ## Usage
 
 > [!WARNING]
-> This package is still under important development, see
-> the [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestone for future
-> features, and the [CHANGELOG](https://github.com/jeertmans/DiffeRT/blob/main/CHANGELOG.md)
-> for versioning policy.
+> This package is still under important development, see the
+> [v1.0.0](https://github.com/jeertmans/DiffeRT/milestone/2) milestone for
+> future features, and the
+> [CHANGELOG](https://github.com/jeertmans/DiffeRT/blob/main/CHANGELOG.md) for
+> versioning policy.
 >
 > If you have any suggestion regarding the development of this package,
 > please open an [issue](https://github.com/jeertmans/DiffeRT/issues).
@@ -79,6 +81,7 @@ for a detailed step-by-step procedure.
 
 If you use this software, please cite it as (**preferred**):
 
+<!-- rumdl-disable -->
 ```bibtex
 @inproceedings{Eertmans_DiffeRT_ICMLCN_2025,
   title     = {Demonstrating {DiffeRT}: An Open-Source Library for Optimizing Radio Networks with Differentiable Ray Tracing},
@@ -91,9 +94,11 @@ If you use this software, please cite it as (**preferred**):
   doi       = {10.1109/ICMLCN64995.2025.11139997}
 }
 ```
+<!-- rumdl-enable -->
 
 or:
 
+<!-- rumdl-disable -->
 ```bibtex
 @software{Eertmans_DiffeRT_GitHub,
   title   = {{DiffeRT}: A Differentiable Ray Tracing Toolbox for Radio Propagation Simulations},
@@ -103,8 +108,12 @@ or:
   version = {v0.12.0}
 }
 ```
+<!-- rumdl-enable -->
 
-For other citation formats, please refer to the [*Cite this repository*](https://github.com/jeertmans/DiffeRT) button the main page of our GitHub repository or to our [Zenodo records](https://doi.org/10.5281/zenodo.11386432).
+For other citation formats, please refer to the
+[*Cite this repository*](https://github.com/jeertmans/DiffeRT) button the main
+page of our GitHub repository or to our
+[Zenodo records](https://doi.org/10.5281/zenodo.11386432).
 
 Thank you for using this software and helping us!
 
