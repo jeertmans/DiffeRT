@@ -359,7 +359,7 @@ class Material(eqx.Module):
         Create a material from ITU properties.
 
         The ITU-R Recommendation P.2040-4 :cite:`itu-r-2040` defines the electrical properties of a material
-        using 4 real-valued coefficients: **a**, **b**, **c**, and **c**. The :data:`materials` mapping
+        using 4 real-valued coefficients: **a**, **b**, **c**, and **d**. The :data:`materials` mapping
         is already populated with values from :cite:`itu-r-2040{Tab. 3}`.
 
         Args:

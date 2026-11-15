@@ -7,8 +7,8 @@
 
 .. rubric:: Common utils
 
-The following utilities allow you to modify the default behavior
-of plotting functions, either permanently or inside a given scope.
+The following utilities allow you to modify the default behavior of plotting functions,
+either permanently or inside a given scope.
 
 .. autosummary::
    :toctree: _autosummary
@@ -24,7 +24,9 @@ of plotting functions, either permanently or inside a given scope.
 List of all drawing functions provided by this module.
 
 .. note::
-   Some functions might not support all three backends. In such cases, it is indicated in their documentation.
+
+   Some functions might not support all three backends. In such cases, it is indicated
+   in their documentation.
 
 .. autosummary::
    :toctree: _autosummary
@@ -39,8 +41,8 @@ List of all drawing functions provided by this module.
 
 .. rubric:: Extending this module
 
-If you want to add new drawing functions, either locally or by contributing to this package,
-the following utilities might become handy.
+If you want to add new drawing functions, either locally or by contributing to this
+package, the following utilities might become handy.
 
 .. autosummary::
    :toctree: _autosummary

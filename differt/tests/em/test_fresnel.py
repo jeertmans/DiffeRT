@@ -90,3 +90,15 @@ def test_reflection_coefficients() -> None:
 
     chex.assert_trees_all_equal(got_r_s, 1 + 0j)
     chex.assert_trees_all_equal(got_r_p, 1 + 0j)
+
+
+@jax.enable_x64()
+def test_fresnel_coefficients_complex128() -> None:
+    n_r = jnp.array(1.5 + 0.1j, dtype=jnp.complex128)
+    cos_theta_i = jnp.array(0.5, dtype=jnp.float64)
+    (r_s, r_p), (t_s, t_p) = fresnel_coefficients(n_r, cos_theta_i)
+
+    assert r_s.dtype == jnp.complex128
+    assert r_p.dtype == jnp.complex128
+    assert t_s.dtype == jnp.complex128
+    assert t_p.dtype == jnp.complex128

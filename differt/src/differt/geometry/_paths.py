@@ -518,7 +518,7 @@ class TracedPaths(eqx.Module):
     def __iter__(self) -> Iterator["TracedPaths"]:
         """Return an iterator over masked paths.
 
-        Each item of the iterator is itself an instance :class:`TracedPaths`,
+        Each item of the iterator is itself an instance of :class:`TracedPaths`,
         so you can still benefit from convenient methods like :meth:`plot`.
 
         Yields:
@@ -663,7 +663,7 @@ class TracedPaths(eqx.Module):
             if len(unique_sigs) <= 1 and (
                 len(unique_sigs) == 0 or unique_sigs[0][0] == self.order
             ):
-                return [self]
+                return [self.masked()] if masked else [self]
 
             result: list[TracedPaths] = []
             for o, sig in unique_sigs:

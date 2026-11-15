@@ -7,6 +7,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import contextlib
 import inspect
 import operator
 import os
@@ -20,6 +21,8 @@ from typing import Any
 import jaxtyping
 from docutils import nodes
 from docutils.parsers.rst.states import Inliner
+from nbclient import NotebookClient
+from nbclient.util import ensure_async, run_sync
 from sphinx.addnodes import pending_xref
 from sphinx.application import Sphinx
 from sphinx.environment import BuildEnvironment
@@ -212,6 +215,87 @@ nb_merge_streams = True
 nb_mime_priority_overrides = [
     ("*", "text/html", 0),
 ]
+
+
+def _patch_nbclient_for_notebooks() -> None:
+    """Patch NotebookClient to initialize kernels for doc building.
+
+    Specifically:
+    1. Silently initializes Warp on startup to suppress the native C++ CUDA error 100
+       on headless/CPU-only doc-build environments.
+    2. Hooks VisPy's SceneCanvas._repr_mimebundle_ so that jupyter_rfb generates
+       an initial frame and captures an offline HTML snapshot.
+    """
+    kernel_init_code = """
+import contextlib
+import os
+
+with contextlib.suppress(Exception):
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    saved_stderr = os.dup(2)
+    os.dup2(devnull, 2)
+    try:
+        import warp as wp
+        wp.config.log_level = wp.LOG_ERROR
+        wp.init()
+    finally:
+        os.dup2(saved_stderr, 2)
+        os.close(saved_stderr)
+        os.close(devnull)
+
+with contextlib.suppress(ImportError):
+    from vispy.scene.canvas import SceneCanvas
+
+    _orig_repr = SceneCanvas._repr_mimebundle_
+
+    def _repr_mimebundle(self, *args, **kwargs):
+        backend = getattr(self, "_backend", None)
+        if backend is not None:
+            with contextlib.suppress(Exception):
+                if hasattr(backend, "handle_event"):
+                    backend.handle_event({
+                        "type": "resize",
+                        "width": 800,
+                        "height": 600,
+                        "pwidth": 800,
+                        "pheight": 600,
+                        "ratio": 1.0,
+                    })
+                if hasattr(backend, "get_frame") and hasattr(backend, "send_frame"):
+                    frame = backend.get_frame()
+                    if frame is not None:
+                        backend.send_frame(frame)
+
+        result = _orig_repr(self, *args, **kwargs)
+        data = result[0] if isinstance(result, tuple) else result
+
+        if backend is not None and isinstance(data, dict) and "text/html" not in data:
+            with contextlib.suppress(Exception):
+                snap = backend.snapshot()
+                if hasattr(snap, "_repr_html_"):
+                    data["text/html"] = snap._repr_html_()
+
+        return result
+
+    SceneCanvas._repr_mimebundle_ = _repr_mimebundle
+"""
+
+    orig_start_new_kernel_client = NotebookClient.async_start_new_kernel_client
+
+    async def patched_start_new_kernel_client(
+        self: Any, *args: Any, **kwargs: Any
+    ) -> Any:
+        kc = await orig_start_new_kernel_client(self, *args, **kwargs)
+        msg_id = await ensure_async(kc.execute(kernel_init_code, store_history=False))
+        await self.async_wait_for_reply(msg_id)
+        return kc
+
+    NotebookClient.async_start_new_kernel_client = patched_start_new_kernel_client
+    NotebookClient.start_new_kernel_client = run_sync(patched_start_new_kernel_client)
+
+
+with contextlib.suppress(ImportError):
+    _patch_nbclient_for_notebooks()
 
 # We cannot access log files on RTD, so we print to stderr
 

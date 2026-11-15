@@ -45,7 +45,7 @@ class ExhaustivePathTracer(AbstractPathTracer):
     min_len: Float[ArrayLike, ""] | None = None
     """Minimal (squared) length that each path segment must have for a path to be valid."""
     smoothing_factor: Float[ArrayLike, ""] | None = None
-    """Parameters for slope of the smoothing function."""
+    """Parameter for the slope of the smoothing function."""
     confidence_threshold: Float[ArrayLike, ""] = 0.5
     """Confidence threshold for valid paths."""
     batch_size: int | None = 512

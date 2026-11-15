@@ -48,7 +48,7 @@ def normalize(
         The normalized vector and its length.
 
     Examples:
-        The following examples shows how normalization works and
+        The following example shows how normalization works and
         its special behavior at zero.
 
         >>> from differt.geometry import (
@@ -1006,10 +1006,10 @@ class SizedIterator(Iterator[_T], Sized):
 
     The main purpose of this class is to be able to use
     `tqdm <https://github.com/tqdm/tqdm>`_ utilities
-    on iterators and have some meaningful information about how iterations are left.
+    on iterators and have some meaningful information about how many iterations are left.
 
     Args:
-        iter_: The iterator.
+        iter: The iterator.
         size: The size, i.e., length, of the iterator, or a callable that returns its current length.
 
     Examples:
@@ -1217,7 +1217,7 @@ def ray_intersect_triangle(
     *,
     epsilon: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: Float[ArrayLike, ""],
-) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]: ...
+) -> tuple[Float[Array, " *batch"], Float[Array, " *batch"]]: ...
 
 
 @overload
@@ -1228,7 +1228,7 @@ def ray_intersect_triangle(
     *,
     epsilon: Float[ArrayLike, ""] | None = ...,
     smoothing_factor: None = ...,
-) -> tuple[Float[Array, " *batch"], Float[Array, " *batch"]]: ...
+) -> tuple[Float[Array, " *batch"], Bool[Array, " *batch"]]: ...
 
 
 @eqx.filter_jit

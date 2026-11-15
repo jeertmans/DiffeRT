@@ -153,6 +153,45 @@ class TestMesh:
         # 'tree_at' bypasses '__check_init__', so this will not raise an error
         _ = eqx.tree_at(lambda m: m.assume_quads, non_quad_mesh, replace=True)
 
+    def test_num_active_quads(self, two_buildings_mesh: Mesh) -> None:
+        with pytest.raises(
+            ValueError,
+            match=r"Cannot access the number of active quadrilaterals if 'assume_quads' is set to 'False'.",
+        ):
+            _ = two_buildings_mesh.num_active_quads
+
+        quad_mesh = two_buildings_mesh.set_assume_quads()
+        assert quad_mesh.num_active_quads == quad_mesh.num_quads
+
+        # Mask out only the second triangle of the first quad:
+        # the first quad must now be considered inactive.
+        mask = jnp.ones(quad_mesh.num_triangles, dtype=bool).at[1].set(False)
+        masked_quad_mesh = eqx.tree_at(
+            lambda m: m.mask, quad_mesh, mask, is_leaf=lambda x: x is None
+        )
+        assert masked_quad_mesh.num_active_quads == quad_mesh.num_quads - 1
+
+        # Mask out only the first triangle of the first quad
+        mask = jnp.ones(quad_mesh.num_triangles, dtype=bool).at[0].set(False)
+        masked_quad_mesh = eqx.tree_at(
+            lambda m: m.mask, quad_mesh, mask, is_leaf=lambda x: x is None
+        )
+        assert masked_quad_mesh.num_active_quads == quad_mesh.num_quads - 1
+
+        # Mask out both triangles of the first quad
+        mask = jnp.ones(quad_mesh.num_triangles, dtype=bool).at[:2].set(False)
+        masked_quad_mesh = eqx.tree_at(
+            lambda m: m.mask, quad_mesh, mask, is_leaf=lambda x: x is None
+        )
+        assert masked_quad_mesh.num_active_quads == quad_mesh.num_quads - 1
+
+        # Mask out all triangles
+        mask = jnp.zeros(quad_mesh.num_triangles, dtype=bool)
+        masked_quad_mesh = eqx.tree_at(
+            lambda m: m.mask, quad_mesh, mask, is_leaf=lambda x: x is None
+        )
+        assert masked_quad_mesh.num_active_quads == 0
+
     def test_num_primitives(self, two_buildings_mesh: Mesh) -> None:
         assert two_buildings_mesh.num_primitives == 24
         assert two_buildings_mesh.set_assume_quads().num_primitives == 12

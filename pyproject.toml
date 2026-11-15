@@ -10,16 +10,16 @@ cuda = [
   "jax[cuda]>=0.8.1",
 ]
 dev = [
-  {include-group = "codspeed"},
-  {include-group = "docs"},
-  {include-group = "tests"},
+  { include-group = "codspeed" },
+  { include-group = "docs" },
+  { include-group = "tests" },
   "bump-my-version>=0.20.3",
   "maturin-import-hook>=0.3.0",
   "prek>=0.4.11",
 ]
 docs = [
-  {include-group = "beartype"},
-  {include-group = "sionna"},
+  { include-group = "beartype" },
+  { include-group = "sionna" },
   "differt[all]",
   "myst-nb>=0.17.2",
   "pillow>=12.3.0",
@@ -40,10 +40,10 @@ profiling = [
   "tensorflow>=2.19.0",
 ]
 sionna = [
-  "sionna-rt",
+  "sionna-rt==2.2.0",
 ]
 tests = [
-  {include-group = "beartype"},
+  { include-group = "beartype" },
   "differt",
   "chex>=0.1.84",
   "pytest>=9.0.3",
@@ -57,26 +57,26 @@ tests = [
   "scipy>=1.12.0",
 ]
 tests-extended = [
-  {include-group = "sionna"},
-  {include-group = "tests"},
+  { include-group = "sionna" },
+  { include-group = "tests" },
   "differt[all]",
   "open3d-cpu>=0.19.0;python_version<'3.13' and sys_platform=='linux'",
 ]
 tests-matplotlib = [
-  {include-group = "tests"},
+  { include-group = "tests" },
   "differt[matplotlib]",
 ]
 tests-plotly = [
-  {include-group = "tests"},
+  { include-group = "tests" },
   "differt[plotly]",
 ]
 tests-vispy = [
-  {include-group = "tests"},
+  { include-group = "tests" },
   "differt[vispy,vispy-backend]",
 ]
 
 [project]
-authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+authors = [{ name = "Jérome Eertmans", email = "jeertmans@icloud.com" }]
 dependencies = []
 name = "differt-dev"
 requires-python = ">=3.11"
@@ -139,7 +139,7 @@ search = "version: v{current_version}"
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
-replace = "v{new_version}"
+replace = "{new_version}"
 search = "Unreleased"
 
 [[tool.bumpversion.files]]
@@ -154,22 +154,15 @@ search = "v{current_version}...HEAD"
 
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
-replace = ""
-search = '''
-<!-- start changelog -->
-
-'''
-
-[[tool.bumpversion.files]]
-filename = "CHANGELOG.md"
 replace = '''<!-- start changelog -->
 
 (changelog-unreleased)=
 ## [Unreleased](https://github.com/jeertmans/DiffeRT/compare/v{new_version}...HEAD)
 
-(changelog-v{new_version})=
-## [{new_version}]'''
-search = '''(changelog-v{new_version})='''
+(changelog-v{new_version})='''
+search = '''<!-- start changelog -->
+
+(changelog-v{new_version})='''
 
 [[tool.bumpversion.files]]
 filename = "README.md"
@@ -193,6 +186,13 @@ precision = 2
 
 [tool.coverage.run]
 omit = ["**/*/conftest.py"]
+
+[tool.docstrfmt]
+extend_exclude = ["**/_autosummary/", "**/_templates/autosummary/"]
+files = ["docs/source/**/*.rst"]
+format_python_code_blocks = false
+indent_width = 3
+preserve_adornments = true
 
 [tool.pytest]
 addopts = [
@@ -274,7 +274,7 @@ extend-ignore = [
   "too-many-public-methods",  # counts @overload...
   "triple-single-quotes",  # conflicts with formatter
 ]
-isort = {known-first-party = ["differt", "differt_core", "tests"]}
+isort = { known-first-party = ["differt", "differt_core", "tests"] }
 preview = true
 select = ["ALL"]
 
@@ -318,6 +318,23 @@ extend-ignore-names = ["T"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.rumdl]
+extend-disable = [
+  "MD022",  # No blank lines before headings because of custom anchor links syntax
+  "MD033",  # Inline HTML is allowed
+  "MD040",  # Custom code block syntax is used in some places
+  "MD041",  # Allow first line not to be a level 1 heading
+  "MD059",  # Links do not need to be descriptive
+]
+line-length = 80
+
+[tool.rumdl.MD013]
+reflow = true
+
+[tool.rumdl.per-file-ignores]
+"AGENTS.md" = ["MD013"]  # Allow long lines in agents file
+"CHANGELOG.md" = ["MD013"]  # Allow long lines in changelog file
+
 [tool.ty.rules]
 unused-ignore-comment = "error"
 
@@ -328,8 +345,7 @@ exclude = ["docs/source/notebooks/*.ipynb"]  # Too many issue with 'PlotOutput's
 required-version = ">=0.5.26"  # See: https://github.com/astral-sh/uv/pull/11075
 
 [tool.uv.sources]
-differt = {workspace = true}
-sionna-rt = {git = "https://github.com/NVlabs/sionna-rt", rev = "aeb346fe9ed1da24ff088a7acaa02252e45779eb"}  # This commit contains two patches: (1) fixed diffraction matrix and (2) newer ITU materials
+differt = { workspace = true }
 
 [tool.uv.workspace]
 members = ["differt", "differt-core"]

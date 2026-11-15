@@ -248,7 +248,7 @@ def use(backend: str | None = None, **kwargs: Any) -> Iterator[BackendName]:
         The name of the default backend used in this context.
 
     Examples:
-        The following example shows how set plot defaults in a context.
+        The following example shows how to set plot defaults in a context.
 
         >>> import differt.plotting as dplt
         >>>
@@ -694,7 +694,7 @@ def reuse(
         The canvas or figure that is reused for this context.
 
     Examples:
-        The following example show how the same figure is reused
+        The following example shows how the same figure is reused
         for multiple plots.
 
         .. plotly::

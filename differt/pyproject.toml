@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling", "hatch-fancy-pypi-readme"]
 
 [project]
-authors = [{name = "Jérome Eertmans", email = "jeertmans@icloud.com"}]
+authors = [{ name = "Jérome Eertmans", email = "jeertmans@icloud.com" }]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
@@ -93,4 +93,4 @@ path = "../differt-core/Cargo.toml"
 pattern = '^version = "(?P<version>[^"]+)'
 
 [tool.uv.sources]
-differt_core = {workspace = true}
+differt_core = { workspace = true }
